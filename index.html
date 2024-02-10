@@ -1,370 +1,419 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-    <title>Display Related Inspections on Feature Selection</title>
-    <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css" />
-    <style>
-        html, body, #viewDiv {
-            padding: 0;
-            margin: 0;
-            height: 100%;
-            width: 100%;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ArcGIS Feature Inspection</title>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.22/esri/themes/light/main.css">
+  <script src="https://js.arcgis.com/4.22/"></script>
+  <style>
+    body,
+    html {
+      height: 100%;
+      margin: 0;
+    }
 
-        #sidePanel {
-            position: fixed;
-            top: 0;
-            right: -330px;
-            width: 330px;
-            height: 100%;
-            background: white;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-            transition: right 0.5s;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 10px;
-        }
+    #viewDiv {
+      height: 100%;
+      width: 100%;
+    }
 
-        #addInspectionForm {
-            margin-bottom: 20px;
-        }
+    #sidePanel {
+      height: 100%;
+      width: 0;
+      position: fixed;
+      top: 0;
+      right: 0;
+      padding: 20px;
+      box-sizing: border-box;
+      overflow-x: hidden;
+      background-color: #f8f9fa;
+      border-left: 1px solid #ced4da;
+      transition: 0.5s;
+      visibility: hidden; /* Initially hidden */
+    }
 
-        #infoDiv {
-            flex-grow: 1;
-            overflow-y: auto;
-        }
+    #inspectionForm {
+      margin-bottom: 20px;
+    }
 
-        #infoTable {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
+    #sidePanel h2 {
+      color: #007bff;
+    }
 
-        #infoTable th, #infoTable td {
-            padding: 8px;
-            border: 1px solid #ddd;
-            text-align: left;
-        }
+    #sidePanel label {
+      display: block;
+      margin: 10px 0;
+    }
 
-        #infoTable th {
-            background-color: #f2f2f2;
-        }
+    #sidePanel input,
+    #sidePanel select {
+      width: calc(100% - 20px);
+      padding: 8px;
+      margin: 5px 0;
+      box-sizing: border-box;
+    }
 
-        #clearSelectionButton, #submitInspectionButton {
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            cursor: pointer;
-            border-radius: 0px;
-            width: calc(50% - 5px);
-        }
+    #sidePanel button {
+      background-color: #007bff;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      cursor: pointer;
+      margin-right: 10px;
+    }
 
-        #clearSelectionButton:hover, #submitInspectionButton:hover {
-            background-color: #0056b3;
-        }
+    #clearSelection {
+      background-color: #dc3545;
+      margin-top: 10px;
+    }
 
-        select, input[type="date"] {
-            width: calc(100% - 12px); /* Adjust the width as needed */
-            padding: 5px;
-        }
+    #inspectionTable {
+      width: 100%;
+      margin-top: 20px;
+      border-collapse: collapse;
+    }
 
-        #successMessage {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px;
-            text-align: center;
-            position: fixed;
-            top: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
-            display: none;
-        }
+    #inspectionTable th,
+    #inspectionTable td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
 
-        #inspectionsTitle {
-            font-size: 20px; /* Fixed missing unit */
-            font-weight: bold;
-            margin-top: 10px;
-        }
+    #inspectionTable th {
+      background-color: #f2f2f2;
+    }
 
-        .line-separator {
-            border-top: 1px solid #ccc;
-            margin-top: 10px;
-            margin-bottom: 10px;
-        }
-    </style>
+    #priorInspectionsTable {
+      width: 100%;
+      margin-top: 20px;
+      border-collapse: collapse;
+    }
+
+    #priorInspectionsTable th,
+    #priorInspectionsTable td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+
+    #priorInspectionsTable th {
+      background-color: #f2f2f2;
+    }
+  </style>
 </head>
+
 <body>
-    <div id="viewDiv"></div>
-    <div id="sidePanel">
-        <div id="addInspectionForm">
-            <h2>Add New Inspection</h2>
-            <form id="inspectionForm">
-                <label for="inspectionDate">Inspection Date:</label>
-                <input type="date" id="inspectionDate" required><br>
+  <div id="viewDiv"></div>
+  <div id="sidePanel">
+    <h2>Feature Inspection</h2>
+    <form id="inspectionForm">
+      <label for="inspectionDate">Inspection Date:</label>
+      <input type="date" id="inspectionDate" name="inspectionDate" required>
 
-                <label for="conditionScore">Condition Score:</label>
-                <select id="conditionScore" required>
-                    <option value="">Select</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                </select><br>
+      <label for="conditionScore">Condition Score:</label>
+      <select id="conditionScore" name="conditionScore" required>
+        <option value="">Select...</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+      </select>
 
-                <label for="requiresMaintenance">Requires Maintenance:</label>
-                <select id="requiresMaintenance" required>
-                    <option value="">Select</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                </select><br><br>
+      <label for="requiresMaintenance">Requires Maintenance:</label>
+      <select id="requiresMaintenance" name="requiresMaintenance" required>
+        <option value="">Select...</option>
+        <option value="Yes">Yes</option>
+        <option value="No">No</option>
+      </select>
 
-                <input type="hidden" id="relfeatureglobalid">
-                
-                <div style="display: flex; justify-content: space-between;">
-                    <button type="submit" id="submitInspectionButton">Submit</button>
-                    <button type="button" id="clearSelectionButton">Clear Selection</button>
-                </div>
-            </form>
-        </div>
-        
-        <div class="line-separator"></div>
+      <button type="button" id="submitBtn">Submit</button>
+      <button type="button" id="clearSelection">Clear Selection</button>
+    </form>
+    
+    <table id="priorInspectionsTable">
+      <thead>
+        <tr>
+          <th>Prior Inspection Date</th>
+          <th>Prior Condition Score</th>
+          <th>Prior Requires Maintenance</th>
+        </tr>
+      </thead>
+      
+    </table>
+  </div>
 
-        <div id="infoDiv">
-            <h2 id="inspectionsTitle">Previous Inspections</h2>
-            <table id="infoTable">
-                <thead>
-                    <tr>
-                        <th>Inspection Date</th>
-                        <th>Condition Score</th>
-                        <th>Requires Maintenance</th>
-                    </tr>
-                </thead>
-                <tbody>
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <div id="successMessage">New inspection added successfully!</div>
-    <script src="https://js.arcgis.com/4.28/"></script>
-    <script>
-        require([
-            
-            "esri/Map",
-            "esri/views/MapView",
-            "esri/layers/FeatureLayer",
-            "esri/Graphic",
-            "esri/symbols/SimpleMarkerSymbol",
-            "esri/rest/support/Query",
-            "esri/geometry/geometryEngine",
-            "esri/geometry/Point"
-        ], function(Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, geometryEngine, Point) {
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/layers/FeatureLayer",
+      "esri/Graphic",
+      "esri/symbols/SimpleMarkerSymbol",
+      "esri/widgets/Popup",
+      "esri/tasks/QueryTask",
+      "esri/tasks/support/Query",
+      "dojo/domReady!"
+    ], function (Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Popup, QueryTask, Query) {
 
-            
+      const featureLayerUrl = "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/4";
+      const inspectionLayerUrl = "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5";
 
-           
+      const map = new Map({
+        basemap: {
+          portalItem: {
+            id: "a11d663a981947b99aac7ff05437758f"
+          }
+        }
+      });
 
-            function loadApplication() {
-                var map = new Map({
-                    basemap: "streets-navigation-vector"
-                });
+      const view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-93.2650, 44.9778], // Minneapolis, MN
+        zoom: 12
+      });
 
-                var view = new MapView({
-                    container: "viewDiv",
-                    map: map,
-                    center: [-93.2650, 44.9778], // longitude, latitude
-                    zoom: 11
-                });
+      const featureLayer = new FeatureLayer({
+        url: featureLayerUrl
+      });
 
-                var featureLayer = new FeatureLayer({
-                    url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/4"
-                });
+      const inspectionLayer = new FeatureLayer({
+        url: inspectionLayerUrl,
+        outFields: ["*"]
+      });
 
-                var inspectionLayer = new FeatureLayer({
-                    url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5"
-                });
+      map.add(featureLayer);
+      map.add(inspectionLayer);
 
-                map.add(featureLayer);
-                map.add(inspectionLayer);
+      const selectedFeatures = [];
+      const selectionGraphics = [];
 
-                featureLayer.when(() => {
-                console.log("Feature Layer Loaded");
-                attachClickListener();
-            }).catch((error) => {
-                console.error("Error loading Feature Layer:", error);
+      view.on("click", function (event) {
+        view.hitTest(event).then(function (response) {
+          const result = response.results && response.results[0];
+
+          if (result && result.graphic && result.graphic.layer === featureLayer) {
+            const graphic = result.graphic;
+
+            // Store selected feature
+            selectedFeatures.push(graphic);
+
+            // Visualize selected feature
+            const symbol = new SimpleMarkerSymbol({
+              color: [0, 255, 0], // Green color
+              size: 10,
+              outline: {
+                color: [0, 0, 0],
+                width: 2
+              }
             });
 
-            function attachClickListener() {
-                view.on("click", function(event) {
-                    view.graphics.removeAll(); // Clear existing graphics
-
-                    const bufferDistance = 20;
-                    const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
-
-                    let query = featureLayer.createQuery();
-                    query.geometry = bufferGeometry;
-                    query.spatialRelationship = "intersects";
-                    query.returnGeometry = true;
-                    query.outFields = ["*"];
-
-                    featureLayer.queryFeatures(query).then(function(result) {
-                        if (result.features.length > 0) {
-                            let feature = result.features[0];
-                            displayFeature(feature);
-                            fetchInspections(feature.attributes.GlobalID);
-                            showSidePanel();
-                            document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
-                        } else {
-                            document.getElementById("infoDiv").innerHTML = "No feature selected.";
-                            hideSidePanel();
-                        }
-                    }).catch(function(error) {
-                        console.error("Query Error:", error);
-                    });
-                });
-            }
-
-            function displayFeature(feature) {
-                let symbol = new SimpleMarkerSymbol({
-                    color: "red",
-                    size: "8px", // Ensure size is a string with units
-                    outline: { // Create an outline
-                        color: [255, 255, 255],
-                        width: 1
-                    }
-                });
-
-                let graphic = new Graphic({
-                    geometry: feature.geometry,
-                    symbol: symbol
-                });
-
-                view.graphics.add(graphic);
-            }
-
-            function fetchInspections(globalID) {
-                const inspectionQuery = new Query();
-                inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
-                inspectionQuery.returnGeometry = false;
-                inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance"];
-
-                inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
-                    displayInspections(inspectionResult.features);
-                    inspectionResult.features.forEach((feature) => {
-                        var objectID = feature.attributes.OBJECTID;
-                        fetchAndDisplayAttachments(objectID, inspectionLayer.url);
-                    });
-                }).catch(function(error) {
-                    console.error("Inspection Query Error:", error);
-                });
-            }
-
-            function fetchAndDisplayAttachments(objectID, layerUrl) {
-                inspectionLayer.queryAttachments({
-                    objectIds: [objectID],
-                    globalIds: null,
-                    keywords: null,
-                }).then(function(attachmentsResult) {
-                    if (attachmentsResult[objectID] && attachmentsResult[objectID].length > 0) {
-                        var attachmentInfo = attachmentsResult[objectID][0]; // Assuming we take the first attachment
-                        var attachmentUrl = layerUrl + "/" + objectID + "/attachments/" + attachmentInfo.id;
-                        // Here you would display the attachment URL as needed
-                        console.log("Attachment URL: ", attachmentUrl);
-                    }
-                }).catch(function(error) {
-                    console.error("Attachments Query Error:", error);
-                });
-            }
-
-            function displayInspections(inspections) {
-                const tbody = document.querySelector("#infoTable tbody");
-                tbody.innerHTML = "";
-
-                if (inspections.length > 0) {
-                    inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
-
-                    inspections.forEach(inspection => {
-                        let row = document.createElement("tr");
-                        let inspectionDateCell = document.createElement("td");
-                        inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
-                        row.appendChild(inspectionDateCell);
-                        let conditionScoreCell = document.createElement("td");
-                        conditionScoreCell.textContent = inspection.attributes.condition_score;
-                        row.appendChild(conditionScoreCell);
-                        let requiresMaintenanceCell = document.createElement("td");
-                        requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
-                        row.appendChild(requiresMaintenanceCell);
-                        tbody.appendChild(row);
-                    });
-                } else {
-                    tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
-                }
-            }
-
-            function formatDate(dateString) {
-                const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
-                return new Date(dateString).toLocaleDateString(undefined, options);
-            }
-
-            function showSidePanel() {
-                document.getElementById("sidePanel").style.right = "0";
-            }
-
-            function hideSidePanel() {
-                document.getElementById("sidePanel").style.right = "-330px";
-            }
-
-            document.getElementById("inspectionForm").addEventListener("submit", function(event) {
-                event.preventDefault();
-
-                const inspectionDate = document.getElementById("inspectionDate").value;
-                const conditionScore = document.getElementById("conditionScore").value;
-                const requiresMaintenance = document.getElementById("requiresMaintenance").value;
-                const relfeatureglobalid = document.getElementById("relfeatureglobalid").value;
-
-                const newInspection = {
-                    attributes: {
-                        inspection_date: inspectionDate,
-                        condition_score: conditionScore,
-                        requires_maintenance: requiresMaintenance,
-                        relfeatureglobalid: relfeatureglobalid
-                    }
-                };
-
-                inspectionLayer.applyEdits({
-                    addFeatures: [newInspection]
-                }).then(function(addResults) {
-                    if (addResults.addFeatureResults.length > 0) {
-                        console.log("New inspection added successfully:", addResults.addFeatureResults[0]);
-                        document.getElementById("inspectionForm").reset();
-                        fetchInspections(relfeatureglobalid);
-                        showSuccessMessage();
-                    } else {
-                        console.error("Failed to add new inspection.");
-                    }
-                }).catch(function(error) {
-                    console.error("Error adding new inspection:", error);
-                });
+            const selectionGraphic = new Graphic({
+              geometry: graphic.geometry,
+              symbol: symbol
             });
 
-            document.getElementById("clearSelectionButton").addEventListener("click", function() {
-                view.graphics.removeAll();
-                hideSidePanel();
+            selectionGraphics.push(selectionGraphic);
+
+            // Clear previous selection graphics
+            view.graphics.removeAll();
+
+            // Add the new selection graphics
+            view.graphics.addMany(selectionGraphics);
+
+            // Center the map on the selected feature and set zoom level to 15
+            view.goTo({
+              target: graphic.geometry,
+              zoom: 17
             });
 
-            function showSuccessMessage() {
-                const successMessage = document.getElementById("successMessage");
-                successMessage.style.display = "block";
-                setTimeout(function() {
-                    successMessage.style.display = "none";
-                }, 3000); // Hide message after 3 seconds
-            }
+            // Show the side panel
+            showSidePanel();
+          } else {
+            console.warn("No valid graphic found during hitTest.");
+          }
+        }).catch(error => {
+          console.error("Error during hitTest:", error);
         });
-    </script>
+      });
+
+      document.getElementById("submitBtn").onclick = function () {
+        const inspectionDate = document.getElementById("inspectionDate").value;
+        const conditionScore = document.getElementById("conditionScore").value;
+        const requiresMaintenance = document.getElementById("requiresMaintenance").value;
+
+        // Check if required fields are filled out
+        if (!inspectionDate || !conditionScore || !requiresMaintenance) {
+          alert("Please fill out all required fields.");
+          return;
+        }
+
+        // Process selected features
+        selectedFeatures.forEach(selectedFeature => {
+          // Query the selected feature to get its attributes
+          featureLayer.queryFeatures({
+            objectIds: [selectedFeature.attributes.OBJECTID],
+            outFields: ["*"]
+          }).then(function (featureSet) {
+            const selectedFeatureAttributes = featureSet.features[0].attributes;
+
+            // Create a new feature with the inspection data
+            const newFeature = new Graphic({
+              geometry: selectedFeature.geometry,
+              attributes: {
+                inspection_date: inspectionDate,
+                condition_score: conditionScore,
+                requires_maintenance: requiresMaintenance,
+                relfeatureglobalid: selectedFeatureAttributes.GlobalID
+              }
+            });
+
+            // Apply edits to add the new feature to the inspection layer
+            inspectionLayer.applyEdits({
+              addFeatures: [newFeature]
+            }).then(function (editsResult) {
+              console.log("Feature added successfully:", editsResult);
+              document.getElementById("inspectionForm").reset();
+              // Hide the side panel after submitting the form
+              hideSidePanel();
+              // Refresh the inspection table
+              populateInspectionTable(selectedFeatureAttributes.GlobalID);
+              populatePriorInspections(selectedFeatureAttributes.GlobalID);
+            }).catch(function (error) {
+              console.error("Error adding feature:", error);
+            });
+          }).catch(function (error) {
+            console.error("Error querying selected feature:", error);
+          });
+        });
+
+        // Clear selection graphics and reset selected features
+        view.graphics.removeAll();
+        selectedFeatures.length = 0;
+        selectionGraphics.forEach(graphic => {
+          graphic.geometry = null;
+        });
+        selectionGraphics.length = 0;
+
+        // Disable map's default click event
+        view.popup.autoOpenEnabled = false;
+      };
+
+      document.getElementById("clearSelection").onclick = function () {
+        view.graphics.removeAll();
+        selectedFeatures.length = 0;
+        selectionGraphics.forEach(graphic => {
+          graphic.geometry = null;
+        });
+        selectionGraphics.length = 0;
+        hideSidePanel();
+        view.popup.autoOpenEnabled = true;
+      };
+
+      function showSidePanel() {
+        document.getElementById("sidePanel").style.width = "30%";
+        document.getElementById("sidePanel").style.visibility = "visible";
+        document.getElementById("viewDiv").style.width = "70%";
+      }
+
+      function hideSidePanel() {
+        document.getElementById("sidePanel").style.width = "0";
+        document.getElementById("sidePanel").style.visibility = "hidden";
+        document.getElementById("viewDiv").style.width = "100%";
+      }
+
+      function populateInspectionTable(selectedFeatureGlobalID) {
+        const queryTask = new QueryTask({
+          url: inspectionLayerUrl
+        });
+
+        const query = new Query({
+          outFields: ["inspection_date", "condition_score", "requires_maintenance"],
+          orderByFields: ["inspection_date DESC"],
+          returnGeometry: false,
+          where: `relfeatureglobalid = '${selectedFeatureGlobalID}'`
+        });
+
+        queryTask.execute(query).then(function (results) {
+          const tbody = document.querySelector("#inspectionTable tbody");
+          tbody.innerHTML = "";
+
+          results.features.forEach(function (feature) {
+            const attributes = feature.attributes;
+            const row = document.createElement("tr");
+            row.innerHTML = `
+              <td>${attributes.inspection_date}</td>
+              <td>${attributes.condition_score}</td>
+              <td>${attributes.requires_maintenance}</td>
+            `;
+            tbody.appendChild(row);
+          });
+        }).catch(function (error) {
+          console.error("Error querying inspection records:", error);
+        });
+      }
+
+      function populatePriorInspections(selectedFeatureGlobalID) {
+        const queryTask = new QueryTask({
+          url: inspectionLayerUrl
+        });
+
+        const query = new Query({
+          outFields: ["inspection_date", "condition_score", "requires_maintenance"],
+          orderByFields: ["inspection_date DESC"],
+          returnGeometry: false,
+          where: `relfeatureglobalid = '${selectedFeatureGlobalID}' AND inspection_date < current_timestamp`
+        });
+
+        queryTask.execute(query).then(function (results) {
+          const tbody = document.querySelector("#priorInspectionsTable tbody");
+          tbody.innerHTML = "";
+
+          results.features.forEach(function (feature) {
+            const attributes = feature.attributes;
+            const row = document.createElement("tr");
+            row.innerHTML = `
+              <td>${attributes.inspection_date}</td>
+              <td>${attributes.condition_score}</td>
+              <td>${attributes.requires_maintenance}</td>
+            `;
+            tbody.appendChild(row);
+          });
+        }).catch(function (error) {
+          console.error("Error querying prior inspection records:", error);
+        });
+      }
+
+    });
+  </script>
 </body>
+
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
