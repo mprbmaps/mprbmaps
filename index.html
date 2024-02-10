@@ -7,6 +7,8 @@
   <title>ArcGIS Feature Inspection</title>
   <link rel="stylesheet" href="https://js.arcgis.com/4.22/esri/themes/light/main.css">
   <script src="https://js.arcgis.com/4.22/"></script>
+  <script src="https://js.arcgis.com/4.22/esri/modules/identity/OAuthInfo.js"></script>
+  <script src="https://js.arcgis.com/4.22/esri/modules/identity/IdentityManager.js"></script>
   <style>
     body,
     html {
@@ -156,236 +158,254 @@
       "esri/widgets/Popup",
       "esri/tasks/QueryTask",
       "esri/tasks/support/Query",
+      "esri/identity/OAuthInfo",
+      "esri/identity/IdentityManager",
       "dojo/domReady!"
-    ], function (Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Popup, QueryTask, Query) {
+    ], function (Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Popup, QueryTask, Query, OAuthInfo, esriId) {
 
-      const featureLayerUrl = "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/4";
-      const inspectionLayerUrl = "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5";
+      // OAuth configuration
+      const oAuthInfo = new OAuthInfo({
+        appId: "ti3fi1FqvHE2Hhyw",
+        portalUrl: "https://www.arcgis.com"
+      });
 
-      const map = new Map({
-        basemap: {
-          portalItem: {
-            id: "a11d663a981947b99aac7ff05437758f"
-          }
+      esriId.registerOAuthInfos([oAuthInfo]);
+
+      // Check if the user is already signed in
+      esriId.checkSignInStatus(oAuthInfo.portalUrl + "/sharing").then(
+        function () {
+          // User is already signed in, continue with application
+          initializeMap();
         }
-      });
+      ).otherwise(
+        function () {
+          // User is not signed in, initiate sign-in process
+          esriId.getCredential(oAuthInfo.portalUrl + "/sharing");
+        }
+      );
 
-      const view = new MapView({
-        container: "viewDiv",
-        map: map,
-        center: [-93.2650, 44.9778], // Minneapolis, MN
-        zoom: 12
-      });
-
-      const featureLayer = new FeatureLayer({
-        url: featureLayerUrl
-      });
-
-      const inspectionLayer = new FeatureLayer({
-        url: inspectionLayerUrl,
-        outFields: ["*"]
-      });
-
-      map.add(featureLayer);
-      map.add(inspectionLayer);
-
-      const selectedFeatures = [];
-      const selectionGraphics = [];
-
-      view.on("click", function (event) {
-        view.hitTest(event).then(function (response) {
-          const result = response.results && response.results[0];
-
-          if (result && result.graphic && result.graphic.layer === featureLayer) {
-            const graphic = result.graphic;
-
-            // Store selected feature
-            selectedFeatures.push(graphic);
-
-            // Visualize selected feature
-            const symbol = new SimpleMarkerSymbol({
-              color: [0, 255, 0], // Green color
-              size: 10,
-              outline: {
-                color: [0, 0, 0],
-                width: 2
-              }
-            });
-
-            const selectionGraphic = new Graphic({
-              geometry: graphic.geometry,
-              symbol: symbol
-            });
-
-            selectionGraphics.push(selectionGraphic);
-
-            // Clear previous selection graphics
-            view.graphics.removeAll();
-
-            // Add the new selection graphics
-            view.graphics.addMany(selectionGraphics);
-
-            // Center the map on the selected feature and set zoom level to 15
-            view.goTo({
-              target: graphic.geometry,
-              zoom: 17
-            });
-
-            // Show the side panel
-            showSidePanel();
-          } else {
-            console.warn("No valid graphic found during hitTest.");
+      function initializeMap() {
+        // Map initialization code
+        const map = new Map({
+          basemap: {
+            portalItem: {
+              id: "a11d663a981947b99aac7ff05437758f"
+            }
           }
-        }).catch(error => {
-          console.error("Error during hitTest:", error);
         });
-      });
 
-      document.getElementById("submitBtn").onclick = function () {
-        const inspectionDate = document.getElementById("inspectionDate").value;
-        const conditionScore = document.getElementById("conditionScore").value;
-        const requiresMaintenance = document.getElementById("requiresMaintenance").value;
+        const view = new MapView({
+          container: "viewDiv",
+          map: map,
+          center: [-93.2650, 44.9778],
+          zoom: 12
+        });
 
-        // Check if required fields are filled out
-        if (!inspectionDate || !conditionScore || !requiresMaintenance) {
-          alert("Please fill out all required fields.");
-          return;
+        const featureLayer = new FeatureLayer({
+          url: featureLayerUrl
+        });
+
+        const inspectionLayer = new FeatureLayer({
+          url: inspectionLayerUrl,
+          outFields: ["*"]
+        });
+
+        map.add(featureLayer);
+        map.add(inspectionLayer);
+
+        const selectedFeatures = [];
+        const selectionGraphics = [];
+
+        view.on("click", function (event) {
+          view.hitTest(event).then(function (response) {
+            const result = response.results && response.results[0];
+
+            if (result && result.graphic && result.graphic.layer === featureLayer) {
+              const graphic = result.graphic;
+
+              selectedFeatures.push(graphic);
+
+              const symbol = new SimpleMarkerSymbol({
+                color: [0, 255, 0],
+                size: 10,
+
+                // Visualize selected feature
+              const symbol = new SimpleMarkerSymbol({
+                color: [0, 255, 0], // Green color
+                size: 10,
+                outline: {
+                  color: [0, 0, 0],
+                  width: 2
+                }
+              });
+
+              const selectionGraphic = new Graphic({
+                geometry: graphic.geometry,
+                symbol: symbol
+              });
+
+              selectionGraphics.push(selectionGraphic);
+
+              // Clear previous selection graphics
+              view.graphics.removeAll();
+
+              // Add the new selection graphics
+              view.graphics.addMany(selectionGraphics);
+
+              // Center the map on the selected feature and set zoom level to 15
+              view.goTo({
+                target: graphic.geometry,
+                zoom: 17
+              });
+
+              // Show the side panel
+              showSidePanel();
+            } else {
+              console.warn("No valid graphic found during hitTest.");
+            }
+          }).catch(error => {
+            console.error("Error during hitTest:", error);
+          });
+        });
+
+        document.getElementById("submitBtn").onclick = function () {
+          const inspectionDate = document.getElementById("inspectionDate").value;
+          const conditionScore = document.getElementById("conditionScore").value;
+          const requiresMaintenance = document.getElementById("requiresMaintenance").value;
+
+          if (!inspectionDate || !conditionScore || !requiresMaintenance) {
+            alert("Please fill out all required fields.");
+            return;
+          }
+
+          selectedFeatures.forEach(selectedFeature => {
+            featureLayer.queryFeatures({
+              objectIds: [selectedFeature.attributes.OBJECTID],
+              outFields: ["*"]
+            }).then(function (featureSet) {
+              const selectedFeatureAttributes = featureSet.features[0].attributes;
+
+              const newFeature = new Graphic({
+                geometry: selectedFeature.geometry,
+                attributes: {
+                  inspection_date: inspectionDate,
+                  condition_score: conditionScore,
+                  requires_maintenance: requiresMaintenance,
+                  relfeatureglobalid: selectedFeatureAttributes.GlobalID
+                }
+              });
+
+              inspectionLayer.applyEdits({
+                addFeatures: [newFeature]
+              }).then(function (editsResult) {
+                console.log("Feature added successfully:", editsResult);
+                document.getElementById("inspectionForm").reset();
+                hideSidePanel();
+                populateInspectionTable(selectedFeatureAttributes.GlobalID);
+                populatePriorInspections(selectedFeatureAttributes.GlobalID);
+              }).catch(function (error) {
+                console.error("Error adding feature:", error);
+              });
+            }).catch(function (error) {
+              console.error("Error querying selected feature:", error);
+            });
+          });
+
+          view.graphics.removeAll();
+          selectedFeatures.length = 0;
+          selectionGraphics.forEach(graphic => {
+            graphic.geometry = null;
+          });
+          selectionGraphics.length = 0;
+
+          view.popup.autoOpenEnabled = false;
+        };
+
+        document.getElementById("clearSelection").onclick = function () {
+          view.graphics.removeAll();
+          selectedFeatures.length = 0;
+          selectionGraphics.forEach(graphic => {
+            graphic.geometry = null;
+          });
+          selectionGraphics.length = 0;
+          hideSidePanel();
+          view.popup.autoOpenEnabled = true;
+        };
+
+        function showSidePanel() {
+          document.getElementById("sidePanel").style.width = "30%";
+          document.getElementById("sidePanel").style.visibility = "visible";
+          document.getElementById("viewDiv").style.width = "70%";
         }
 
-        // Process selected features
-        selectedFeatures.forEach(selectedFeature => {
-          // Query the selected feature to get its attributes
-          featureLayer.queryFeatures({
-            objectIds: [selectedFeature.attributes.OBJECTID],
-            outFields: ["*"]
-          }).then(function (featureSet) {
-            const selectedFeatureAttributes = featureSet.features[0].attributes;
+        function hideSidePanel() {
+          document.getElementById("sidePanel").style.width = "0";
+          document.getElementById("sidePanel").style.visibility = "hidden";
+          document.getElementById("viewDiv").style.width = "100%";
+        }
 
-            // Create a new feature with the inspection data
-            const newFeature = new Graphic({
-              geometry: selectedFeature.geometry,
-              attributes: {
-                inspection_date: inspectionDate,
-                condition_score: conditionScore,
-                requires_maintenance: requiresMaintenance,
-                relfeatureglobalid: selectedFeatureAttributes.GlobalID
-              }
-            });
+        function populateInspectionTable(selectedFeatureGlobalID) {
+          const queryTask = new QueryTask({
+            url: inspectionLayerUrl
+          });
 
-            // Apply edits to add the new feature to the inspection layer
-            inspectionLayer.applyEdits({
-              addFeatures: [newFeature]
-            }).then(function (editsResult) {
-              console.log("Feature added successfully:", editsResult);
-              document.getElementById("inspectionForm").reset();
-              // Hide the side panel after submitting the form
-              hideSidePanel();
-              // Refresh the inspection table
-              populateInspectionTable(selectedFeatureAttributes.GlobalID);
-              populatePriorInspections(selectedFeatureAttributes.GlobalID);
-            }).catch(function (error) {
-              console.error("Error adding feature:", error);
+          const query = new Query({
+            outFields: ["inspection_date", "condition_score", "requires_maintenance"],
+            orderByFields: ["inspection_date DESC"],
+            returnGeometry: false,
+            where: `relfeatureglobalid = '${selectedFeatureGlobalID}'`
+          });
+
+          queryTask.execute(query).then(function (results) {
+            const tbody = document.querySelector("#inspectionTable tbody");
+            tbody.innerHTML = "";
+
+            results.features.forEach(function (feature) {
+              const attributes = feature.attributes;
+              const row = document.createElement("tr");
+              row.innerHTML = `
+                <td>${attributes.inspection_date}</td>
+                <td>${attributes.condition_score}</td>
+                <td>${attributes.requires_maintenance}</td>
+              `;
+              tbody.appendChild(row);
             });
           }).catch(function (error) {
-            console.error("Error querying selected feature:", error);
+            console.error("Error querying inspection records:", error);
           });
-        });
+        }
 
-        // Clear selection graphics and reset selected features
-        view.graphics.removeAll();
-        selectedFeatures.length = 0;
-        selectionGraphics.forEach(graphic => {
-          graphic.geometry = null;
-        });
-        selectionGraphics.length = 0;
-
-        // Disable map's default click event
-        view.popup.autoOpenEnabled = false;
-      };
-
-      document.getElementById("clearSelection").onclick = function () {
-        view.graphics.removeAll();
-        selectedFeatures.length = 0;
-        selectionGraphics.forEach(graphic => {
-          graphic.geometry = null;
-        });
-        selectionGraphics.length = 0;
-        hideSidePanel();
-        view.popup.autoOpenEnabled = true;
-      };
-
-      function showSidePanel() {
-        document.getElementById("sidePanel").style.width = "30%";
-        document.getElementById("sidePanel").style.visibility = "visible";
-        document.getElementById("viewDiv").style.width = "70%";
-      }
-
-      function hideSidePanel() {
-        document.getElementById("sidePanel").style.width = "0";
-        document.getElementById("sidePanel").style.visibility = "hidden";
-        document.getElementById("viewDiv").style.width = "100%";
-      }
-
-      function populateInspectionTable(selectedFeatureGlobalID) {
-        const queryTask = new QueryTask({
-          url: inspectionLayerUrl
-        });
-
-        const query = new Query({
-          outFields: ["inspection_date", "condition_score", "requires_maintenance"],
-          orderByFields: ["inspection_date DESC"],
-          returnGeometry: false,
-          where: `relfeatureglobalid = '${selectedFeatureGlobalID}'`
-        });
-
-        queryTask.execute(query).then(function (results) {
-          const tbody = document.querySelector("#inspectionTable tbody");
-          tbody.innerHTML = "";
-
-          results.features.forEach(function (feature) {
-            const attributes = feature.attributes;
-            const row = document.createElement("tr");
-            row.innerHTML = `
-              <td>${attributes.inspection_date}</td>
-              <td>${attributes.condition_score}</td>
-              <td>${attributes.requires_maintenance}</td>
-            `;
-            tbody.appendChild(row);
+        function populatePriorInspections(selectedFeatureGlobalID) {
+          const queryTask = new QueryTask({
+            url: inspectionLayerUrl
           });
-        }).catch(function (error) {
-          console.error("Error querying inspection records:", error);
-        });
-      }
 
-      function populatePriorInspections(selectedFeatureGlobalID) {
-        const queryTask = new QueryTask({
-          url: inspectionLayerUrl
-        });
-
-        const query = new Query({
-          outFields: ["inspection_date", "condition_score", "requires_maintenance"],
-          orderByFields: ["inspection_date DESC"],
-          returnGeometry: false,
-          where: `relfeatureglobalid = '${selectedFeatureGlobalID}' AND inspection_date < current_timestamp`
-        });
-
-        queryTask.execute(query).then(function (results) {
-          const tbody = document.querySelector("#priorInspectionsTable tbody");
-          tbody.innerHTML = "";
-
-          results.features.forEach(function (feature) {
-            const attributes = feature.attributes;
-            const row = document.createElement("tr");
-            row.innerHTML = `
-              <td>${attributes.inspection_date}</td>
-              <td>${attributes.condition_score}</td>
-              <td>${attributes.requires_maintenance}</td>
-            `;
-            tbody.appendChild(row);
+          const query = new Query({
+            outFields: ["inspection_date", "condition_score", "requires_maintenance"],
+            orderByFields: ["inspection_date DESC"],
+            returnGeometry: false,
+            where: `relfeatureglobalid = '${selectedFeatureGlobalID}' AND inspection_date < current_timestamp`
           });
-        }).catch(function (error) {
-          console.error("Error querying prior inspection records:", error);
-        });
+
+          queryTask.execute(query).then(function (results) {
+            const tbody = document.querySelector("#priorInspectionsTable tbody");
+            tbody.innerHTML = "";
+
+            results.features.forEach(function (feature) {
+              const attributes = feature.attributes;
+              const row = document.createElement("tr");
+              row.innerHTML = `
+                <td>${attributes.inspection_date}</td>
+                <td>${attributes.condition_score}</td>
+                <td>${attributes.requires_maintenance}</td>
+              `;
+              tbody.appendChild(row);
+            });
+          }).catch(function (error) {
+            console.error("Error querying prior inspection records:", error);
+          });
+        }
+
       }
 
     });
@@ -393,27 +413,3 @@
 </body>
 
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
