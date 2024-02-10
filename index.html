@@ -41,14 +41,16 @@
             "esri/Map",
             "esri/views/MapView",
             "esri/layers/FeatureLayer",
-            "esri/rest/support/RelationshipQuery"
-        ], function(esriConfig, OAuthInfo, IdentityManager, Map, MapView, FeatureLayer, RelationshipQuery) {
+            "esri/rest/support/RelationshipQuery",
+            "esri/Graphic",
+            "esri/symbols/SimpleFillSymbol",
+        ], function(esriConfig, OAuthInfo, IdentityManager, Map, MapView, FeatureLayer, RelationshipQuery, Graphic, SimpleFillSymbol) {
 
             esriConfig.portalUrl = "https://www.arcgis.com";
 
             var oauthInfo = new OAuthInfo({
-                appId: "ti3fi1FqvHE2Hhyw", // Replace with your app ID
-                popup: true // Use a popup for OAuth
+                appId: "ti3fi1FqvHE2Hhyw",
+                popup: true
             });
 
             IdentityManager.registerOAuthInfos([oauthInfo]);
@@ -59,34 +61,38 @@
                     loadMap();
                 })
                 .catch(function() {
-                    // User is not signed in, redirect to OAuth sign in page
                     IdentityManager.getCredential(esriConfig.portalUrl + "/sharing");
                 });
 
             function loadMap() {
                 var featureLayer = new FeatureLayer({
-                    url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Asssets2/FeatureServer/40",
-                    // Additional properties such as outFields can be set here
+                    url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Asssets2/FeatureServer/40"
                 });
 
                 var inspectionLayer = new FeatureLayer({
-                    url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Asssets2/FeatureServer/43",
-                    // Additional properties such as outFields can be set here
+                    url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Asssets2/FeatureServer/43"
                 });
 
                 var map = new Map({
                     basemap: "streets-navigation-vector",
-                    layers: [featureLayer] // Add inspectionLayer here if needed
+                    layers: [featureLayer]
                 });
 
                 var view = new MapView({
                     container: "viewDiv",
                     map: map,
                     zoom: 10,
-                    center: [-93.2650, 44.9778] // Centered on Minneapolis
+                    center: [-93.2650, 44.9778]
                 });
 
-                // Add the click event listener here, as in the previous example
+                var highlightSymbol = new SimpleFillSymbol({
+                    color: [255, 255, 0, 0.4],
+                    outline: {
+                        color: [255, 255, 0],
+                        width: 2
+                    }
+                });
+
                 view.on("click", function(event) {
                     view.hitTest(event).then(function(response) {
                         var results = response.results.filter(function(result) {
@@ -95,6 +101,12 @@
 
                         if (results.length) {
                             var feature = results[0].graphic;
+                            var highlightGraphic = new Graphic({
+                                geometry: feature.geometry,
+                                symbol: highlightSymbol
+                            });
+                            view.graphics.removeAll();
+                            view.graphics.add(highlightGraphic);
                             queryRelatedAttachments(feature.attributes.OBJECTID);
                         }
                     });
@@ -125,10 +137,11 @@
                             }).catch(function(error) {
                                 console.error("Error querying attachments: ", error);
                             });
-                        } else {
+                        }else {
                             document.getElementById("attachments").innerHTML = "No related records found.";
                         }
-                    }).catch(function(error) {console.error("Error querying related features: ", error);
+                    }).catch(function(error) {
+                        console.error("Error querying related features: ", error);
                     });
                 }
 
