@@ -35,147 +35,121 @@
 
     <script>
         require([
-            "esri/config",
-            "esri/identity/OAuthInfo",
-            "esri/identity/IdentityManager",
             "esri/Map",
             "esri/views/MapView",
             "esri/layers/FeatureLayer",
             "esri/rest/support/RelationshipQuery",
             "esri/Graphic",
             "esri/symbols/SimpleFillSymbol",
-        ], function(esriConfig, OAuthInfo, IdentityManager, Map, MapView, FeatureLayer, RelationshipQuery, Graphic, SimpleFillSymbol) {
+        ], function(Map, MapView, FeatureLayer, RelationshipQuery, Graphic, SimpleFillSymbol) {
 
-            esriConfig.portalUrl = "https://www.arcgis.com";
+            var token = "VhWWcz89zuUNmkltnF5LdvHZPJNVkjSmPIOsuxdecurjdaUhObMEeXUL-g-UmJirApZVdHSPfL9cFQnYr1uVwQp1nqHWIKKQYF1PHp6qmK4";
 
-            var oauthInfo = new OAuthInfo({
-                appId: "ti3fi1FqvHE2Hhyw",
-                popup: false
+            var featureLayer = new FeatureLayer({
+                url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Asssets2/FeatureServer/40?token=" + token
             });
 
-            IdentityManager.registerOAuthInfos([oauthInfo]);
+            var inspectionLayer = new FeatureLayer({
+                url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Asssets2/FeatureServer/43?token=" + token
+            });
 
-            IdentityManager.checkSignInStatus(esriConfig.portalUrl + "/sharing")
-                .then(function() {
-                    console.log("Signed in successfully");
-                    loadMap();
-                })
-                .catch(function() {
-                    IdentityManager.getCredential(esriConfig.portalUrl + "/sharing");
-                });
+            var map = new Map({
+                basemap: "streets-navigation-vector",
+                layers: [featureLayer] // Assuming you only want to add the featureLayer to the map for now
+            });
 
-            function loadMap() {
-                var featureLayer = new FeatureLayer({
-                    url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Asssets2/FeatureServer/40"
-                });
+            var view = new MapView({
+                container: "viewDiv",
+                map: map,
+                zoom: 10,
+                center: [-93.2650, 44.9778]
+            });
 
-                var inspectionLayer = new FeatureLayer({
-                    url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Asssets2/FeatureServer/43"
-                });
+            var highlightSymbol = new SimpleFillSymbol({
+                color: [255, 255, 0, 0.4],
+                outline: {
+                    color: [255, 255, 0],
+                    width: 2
+                }
+            });
 
-                var map = new Map({
-                    basemap: "streets-navigation-vector",
-                    layers: [featureLayer]
-                });
+            view.on("click", function(event) {
+                view.hitTest(event).then(function(response) {
+                    var results = response.results.filter(function(result) {
+                        return result.graphic.layer === featureLayer;
+                    });
 
-                var view = new MapView({
-                    container: "viewDiv",
-                    map: map,
-                    zoom: 10,
-                    center: [-93.2650, 44.9778]
-                });
-
-                var highlightSymbol = new SimpleFillSymbol({
-                    color: [255, 255, 0, 0.4],
-                    outline: {
-                        color: [255, 255, 0],
-                        width: 2
+                    if (results.length) {
+                        var feature = results[0].graphic;
+                        var highlightGraphic = new Graphic({
+                            geometry: feature.geometry,
+                            symbol: highlightSymbol
+                        });
+                        view.graphics.removeAll();
+                        view.graphics.add(highlightGraphic);
+                        queryRelatedAttachments(feature.attributes.OBJECTID);
                     }
                 });
+            });
 
-                view.on("click", function(event) {
-                    view.hitTest(event).then(function(response) {
-                        var results = response.results.filter(function(result) {
-                            return result.graphic.layer === featureLayer;
+            function queryRelatedAttachments(objectId) {
+                var relationshipQuery = new RelationshipQuery({
+                    objectIds: [objectId],
+                    relationshipId: 16, // Assuming this is the correct relationship ID
+                    outFields: ["*"],
+                    returnGeometry: false
+                });
+
+                featureLayer.queryRelatedFeatures(relationshipQuery).then(function(relatedRecords) {
+                    var relatedObjectIds = [];
+                    Object.values(relatedRecords).forEach(function(record) {
+                        record.features.forEach(function(feature) {
+                            relatedObjectIds.push(feature.attributes.OBJECTID);
                         });
+                    });
 
-                        if (results.length) {
-                            var feature = results[0].graphic;
-                            var highlightGraphic = new Graphic({
-                                geometry: feature.geometry,
-                                symbol: highlightSymbol
-                            });
-                            view.graphics.removeAll();
-                            view.graphics.add(highlightGraphic);
-                            queryRelatedAttachments(feature.attributes.OBJECTID);
-                        }
+                    if (relatedObjectIds.length > 0) {
+                        inspectionLayer.queryAttachments({
+                            objectIds: relatedObjectIds,
+                            attachmentTypes: ['image/jpeg', 'image/png']
+                        }).then(function(attachmentInfos) {
+                            displayAttachments(attachmentInfos);
+                        }).catch(function(error) {
+                            console.error("Error querying attachments: ", error);
+                        });} else {
+                        document.getElementById("attachments").innerHTML = "No related records found.";
+                    }
+                }).catch(function(error) {
+                    console.error("Error querying related features: ", error);
+                });
+            }
+
+            function displayAttachments(attachmentInfos) {
+                var attachmentsDiv = document.getElementById("attachments");
+                attachmentsDiv.innerHTML = ""; // Clear previous attachments
+
+                Object.values(attachmentInfos).forEach(function(infoArray) {
+                    infoArray.forEach(function(info) {
+                        // Create a div to hold the URL text
+                        var urlDiv = document.createElement("div");
+                        urlDiv.style.marginBottom = "10px";
+
+                        // Create an anchor element for the URL
+                        var link = document.createElement("a");
+                        link.href = info.url;
+                        link.target = "_blank"; // Opens the attachment in a new tab
+                        link.textContent = info.url; // Sets the link text to the URL
+                        link.style.wordBreak = "break-all"; // Ensures the URL wraps and doesn't overflow
+
+                        // Append the link to the div, and the div to the attachments container
+                        urlDiv.appendChild(link);
+                        attachmentsDiv.appendChild(urlDiv);
                     });
                 });
 
-                function queryRelatedAttachments(objectId) {
-                    var relationshipQuery = new RelationshipQuery({
-                        objectIds: [objectId],
-                        relationshipId: 16, // Replace 0 with the actual relationship ID
-                        outFields: ["*"],
-                        returnGeometry: false
-                    });
-
-                    featureLayer.queryRelatedFeatures(relationshipQuery).then(function(relatedRecords) {
-                        var relatedObjectIds = [];
-                        Object.values(relatedRecords).forEach(function(record) {
-                            record.features.forEach(function(feature) {
-                                relatedObjectIds.push(feature.attributes.OBJECTID);
-                            });
-                        });
-
-                        if (relatedObjectIds.length > 0) {
-                            inspectionLayer.queryAttachments({
-                                objectIds: relatedObjectIds,
-                                attachmentTypes: ['image/jpeg', 'image/png']
-                            }).then(function(attachmentInfos) {
-                                displayAttachments(attachmentInfos);
-                            }).catch(function(error) {
-                                console.error("Error querying attachments: ", error);
-                            });
-                        }else {
-                            document.getElementById("attachments").innerHTML = "No related records found.";
-                        }
-                    }).catch(function(error) {
-                        console.error("Error querying related features: ", error);
-                    });
+                if (Object.keys(attachmentInfos).length === 0) {
+                    attachmentsDiv.innerHTML = "No attachments found.";
                 }
-
-                function displayAttachments(attachmentInfos) {
-    var attachmentsDiv = document.getElementById("attachments");
-    attachmentsDiv.innerHTML = ""; // Clear previous attachments
-    
-    Object.values(attachmentInfos).forEach(function(infoArray) {
-        if (infoArray.length === 0) {
-            attachmentsDiv.innerHTML = "No attachments found.";
-        } else {
-            infoArray.forEach(function(info) {
-                // Create a div to hold the URL text
-                var urlDiv = document.createElement("div");
-                urlDiv.style.marginBottom = "10px";
-
-                // Create an anchor element for the URL
-                var link = document.createElement("a");
-                link.href = info.url;
-                link.target = "_blank"; // Opens the attachment in a new tab
-                link.textContent = info.url; // Sets the link text to the URL
-                link.style.wordBreak = "break-all"; // Ensures the URL wraps and doesn't overflow
-
-                // Append the link to the div, and the div to the attachments container
-                urlDiv.appendChild(link);
-                attachmentsDiv.appendChild(urlDiv);
-            });
-        }
-    });
-
-    if (Object.keys(attachmentInfos).length === 0) {
-        attachmentsDiv.innerHTML = "No attachments found.";
-    }
-}
             }
         });
     </script>
