@@ -42,7 +42,6 @@
             "esri/Graphic",
             "esri/symbols/SimpleFillSymbol",
         ], function(Map, MapView, FeatureLayer, RelationshipQuery, Graphic, SimpleFillSymbol) {
-
             var token = "VhWWcz89zuUNmkltnF5LdvHZPJNVkjSmPIOsuxdecurjdaUhObMEeXUL-g-UmJirApZVdHSPfL9cFQnYr1uVwQp1nqHWIKKQYF1PHp6qmK4";
 
             var featureLayer = new FeatureLayer({
@@ -55,14 +54,14 @@
 
             var map = new Map({
                 basemap: "streets-navigation-vector",
-                layers: [featureLayer] // Assuming you only want to add the featureLayer to the map for now
+                layers: [featureLayer] // Add featureLayer to the map
             });
 
             var view = new MapView({
                 container: "viewDiv",
                 map: map,
                 zoom: 10,
-                center: [-93.2650, 44.9778]
+                center: [-93.2650, 44.9778] // Centered on Minneapolis
             });
 
             var highlightSymbol = new SimpleFillSymbol({
@@ -95,7 +94,7 @@
             function queryRelatedAttachments(objectId) {
                 var relationshipQuery = new RelationshipQuery({
                     objectIds: [objectId],
-                    relationshipId: 16, // Assuming this is the correct relationship ID
+                    relationshipId: 16, // Adjust this ID based on your actual data relationship
                     outFields: ["*"],
                     returnGeometry: false
                 });
@@ -116,10 +115,11 @@
                             displayAttachments(attachmentInfos);
                         }).catch(function(error) {
                             console.error("Error querying attachments: ", error);
-                        });} else {
+                        });
+                    } else {
                         document.getElementById("attachments").innerHTML = "No related records found.";
                     }
-                }).catch(function(error) {
+                }).catch(function(error{
                     console.error("Error querying related features: ", error);
                 });
             }
