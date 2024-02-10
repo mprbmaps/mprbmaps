@@ -146,27 +146,36 @@
                 }
 
                 function displayAttachments(attachmentInfos) {
-                    var attachmentsDiv = document.getElementById("attachments");
-                    attachmentsDiv.innerHTML = ""; // Clear previous attachments
-                    
-                    Object.values(attachmentInfos).forEach(function(infoArray) {
-                        infoArray.forEach(function(info) {
-                            var link = document.createElement("a");
-                            link.href = info.url;
-                            link.target = "_blank";
-                            var image = document.createElement("img");
-                            image.src = info.url;
-                            image.style.width = "100%";
-                            image.style.padding = "4px";
-                            link.appendChild(image);
-                            attachmentsDiv.appendChild(link);
-                        });
-                    });
+    var attachmentsDiv = document.getElementById("attachments");
+    attachmentsDiv.innerHTML = ""; // Clear previous attachments
+    
+    Object.values(attachmentInfos).forEach(function(infoArray) {
+        if (infoArray.length === 0) {
+            attachmentsDiv.innerHTML = "No attachments found.";
+        } else {
+            infoArray.forEach(function(info) {
+                // Create a div to hold the URL text
+                var urlDiv = document.createElement("div");
+                urlDiv.style.marginBottom = "10px";
 
-                    if (Object.keys(attachmentInfos).length === 0) {
-                        attachmentsDiv.innerHTML = "No attachments found.";
-                    }
-                }
+                // Create an anchor element for the URL
+                var link = document.createElement("a");
+                link.href = info.url;
+                link.target = "_blank"; // Opens the attachment in a new tab
+                link.textContent = info.url; // Sets the link text to the URL
+                link.style.wordBreak = "break-all"; // Ensures the URL wraps and doesn't overflow
+
+                // Append the link to the div, and the div to the attachments container
+                urlDiv.appendChild(link);
+                attachmentsDiv.appendChild(urlDiv);
+            });
+        }
+    });
+
+    if (Object.keys(attachmentInfos).length === 0) {
+        attachmentsDiv.innerHTML = "No attachments found.";
+    }
+}
             }
         });
     </script>
