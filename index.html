@@ -1,40 +1,161 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <meta charset="utf-8" />
-    <title>Display ArcGIS Layer</title>
+    <title>Feature and Related Inspections with Attachments</title>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
     <link rel="stylesheet" href="https://js.arcgis.com/4.23/esri/themes/light/main.css" />
     <script src="https://js.arcgis.com/4.23/"></script>
+    <style>
+        html, body, #viewDiv {
+            height: 100%;
+            width: 75%;
+            margin: 0;
+            padding: 0;
+        }
+        #sidePanel {
+            width: 25%;
+            height: 100%;
+            position: fixed;
+            top: 0;
+            right: 0;
+            overflow-y: auto;
+            background-color: #fff;
+            border-left: 1px solid #ddd;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="viewDiv"></div>
+    <div id="sidePanel">
+        <h3>Attachments</h3>
+        <div id="attachments"></div>
+    </div>
 
     <script>
         require([
+            "esri/config",
+            "esri/identity/OAuthInfo",
+            "esri/identity/IdentityManager",
             "esri/Map",
             "esri/views/MapView",
-            "esri/layers/FeatureLayer"
-        ], function(Map, MapView, FeatureLayer) {
-            var layer = new FeatureLayer({
-                https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Test_Asphalt_Collection/FeatureServer/0"
+            "esri/layers/FeatureLayer",
+            "esri/rest/support/RelationshipQuery"
+        ], function(esriConfig, OAuthInfo, IdentityManager, Map, MapView, FeatureLayer, RelationshipQuery) {
+
+            esriConfig.portalUrl = "https://www.arcgis.com";
+
+            var oauthInfo = new OAuthInfo({
+                appId: "ti3fi1FqvHE2Hhyw", // Replace with your app ID
+                popup: true // Use a popup for OAuth
             });
 
-            var map = new Map({
-                basemap: "streets", // Try changing this to "satellite" or "hybrid"
-                layers: [layer] // Adding the layer to the map
-            });
+            IdentityManager.registerOAuthInfos([oauthInfo]);
 
-            var view = new MapView({
-                container: "viewDiv", // Reference to the scene div created in step 5
-                map: map, // Reference to the map object created before the scene
-                zoom: 10, // Sets zoom level based on level of detail (LOD)
-                center: [-98.5795, 39.8283] // Sets center point of view using longitude,latitude
-            });
+            IdentityManager.checkSignInStatus(esriConfig.portalUrl + "/sharing")
+                .then(function() {
+                    console.log("Signed in successfully");
+                    loadMap();
+                })
+                .catch(function() {
+                    // User is not signed in, redirect to OAuth sign in page
+                    IdentityManager.getCredential(esriConfig.portalUrl + "/sharing");
+                });
+
+            function loadMap() {
+                var featureLayer = new FeatureLayer({
+                    url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Asssets2/FeatureServer/40",
+                    // Additional properties such as outFields can be set here
+                });
+
+                var inspectionLayer = new FeatureLayer({
+                    url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Asssets2/FeatureServer/43",
+                    // Additional properties such as outFields can be set here
+                });
+
+                var map = new Map({
+                    basemap: "streets-navigation-vector",
+                    layers: [featureLayer] // Add inspectionLayer here if needed
+                });
+
+                var view = new MapView({
+                    container: "viewDiv",
+                    map: map,
+                    zoom: 10,
+                    center: [-93.2650, 44.9778] // Centered on Minneapolis
+                });
+
+                // Add the click event listener here, as in the previous example
+                view.on("click", function(event) {
+                    view.hitTest(event).then(function(response) {
+                        var results = response.results.filter(function(result) {
+                            return result.graphic.layer === featureLayer;
+                        });
+
+                        if (results.length) {
+                            var feature = results[0].graphic;
+                            queryRelatedAttachments(feature.attributes.OBJECTID);
+                        }
+                    });
+                });
+
+                function queryRelatedAttachments(objectId) {
+                    var relationshipQuery = new RelationshipQuery({
+                        objectIds: [objectId],
+                        relationshipId: 16, // Replace 0 with the actual relationship ID
+                        outFields: ["*"],
+                        returnGeometry: false
+                    });
+
+                    featureLayer.queryRelatedFeatures(relationshipQuery).then(function(relatedRecords) {
+                        var relatedObjectIds = [];
+                        Object.values(relatedRecords).forEach(function(record) {
+                            record.features.forEach(function(feature) {
+                                relatedObjectIds.push(feature.attributes.OBJECTID);
+                            });
+                        });
+
+                        if (relatedObjectIds.length > 0) {
+                            inspectionLayer.queryAttachments({
+                                objectIds: relatedObjectIds,
+                                attachmentTypes: ['image/jpeg', 'image/png']
+                            }).then(function(attachmentInfos) {
+                                displayAttachments(attachmentInfos);
+                            }).catch(function(error) {
+                                console.error("Error querying attachments: ", error);
+                            });
+                        } else {
+                            document.getElementById("attachments").innerHTML = "No related records found.";
+                        }
+                    }).catch(function(error) {console.error("Error querying related features: ", error);
+                    });
+                }
+
+                function displayAttachments(attachmentInfos) {
+                    var attachmentsDiv = document.getElementById("attachments");
+                    attachmentsDiv.innerHTML = ""; // Clear previous attachments
+                    
+                    Object.values(attachmentInfos).forEach(function(infoArray) {
+                        infoArray.forEach(function(info) {
+                            var link = document.createElement("a");
+                            link.href = info.url;
+                            link.target = "_blank";
+                            var image = document.createElement("img");
+                            image.src = info.url;
+                            image.style.width = "100%";
+                            image.style.padding = "4px";
+                            link.appendChild(image);
+                            attachmentsDiv.appendChild(link);
+                        });
+                    });
+
+                    if (Object.keys(attachmentInfos).length === 0) {
+                        attachmentsDiv.innerHTML = "No attachments found.";
+                    }
+                }
+            }
         });
     </script>
-</head>
-
-<body>
-    <div id="viewDiv" style="height: 100%; width: 100%;"></div>
 </body>
-
 </html>
