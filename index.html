@@ -116,61 +116,66 @@
                 }
 
                 function getInspectionDataAndAttachments(feature) {
-                    return featureLayer.queryRelatedFeatures({
-                        outFields: ["*"], // Fetch all fields from the related records
-                        relationshipId: 20,
-                        objectIds: [feature.attributes.OBJECTID]
-                    }).then(function(relatedFeaturesResult) {
-                        let promises = [];
-                        const objectIdField = featureLayer.objectIdField;
-                        const relatedRecords = relatedFeaturesResult[feature.attributes[objectIdField]].features;
+    return featureLayer.queryRelatedFeatures({
+        outFields: ["*"], // Fetch all fields from the related records
+        relationshipId: 20,
+        objectIds: [feature.attributes.OBJECTID]
+    }).then(function(relatedFeaturesResult) {
+        let promises = [];
+        const objectIdField = featureLayer.objectIdField;
+        // Fetch related records for the selected feature
+        const relatedRecords = relatedFeaturesResult[feature.attributes[objectIdField]].features;
 
-                        let content = "<ul>";
-                        relatedRecords.forEach(record => {
-                            const inspectionDate = record.attributes.inspection_date ? new Date(record.attributes.inspection_date).toLocaleDateString() : "N/A";
-                            const conditionScore = record.attributes.condition_score || "N/A";
-                            const requiresMaintenance = record.attributes.requires_maintenance === true ? "Yes" : "No";
+        // Sort related records by inspection_date in descending order
+        relatedRecords.sort((a, b) => {
+            let dateA = new Date(a.attributes.inspection_date), dateB = new Date(b.attributes.inspection_date);
+            return dateB - dateA; // Sort in descending order
+        });
 
-                            let inspectionLayer = new FeatureLayer({
-                                url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5"
-                            });
-                            promises.push(inspectionLayer.queryAttachments({
-                                objectIds: [record.attributes.OBJECTID]
-                            }).then(function(attachmentInfo) {
-                                let attachmentContent = `<li>Inspection Details:<br>
-                                                             Date: ${inspectionDate}<br>
-                                                             Condition Score: ${conditionScore}<br>
-                                                             Requires Maintenance: ${requiresMaintenance}<br>
-                                                             Attachments:`;
+        let content = "<ul>";
+        relatedRecords.forEach(record => {
+            const inspectionDate = record.attributes.inspection_date ? new Date(record.attributes.inspection_date).toLocaleDateString() : "N/A";
+            const conditionScore = record.attributes.condition_score || "N/A";
+            const requiresMaintenance = record.attributes.requires_maintenance === true ? "Yes" : "No";
 
-                                if (attachmentInfo[record.attributes.OBJECTID] && attachmentInfo[record.attributes.OBJECTID].length > 0) {
-                                    attachmentContent += `<ul>`;
-                                    attachmentInfo[record.attributes.OBJECTID].forEach(attachment => {
-                                        // Update to make attachments clickable for full size view
-                                        attachmentContent += `<li><a href="${attachment.url}" target="_blank"><img src="${attachment.url}" alt="${attachment.name}"></a></li>`;
-                                    });
-                                    attachmentContent += `</ul>`;
-                                } else {
-                                    attachmentContent += " No attachments found";
-                                }
-                                attachmentContent += "</li>";
-                                return attachmentContent;
-                            }));
-                        });
-                        return promiseUtils.eachAlways(promises).then(function(results) {
-                            results.forEach(result => {
-                                if (result.value) {
-                                    content += result.value;
-                                }
-                            });
-                            content += "</ul>";
-                            return content;
-                        });
-                    }).catch(function(error) {
-                        console.error("Error fetching related records and attachments: ", error);
-                        return "Error fetching related records and attachments.";
+            let inspectionLayer = new FeatureLayer({
+                url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5"
+            });
+            promises.push(inspectionLayer.queryAttachments({
+                objectIds: [record.attributes.OBJECTID]
+            }).then(function(attachmentInfo) {
+                let attachmentContent = `<li>Inspection Details:<br>
+                                         Date: ${inspectionDate}<br>
+                                         Condition Score: ${conditionScore}<br>
+                                         Requires Maintenance: ${requiresMaintenance}<br>
+                                         Attachments:`;
+                if (attachmentInfo[record.attributes.OBJECTID] && attachmentInfo[record.attributes.OBJECTID].length > 0) {
+                    attachmentContent += `<ul>`;
+                    attachmentInfo[record.attributes.OBJECTID].forEach(attachment => {
+                        attachmentContent += `<li><a href="${attachment.url}" target="_blank"><img src="${attachment.url}" alt="${attachment.name}"></a></li>`;
                     });
+                    attachmentContent += `</ul>`;
+                } else {
+                    attachmentContent += " No attachments found";
                 }
+                attachmentContent += "</li>";
+                return attachmentContent;
+            }));
+        });
+        return promiseUtils.eachAlways(promises).then(function(results) {
+            results.forEach(result => {
+                if (result.value) {
+                    content += result.value;
+                }
+            });
+            content += "</ul>";
+            return content;
+        });
+    }).catch(function(error) {
+        console.error("Error fetching related records and attachments: ", error);
+        return "Error fetching related records and attachments.";
+    });
+}
             }
         });
     </script>
