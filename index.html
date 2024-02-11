@@ -149,55 +149,64 @@
                 }
 
                 function getInspectionDataAndAttachments(feature) {
-                    return featureLayer.queryRelatedFeatures({
-                        outFields: ["*"],
-                        relationshipId: 20,
-                        objectIds: [feature.attributes.OBJECTID]
-                    }).then(function(relatedFeaturesResult) {
-                        let promises = [];
-                        const objectIdField = featureLayer.objectIdField;
-                        const relatedRecords = relatedFeaturesResult[feature.attributes[objectIdField]].features;
+    return featureLayer.queryRelatedFeatures({
+        outFields: ["*"],
+        relationshipId: 20, // Ensure this is the correct relationship ID
+        objectIds: [feature.attributes.OBJECTID]
+    }).then(function(relatedFeaturesResult) {
+        if (!relatedFeaturesResult) {
+            console.error("No related features found");
+            return "No related features found.";
+        }
 
-                        // Sort related records by inspection_date in descending order
-                        relatedRecords.sort((a, b) => {
-                            return new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date);
-                        });
+        let promises = [];
+        const objectIdField = featureLayer.objectIdField;
+        const relatedRecords = relatedFeaturesResult[feature.attributes[objectIdField]].features;
 
-                        let content = "<ul>";
-                        relatedRecords.forEach(record => {
-                            const inspectionDate = record.attributes.inspection_date ? new Date(record.attributes.inspection_date).toLocaleDateString() : "N/A";
-                            const conditionScore = record.attributes.condition_score || "N/A";
-                            const requiresMaintenance = record.attributes.requires_maintenance === true ? "Yes" : "No";
+        if (relatedRecords.length === 0) {
+            console.log("No related records for the feature.");
+            return "No related records available.";
+        }
 
-                            promises.push(featureLayer.queryAttachments({
-                                objectIds: [record.attributes.OBJECTID]
-                            }).then(function(attachmentInfo) {
-                                let attachmentContent = `<li>Inspection Date: ${inspectionDate}<br>Condition Score: ${conditionScore}<br>Requires Maintenance: ${requiresMaintenance}<br>Attachments:`;
-                                if (attachmentInfo[record.attributes.OBJECTID] && attachmentInfo[record.attributes.OBJECTID].length > 0) {
-                                    attachmentInfo[record.attributes.OBJECTID].forEach(attachment => {
-                                        attachmentContent += `<div><a href="${attachment.url}" target="_blank"><img src="${attachment.url}" alt="Attachment"></a></div>`;
-                                    });
-                                } else {
-                                    attachmentContent += " None";
-                                }
-                                attachmentContent += "</li>";
-                                return attachmentContent;
-                            }));
-                        });
-                        return promiseUtils.eachAlways(promises).then(function(results) {
-                            results.forEach(result => {
-                                if (result.value) {
-                                    content += result.value;
-                                }
-                            });
-                            content += "</ul>";
-                            return content;
-                        });
-                    }).catch(function(error) {
-                        console.error("Error fetching related records and attachments: ", error);
-                        return "Error fetching related records and attachments.";
+        // Ensure sorting logic here if necessary
+
+        let content = "<ul>";
+        relatedRecords.forEach(record => {
+            // Define inspection details
+            const inspectionDate = record.attributes.inspection_date ? new Date(record.attributes.inspection_date).toLocaleDateString() : "N/A";
+            const conditionScore = record.attributes.condition_score || "N/A";
+            const requiresMaintenance = record.attributes.requires_maintenance ? "Yes" : "No";
+
+            promises.push(featureLayer.queryAttachments({
+                objectIds: [record.attributes.OBJECTID]
+            }).then(function(attachmentInfo) {
+                let attachmentContent = `<li>Inspection Date: ${inspectionDate}<br>Condition Score: ${conditionScore}<br>Requires Maintenance: ${requiresMaintenance}<br>Attachments:`;
+                if (attachmentInfo && attachmentInfo[record.attributes.OBJECTID] && attachmentInfo[record.attributes.OBJECTID].length > 0) {
+                    attachmentInfo[record.attributes.OBJECTID].forEach(attachment => {
+                        attachmentContent += `<div><a href="${attachment.url}" target="_blank"><img src="${attachment.url}" alt="Attachment"></a></div>`;
                     });
+                } else {
+                    attachmentContent += " None";
                 }
+                attachmentContent += "</li>";
+                return attachmentContent;
+            }));
+        });
+
+        return promiseUtils.eachAlways(promises).then(function(results) {
+            results.forEach(result => {
+                if (result.value) {
+                    content += result.value;
+                }
+            });
+            content += "</ul>";
+            return content;
+        });
+    }).catch(function(error) {
+        console.error("Error fetching related records and attachments: ", error);
+        return "Error fetching related records and attachments.";
+    });
+}
             }
         });
     </script>
