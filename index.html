@@ -106,53 +106,59 @@
                 });
 
                 function showInspectionDetails(feature) {
-                    const sidePanel = document.getElementById("sidePanel");
-                    const panelContent = sidePanel.querySelector(".panelContent");
-                    panelContent.innerHTML = "<h2>Loading...</h2>";
-                    sidePanel.style.display = "block";
+    const sidePanel = document.getElementById("sidePanel");
+    const panelContent = sidePanel.querySelector(".panelContent");
+    panelContent.innerHTML = "<h2>Loading...</h2>";
+    sidePanel.style.display = "block";
 
-                    featureLayer.queryRelatedFeatures({
-                        outFields: ["*"],
-                        relationshipId: 20,
-                        objectIds: [feature.attributes.OBJECTID]
-                    }).then(function(relatedFeaturesResult) {
-                        let content = "<h2>Inspection Details</h2>";
-                        const objectIdField = featureLayer.objectIdField;
-                        const relatedRecords = relatedFeaturesResult[feature.attributes[objectIdField]].features;
+    featureLayer.queryRelatedFeatures({
+        outFields: ["*"],
+        relationshipId: 20,
+        objectIds: [feature.attributes.OBJECTID]
+    }).then(async function(relatedFeaturesResult) {
+        let content = "<h2>Inspection Details</h2>";
+        const objectIdField = featureLayer.objectIdField;
+        const relatedRecords = relatedFeaturesResult[feature.attributes[objectIdField]].features;
 
-                        // Sort by inspection_date descending to show the most recent first
-                        relatedRecords.sort((a, b) => b.attributes.inspection_date - a.attributes.inspection_date);
+        // Sort by inspection_date descending to show the most recent first
+        relatedRecords.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
 
-                        relatedRecords.forEach(record => {
-                            const inspectionDate = record.attributes.inspection_date ? new Date(record.attributes.inspection_date).toLocaleDateString() : "N/A";
-                            const conditionScore = record.attributes.condition_score || "N/A";
-                            const requiresMaintenance = record.attributes.requires_maintenance === true ? "Yes" : "No";
+        for (const record of relatedRecords) {
+            const inspectionDate = record.attributes.inspection_date ? new Date(record.attributes.inspection_date).toLocaleDateString() : "N/A";
+            const conditionScore = record.attributes.condition_score || "N/A";
+            const requiresMaintenance = record.attributes.requires_maintenance === true ? "Yes" : "No";
 
-                            content += `
-                                <div>
-                                    <p>Date: ${inspectionDate}</p>
-                                    <p>Condition Score: ${conditionScore}</p>
-                                    <p>Requires Maintenance: ${requiresMaintenance}</p>
-                                    <p>Attachments:</p>
-                                </div>
-                            `;
+            content += `
+                <div>
+                    <p>Date: ${inspectionDate}</p>
+                    <p>Condition Score: ${conditionScore}</p>
+                    <p>Requires Maintenance: ${requiresMaintenance}</p>
+                    <p>Attachments:</p>
+                </div>
+            `;
 
-                            const attachments = record.attributes.attachments; // Assuming attachments are available in the attributes
-                            if (attachments && attachments.length > 0) {
-                                attachments.forEach(attachment => {
-                                    content += `<a href="${attachment.url}" target="_blank"><img src="${attachment.url}" alt="${attachment.name}" style="max-width:200px; max-height:200px;"></a>`;
-                                });
-                            } else {
-                                content += "<p>No attachments found</p>";
-                            }
-                        });
+            // Query for attachments
+            const attachmentInfos = await featureLayer.queryAttachments({
+                objectIds: [record.attributes.OBJECTID],
+                globalIds: [record.attributes.GlobalID] // If using GlobalIDs
+            });
 
-                        panelContent.innerHTML = content;
-                    }).catch(function(error) {
-                        console.error("Error fetching related records and attachments: ", error);
-                        panelContent.innerHTML = "<h2>Error loading details.</h2>";
-                    });
-                }
+            const attachments = attachmentInfos[record.attributes.OBJECTID];
+            if (attachments && attachments.length > 0) {
+                attachments.forEach(attachment => {
+                    content += `<a href="${attachment.url}" target="_blank"><img src="${attachment.url}" alt="${attachment.name}" style="max-width:200px; max-height:200px;"></a>`;
+                });
+            } else {
+                content += "<p>No attachments found</p>";
+            }
+        }
+
+        panelContent.innerHTML = content;
+    }).catch(function(error) {
+        console.error("Error fetching related records and attachments: ", error);
+        panelContent.innerHTML = "<h2>Error loading details.</h2>";
+    });
+}
             }
         });
     </script>
