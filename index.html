@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Display Related Data and Attachments with Authentication</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css" />
+    <style>
+        html, body, #viewDiv {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        #sidePanel {
+            position: absolute;
+            top: 0;
+            right: -350px; /* Start offscreen to hide initially */
+            width: 350px;
+            height: 100%;
+            background: white;
+            z-index: 10;
+            transition: right 0.5s; /* Smooth transition for sliding effect */
+            overflow-y: auto; /* Enable scroll for overflow content */
+            padding: 20px;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.5);
+        }
+        #sidePanel.open {
+            right: 0; /* Slide in to show */
+        }
+        #sidePanel ul {
+            list-style-type: none; /* Remove bullet points */
+            padding: 0;
+        }
+        #sidePanel ul li {
+            margin-bottom: 10px;
+        }
+        #sidePanel img {
+            max-width: 200px;
+            max-height: 200px;
+            cursor: pointer; /* Indicates clickable */
+        }
+    </style>
+</head>
+<body>
+    <div id="viewDiv"></div>
+    <div id="sidePanel"></div> <!-- Side Panel for displaying selected feature data -->
+
+    <script src="https://js.arcgis.com/4.28/"></script>
+    <script>
+        require([
+            "esri/config",
+            "esri/Map",
+            "esri/views/MapView",
+            "esri/layers/FeatureLayer",
+            "esri/core/promiseUtils",
+            "esri/identity/IdentityManager",
+            "esri/identity/OAuthInfo"
+        ], function(esriConfig, Map, MapView, FeatureLayer, promiseUtils, IdentityManager, OAuthInfo) {
+            var info = new OAuthInfo({
+                appId: "ti3fi1FqvHE2Hhyw", // Restored your actual App ID
+                popup: false
+            });
+            IdentityManager.registerOAuthInfos([info]);
+
+            IdentityManager.checkSignInStatus(info.portalUrl).then(
+                function() {
+                    console.log("Signed in");
+                    initApplication();
+                }
+            ).catch(
+                function() {
+                    console.log("Not signed in");
+                    IdentityManager.getCredential(info.portalUrl);
+                }
+            );
+
+            function initApplication() {
+                const map = new Map({
+                    basemap: "streets-navigation-vector"
+                });
+
+                const view = new MapView({
+                    container: "viewDiv",
+                    map: map,
+                    center: [-92.5795, 45.8283], // Adjust center as needed
+                    zoom: 10
+                });
+
+                const featureLayer = new FeatureLayer({
+                    url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/4",
+                    outFields: ["*"],
+                    popupEnabled: false // Disable default popup
+                });
+
+                map.add(featureLayer);
+
+                view.on("click", function(event) {
+                    view.hitTest(event).then(function(response) {
+                        if (response.results.length) {
+                            var graphic = response.results.filter(function(result) {
+                                return result.graphic.layer === featureLayer;
+                            })[0].graphic;
+                            
+                            getInspectionDataAndAttachments(graphic).then(function(content) {
+                                displaySidePanel(content); // Display data in side panel
+                            });
+                        }
+                    });
+                });
+
+                function displaySidePanel(content) {
+                    var sidePanel = document.getElementById("sidePanel");
+                    sidePanel.innerHTML = content; // Set the content
+                    sidePanel.classList.add("open"); // Slide in
+                }
+
+                function getInspectionDataAndAttachments(feature) {
+                    return featureLayer.queryRelatedFeatures({
+                        outFields: ["*"], // Fetch all fields from the related records
+                        relationshipId: 20,
+                        objectIds: [feature.attributes.OBJECTID]
+                    }).then(function(relatedFeaturesResult) {
+                        let promises = [];
+                        const objectIdField = featureLayer.objectIdField;
+                        const relatedRecords = relatedFeaturesResult[feature
