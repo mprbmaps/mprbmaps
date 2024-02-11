@@ -1,26 +1,34 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <title>OAuth Callback Page</title>
+    <script src="https://js.arcgis.com/4.28/"></script>
     <script>
-      function loadHandler() {
-        if (opener) {
-          // opener.console.log("oauth callback href:", location.href);
-          if (location.hash) {
-            try {
-              var esriId = opener.require("esri/kernel").id;
-            } catch (e) {}
-            if (esriId) {
-              esriId.setOAuthResponseHash(location.hash);
-            } else {
-              opener.dispatchEvent(new CustomEvent("arcgis:auth:hash", { detail: location.hash }));
+      require(["esri/identity/OAuthInfo", "esri/identity/IdentityManager"], function(
+        OAuthInfo,
+        IdentityManager
+      ) {
+        IdentityManager.registerOAuthInfos([
+          new OAuthInfo({
+            appId: "ti3fi1FqvHE2Hhyw", // Replace with your actual App ID
+            popup: false // This should match the configuration in your main app
+          })
+        ]);
+
+        IdentityManager.checkSignInStatus(window.location.href).then(
+          function(info) {
+            var opener = window.opener;
+            if (opener && opener.location.origin === window.location.origin) {
+              opener.postMessage(info, window.location.origin);
             }
-          } else if (location.search) {
-            opener.dispatchEvent(new CustomEvent("arcgis:auth:location:search", { detail: location.search }));
           }
-        }
-        close();
-      }
+        ).catch(function(error) {
+          console.error("OAuth callback error:", error);
+        });
+      });
     </script>
   </head>
-  <body onload="loadHandler();"></body>
+  <body>
+    <p>OAuth callback page</p>
+  </body>
 </html>
