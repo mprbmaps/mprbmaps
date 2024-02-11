@@ -123,4 +123,56 @@
                     }).then(function(relatedFeaturesResult) {
                         let promises = [];
                         const objectIdField = featureLayer.objectIdField;
-                        const relatedRecords = relatedFeaturesResult[feature
+                        const relatedRecords = relatedFeaturesResult[feature.attributes[objectIdField]].features;
+
+                        let content = "<ul>";
+                        relatedRecords.forEach(record => {
+                            const inspectionDate = record.attributes.inspection_date ? new Date(record.attributes.inspection_date).toLocaleDateString() : "N/A";
+                            const conditionScore = record.attributes.condition_score || "N/A";
+                            const requiresMaintenance = record.attributes.requires_maintenance === true ? "Yes" : "No";
+
+                            let inspectionLayer = new FeatureLayer({
+                                url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5"
+                            });
+                            promises.push(inspectionLayer.queryAttachments({
+                                objectIds: [record.attributes.OBJECTID]
+                            }).then(function(attachmentInfo) {
+                                let attachmentContent = `<li>Inspection Details:<br>
+                                                             Date: ${inspectionDate}<br>
+                                                             Condition Score: ${conditionScore}<br>
+                                                             Requires Maintenance: ${requiresMaintenance}<br>
+                                                             Attachments:`;
+
+                                if (attachmentInfo[record.attributes.OBJECTID] && attachmentInfo[record.attributes.OBJECTID].length > 0) {
+                                    attachmentContent += `<ul>`;
+                                    attachmentInfo[record.attributes.OBJECTID].forEach(attachment => {
+                                        // Update to make attachments clickable for full size view
+                                        attachmentContent += `<li><a href="${attachment.url}" target="_blank"><img src="${attachment.url}" alt="${attachment.name}"></a></li>`;
+                                    });
+                                    attachmentContent += `</ul>`;
+                                } else {
+                                    attachmentContent += " No attachments found";
+                                }
+                                attachmentContent += "</li>";
+                                return attachmentContent;
+                            }));
+                        });
+                        return promiseUtils.eachAlways(promises).then(function(results) {
+                            results.forEach(result => {
+                                if (result.value) {
+                                    content += result.value;
+                                }
+                            });
+                            content += "</ul>";
+                            return content;
+                        });
+                    }).catch(function(error) {
+                        console.error("Error fetching related records and attachments: ", error);
+                        return "Error fetching related records and attachments.";
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+</html>
