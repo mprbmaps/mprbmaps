@@ -6,42 +6,33 @@
     <title>Display Related Data and Attachments with Authentication</title>
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css" />
     <style>
-        html, body {
+        html, body, #viewDiv {
             height: 100%;
             width: 100%;
             margin: 0;
             padding: 0;
         }
-        #viewDiv {
-            width: calc(100% - 250px); /* Adjust width to make space for the side panel */
-            height: 100%;
-            position: absolute;
-        }
         #sidePanel {
-            width: 250px; /* Width of the side panel */
-            height: 100%;
             position: absolute;
-            right: 0;
             top: 0;
-            background: #fff;
+            right: -350px; /* Start offscreen to hide initially */
+            width: 350px;
+            height: 100%;
+            background: white;
             z-index: 10;
+            transition: right 0.5s; /* Smooth transition for sliding effect */
             overflow-y: auto; /* Enable scroll for overflow content */
-            display: none; /* Hide initially */
-            box-shadow: -5px 0px 5px rgba(0,0,0,0.1);
+            padding: 20px;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.5);
         }
-        .panelContent {
-            padding: 15px;
-        }
-        .panelContent h2 {
-            margin-top: 0;
+        #sidePanel.open {
+            right: 0; /* Slide in to show */
         }
     </style>
 </head>
 <body>
     <div id="viewDiv"></div>
-    <div id="sidePanel">
-        <div class="panelContent"></div>
-    </div>
+    <div id="sidePanel"></div> <!-- Side Panel for displaying selected feature data -->
 
     <script src="https://js.arcgis.com/4.28/"></script>
     <script>
@@ -54,11 +45,9 @@
             "esri/identity/IdentityManager",
             "esri/identity/OAuthInfo"
         ], function(esriConfig, Map, MapView, FeatureLayer, promiseUtils, IdentityManager, OAuthInfo) {
-
-            // Setup OAuthInfo to define OAuth details
             var info = new OAuthInfo({
                 appId: "ti3fi1FqvHE2Hhyw", // Replace with your actual App ID
-                popup: false // Set to true for OAuth in a separate window
+                popup: false // Optional: Set to false if you prefer OAuth in the same window
             });
             IdentityManager.registerOAuthInfos([info]);
 
@@ -89,7 +78,7 @@
                 const featureLayer = new FeatureLayer({
                     url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/4",
                     outFields: ["*"],
-                    popupEnabled: false // Disable popups
+                    popupEnabled: false // Disable default popup
                 });
 
                 map.add(featureLayer);
@@ -100,67 +89,75 @@
                             var graphic = response.results.filter(function(result) {
                                 return result.graphic.layer === featureLayer;
                             })[0].graphic;
-                            showInspectionDetails(graphic);
+                            
+                            getInspectionDataAndAttachments(graphic).then(function(content) {
+                                displaySidePanel(content); // Display data in side panel
+                            });
                         }
                     });
                 });
 
-                function showInspectionDetails(feature) {
-    const sidePanel = document.getElementById("sidePanel");
-    const panelContent = sidePanel.querySelector(".panelContent");
-    panelContent.innerHTML = "<h2>Loading...</h2>";
-    sidePanel.style.display = "block";
+                function displaySidePanel(content) {
+                    var sidePanel = document.getElementById("sidePanel");
+                    sidePanel.innerHTML = content; // Set the content
+                    sidePanel.classList.add("open"); // Slide in
+                }
 
-    featureLayer.queryRelatedFeatures({
-        outFields: ["*"],
-        relationshipId: 20,
-        objectIds: [feature.attributes.OBJECTID]
-    }).then(async function(relatedFeaturesResult) {
-        let content = "<h2>Inspection Details</h2>";
-        const objectIdField = featureLayer.objectIdField;
-        const relatedRecords = relatedFeaturesResult[feature.attributes[objectIdField]].features;
+                function getInspectionDataAndAttachments(feature) {
+                    return featureLayer.queryRelatedFeatures({
+                        outFields: ["*"], // Fetch all fields from the related records
+                        relationshipId: 20,
+                        objectIds: [feature.attributes.OBJECTID]
+                    }).then(function(relatedFeaturesResult) {
+                        let promises = [];
+                        const objectIdField = featureLayer.objectIdField;
+                        const relatedRecords = relatedFeaturesResult[feature.attributes[objectIdField]].features;
 
-        // Sort by inspection_date descending to show the most recent first
-        relatedRecords.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+                        let content = "<ul>";
+                        relatedRecords.forEach(record => {
+                            const inspectionDate = record.attributes.inspection_date ? new Date(record.attributes.inspection_date).toLocaleDateString() : "N/A";
+                            const conditionScore = record.attributes.condition_score || "N/A";
+                                                    const requiresMaintenance = record.attributes.requires_maintenance === true ? "Yes" : "No";
 
-        for (const record of relatedRecords) {
-            const inspectionDate = record.attributes.inspection_date ? new Date(record.attributes.inspection_date).toLocaleDateString() : "N/A";
-            const conditionScore = record.attributes.condition_score || "N/A";
-            const requiresMaintenance = record.attributes.requires_maintenance === true ? "Yes" : "No";
+                        let inspectionLayer = new FeatureLayer({
+                            url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5"
+                        });
+                        promises.push(inspectionLayer.queryAttachments({
+                            objectIds: [record.attributes.OBJECTID]
+                        }).then(function(attachmentInfo) {
+                            let attachmentContent = `<li>Inspection Details:<ul>
+                                                         <li>Date: ${inspectionDate}</li>
+                                                         <li>Condition Score: ${conditionScore}</li>
+                                                         <li>Requires Maintenance: ${requiresMaintenance}</li>
+                                                         <li>Attachments:</li>`;
 
-            content += `
-                <div>
-                    <p>Date: ${inspectionDate}</p>
-                    <p>Condition Score: ${conditionScore}</p>
-                    <p>Requires Maintenance: ${requiresMaintenance}</p>
-                    <p>Attachments:</p>
-                </div>
-            `;
-
-            // Query for attachments
-            const attachmentInfos = await featureLayer.queryAttachments({
-                objectIds: [record.attributes.OBJECTID],
-                globalIds: [record.attributes.GlobalID] // If using GlobalIDs
-            });
-
-            const attachments = attachmentInfos[record.attributes.OBJECTID];
-            if (attachments && attachments.length > 0) {
-                attachments.forEach(attachment => {
-                    content += `<a href="${attachment.url}" target="_blank"><img src="${attachment.url}" alt="${attachment.name}" style="max-width:200px; max-height:200px;"></a>`;
+                            if (attachmentInfo[record.attributes.OBJECTID] && attachmentInfo[record.attributes.OBJECTID].length > 0) {
+                                attachmentInfo[record.attributes.OBJECTID].forEach(attachment => {
+                                    attachmentContent += `<li><img src="${attachment.url}" alt="${attachment.name}" style="max-width:200px; max-height:200px;"></li>`;
+                                });
+                            } else {
+                                attachmentContent += "<li>No attachments found</li>";
+                            }
+                            attachmentContent += "</ul></li>";
+                            return attachmentContent;
+                        }));
+                    });
+                    return promiseUtils.eachAlways(promises).then(function(results) {
+                        results.forEach(result => {
+                            if (result.value) {
+                                content += result.value;
+                            }
+                        });
+                        content += "</ul>";
+                        return content;
+                    });
+                }).catch(function(error) {
+                    console.error("Error fetching related records and attachments: ", error);
+                    return "Error fetching related records and attachments.";
                 });
-            } else {
-                content += "<p>No attachments found</p>";
             }
         }
-
-        panelContent.innerHTML = content;
-    }).catch(function(error) {
-        console.error("Error fetching related records and attachments: ", error);
-        panelContent.innerHTML = "<h2>Error loading details.</h2>";
     });
-}
-            }
-        });
-    </script>
+</script>
 </body>
 </html>
