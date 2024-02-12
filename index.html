@@ -163,185 +163,212 @@
             "esri/symbols/SimpleMarkerSymbol",
             "esri/rest/support/Query",
             "esri/geometry/geometryEngine",
-            "esri/geometry/Point"
-        ], function(Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, geometryEngine, Point) {
-            const map = new Map({
-                basemap: {
-                    portalItem: {
-                        id: "a11d663a981947b99aac7ff05437758f"
+            "esri/geometry/Point",
+            "esri/identity/IdentityManager",
+            "esri/identity/OAuthInfo",
+            "esri/identity/IdentityManagerBase"
+        ], function(Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, geometryEngine, Point, IdentityManager, OAuthInfo, IdentityManagerBase) {
+            const info = new OAuthInfo({
+                appId: "ti3fi1FqvHE2Hhyw",
+                popup: false,
+                portalUrl: "https://www.arcgis.com/sharing/rest"
+            });
+
+            IdentityManager.registerOAuthInfos([info]);
+            IdentityManagerBase.settings.serverInfo["https://www.arcgis.com/sharing/rest"].tokenServiceUrl = "https://www.arcgis.com/sharing/rest/oauth2/token";
+
+            IdentityManager.checkSignInStatus(info.portalUrl).then(
+                function() {
+                    console.log("Signed in");
+                    initMap();
+                }
+            ).catch(
+                function() {
+                    console.log("Not signed in");
+                    IdentityManager.getCredential(info.portalUrl);
+                }
+            );
+
+            function initMap() {
+                const map = new Map({
+                    basemap: {
+                        portalItem: {
+                            id: "a11d663a981947b99aac7ff05437758f"
+                        }
+                    }
+                });
+
+                const view = new MapView({
+                    container: "viewDiv",
+                    map: map,
+                    center: [-93.2650, 44.9778], // Minneapolis, MN
+                    zoom: 11 // Zoom level
+                });
+
+                const featureLayer = new FeatureLayer({
+                    url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/4",
+                    outFields: ["*"]
+                });
+
+                const inspectionLayer = new FeatureLayer({
+                    url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5"
+                });
+
+                map.add(featureLayer);
+                map.add(inspectionLayer);
+
+                featureLayer.when(() => {
+                    console.log("Feature Layer Loaded");
+                    attachClickListener();
+                }).catch((error) => {
+                    console.error("Error loading Feature Layer:", error);
+                });
+
+                function attachClickListener() {
+                    view.on("click", function(event) {
+                        view.graphics.removeAll(); // Clear existing graphics
+
+                        const bufferDistance = 20;
+                        const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
+
+                        let query = featureLayer.createQuery();
+                        query.geometry = bufferGeometry;
+                        query.spatialRelationship = "intersects";
+                        query.returnGeometry = true;
+                        query.outFields = ["*"];
+
+                        featureLayer.queryFeatures(query).then(function(result) {
+                            if (result.features.length > 0) {
+                                let feature = result.features[0];
+                                displayFeature(feature);
+                                fetchInspections(feature.attributes.GlobalID);
+                                showSidePanel();
+                                document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
+                            } else {
+                                document.getElementById("infoDiv").innerHTML = "No feature selected.";
+                                hideSidePanel();
+                            }
+                        }).catch(function(error) {
+                            console.error("Query Error:", error);
+                        });
+                    });
+                }
+
+                function displayFeature(feature) {
+                    let symbol = {
+                        type: "simple-marker",
+                        color: "red",
+                        size: 8,
+                        outline: {
+                            color: [255, 255, 255],
+                            width: 1
+                        }
+                    };
+
+                    let graphic = new Graphic({
+                        geometry: feature.geometry,
+                        symbol: symbol
+                    });
+
+                    view.graphics.add(graphic);
+                }
+
+                function fetchInspections(globalID) {
+                    const inspectionQuery = new Query();
+                    inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
+                    inspectionQuery.returnGeometry = false;
+                    inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance"];
+
+                    inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
+                        displayInspections(inspectionResult.features);
+                    }).catch(function(error) {
+                        console.error("Inspection Query Error:", error);
+                    });
+                }
+
+                function displayInspections(inspections) {
+                    const tbody = document.querySelector("#infoTable tbody");
+                    tbody.innerHTML = "";
+
+                    if (inspections.length > 0) {
+                        inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+
+                        inspections.forEach(inspection => {
+                            let row = document.createElement("tr");
+                            let inspectionDateCell = document.createElement("td");
+                            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
+                            row.appendChild(inspectionDateCell);
+                            let conditionScoreCell = document.createElement("td");
+                            conditionScoreCell.textContent = inspection.attributes.condition_score;
+                            row.appendChild(conditionScoreCell);
+                            let requiresMaintenanceCell = document.createElement("td");
+                            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
+                            row.appendChild(requiresMaintenanceCell);
+                            tbody.appendChild(row);
+                        });
+                    } else {
+                        tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
                     }
                 }
-            });
 
-            const view = new MapView({
-                container: "viewDiv",
-                map: map,
-                center: [-93.2650, 44.9778], // Minneapolis, MN
-                zoom: 11 // Zoom level
-            });
+                function formatDate(dateString) {
+                    const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+                    return new Date(dateString).toLocaleDateString(undefined, options);
+                }
 
-            const featureLayer = new FeatureLayer({
-                url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/4"
-            });
+                function showSidePanel() {
+                    document.getElementById("sidePanel").style.right = "0";
+                }
 
-            const inspectionLayer = new FeatureLayer({
-                url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5"
-            });
+                function hideSidePanel() {
+                    document.getElementById("sidePanel").style.right = "-330px";
+                }
 
-            map.add(featureLayer);
-            map.add(inspectionLayer);
+                document.getElementById("inspectionForm").addEventListener("submit", function(event) {
+                    event.preventDefault();
 
-            featureLayer.when(() => {
-                console.log("Feature Layer Loaded");
-                attachClickListener();
-            }).catch((error) => {
-                console.error("Error loading Feature Layer:", error);
-            });
+                    const inspectionDate = document.getElementById("inspectionDate").value;
+                    const conditionScore = document.getElementById("conditionScore").value;
+                    const requiresMaintenance = document.getElementById("requiresMaintenance").value;
+                    const relfeatureglobalid = document.getElementById("relfeatureglobalid").value;
 
-            function attachClickListener() {
-                view.on("click", function(event) {
-                    view.graphics.removeAll(); // Clear existing graphics
+                    const newInspection = {
+                        attributes: {
+                            inspection_date: inspectionDate,
+                            condition_score: conditionScore,
+                            requires_maintenance: requiresMaintenance,
+                            relfeatureglobalid: relfeatureglobalid
+                        }
+                    };
 
-                    const bufferDistance = 20;
-                    const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
-
-                    let query = featureLayer.createQuery();
-                    query.geometry = bufferGeometry;
-                    query.spatialRelationship = "intersects";
-                    query.returnGeometry = true;
-                    query.outFields = ["*"];
-
-                    featureLayer.queryFeatures(query).then(function(result) {
-                        if (result.features.length > 0) {
-                            let feature = result.features[0];
-                            displayFeature(feature);
-                            fetchInspections(feature.attributes.GlobalID);
-                            showSidePanel();
-                            document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
+                    inspectionLayer.applyEdits({
+                        addFeatures: [newInspection]
+                    }).then(function(addResults) {
+                        if (addResults.addFeatureResults.length > 0) {
+                            console.log("New inspection added successfully:", addResults.addFeatureResults[0]);
+                            document.getElementById("inspectionForm").reset();
+                            fetchInspections(relfeatureglobalid);
+                            showSuccessMessage();
                         } else {
-                            document.getElementById("infoDiv").innerHTML = "No feature selected.";
-                            hideSidePanel();
+                            console.error("Failed to add new inspection.");
                         }
                     }).catch(function(error) {
-                        console.error("Query Error:", error);
+                        console.error("Error adding new inspection:", error);
                     });
                 });
-            }
 
-            function displayFeature(feature) {
-                let symbol = {
-                    type: "simple-marker",
-                    color: "red",
-                    size: 8,
-                    outline: {
-                        color: [255, 255, 255],
-                        width: 1
-                    }
-                };
-
-                let graphic = new Graphic({
-                    geometry: feature.geometry,
-                    symbol: symbol
+                document.getElementById("clearSelectionButton").addEventListener("click", function() {
+                    view.graphics.removeAll();
+                    hideSidePanel();
                 });
 
-                view.graphics.add(graphic);
-            }
-
-            function fetchInspections(globalID) {
-                const inspectionQuery = new Query();
-                inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
-                inspectionQuery.returnGeometry = false;
-                inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance"];
-
-                inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
-                    displayInspections(inspectionResult.features);
-                }).catch(function(error) {
-                    console.error("Inspection Query Error:", error);
-                });
-            }
-
-            function displayInspections(inspections) {
-                const tbody = document.querySelector("#infoTable tbody");
-                tbody.innerHTML = "";
-
-                if (inspections.length > 0) {
-                    inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
-
-                    inspections.forEach(inspection => {
-                        let row = document.createElement("tr");
-                        let inspectionDateCell = document.createElement("td");
-                        inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
-                        row.appendChild(inspectionDateCell);
-                        let conditionScoreCell = document.createElement("td");
-                        conditionScoreCell.textContent = inspection.attributes.condition_score;
-                        row.appendChild(conditionScoreCell);
-                        let requiresMaintenanceCell = document.createElement("td");
-                        requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
-                        row.appendChild(requiresMaintenanceCell);
-                        tbody.appendChild(row);
-                    });
-                } else {
-                    tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
+                function showSuccessMessage() {
+                    const successMessage = document.getElementById("successMessage");
+                    successMessage.style.display = "block";
+                    setTimeout(function() {
+                        successMessage.style.display = "none";
+                    }, 3000); // Hide message after 3 seconds
                 }
-            }
-
-            function formatDate(dateString) {
-                const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
-                return new Date(dateString).toLocaleDateString(undefined, options);
-            }
-
-            function showSidePanel() {
-                document.getElementById("sidePanel").style.right = "0";
-            }
-
-            function hideSidePanel() {
-                document.getElementById("sidePanel").style.right = "-330px";
-            }
-
-            document.getElementById("inspectionForm").addEventListener("submit", function(event) {
-                event.preventDefault();
-
-                const inspectionDate = document.getElementById("inspectionDate").value;
-                const conditionScore = document.getElementById("conditionScore").value;
-                const requiresMaintenance = document.getElementById("requiresMaintenance").value;
-                const relfeatureglobalid = document.getElementById("relfeatureglobalid").value;
-
-                const newInspection = {
-                    attributes: {
-                        inspection_date: inspectionDate,
-                        condition_score: conditionScore,
-                        requires_maintenance: requiresMaintenance,
-                        relfeatureglobalid: relfeatureglobalid
-                    }
-                };
-
-                inspectionLayer.applyEdits({
-                    addFeatures: [newInspection]
-                }).then(function(addResults) {
-                    if (addResults.addFeatureResults.length > 0) {
-                        console.log("New inspection added successfully:", addResults.addFeatureResults[0]);
-                        document.getElementById("inspectionForm").reset();
-                        fetchInspections(relfeatureglobalid);
-                        showSuccessMessage();
-                    } else {
-                        console.error("Failed to add new inspection.");
-                    }
-                }).catch(function(error) {
-                    console.error("Error adding new inspection:", error);
-                });
-            });
-
-            document.getElementById("clearSelectionButton").addEventListener("click", function() {
-                view.graphics.removeAll();
-                hideSidePanel();
-            });
-
-            function showSuccessMessage() {
-                const successMessage = document.getElementById("successMessage");
-                successMessage.style.display = "block";
-                setTimeout(function() {
-                    successMessage.style.display = "none";
-                }, 3000); // Hide message after 3 seconds
             }
         });
     </script>
