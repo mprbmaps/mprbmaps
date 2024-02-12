@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
     <title>Display Related Data and Attachments with Authentication</title>
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css" />
     <style>
@@ -13,40 +13,25 @@
         }
         #viewDiv {
             height: 100%;
-            width: 100%;
+            width: 100%; /* Full width to start */
             position: absolute;
         }
         #sidePanel {
-            width: 350px;
+            width: 350px; /* Side panel width */
             background-color: #fff;
             position: absolute;
             top: 0;
-            right: -350px;
+            right: -350px; /* Initially hidden */
             bottom: 0;
             z-index: 10;
             overflow-y: auto;
-            transition: right 0.5s ease-in-out;
+            transition: right 0.5s ease-in-out; /* Smooth transition */
         }
         #sidePanel.open {
-            right: 0;
+            right: 0; /* Slide in to show */
         }
-        .expandable-content {
+        .additional-info {
             display: none;
-            padding-left: 20px;
-        }
-        .toggle-button {
-            cursor: pointer;
-            background-color: transparent;
-            border: none;
-            display: inline-block;
-        }
-        .toggle-button img {
-            width: 20px;
-            height: 20px;
-        }
-        ul {
-            list-style-type: none; /* Remove bullet points */
-            padding: 0;
         }
     </style>
 </head>
@@ -65,8 +50,9 @@
             "esri/identity/IdentityManager",
             "esri/identity/OAuthInfo"
         ], function(esriConfig, Map, MapView, FeatureLayer, promiseUtils, IdentityManager, OAuthInfo) {
+
             var info = new OAuthInfo({
-                appId: "ti3fi1FqvHE2Hhyw",
+                appId: "ti3fi1FqvHE2Hhyw", // Your actual App ID
                 popup: false
             });
             IdentityManager.registerOAuthInfos([info]);
@@ -123,78 +109,79 @@
                     var sidePanel = document.getElementById("sidePanel");
                     sidePanel.innerHTML = content;
                     sidePanel.classList.add("open");
+                    attachDropdownListeners();
+                }
+
+                function attachDropdownListeners() {
+                    var dropdowns = document.querySelectorAll(".dropdown-toggle");
+                    dropdowns.forEach(function(dropdown) {
+                        dropdown.addEventListener("click", function() {
+                            var content = this.nextElementSibling;
+                            content.classList.toggle("additional-info");
+                        });
+                    });
                 }
 
                 function getInspectionDataAndAttachments(feature) {
-                    let inspectionLayer = new FeatureLayer({
-                        url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5", // Your InspectionLayer URL
-                        outFields: ["*"],
-                        popupEnabled: false
-                    });
-
                     return featureLayer.queryRelatedFeatures({
                         outFields: ["*"],
                         relationshipId: 20,
                         objectIds: [feature.attributes.OBJECTID]
                     }).then(function(relatedFeaturesResult) {
-                        let promises= [];
+                        let promises = [];
                         const objectIdField = featureLayer.objectIdField;
                         const relatedRecords = relatedFeaturesResult[feature.attributes[objectIdField]].features;
 
                         let content = "<ul>";
-                        relatedRecords.forEach((record, index) => {
+                        relatedRecords.forEach(record => {
                             const inspectionDate = record.attributes.inspection_date ? new Date(record.attributes.inspection_date).toLocaleDateString() : "N/A";
                             const conditionScore = record.attributes.condition_score || "N/A";
                             const requiresMaintenance = record.attributes.requires_maintenance === true ? "Yes" : "No";
 
-                            let listItem = `<li>
-                                Inspection Date: ${inspectionDate}, Condition Score: ${conditionScore}, Requires Maintenance: ${requiresMaintenance}
-                                <button class="toggle-button" onclick="toggleDetails(event, 'details-${index}')">
-                                    <img src="down-arrow-icon.png" alt="Details"/>
-                                </button>
-                                <div id="details-${index}" class="expandable-content">
-                                    <!-- Placeholder for additional details -->
-                                </div>
-                            </li>`;
-
+                            let inspectionLayer = new FeatureLayer({
+                                url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5"
+                            });
                             promises.push(inspectionLayer.queryAttachments({
                                 objectIds: [record.attributes.OBJECTID]
                             }).then(function(attachmentInfo) {
-                                let attachments = attachmentInfo[record.attributes.OBJECTID];
-                                if (attachments && attachments.length > 0) {
-                                    let attachmentContent = attachments.map(attachment => 
-                                        `<img src="${attachment.url}" alt="${attachment.name}" style="max-width:200px; max-height:200px;">`
-                                    ).join('');
-                                    document.getElementById(`details-${index}`).innerHTML = `<p>Attachments:</p>${attachmentContent}`;
+                                let attachmentContent = `<li>Inspection Details:<ul>
+                                                         <li>Date: ${inspectionDate}</li>
+                                                         <li>Condition Score: ${conditionScore}</li>
+                                                         <li>Requires Maintenance: ${requiresMaintenance}</li>
+                                                         <li><button class="dropdown-toggle">Additional Info</button>
+                                                             <div class="additional-info">
+                                                                 <!-- Additional fields here -->
+                                                                 <!-- Example: <li>Additional Field: Value</li> -->
+                                                             </div>
+                                                         </li>
+                                                         <li>Attachments:</li>`;
+
+                                if (attachmentInfo[record.attributes.OBJECTID] && attachmentInfo[record.attributes.OBJECTID].length > 0) {
+                                    attachmentInfo[record.attributes.OBJECTID].forEach(attachment => {
+                                        attachmentContent += `<li><img src="${attachment.url}" alt="${attachment.name}" style="max-width:200px; max-height:200px;"></li>`;
+                                    });
                                 } else {
-                                    document.getElementById(`details-${index}`).innerHTML = "<p>No attachments found</p>";
+                                    attachmentContent += "<li>No attachments found</li>";
                                 }
+                                attachmentContent += "</ul></li>";
+                                return attachmentContent;
                             }));
-
-                            content += listItem;
                         });
-
-                        content += "</ul>";
-                        promiseUtils.eachAlways(promises).then(() => {
+                        return promiseUtils.eachAlways(promises).then(function(results) {
+                            results.forEach(result => {
+                                if (result.value) {
+                                    content += result.value;
+                                }
+                            });
+                            content += "</ul>";
                             openSidePanel(content);
                         });
                     }).catch(function(error) {
                         console.error("Error fetching related records and attachments: ", error);
+                        // For debugging, output the error message directly to the side panel for more details
                         openSidePanel("Error fetching related records and attachments: " + (error.message || JSON.stringify(error)));
                     });
                 }
-
-                window.toggleDetails = function(event, id) {
-                    event.preventDefault();
-                    var element = document.getElementById(id);
-                    if (element) {
-                        if (element.style.display === "none") {
-                            element.style.display = "block";
-                        } else {
-                            element.style.display = "none";
-                        }
-                    }
-                };
             }
         });
     </script>
