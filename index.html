@@ -161,14 +161,13 @@ require([
     "esri/Map",
     "esri/views/MapView",
     "esri/layers/FeatureLayer",
-    "esri/widgets/Popup",
     "esri/Graphic",
     "esri/symbols/SimpleMarkerSymbol",
     "esri/rest/support/Query",
     "esri/geometry/geometryEngine",
     "esri/identity/IdentityManager",
     "esri/identity/OAuthInfo"
-], function(Map, MapView, FeatureLayer, Popup, Graphic, SimpleMarkerSymbol, Query, geometryEngine, IdentityManager, OAuthInfo) {
+], function(Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, geometryEngine, IdentityManager, OAuthInfo) {
     const info = new OAuthInfo({
         appId: "ti3fi1FqvHE2Hhyw",
         popup: false
@@ -286,7 +285,7 @@ require([
 
             inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
 
-            inspections.forEach((inspection, index) => {
+            inspections.forEach((inspection) => {
                 let row = document.createElement("tr");
                 row.innerHTML = `
                     <td>${formatDate(inspection.attributes.inspection_date)}</td>
@@ -302,44 +301,27 @@ require([
         }
 
         function clearAttachments() {
-    let attachmentSection = document.getElementById("attachmentSection");
-    // Check if the attachmentSection exists, create it if not
-    if (!attachmentSection) {
-        attachmentSection = createAttachmentSection();
-    }
-    // Now safely clear the attachments
-    attachmentSection.innerHTML = "";
-}
-
-function createAttachmentSection() {
-    const infoDiv = document.getElementById("infoDiv");
-    let attachmentSection = document.getElementById("attachmentSection");
-    // If the attachmentSection doesn't exist, create and append it
-    if (!attachmentSection) {
-        attachmentSection = document.createElement("div");
-        attachmentSection.id = "attachmentSection";
-        infoDiv.appendChild(attachmentSection);
-    }
-    return attachmentSection;
-}
-
+            let attachmentSection = document.getElementById("attachmentSection");
+            // Ensure attachmentSection exists, create it if not
+            if (!attachmentSection) {
+                attachmentSection = createAttachmentSection();
+            } else {
+                attachmentSection.innerHTML = ""; // Clear existing attachments
+            }
+        }
 
         function fetchAttachments(objectId, layer) {
-    layer.queryAttachments({
-        objectIds: [objectId],
-        // The relationshipId is used here to specify the relationship to use when querying for attachments
-        relationshipId: 20, // Assuming 20 is the correct relationshipId for attachments
-    }).then(function(attachments) {
-        if (attachments[objectId] && attachments[objectId].length > 0) {
-            displayAttachments(attachments[objectId], objectId);
-        } else {
-            console.log("No attachments found for object ID:", objectId);
+            layer.queryAttachments({
+                objectIds: [objectId],
+                relationshipId: 20
+            }).then(function(attachments) {
+                if (attachments[objectId] && attachments[objectId].length > 0) {
+                    displayAttachments(attachments[objectId], objectId);
+                }
+            }).catch(function(error) {
+                console.error("Error fetching attachments:", error);
+            });
         }
-    }).catch(function(error) {
-        console.error("Error fetching attachments for object ID " + objectId + ":", error);
-    });
-}
-
 
         function displayAttachments(attachmentInfos, objectId) {
             const attachmentSection = document.getElementById("attachmentSection") || createAttachmentSection();
@@ -359,7 +341,7 @@ function createAttachmentSection() {
 
         function createAttachmentSection() {
             const infoDiv = document.getElementById("infoDiv");
-            const attachmentSection = document.createElement("div");
+            let attachmentSection = document.createElement("div");
             attachmentSection.id = "attachmentSection";
             infoDiv.appendChild(attachmentSection);
             return attachmentSection;
@@ -427,6 +409,5 @@ function createAttachmentSection() {
     }
 });
 </script>
-
 </body>
 </html>
