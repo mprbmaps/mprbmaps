@@ -32,6 +32,16 @@
         }
         .additional-info {
             display: none;
+            padding-left: 20px;
+            border-left: 2px solid #ccc;
+            margin-top: 10px;
+        }
+        .dropdown-toggle::after {
+            content: '\25BC';
+            margin-left: 5px;
+        }
+        .expanded::after {
+            content: '\25B2';
         }
     </style>
 </head>
@@ -118,6 +128,7 @@
                         dropdown.addEventListener("click", function() {
                             var content = this.nextElementSibling;
                             content.classList.toggle("additional-info");
+                            this.classList.toggle("expanded");
                         });
                     });
                 }
@@ -137,6 +148,8 @@
                             const inspectionDate = record.attributes.inspection_date ? new Date(record.attributes.inspection_date).toLocaleDateString() : "N/A";
                             const conditionScore = record.attributes.condition_score || "N/A";
                             const requiresMaintenance = record.attributes.requires_maintenance === true ? "Yes" : "No";
+                            const slats = record.attributes.slats || "N/A";
+                            const graffiti = record.attributes.graffiti || "N/A";
 
                             let inspectionLayer = new FeatureLayer({
                                 url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5"
@@ -148,10 +161,12 @@
                                                          <li>Date: ${inspectionDate}</li>
                                                          <li>Condition Score: ${conditionScore}</li>
                                                          <li>Requires Maintenance: ${requiresMaintenance}</li>
-                                                         <li><button class="dropdown-toggle">Additional Info</button>
+                                                         <li class="dropdown-toggle">Additional Info
                                                              <div class="additional-info">
-                                                                 <!-- Additional fields here -->
-                                                                 <!-- Example: <li>Additional Field: Value</li> -->
+                                                                 <ul>
+                                                                     <li>Slats: ${slats}</li>
+                                                                     <li>Graffiti: ${graffiti}</li>
+                                                                 </ul>
                                                              </div>
                                                          </li>
                                                          <li>Attachments:</li>`;
@@ -179,7 +194,7 @@
                     }).catch(function(error) {
                         console.error("Error fetching related records and attachments: ", error);
                         // For debugging, output the error message directly to the side panel for more details
-                        openSidePanel("Error fetching related records and attachments: " + (error.message || JSON.stringify(error)));
+                             openSidePanel("Error fetching related records and attachments: " + (error.message || JSON.stringify(error)));
                     });
                 }
             }
