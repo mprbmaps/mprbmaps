@@ -97,6 +97,28 @@
             margin-top: 10px;
             margin-bottom: 10px;
         }
+
+        /* Highlight selected row */
+        .selected-row {
+            background-color: #f0f0f0;
+        }
+
+        /* Detailed inspection table */
+        #detailedInspectionTable {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        #detailedInspectionTable th, #detailedInspectionTable td {
+            padding: 8px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        #detailedInspectionTable th {
+            background-color: #f2f2f2;
+        }
     </style>
 </head>
 <body>
@@ -151,6 +173,21 @@
                 </tbody>
             </table>
         </div>
+        
+        <!-- Detailed Inspection Information -->
+        <div id="detailedInspectionDiv" style="display: none;">
+            <h2>Detailed Inspection Information</h2>
+            <table id="detailedInspectionTable">
+                <thead>
+                    <tr>
+                        <th>Broken/Missing Slats</th>
+                        <th>Graffiti</th>
+                    </tr>
+                </thead>
+                <tbody id="detailedInspectionBody">
+                </tbody>
+            </table>
+        </div>
     </div>
     <div id="successMessage">New inspection added successfully!</div>
     <script src="https://js.arcgis.com/4.28/"></script>
@@ -173,10 +210,6 @@
         });
 
         IdentityManager.registerOAuthInfos([info]);
-
-        IdentityManager.on("credential-create", function() {
-            localStorage.setItem("esriJSAPIOAuthCredentials", JSON.stringify(IdentityManager.toJSON()));
-        });
 
         IdentityManager.checkSignInStatus(info.portalUrl).then(
             function() {
@@ -277,7 +310,7 @@
                 const inspectionQuery = new Query();
                 inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
                 inspectionQuery.returnGeometry = false;
-                inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance"];
+                inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "broken_missing_slats", "graffiti"];
 
                 inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
                     displayInspections(inspectionResult.features);
@@ -305,6 +338,17 @@
                         requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
                         row.appendChild(requiresMaintenanceCell);
                         tbody.appendChild(row);
+
+                        // Add event listener to each row
+                        row.addEventListener("click", function() {
+                            // Remove previous selection
+                            let selectedRows = document.querySelectorAll(".selected-row");
+                            selectedRows.forEach(row => row.classList.remove("selected-row"));
+                            // Highlight selected row
+                            row.classList.add("selected-row");
+                            // Display detailed inspection information
+                            displayDetailedInspection(inspection);
+                        });
                     });
                 } else {
                     tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
@@ -314,6 +358,24 @@
             function formatDate(dateString) {
                 const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
                 return new Date(dateString).toLocaleDateString(undefined, options);
+            }
+
+            function displayDetailedInspection(inspection) {
+                const detailedInspectionBody = document.getElementById("detailedInspectionBody");
+                detailedInspectionBody.innerHTML = "";
+
+                // Add detailed inspection fields and values
+                let row = document.createElement("tr");
+                let brokenMissingSlatsCell = document.createElement("td");
+                brokenMissingSlatsCell.textContent = inspection.attributes.broken_missing_slats;
+                row.appendChild(brokenMissingSlatsCell);
+                let graffitiCell = document.createElement("td");
+                graffitiCell.textContent = inspection.attributes.graffiti;
+                row.appendChild(graffitiCell);
+                detailedInspectionBody.appendChild(row);
+
+                // Show the detailed inspection section
+                document.getElementById("detailedInspectionDiv").style.display = "block";
             }
 
             function showSidePanel() {
