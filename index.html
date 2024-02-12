@@ -6,50 +6,51 @@
     <title>Display Related Inspections on Feature Selection</title>
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css" />
     <style>
-        html, body, #viewDiv {
+        html, body {
             padding: 0;
             margin: 0;
             height: 100%;
             width: 100%;
         }
+        
+        #viewDiv {
+            height: calc(100% - 40px); /* Adjust based on actual header/footer height */
+            width: 100%;
+        }
 
         #sidePanel {
-            position: fixed;
-            top: 0;
-            right: -330px;
-            width: 330px;
-            height: 100%;
-            background: white;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-            transition: right 0.5s;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 10px;
-        }
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto; /* Ensures scrollability for the entire sidebar */
+        height: 100vh; /* Full viewport height */
+        padding: 10px;
+    }
 
         #addInspectionForm {
-            margin-bottom: 20px;
-        }
+        flex-shrink: 0;
+        margin-bottom: 20px;
+    }
 
-        #infoDiv {
-            flex-grow: 1;
-            overflow-y: auto;
-        }
+        #infoDiv, #detailedInspectionDiv {
+        flex-grow: 1; /* Take available space */
+        flex-shrink: 1; /* Allow shrinking */
+        margin-top: 20px; /* Increase visibility */
+        overflow-y: auto; /* Allows internal scrolling */
+    }
 
-        #infoTable {
+        #infoTable, #detailedInspectionTable {
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
         }
 
-        #infoTable th, #infoTable td {
+        #infoTable th, #infoTable td, #detailedInspectionTable th, #detailedInspectionTable td {
             padding: 8px;
             border: 1px solid #ddd;
             text-align: left;
         }
 
-        #infoTable th {
+        #infoTable th, #detailedInspectionTable th {
             background-color: #f2f2f2;
         }
 
@@ -68,7 +69,7 @@
         }
 
         select, input[type="date"] {
-            width: calc(100% - 12px); /* Adjust the width as needed */
+            width: calc(100% - 12px);
             padding: 5px;
         }
 
@@ -86,17 +87,17 @@
         }
 
         #inspectionsTitle {
-            font-size: 20;
+            font-size: 20px;
             font-weight: bold;
             margin-top: 10px;
         }
 
-        /* Add a line separator */
         .line-separator {
-            border-top: 1px solid #ccc;
-            margin-top: 10px;
-            margin-bottom: 10px;
-        }
+        height: 2px;
+        background-color: #ccc;
+        margin-top: 20px;
+        margin-bottom: 20px;
+    }
     </style>
 </head>
 <body>
@@ -151,226 +152,237 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Detailed Inspection Information -->
+        <div id="detailedInspectionDiv">
+            <h2>Detailed Inspection Information</h2>
+            <table id="detailedInspectionTable">
+                <thead>
+                    <tr>
+                        <th>Broken/Missing Slats</th>
+                        <th>Graffiti</th>
+                    </tr>
+                </thead>
+                <tbody id="detailedInspectionBody">
+                </tbody>
+            </table>
+        </div>
+
     </div>
     <div id="successMessage">New inspection added successfully!</div>
     <script src="https://js.arcgis.com/4.28/"></script>
-    <script>
-        require([
-            "esri/Map",
-            "esri/views/MapView",
-            "esri/layers/FeatureLayer",
-            "esri/Graphic",
-            "esri/symbols/SimpleMarkerSymbol",
-            "esri/rest/support/Query",
-            "esri/geometry/geometryEngine",
-            "esri/geometry/Point",
-            "esri/identity/IdentityManager",
-            "esri/identity/OAuthInfo",
-            
-        ], function(Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, geometryEngine, Point, IdentityManager, OAuthInfo) {
-            const info = new OAuthInfo({
-                appId: "ti3fi1FqvHE2Hhyw",
-                popup: false,
-                portalUrl: "https://www.arcgis.com/sharing/rest"
-            });
-
-            IdentityManager.registerOAuthInfos([info]);
-            IdentityManagerBase.settings.serverInfo["https://www.arcgis.com/sharing/rest"].tokenServiceUrl = "https://www.arcgis.com/sharing/rest/oauth2/token";
-
-            IdentityManager.checkSignInStatus(info.portalUrl).then(
-                function() {
-                    console.log("Signed in");
-                    initMap();
-                }
-            ).catch(
-                function() {
-                    console.log("Not signed in");
-                    IdentityManager.getCredential(info.portalUrl);
-                }
-            );
-
-            function initMap() {
-                const map = new Map({
-                    basemap: {
-                        portalItem: {
-                            id: "a11d663a981947b99aac7ff05437758f"
-                        }
-                    }
-                });
-
-                const view = new MapView({
-                    container: "viewDiv",
-                    map: map,
-                    center: [-93.2650, 44.9778], // Minneapolis, MN
-                    zoom: 11 // Zoom level
-                });
-
-                const featureLayer = new FeatureLayer({
-                    url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/4",
-                    outFields: ["*"]
-                });
-
-                const inspectionLayer = new FeatureLayer({
-                    url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5"
-                });
-
-                map.add(featureLayer);
-                map.add(inspectionLayer);
-
-                featureLayer.when(() => {
-                    console.log("Feature Layer Loaded");
-                    attachClickListener();
-                }).catch((error) => {
-                    console.error("Error loading Feature Layer:", error);
-                });
-
-                function attachClickListener() {
-                    view.on("click", function(event) {
-                        view.graphics.removeAll(); // Clear existing graphics
-
-                        const bufferDistance = 20;
-                        const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
-
-                        let query = featureLayer.createQuery();
-                        query.geometry = bufferGeometry;
-                        query.spatialRelationship = "intersects";
-                        query.returnGeometry = true;
-                        query.outFields = ["*"];
-
-                        featureLayer.queryFeatures(query).then(function(result) {
-                            if (result.features.length > 0) {
-                                let feature = result.features[0];
-                                displayFeature(feature);
-                                fetchInspections(feature.attributes.GlobalID);
-                                showSidePanel();
-                                document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
-                            } else {
-                                document.getElementById("infoDiv").innerHTML = "No feature selected.";
-                                hideSidePanel();
-                            }
-                        }).catch(function(error) {
-                            console.error("Query Error:", error);
-                        });
-                    });
-                }
-
-                function displayFeature(feature) {
-                    let symbol = {
-                        type: "simple-marker",
-                        color: "red",
-                        size: 8,
-                        outline: {
-                            color: [255, 255, 255],
-                            width: 1
-                        }
-                    };
-
-                    let graphic = new Graphic({
-                        geometry: feature.geometry,
-                        symbol: symbol
-                    });
-
-                    view.graphics.add(graphic);
-                }
-
-                function fetchInspections(globalID) {
-                    const inspectionQuery = new Query();
-                    inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
-                    inspectionQuery.returnGeometry = false;
-                    inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance"];
-
-                    inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
-                        displayInspections(inspectionResult.features);
-                    }).catch(function(error) {
-                        console.error("Inspection Query Error:", error);
-                    });
-                }
-
-                function displayInspections(inspections) {
-                    const tbody = document.querySelector("#infoTable tbody");
-                    tbody.innerHTML = "";
-
-                    if (inspections.length > 0) {
-                        inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
-
-                        inspections.forEach(inspection => {
-                            let row = document.createElement("tr");
-                            let inspectionDateCell = document.createElement("td");
-                            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
-                            row.appendChild(inspectionDateCell);
-                            let conditionScoreCell = document.createElement("td");
-                            conditionScoreCell.textContent = inspection.attributes.condition_score;
-                            row.appendChild(conditionScoreCell);
-                            let requiresMaintenanceCell = document.createElement("td");
-                            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
-                            row.appendChild(requiresMaintenanceCell);
-                            tbody.appendChild(row);
-                        });
-                    } else {
-                        tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
-                    }
-                }
-
-                function formatDate(dateString) {
-                    const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
-                    return new Date(dateString).toLocaleDateString(undefined, options);
-                }
-
-                function showSidePanel() {
-                    document.getElementById("sidePanel").style.right = "0";
-                }
-
-                function hideSidePanel() {
-                    document.getElementById("sidePanel").style.right = "-330px";
-                }
-
-                document.getElementById("inspectionForm").addEventListener("submit", function(event) {
-                    event.preventDefault();
-
-                    const inspectionDate = document.getElementById("inspectionDate").value;
-                    const conditionScore = document.getElementById("conditionScore").value;
-                    const requiresMaintenance = document.getElementById("requiresMaintenance").value;
-                    const relfeatureglobalid = document.getElementById("relfeatureglobalid").value;
-
-                    const newInspection = {
-                        attributes: {
-                            inspection_date: inspectionDate,
-                            condition_score: conditionScore,
-                            requires_maintenance: requiresMaintenance,
-                            relfeatureglobalid: relfeatureglobalid
-                        }
-                    };
-
-                    inspectionLayer.applyEdits({
-                        addFeatures: [newInspection]
-                    }).then(function(addResults) {
-                        if (addResults.addFeatureResults.length > 0) {
-                            console.log("New inspection added successfully:", addResults.addFeatureResults[0]);
-                            document.getElementById("inspectionForm").reset();
-                            fetchInspections(relfeatureglobalid);
-                            showSuccessMessage();
-                        } else {
-                            console.error("Failed to add new inspection.");
-                        }
-                    }).catch(function(error) {
-                        console.error("Error adding new inspection:", error);
-                    });
-                });
-
-                document.getElementById("clearSelectionButton").addEventListener("click", function() {
-                    view.graphics.removeAll();
-                    hideSidePanel();
-                });
-
-                function showSuccessMessage() {
-                    const successMessage = document.getElementById("successMessage");
-                    successMessage.style.display = "block";
-                    setTimeout(function() {
-                        successMessage.style.display = "none";
-                    }, 3000); // Hide message after 3 seconds
+<script>
+    require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/FeatureLayer",
+        "esri/Graphic",
+        "esri/symbols/SimpleMarkerSymbol",
+        "esri/rest/support/Query",
+        "esri/geometry/geometryEngine",
+        "esri/geometry/Point"
+    ], function(Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, geometryEngine, Point) {
+        const map = new Map({
+            basemap: {
+                portalItem: {
+                    id: "a11d663a981947b99aac7ff05437758f"
                 }
             }
         });
-    </script>
+
+        const view = new MapView({
+            container: "viewDiv",
+            map: map,
+            center: [-93.2650, 44.9778],
+            zoom: 11
+        });
+
+        const featureLayer = new FeatureLayer({
+            url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/4"
+        });
+
+        const inspectionLayer = new FeatureLayer({
+            url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5"
+        });
+
+        map.add(featureLayer);
+        map.add(inspectionLayer);
+
+        featureLayer.when(() => {
+            console.log("Feature Layer Loaded");
+            attachClickListener();
+        }).catch((error) => {
+            console.error("Error loading Feature Layer:", error);
+        });
+
+        function attachClickListener() {
+            view.on("click", function(event) {
+                view.graphics.removeAll();
+
+                const bufferDistance = 20;
+                const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
+
+                let query = featureLayer.createQuery();
+                query.geometry = bufferGeometry;
+                query.spatialRelationship = "intersects";
+                query.returnGeometry = true;
+                query.outFields = ["*"];
+
+                featureLayer.queryFeatures(query).then(function(result) {
+                    if (result.features.length > 0) {
+                        let feature = result.features[0];
+                        displayFeature(feature);
+                        fetchInspections(feature.attributes.GlobalID);
+                        showSidePanel();
+                        document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
+                    } else {
+                        document.getElementById("infoDiv").innerHTML = "No feature selected.";
+                        hideSidePanel();
+                    }
+                }).catch(function(error) {
+                    console.error("Query Error:", error);
+                });
+            });
+        }
+
+        function displayFeature(feature) {
+            let symbol = {
+                type: "simple-marker",
+                color: "red",
+                size: 8,
+                outline: {
+                    color: [255, 255, 255],
+                    width: 1
+                }
+            };
+
+            let graphic = new Graphic({
+                geometry: feature.geometry,
+                symbol: symbol
+            });
+
+            view.graphics.add(graphic);
+        }
+
+        function fetchInspections(globalID) {
+            const inspectionQuery = new Query();
+            inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
+            inspectionQuery.returnGeometry = false;
+            inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "broken_missing_slats", "graffiti"];
+
+            inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
+                displayInspections(inspectionResult.features);
+                displayDetailedInspection(inspectionResult.features);
+            }).catch(function(error) {
+                console.error("Inspection Query Error:", error);
+            });
+        }
+
+        function displayInspections(inspections) {
+            const tbody = document.querySelector("#infoTable tbody");
+            tbody.innerHTML = "";
+
+            if (inspections.length > 0) {
+                inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+
+                inspections.forEach(inspection => {
+                    let row = document.createElement("tr");
+                    let inspectionDateCell = document.createElement("td");
+                    inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
+                    row.appendChild(inspectionDateCell);
+                    let conditionScoreCell = document.createElement("td");
+                    conditionScoreCell.textContent = inspection.attributes.condition_score;
+                    row.appendChild(conditionScoreCell);
+                    let requiresMaintenanceCell = document.createElement("td");
+                    requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
+                    row.appendChild(requiresMaintenanceCell);
+                    tbody.appendChild(row);
+                });
+            } else {
+                tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
+            }
+        }
+
+        function formatDate(dateString) {
+            const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+            return new Date(dateString).toLocaleDateString(undefined, options);
+        }
+
+        function displayDetailedInspection(inspections) {
+            const detailedInspectionBody = document.getElementById("detailedInspectionBody");
+            detailedInspectionBody.innerHTML = "";
+
+            if (inspections.length > 0) {
+                const latestInspection = inspections[0];
+                let row = document.createElement("tr");
+                let brokenMissingSlatsCell = document.createElement("td");
+                brokenMissingSlatsCell.textContent = latestInspection.attributes.broken_missing_slats;
+                row.appendChild(brokenMissingSlatsCell);
+                let graffitiCell = document.createElement("td");
+                graffitiCell.textContent = latestInspection.attributes.graffiti;
+                row.appendChild(graffitiCell);
+                detailedInspectionBody.appendChild(row);
+            } else {
+                detailedInspectionBody.innerHTML = "<tr><td colspan='2'>No detailed inspection information available.</td></tr>";
+            }
+
+            document.getElementById("detailedInspectionDiv").style.display = "block";
+        }
+
+        function showSidePanel() {
+            document.getElementById("sidePanel").style.right = "0";
+        }
+
+        function hideSidePanel() {
+            document.getElementById("sidePanel").style.right = "-330px";
+        }
+
+        document.getElementById("inspectionForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+
+            const inspectionDate = document.getElementById("inspectionDate").value;
+            const conditionScore = document.getElementById("conditionScore").value;
+            const requiresMaintenance = document.getElementById("requiresMaintenance").value;
+            const relfeatureglobalid = document.getElementById("relfeatureglobalid").value;
+
+            const newInspection = {
+                attributes: {
+                    inspection_date: inspectionDate,
+                    condition_score: conditionScore,
+                    requires_maintenance: requiresMaintenance,
+                    relfeatureglobalid: relfeatureglobalid
+                }
+            };
+
+            inspectionLayer.applyEdits({
+                addFeatures: [newInspection]
+            }).then(function(addResults) {
+                if (addResults.addFeatureResults.length > 0) {
+                    console.log("New inspection added successfully:", addResults.addFeatureResults[0]);
+                    document.getElementById("inspectionForm").reset();
+                    fetchInspections(relfeatureglobalid);
+                    showSuccessMessage();
+                } else {
+                    console.error("Failed to add new inspection.");
+                }
+            }).catch(function(error) {
+                console.error("Error adding new inspection:", error);
+            });
+        });
+
+        document.getElementById("clearSelectionButton").addEventListener("click", function() {
+            view.graphics.removeAll();
+            hideSidePanel();
+        });
+
+        function showSuccessMessage() {
+            const successMessage = document.getElementById("successMessage");
+            successMessage.style.display = "block";
+            setTimeout(function() {
+                successMessage.style.display = "none";
+            }, 3000);
+        }
+    });
+</script>
 </body>
 </html>
