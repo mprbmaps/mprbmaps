@@ -302,9 +302,27 @@ require([
         }
 
         function clearAttachments() {
-            const attachmentSection = document.getElementById("attachmentSection");
-            attachmentSection.innerHTML = ""; // Clear previous attachments
-        }
+    let attachmentSection = document.getElementById("attachmentSection");
+    // Check if the attachmentSection exists, create it if not
+    if (!attachmentSection) {
+        attachmentSection = createAttachmentSection();
+    }
+    // Now safely clear the attachments
+    attachmentSection.innerHTML = "";
+}
+
+function createAttachmentSection() {
+    const infoDiv = document.getElementById("infoDiv");
+    let attachmentSection = document.getElementById("attachmentSection");
+    // If the attachmentSection doesn't exist, create and append it
+    if (!attachmentSection) {
+        attachmentSection = document.createElement("div");
+        attachmentSection.id = "attachmentSection";
+        infoDiv.appendChild(attachmentSection);
+    }
+    return attachmentSection;
+}
+
 
         function fetchAttachments(objectId, layer) {
     layer.queryAttachments({
