@@ -6,10 +6,15 @@
     <title>Display Related Inspections on Feature Selection</title>
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css" />
     <style>
-        html, body, #viewDiv {
+        html, body {
             padding: 0;
             margin: 0;
             height: 100%;
+            width: 100%;
+        }
+        
+        #viewDiv {
+            height: calc(100% - 40px); /* Adjust based on actual header/footer height */
             width: 100%;
         }
 
@@ -18,7 +23,7 @@
             top: 0;
             right: -330px;
             width: 330px;
-            height: 100%;
+            height: 100vh; /* Use viewport height to ensure it takes full height */
             background: white;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
             transition: right 0.5s;
@@ -26,31 +31,31 @@
             flex-direction: column;
             justify-content: space-between;
             padding: 10px;
+            overflow-y: auto; /* Add scrollbar to sidePanel if content overflows */
         }
 
         #addInspectionForm {
             margin-bottom: 20px;
         }
 
-        #infoDiv {
-   
-    flex-grow: 1;
-    overflow-y: auto;
-}
+        #infoDiv, #detailedInspectionDiv {
+            flex-grow: 1;
+            overflow-y: auto; /* Allows scrolling within each section if content overflows */
+        }
 
-        #infoTable {
+        #infoTable, #detailedInspectionTable {
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
         }
 
-        #infoTable th, #infoTable td {
+        #infoTable th, #infoTable td, #detailedInspectionTable th, #detailedInspectionTable td {
             padding: 8px;
             border: 1px solid #ddd;
             text-align: left;
         }
 
-        #infoTable th {
+        #infoTable th, #detailedInspectionTable th {
             background-color: #f2f2f2;
         }
 
@@ -69,7 +74,7 @@
         }
 
         select, input[type="date"] {
-            width: calc(100% - 12px); /* Adjust the width as needed */
+            width: calc(100% - 12px);
             padding: 5px;
         }
 
@@ -87,39 +92,13 @@
         }
 
         #inspectionsTitle {
-            font-size: 20;
+            font-size: 20px;
             font-weight: bold;
             margin-top: 10px;
         }
 
-        /* Add a line separator */
         .line-separator {
-           
-           
             margin-top: 10px;
-            
-        }
-
-        #detailedInspectionDiv {
-    display: none;
-    margin-top: 10px; /* Adjust margin as needed */
-    
-}
-
-        #detailedInspectionTable {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-
-        #detailedInspectionTable th, #detailedInspectionTable td {
-            padding: 8px;
-            border: 1px solid #ddd;
-            text-align: left;
-        }
-
-        #detailedInspectionTable th {
-            background-color: #f2f2f2;
         }
     </style>
 </head>
