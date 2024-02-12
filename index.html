@@ -26,15 +26,44 @@
             z-index: 10;
             overflow-y: auto;
             transition: right 0.5s ease-in-out; /* Smooth transition */
+            padding: 20px;
         }
         #sidePanel.open {
             right: 0; /* Slide in to show */
+        }
+        .attachment-image {
+            max-width: 200px;
+            max-height: 200px;
+            margin-top: 5px;
+            cursor: pointer;
+        }
+        .attachment-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.9);
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+        .attachment-modal img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+        .attachment-modal.close {
+            display: none;
         }
     </style>
 </head>
 <body>
     <div id="viewDiv"></div>
     <div id="sidePanel"></div>
+    <div id="attachmentModal" class="attachment-modal">
+        <img id="attachmentImage" src="" alt="Attachment" />
+        <span class="close" onclick="closeAttachmentModal()">Close</span>
+    </div>
 
     <script src="https://js.arcgis.com/4.28/"></script>
     <script>
@@ -109,58 +138,59 @@
                 }
 
                 function getInspectionDataAndAttachments(feature) {
-                    return featureLayer.queryRelatedFeatures({
-                        outFields: ["*"],
-                        relationshipId: 20,
-                        objectIds: [feature.attributes.OBJECTID]
-                    }).then(function(relatedFeaturesResult) {
+                    const objectIdField = featureLayer.objectIdField;
+                    const objectId = feature.attributes[objectIdField];
+                    const query = featureLayer.createQuery();
+                    query.outFields = ["*"];
+                    query.relationshipId = 20;
+                    query.objectIds = [objectId];
+                    query.returnGeometry = false;
+                    
+                    return featureLayer.queryRelatedFeatures(query).then(function(relatedFeaturesResult) {
                         let promises = [];
-                        const objectIdField = featureLayer.objectIdField;
-                        const relatedRecords = relatedFeaturesResult[feature.attributes[objectIdField]].features;
+                        const relatedRecords = relatedFeaturesResult[objectId].features;
 
-                        let content = "<ul>";
+                        let content = "<div>";
                         relatedRecords.forEach(record => {
                             const inspectionDate = record.attributes.inspection_date ? new Date(record.attributes.inspection_date).toLocaleDateString() : "N/A";
                             const conditionScore = record.attributes.condition_score || "N/A";
                             const requiresMaintenance = record.attributes.requires_maintenance === true ? "Yes" : "No";
+                            const slats = record.attributes.broken_missing_slats || "N/A";
+                            const graffiti = record.attributes.graffiti || "N/A";
+                            const attachments = record.attachments || [];
 
-                            let inspectionLayer = new FeatureLayer({
-                                url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5"
-                            });
-                            promises.push(inspectionLayer.queryAttachments({
-                                objectIds: [record.attributes.OBJECTID]
-                            }).then(function(attachmentInfo) {
-                                let attachmentContent = `<li>Inspection Details:<ul>
-                                                         <li>Date: ${inspectionDate}</li>
-                                                         <li>Condition Score: ${conditionScore}</li>
-                                                         <li>Requires Maintenance: ${requiresMaintenance}</li>
-                                                         <li>Attachments:</li>`;
+                                content += `<div>`;
+                                content += `<div>Date: ${inspectionDate}</div>`;
+                                content += `<div>Condition Score: ${conditionScore}</div>`;
+                                content += `<div>Requires Maintenance: ${requiresMaintenance}</div>`;
+                                content += `<div>Broken/Missing Slats: ${slats}</div>`;
+                                content += `<div>Graffiti: ${graffiti}</div>`;
 
-                                if (attachmentInfo[record.attributes.OBJECTID] && attachmentInfo[record.attributes.OBJECTID].length > 0) {
-                                    attachmentInfo[record.attributes.OBJECTID].forEach(attachment => {
-                                        attachmentContent += `<li><img src="${attachment.url}" alt="${attachment.name}" style="max-width:200px; max-height:200px;"></li>`;
-                                    });
-                                } else {
-                                    attachmentContent += "<li>No attachments found</li>";
-                                }
-                                attachmentContent += "</ul></li>";
-                                return attachmentContent;
-                            }));
-                        });
-                        return promiseUtils.eachAlways(promises).then(function(results) {
-                            results.forEach(result => {
-                                if (result.value) {
-                                    content += result.value;
-                                }
+                                attachments.forEach(attachment => {
+                                    content += `<img class="attachment-image" src="${attachment.url}" alt="${attachment.name}" onclick="openAttachmentModal('${attachment.url}')" />`;
+                                });
+
+                                content += `</div>`;
                             });
-                            content += "</ul>";
+
+                            content += "</div>";
                             openSidePanel(content);
+                        }).catch(function(error) {
+                            console.error("Error fetching related records and attachments: ", error);
+                            openSidePanel("Error fetching related records and attachments: " + (error.message || JSON.stringify(error)));
                         });
-                    }).catch(function(error) {
-    console.error("Error fetching related records and attachments: ", error);
-    // For debugging, output the error message directly to the side panel for more details
-    openSidePanel("Error fetching related records and attachments: " + (error.message || JSON.stringify(error)));
-});
+                }
+
+                function openAttachmentModal(attachmentUrl) {
+                    var modal = document.getElementById("attachmentModal");
+                    var attachmentImage = document.getElementById("attachmentImage");
+                    attachmentImage.src = attachmentUrl;
+                    modal.style.display = "block";
+                }
+
+                function closeAttachmentModal() {
+                    var modal = document.getElementById("attachmentModal");
+                    modal.style.display = "none";
                 }
             }
         });
