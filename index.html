@@ -21,14 +21,14 @@
             background-color: #fff;
             position: absolute;
             top: 0;
-            right: -350px; /* Initially hidden */
+            right: -350px;
             bottom: 0;
             z-index: 10;
             overflow-y: auto;
             transition: right 0.5s ease-in-out;
         }
         #sidePanel.open {
-            right: 0; /* Slide in to show */
+            right: 0;
         }
         .expandable-content {
             display: none;
@@ -36,10 +36,17 @@
         }
         .toggle-button {
             cursor: pointer;
-            color: #007bff;
-            padding: 5px;
-            margin: 5px 0;
+            background-color: transparent;
+            border: none;
             display: inline-block;
+        }
+        .toggle-button img {
+            width: 20px;
+            height: 20px;
+        }
+        ul {
+            list-style-type: none; /* Remove bullet points */
+            padding: 0;
         }
     </style>
 </head>
@@ -127,10 +134,10 @@
 
                     return featureLayer.queryRelatedFeatures({
                         outFields: ["*"],
-                        relationshipId: 20, // Your specified relationshipId
+                        relationshipId: 20,
                         objectIds: [feature.attributes.OBJECTID]
                     }).then(function(relatedFeaturesResult) {
-                        let promises = [];
+                        let promises= [];
                         const objectIdField = featureLayer.objectIdField;
                         const relatedRecords = relatedFeaturesResult[feature.attributes[objectIdField]].features;
 
@@ -140,30 +147,43 @@
                             const conditionScore = record.attributes.condition_score || "N/A";
                             const requiresMaintenance = record.attributes.requires_maintenance === true ? "Yes" : "No";
 
-                            // Generate the HTML for each record's summary
-                            let listItem = `<li>Inspection Date: ${inspectionDate}, Condition Score: ${conditionScore}, Requires Maintenance: ${requiresMaintenance}
-                                <a href="#" class="toggle-button" onclick="toggleDetails(event, 'details-${index}')">Details</a>
+                            let listItem = `<li>
+                                Inspection Date: ${inspectionDate}, Condition Score: ${conditionScore}, Requires Maintenance: ${requiresMaintenance}
+                                <button class="toggle-button" onclick="toggleDetails(event, 'details-${index}')">
+                                    <img src="down-arrow-icon.png" alt="Details"/>
+                                </button>
                                 <div id="details-${index}" class="expandable-content">
-                                    <p>Additional details here...</p>
-                                    <!-- Add more details you wish to include here -->
+                                    <!-- Placeholder for additional details -->
                                 </div>
                             </li>`;
 
-                            content += listItem;
+                            promises.push(inspectionLayer.queryAttachments({
+                                objectIds: [record.attributes.OBJECTID]
+                            }).then(function(attachmentInfo) {
+                                let attachments = attachmentInfo[record.attributes.OBJECTID];
+                                if (attachments && attachments.length > 0) {
+                                    let attachmentContent = attachments.map(attachment => 
+                                        `<img src="${attachment.url}" alt="${attachment.name}" style="max-width:200px; max-height:200px;">`
+                                    ).join('');
+                                    document.getElementById(`details-${index}`).innerHTML = `<p>Attachments:</p>${attachmentContent}`;
+                                } else {
+                                    document.getElementById(`details-${index}`).innerHTML = "<p>No attachments found</p>";
+                                }
+                            }));
 
-                            // Query for attachments for each record, if necessary
-                            // This part remains as per your initial implementation
+                            content += listItem;
                         });
 
                         content += "</ul>";
-                        openSidePanel(content);
+                        promiseUtils.eachAlways(promises).then(() => {
+                            openSidePanel(content);
+                        });
                     }).catch(function(error) {
                         console.error("Error fetching related records and attachments: ", error);
                         openSidePanel("Error fetching related records and attachments: " + (error.message || JSON.stringify(error)));
                     });
                 }
 
-                // Utility function to toggle the visibility of the expandable content
                 window.toggleDetails = function(event, id) {
                     event.preventDefault();
                     var element = document.getElementById(id);
