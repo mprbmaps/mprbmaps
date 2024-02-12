@@ -119,6 +119,20 @@
             background-color: #0056b3;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.7); /* Adjust the shadow on hover */
         }
+        
+        .inspection-details {
+            margin-top: 20px;
+        }
+        
+        .inspection-details h3 {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .inspection-details p {
+            margin: 0;
+        }
     </style>
 </head>
 <body>
@@ -171,6 +185,12 @@
                     <tbody>
                     </tbody>
                 </table>
+            </div>
+            
+            <div id="detailedInspection" class="inspection-details" style="display: none;">
+                <h3>Detailed Inspection</h3>
+                <p><strong>Broken or Missing Slats:</strong> <span id="brokenMissingSlats"></span></p>
+                <p><strong>Graffiti:</strong> <span id="graffiti"></span></p>
             </div>
         </div>
     </div>
@@ -303,7 +323,7 @@
                 const inspectionQuery = new Query();
                 inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
                 inspectionQuery.returnGeometry = false;
-                inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance"];
+                inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "broken_missing_slats", "graffiti"];
 
                 inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
                     displayInspections(inspectionResult.features);
@@ -330,6 +350,9 @@
                         let requiresMaintenanceCell = document.createElement("td");
                         requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
                         row.appendChild(requiresMaintenanceCell);
+                        row.addEventListener("click", function() {
+                            showDetailedInspection(inspection.attributes);
+                        });
                         tbody.appendChild(row);
                     });
                 } else {
@@ -350,6 +373,15 @@
             function hideSidePanel() {
                 document.getElementById("sidePanel").style.right = "-100%";
                 document.getElementById("filterButton").style.right = "10px";
+            }
+
+            function showDetailedInspection(inspection) {
+                const detailedInspectionDiv = document.getElementById("detailedInspection");
+                const brokenMissingSlats = inspection.broken_missing_slats || "N/A";
+                const graffiti = inspection.graffiti || "N/A";
+                document.getElementById("brokenMissingSlats").textContent = brokenMissingSlats;
+                document.getElementById("graffiti").textContent = graffiti;
+                detailedInspectionDiv.style.display = "block";
             }
 
             document.getElementById("inspectionForm").addEventListener("submit", function(event) {
