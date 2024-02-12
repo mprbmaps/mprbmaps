@@ -337,6 +337,21 @@
 
             let selectedFeature = null; // Store the selected feature's graphic
 
+            function fetchInspections(globalID) {
+    // Assuming globalID is the ID of the feature for which you want to fetch related inspections
+    const query = inspectionLayer.createQuery();
+    query.where = "relfeatureglobalid = '" + globalID + "'"; // Adjust the field name as necessary
+    query.returnGeometry = false;
+    query.outFields = ["*"]; // List specific fields if you don't need all of them
+
+    inspectionLayer.queryFeatures(query).then(function(results) {
+        displayInspections(results.features);
+    }).catch(function(error) {
+        console.error("Inspection Query Error:", error);
+    });
+}
+
+
             function displayInspections(inspections) {
     const tbody = document.querySelector("#infoTable tbody");
     if (tbody) {
