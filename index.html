@@ -48,12 +48,35 @@
             max-width: 200px;
             max-height: 200px;
             margin-top: 5px;
+            cursor: pointer;
+        }
+        .attachment-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.9);
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+        .attachment-modal img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+        .attachment-modal.close {
+            display: none;
         }
     </style>
 </head>
 <body>
     <div id="viewDiv"></div>
     <div id="sidePanel"></div>
+    <div id="attachmentModal" class="attachment-modal">
+        <img id="attachmentImage" src="" alt="Attachment" />
+        <span class="close" onclick="closeAttachmentModal()">Close</span>
+    </div>
 
     <script src="https://js.arcgis.com/4.28/"></script>
     <script>
@@ -144,6 +167,7 @@
                             const requiresMaintenance = record.attributes.requires_maintenance === true ? "Yes" : "No";
                             const slats = record.attributes.broken_missing_slats || "N/A";
                             const graffiti = record.attributes.graffiti || "N/A";
+                            const attachments = record.attachments || [];
 
                             content += `<table>
                                             <tr>
@@ -170,16 +194,40 @@
                                                 <td>Graffiti</td>
                                                 <td>${graffiti}</td>
                                             </tr>
+                                            <tr>
+                                                <td>Attachments</td>
+                                                <td>
+                                                    <div>`;
+                            attachments.forEach(attachment => {
+                                content += `<img class="attachment-image" src="${attachment.url}" alt="${attachment.name}" onclick="openAttachmentModal('${attachment.url}')" />`;
+                            });
+                            content += `</div></td>
+                                            </tr>
                                         </table>`;
                         });
 
                         content += "</div>";
                         openSidePanel(content);
+                        });
                     }).catch(function(error) {
                         console.error("Error fetching related records and attachments: ", error);
                         // For debugging, output the error message directly to the side panel for more details
                         openSidePanel("Error fetching related records and attachments: " + (error.message || JSON.stringify(error)));
                     });
+                }
+
+                // Function to open attachment modal
+                function openAttachmentModal(attachmentUrl) {
+                    var modal = document.getElementById("attachmentModal");
+                    var attachmentImage = document.getElementById("attachmentImage");
+                    attachmentImage.src = attachmentUrl;
+                    modal.style.display = "block";
+                }
+
+                // Function to close attachment modal
+                function closeAttachmentModal() {
+                    var modal = document.getElementById("attachmentModal");
+                    modal.style.display = "none";
                 }
             }
         });
