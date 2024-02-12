@@ -158,6 +158,8 @@
         require([
             "esri/identity/IdentityManager",
             "esri/identity/OAuthInfo",
+            "esri/identity/ServerInfo",
+            "esri/config",
             "esri/Map",
             "esri/views/MapView",
             "esri/layers/FeatureLayer",
@@ -169,35 +171,35 @@
         ], function(
             IdentityManager,
             OAuthInfo,
-            IdentityManagerUtils,
+            ServerInfo,
+            esriConfig,
             Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, geometryEngine, Point
         ) {
             // Configure OAuthInfo with your AppID
             var oAuthInfo = new OAuthInfo({
                 appId: "ti3fi1FqvHE2Hhyw",
                 // Specify any optional parameters if needed
+                portalUrl: "https://www.arcgis.com/"
             });
 
             // Register OAuthInfo with the IdentityManager
             IdentityManager.registerOAuthInfos([oAuthInfo]);
 
-            // Optionally, you can set the default OAuth popup handler
-            IdentityManagerUtils.setDefaultOAuthPopupHandler(function(oAuthInfo, popupUrl) {
-                // Customize how you want to handle the OAuth popup, e.g., using a custom popup or window.open()
+            const serverInfo = new ServerInfo({
+                server: "https://www.arcgis.com/sharing/rest",
+                tokenServiceUrl: "https://www.arcgis.com/sharing/rest/generateToken"
             });
 
-            // Optionally, you can set the default OAuth sign in handler
-            IdentityManagerUtils.setDefaultSignInUserHandler(function(oAuthInfo) {
-                // Customize how you want to handle the sign in process, e.g., redirect to a sign in page
-            });
+            // Set ServerInfo to ArcGIS Server
+            esriConfig.portalServer = serverInfo;
 
             const map = new Map({
-        basemap: {
-          portalItem: {
-            id: "a11d663a981947b99aac7ff05437758f"
-          }
-        }
-      });
+                basemap: {
+                    portalItem: {
+                        id: "a11d663a981947b99aac7ff05437758f"
+                    }
+                }
+            });
 
             const view = new MapView({
                 container: "viewDiv",
