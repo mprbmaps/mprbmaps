@@ -152,7 +152,7 @@
                     <option value="Yes">Yes</option>
                     <option value="No">No</option>
                 </select><br><br>
-                <input type="hidden" id="relfeatureglobalid">
+                <input type="hidden" id="relationshipID" value="20"> <!-- Added -->
                 <div style="display: flex; justify-content: space-between;">
                     <button type="submit" id="submitInspectionButton">Submit</button>
                     <button type="button" id="clearSelectionButton">Clear Selection</button>
@@ -223,6 +223,8 @@
             map.add(featureLayer);
             map.add(inspectionLayer);
 
+            let selectedFeature = null;
+
             featureLayer.when(() => {
                 attachClickListener();
             }).catch((error) => {
@@ -249,7 +251,7 @@
                         if (result.features.length > 0) {
                             let feature = result.features[0];
                             displayFeature(feature);
-                            fetchInspections(feature.attributes.GlobalID);
+                            fetchInspections(feature.attributes.relationshipID); // Modified
                         } else {
                             document.getElementById("infoDiv").innerHTML = "No feature selected.";
                             hideSidePanel();
@@ -289,9 +291,9 @@
                 }
             }
 
-            function fetchInspections(globalID) {
+            function fetchInspections(relationshipID) { // Modified
                 const query = inspectionLayer.createQuery();
-                query.where = "relfeatureglobalid = '" + globalID + "'";
+                query.where = "relationshipID = " + relationshipID; // Modified
                 query.returnGeometry = false;
                 query.outFields = ["*"];
 
@@ -376,14 +378,14 @@
                 const inspectionDate = document.getElementById("inspectionDate").value;
                 const conditionScore = document.getElementById("conditionScore").value;
                 const requiresMaintenance = document.getElementById("requiresMaintenance").value;
-                const relfeatureglobalid = document.getElementById("relfeatureglobalid").value;
+                const relationshipID = document.getElementById("relationshipID").value; // Modified
 
                 const newInspection = {
                     attributes: {
                         inspection_date: inspectionDate,
                         condition_score: conditionScore,
                         requires_maintenance: requiresMaintenance,
-                        relfeatureglobalid: relfeatureglobalid
+                        relationshipID: relationshipID // Modified
                     }
                 };
 
@@ -393,7 +395,7 @@
                     if (addResults.addFeatureResults.length > 0) {
                         console.log("New inspection added successfully:", addResults.addFeatureResults[0]);
                         document.getElementById("inspectionForm").reset();
-                        fetchInspections(relfeatureglobalid);
+                        fetchInspections(relationshipID); // Modified
                         showSuccessMessage();
                     } else {
                         console.error("Failed to add new inspection.");
