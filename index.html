@@ -26,27 +26,19 @@
             z-index: 10;
             overflow-y: auto;
             transition: right 0.5s ease-in-out; /* Smooth transition */
+            padding: 20px;
         }
         #sidePanel.open {
             right: 0; /* Slide in to show */
         }
-        .additional-info {
-            display: none;
-            padding-left: 20px;
-            border-left: 2px solid #ccc;
-            margin-top: 10px;
+        .form-field {
+            margin-bottom: 10px;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
         }
-        .dropdown-toggle::after {
-            content: '\25BC';
-            margin-left: 5px;
-        }
-        .expanded::after {
-            content: '\25B2';
-        }
-        ul {
-            list-style-type: none;
-            padding: 0;
-            margin: 0;
+        .form-field label {
+            font-weight: bold;
         }
     </style>
 </head>
@@ -124,18 +116,6 @@
                     var sidePanel = document.getElementById("sidePanel");
                     sidePanel.innerHTML = content;
                     sidePanel.classList.add("open");
-                    attachDropdownListeners();
-                }
-
-                function attachDropdownListeners() {
-                    var dropdowns = document.querySelectorAll(".dropdown-toggle");
-                    dropdowns.forEach(function(dropdown) {
-                        dropdown.addEventListener("click", function() {
-                            var content = this.nextElementSibling;
-                            content.classList.toggle("additional-info");
-                            this.classList.toggle("expanded");
-                        });
-                    });
                 }
 
                 function getInspectionDataAndAttachments(feature) {
@@ -148,7 +128,7 @@
                         const objectIdField = featureLayer.objectIdField;
                         const relatedRecords = relatedFeaturesResult[feature.attributes[objectIdField]].features;
 
-                        let content = "<ul>";
+                        let content = "<div>";
                         relatedRecords.forEach(record => {
                             const inspectionDate = record.attributes.inspection_date ? new Date(record.attributes.inspection_date).toLocaleDateString() : "N/A";
                             const conditionScore = record.attributes.condition_score || "N/A";
@@ -156,45 +136,34 @@
                             const slats = record.attributes.broken_missing_slats || "N/A";
                             const graffiti = record.attributes.graffiti || "N/A";
 
-                            let inspectionLayer = new FeatureLayer({
-                                url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5"
-                            });
-                            promises.push(inspectionLayer.queryAttachments({
-                                objectIds: [record.attributes.OBJECTID]
-                            }).then(function(attachmentInfo) {
-                                let attachmentContent = `<li>Inspection Details:<ul>
-                                                         <li>Date: ${inspectionDate}</li>
-                                                         <li>Condition Score: ${conditionScore}</li>
-                                                         <li>Requires Maintenance: ${requiresMaintenance}</li>
-                                                         <li class="dropdown-toggle">Inspection Details
-                                                             <div class="additional-info">
-                                                                 <ul>
-                                                                     <li>Slats: ${slats}</li>
-                                                                     <li>Graffiti: ${graffiti}</li>
-                                                                 </ul>
-                                                             </div>
-                                                         </li>
-                                                         <li>Photos:</li>`;
+                            content += `<div class="form-field">
+                                            <label>Date:</label>
+                                            <div>${inspectionDate}</div>
+                                        </div>
+                                        <div class="form-field">
+                                            <label>Condition Score:</label>
+                                            <div>${conditionScore}</div>
+                                        </div>
+                                        <div class="form-field">
+                                            <label>Requires Maintenance:</label>
+                                            <div>${requiresMaintenance}</div>
+                                        </div>
+                                        <div class="form-field">
+                                        <label>Requires Maintenance:</label>
+                                            <div>${requiresMaintenance}</div>
+                                        </div>
+                                        <div class="form-field">
+                                            <label>Broken/Missing Slats:</label>
+                                            <div>${slats}</div>
+                                        </div>
+                                        <div class="form-field">
+                                            <label>Graffiti:</label>
+                                            <div>${graffiti}</div>
+                                        </div>`;
+                        });
 
-                                if (attachmentInfo[record.attributes.OBJECTID] && attachmentInfo[record.attributes.OBJECTID].length > 0) {
-                                    attachmentInfo[record.attributes.OBJECTID].forEach(attachment => {
-                                        attachmentContent += `<li><img src="${attachment.url}" alt="${attachment.name}" style="max-width:200px; max-height:200px;"></li>`;
-                                    });
-                                } else {
-                                    attachmentContent += "<li>No attachments found</li>";
-                                }
-                                attachmentContent += "</ul></li>";
-                                return attachmentContent;
-                            }));
-                        });
-                        return promiseUtils.eachAlways(promises).then(function(results) {
-                            results.forEach(result => {
-                                if (result.value) {content += result.value;
-                                }
-                            });
-                            content += "</ul>";
-                            openSidePanel(content);
-                        });
+                        content += "</div>";
+                        openSidePanel(content);
                     }).catch(function(error) {
                         console.error("Error fetching related records and attachments: ", error);
                         // For debugging, output the error message directly to the side panel for more details
