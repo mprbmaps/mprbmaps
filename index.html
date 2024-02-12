@@ -217,7 +217,8 @@
             });
 
             const inspectionLayer = new FeatureLayer({
-                url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5"
+                url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5",
+                outFields: ["*"]
             });
 
             map.add(featureLayer);
@@ -261,15 +262,14 @@
             }
 
             function displayFeature(feature) {
-                let symbol = {
-                    type: "simple-marker",
+                let symbol = new SimpleMarkerSymbol({
                     color: "red",
                     size: 8,
                     outline: {
                         color: [255, 255, 255],
                         width: 1
                     }
-                };
+                });
 
                 let graphic = new Graphic({
                     geometry: feature.geometry,
@@ -283,16 +283,16 @@
                 const inspectionQuery = new Query();
                 inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
                 inspectionQuery.returnGeometry = false;
-                inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance"];
+                inspectionQuery.outFields = ["*"];
 
                 inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
-                    displayInspections(inspectionResult.features);
+                    displayInspections(inspectionResult.features, globalID);
                 }).catch(function(error) {
                     console.error("Inspection Query Error:", error);
                 });
             }
 
-            function displayInspections(inspections) {
+            function displayInspections(inspections, globalID) {
                 const tbody = document.querySelector("#infoTable tbody");
                 tbody.innerHTML = "";
 
@@ -312,9 +312,38 @@
                         row.appendChild(requiresMaintenanceCell);
                         tbody.appendChild(row);
                     });
+                    fetchAttachmentsForInspections(globalID);
                 } else {
                     tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
                 }
+            }
+
+            function fetchAttachmentsForInspections(globalID) {
+                inspectionLayer.queryRelatedFeatures({
+                    outFields: ["*"],
+                    relationshipId: 20,
+                    objectIds: [globalID],
+                    outFields: ["*"],
+                    returnGeometry: false
+                }).then(function(relatedFeatures) {
+                    if (relatedFeatures[globalID] && relatedFeatures[globalID].features.length > 0) {
+                        const attachments = relatedFeatures[globalID].features;
+                        displayAttachments(attachments);
+                    } else {
+                        console.log("No attachments found.");
+                    }
+                }).catch(function(error) {
+                    console.error("Error fetching attachments:", error);
+                });
+            }
+
+            function displayAttachments(attachments) {
+                const infoDiv = document.getElementById("infoDiv");
+                attachments.forEach((attachment) => {
+                    const attachmentElement = document.createElement("div");
+                    attachmentElement.textContent = `Attachment: ${attachment.attributes.name}`;
+                    infoDiv.appendChild(attachmentElement);
+                });
             }
 
             function formatDate(dateString) {
@@ -378,6 +407,7 @@
         }
     });
 </script>
+
 
 
 </body>
