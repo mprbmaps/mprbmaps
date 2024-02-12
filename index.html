@@ -24,36 +24,52 @@
             transition: right 0.5s;
             display: flex;
             flex-direction: column;
+            justify-content: space-between;
             padding: 10px;
-        }
-
-        .panel-section {
-            margin-bottom: 20px;
-        }
-
-        #addInspectionForm, #infoDiv, #detailedInspectionDiv {
-            flex: 1;
-            overflow-y: auto;
         }
 
         #addInspectionForm {
             margin-bottom: 20px;
         }
 
-        #infoTable, #detailedInspectionTable {
+        #infoDiv {
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        #infoTable {
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
         }
 
-        #infoTable th, #infoTable td, #detailedInspectionTable th, #detailedInspectionTable td {
+        #infoTable th, #infoTable td {
             padding: 8px;
             border: 1px solid #ddd;
             text-align: left;
         }
 
-        #infoTable th, #detailedInspectionTable th {
+        #infoTable th {
             background-color: #f2f2f2;
+        }
+
+        #clearSelectionButton, #submitInspectionButton {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 0px;
+            width: calc(50% - 5px);
+        }
+
+        #clearSelectionButton:hover, #submitInspectionButton:hover {
+            background-color: #0056b3;
+        }
+
+        select, input[type="date"] {
+            width: calc(100% - 12px); /* Adjust the width as needed */
+            padding: 5px;
         }
 
         #successMessage {
@@ -69,8 +85,8 @@
             display: none;
         }
 
-        .panel-title {
-            font-size: 20px;
+        #inspectionsTitle {
+            font-size: 20;
             font-weight: bold;
             margin-top: 10px;
         }
@@ -81,13 +97,34 @@
             margin-top: 10px;
             margin-bottom: 10px;
         }
+
+        #detailedInspectionDiv {
+            display: none;
+            margin-top: 10px; /* Adjust as needed */
+        }
+
+        #detailedInspectionTable {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        #detailedInspectionTable th, #detailedInspectionTable td {
+            padding: 8px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        #detailedInspectionTable th {
+            background-color: #f2f2f2;
+        }
     </style>
 </head>
 <body>
     <div id="viewDiv"></div>
     <div id="sidePanel">
-        <div id="addInspectionForm" class="panel-section">
-            <h2 class="panel-title">Add New Inspection</h2>
+        <div id="addInspectionForm">
+            <h2>Add New Inspection</h2>
             <form id="inspectionForm">
                 <label for="inspectionDate">Inspection Date:</label>
                 <input type="date" id="inspectionDate" required><br>
@@ -121,8 +158,8 @@
         <!-- Line Separator -->
         <div class="line-separator"></div>
 
-        <div id="infoDiv" class="panel-section">
-            <h2 class="panel-title">Previous Inspections</h2>
+        <div id="infoDiv">
+            <h2 id="inspectionsTitle">Previous Inspections</h2>
             <table id="infoTable">
                 <thead>
                     <tr>
@@ -137,8 +174,8 @@
         </div>
 
         <!-- Detailed Inspection Information -->
-        <div id="detailedInspectionDiv" class="panel-section">
-            <h2 class="panel-title">Detailed Inspection Information</h2>
+        <div id="detailedInspectionDiv">
+            <h2>Detailed Inspection Information</h2>
             <table id="detailedInspectionTable">
                 <thead>
                     <tr>
