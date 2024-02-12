@@ -102,27 +102,22 @@
         }
 
         #filterButton {
-    background-color: #007BFF;
-    color: white;
-    border: solid;
-    border-width: .5px;
-    padding: 10px 15px;
-    cursor: pointer;
-    border-radius: 0px;
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); /* Add a shadow effect */
-}
-
-#filterButton:hover {
-    background-color: #0056b3;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.7); /* Adjust the shadow on hover */
-}
-
+            background-color: #007BFF;
+            color: white;
+            border: solid;
+            border-width: .5px;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 0px;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); /* Add a shadow effect */
+        }
 
         #filterButton:hover {
             background-color: #0056b3;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.7); /* Adjust the shadow on hover */
         }
     </style>
 </head>
@@ -193,8 +188,10 @@
             "esri/rest/support/Query",
             "esri/geometry/geometryEngine",
             "esri/geometry/Point",
-            "esri/widgets/Locate"
-        ], function(Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, geometryEngine, Point, Locate) {
+            "esri/widgets/Locate",
+            "esri/identity/IdentityManager",
+            "esri/identity/OAuthInfo"
+        ], function(Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, geometryEngine, Point, Locate, IdentityManager, OAuthInfo) {
             const map = new Map({
                 basemap: {
                     portalItem: {
@@ -208,6 +205,22 @@
                 map: map,
                 center: [-93.2650, 44.9778],
                 zoom: 11
+            });
+
+            const oAuthInfo = new OAuthInfo({
+                appId: "ti3fi1FqvHE2Hhyw",
+                popup: false // Change to true if you want to use a popup window for authentication
+            });
+
+            IdentityManager.registerOAuthInfos([oAuthInfo]);
+
+            // Optionally set up authentication events
+            IdentityManager.checkSignInStatus(oAuthInfo.portalUrl + "/sharing").then(function () {
+                // User is signed in
+                console.log("User is signed in");
+            }).catch(function () {
+                // User is not signed in
+                console.log("User is not signed in");
             });
 
             const featureLayer = new FeatureLayer({
