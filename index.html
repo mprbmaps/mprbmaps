@@ -155,23 +155,45 @@
     <div id="successMessage">New inspection added successfully!</div>
     <script src="https://js.arcgis.com/4.20/"></script>
     <script>
-        require([
-            "esri/Map",
-            "esri/views/MapView",
-            "esri/layers/FeatureLayer",
-            "esri/Graphic",
-            "esri/symbols/SimpleMarkerSymbol",
-            "esri/rest/support/Query",
-            "esri/geometry/geometryEngine",
-            "esri/geometry/Point"
-        ], function(Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, geometryEngine, Point) {
+    require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/FeatureLayer",
+        "esri/Graphic",
+        "esri/symbols/SimpleMarkerSymbol",
+        "esri/rest/support/Query",
+        "esri/geometry/geometryEngine",
+        "esri/geometry/Point",
+        "esri/identity/OAuthInfo",
+        "esri/identity/IdentityManager"
+    ], function(Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, geometryEngine, Point, OAuthInfo, IdentityManager) {
+        // Configure OAuthInfo
+        var info = new OAuthInfo({
+            appId: "ti3fi1FqvHE2HhywE", // Replace with your application's client ID
+            popup: false // Optional: Use false if you want to use a redirect OAuth flow
+        });
+
+        // Register OAuthInfo with IdentityManager
+        IdentityManager.registerOAuthInfos([info]);
+
+        IdentityManager.checkSignInStatus(info.portalUrl).then(function() {
+            console.log("Signed in");
+            // Continue with application setup after successful authentication
+            initApplication();
+        }).catch(function() {
+            // Not signed in, handle authentication flow
+            console.log("Not signed in, redirecting to sign in");
+            IdentityManager.getCredential(info.portalUrl);
+        });
+
+        function initApplication() {
             const map = new Map({
-        basemap: {
-          portalItem: {
-            id: "a11d663a981947b99aac7ff05437758f"
-          }
-        }
-      });
+                basemap: {
+                    portalItem: {
+                        id: "a11d663a981947b99aac7ff05437758f"
+                    }
+                }
+            });
 
             const view = new MapView({
                 container: "viewDiv",
