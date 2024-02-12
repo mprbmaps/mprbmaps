@@ -119,8 +119,11 @@
             background-color: #0056b3;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.7); /* Adjust the shadow on hover */
         }
-        
-        
+
+        .selected-row {
+    background-color: lightyellow;
+}
+      
         .inspection-details {
     margin-top: 20px;
     padding-top: 20px; /* Add some padding at the top */
@@ -333,35 +336,35 @@
 
 
             function displayInspections(inspections) {
-                const tbody = document.querySelector("#infoTable tbody");
-                tbody.innerHTML = "";
+    const tbody = document.querySelector("#infoTable tbody");
+    tbody.innerHTML = "";
 
-                if (inspections.length > 0) {
-                    inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+    if (inspections.length > 0) {
+        inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
 
-                    inspections.forEach(inspection => {
-                        let row = document.createElement("tr");
-                        let inspectionDateCell = document.createElement("td");
-                        inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
-                        row.appendChild(inspectionDateCell);
-                        let conditionScoreCell = document.createElement("td");
-                        conditionScoreCell.textContent = inspection.attributes.condition_score;
-                        row.appendChild(conditionScoreCell);
-                        let requiresMaintenanceCell = document.createElement("td");
-                        requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
-                        row.appendChild(requiresMaintenanceCell);
-                        row.addEventListener("click", function() {
-    console.log("Row clicked"); // Add this line for debugging
-    showDetailedInspection(inspection.attributes);
-});
+        inspections.forEach(inspection => {
+            let row = document.createElement("tr");
+            row.addEventListener("click", function() {
+                document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
+                row.classList.add("selected-row");
+                showDetailedInspection(inspection.attributes);
+            });
+            let inspectionDateCell = document.createElement("td");
+            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
+            row.appendChild(inspectionDateCell);
+            let conditionScoreCell = document.createElement("td");
+            conditionScoreCell.textContent = inspection.attributes.condition_score;
+            row.appendChild(conditionScoreCell);
+            let requiresMaintenanceCell = document.createElement("td");
+            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
+            row.appendChild(requiresMaintenanceCell);
 
-                        tbody.appendChild(row);
-                    });
-                } else {
-                    tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
-                }
-            }
-
+            tbody.appendChild(row);
+        });
+    } else {
+        tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
+    }
+}
             function formatDate(dateString) {
                 const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
                 return new Date(dateString).toLocaleDateString(undefined, options);
@@ -378,12 +381,12 @@
             }
 
             function showDetailedInspection(inspection) {
-    console.log("Showing detailed inspection:", inspection);
     const detailedInspectionDiv = document.getElementById("detailedInspection");
-    const brokenMissingSlats = inspection.broken_missing_slats || "N/A";
-    const graffiti = inspection.graffiti || "N/A";
-    document.getElementById("brokenMissingSlats").textContent = brokenMissingSlats;
-    document.getElementById("graffiti").textContent = graffiti;
+    detailedInspectionDiv.innerHTML = `<h2>Detailed Inspection</h2>
+    <table>
+        <tr><td><strong>Broken or Missing Slats:</strong></td><td>${inspection.broken_missing_slats || "N/A"}</td></tr>
+        <tr><td><strong>Graffiti:</strong></td><td>${inspection.graffiti || "N/A"}</td></tr>
+    </table>`;
     detailedInspectionDiv.style.display = "block";
 }
 
