@@ -33,13 +33,14 @@
         }
 
         #infoDiv {
+            flex-grow: 1;
             overflow-y: auto;
-            margin-bottom: 10px; /* Adjusted margin-bottom to create space */
         }
 
         #infoTable {
             width: 100%;
             border-collapse: collapse;
+            margin-top: 10px;
         }
 
         #infoTable th, #infoTable td {
@@ -88,7 +89,6 @@
             font-size: 20;
             font-weight: bold;
             margin-top: 10px;
-            margin-bottom: 10px; /* Adjusted margin-bottom */
         }
 
         /* Add a line separator */
@@ -98,15 +98,15 @@
             margin-bottom: 10px;
         }
 
-        /* Highlight selected row */
-        .selected-row {
-            background-color: #FCFFD0;
+        #detailedInspectionDiv {
+            display: none;
+            margin-top: 10px; /* Adjust as needed */
         }
 
-        /* Detailed inspection table */
         #detailedInspectionTable {
             width: 100%;
             border-collapse: collapse;
+            margin-top: 10px;
         }
 
         #detailedInspectionTable th, #detailedInspectionTable td {
@@ -118,7 +118,6 @@
         #detailedInspectionTable th {
             background-color: #f2f2f2;
         }
-
     </style>
 </head>
 <body>
@@ -173,9 +172,9 @@
                 </tbody>
             </table>
         </div>
-        
+
         <!-- Detailed Inspection Information -->
-        <div id="detailedInspectionDiv" style="display: none;">
+        <div id="detailedInspectionDiv">
             <h2>Detailed Inspection Information</h2>
             <table id="detailedInspectionTable">
                 <thead>
@@ -314,6 +313,7 @@
 
                 inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
                     displayInspections(inspectionResult.features);
+                    displayDetailedInspection(inspectionResult.features);
                 }).catch(function(error) {
                     console.error("Inspection Query Error:", error);
                 });
@@ -338,17 +338,6 @@
                         requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
                         row.appendChild(requiresMaintenanceCell);
                         tbody.appendChild(row);
-
-                        // Add event listener to each row
-                        row.addEventListener("click", function() {
-                            // Remove previous selection
-                            let selectedRows = document.querySelectorAll(".selected-row");
-                            selectedRows.forEach(row => row.classList.remove("selected-row"));
-                            // Highlight selected row
-                            row.classList.add("selected-row");
-                            // Display detailed inspection information
-                            displayDetailedInspection(inspection);
-                        });
                     });
                 } else {
                     tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
@@ -360,21 +349,24 @@
                 return new Date(dateString).toLocaleDateString(undefined, options);
             }
 
-            function displayDetailedInspection(inspection) {
+            function displayDetailedInspection(inspections) {
                 const detailedInspectionBody = document.getElementById("detailedInspectionBody");
                 detailedInspectionBody.innerHTML = "";
 
-                // Add detailed inspection fields and values
-                let row = document.createElement("tr");
-                let brokenMissingSlatsCell = document.createElement("td");
-                brokenMissingSlatsCell.textContent = inspection.attributes.broken_missing_slats;
-                row.appendChild(brokenMissingSlatsCell);
-                let graffitiCell = document.createElement("td");
-                graffitiCell.textContent = inspection.attributes.graffiti;
-                row.appendChild(graffitiCell);
-                detailedInspectionBody.appendChild(row);
+                if (inspections.length > 0) {
+                    const latestInspection = inspections[0];
+                    let row = document.createElement("tr");
+                    let brokenMissingSlatsCell = document.createElement("td");
+                    brokenMissingSlatsCell.textContent = latestInspection.attributes.broken_missing_slats;
+                    row.appendChild(brokenMissingSlatsCell);
+                    let graffitiCell = document.createElement("td");
+                    graffitiCell.textContent = latestInspection.attributes.graffiti;
+                    row.appendChild(graffitiCell);
+                    detailedInspectionBody.appendChild(row);
+                } else {
+                    detailedInspectionBody.innerHTML = "<tr><td colspan='2'>No detailed inspection information available.</td></tr>";
+                }
 
-                // Show the detailed inspection section
                 document.getElementById("detailedInspectionDiv").style.display = "block";
             }
 
