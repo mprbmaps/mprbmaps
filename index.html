@@ -31,19 +31,6 @@
         #sidePanel.open {
             right: 0; /* Slide in to show */
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-        th, td {
-            padding: 8px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
         .attachment-image {
             max-width: 200px;
             max-height: 200px;
@@ -155,7 +142,8 @@
                         outFields: ["*"],
                         relationshipId: 20,
                         objectIds: [feature.attributes.OBJECTID]
-                    }).then(function(relatedFeaturesResult) {
+                    }).then(function(relatedFeaturesResult)
+                            {
                         let promises = [];
                         const objectIdField = featureLayer.objectIdField;
                         const relatedRecords = relatedFeaturesResult[feature.attributes[objectIdField]].features;
@@ -169,41 +157,18 @@
                             const graffiti = record.attributes.graffiti || "N/A";
                             const attachments = record.attachments || [];
 
-                            content += `<table>
-                                            <tr>
-                                                <th>Field</th>
-                                                <th>Value</th>
-                                            </tr>
-                                            <tr>
-                                                <td>Date</td>
-                                                <td>${inspectionDate}</td>
-                                            </tr>
-                                            <tr>
-                                                <td>Condition Score</td>
-                                                <td>${conditionScore}</td>
-                                            </tr>
-                                            <tr>
-                                                <td>Requires Maintenance</td>
-                                                <td>${requiresMaintenance}</td>
-                                            </tr>
-                                            <tr>
-                                                <td>Broken/Missing Slats</td>
-                                                <td>${slats}</td>
-                                            </tr>
-                                            <tr>
-                                                <td>Graffiti</td>
-                                                <td>${graffiti}</td>
-                                        </tr>
-                                        <tr>
-                                            <td>Attachments</td>
-                                            <td>
-                                                <div>`;
+                            content += `<div>`;
+                            content += `<div>Date: ${inspectionDate}</div>`;
+                            content += `<div>Condition Score: ${conditionScore}</div>`;
+                            content += `<div>Requires Maintenance: ${requiresMaintenance}</div>`;
+                            content += `<div>Broken/Missing Slats: ${slats}</div>`;
+                            content += `<div>Graffiti: ${graffiti}</div>`;
+
                             attachments.forEach(attachment => {
                                 content += `<img class="attachment-image" src="${attachment.url}" alt="${attachment.name}" onclick="openAttachmentModal('${attachment.url}')" />`;
                             });
-                            content += `</div></td>
-                                        </tr>
-                                    </table>`;
+
+                            content += `</div>`;
                         });
 
                         content += "</div>";
