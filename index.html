@@ -138,14 +138,17 @@
                 }
 
                 function getInspectionDataAndAttachments(feature) {
-                    return featureLayer.queryRelatedFeatures({
-                        outFields: ["*"],
-                        relationshipId: 20,
-                        objectIds: [feature.attributes.OBJECTID]
-                    }).then(function(relatedFeaturesResult) {
+                    const objectIdField = featureLayer.objectIdField;
+                    const objectId = feature.attributes[objectIdField];
+                    const query = featureLayer.createQuery();
+                    query.outFields = ["*"];
+                    query.relationshipId = 20;
+                    query.objectIds = [objectId];
+                    query.returnGeometry = false;
+                    
+                    return featureLayer.queryRelatedFeatures(query).then(function(relatedFeaturesResult) {
                         let promises = [];
-                        const objectIdField = featureLayer.objectIdField;
-                        const relatedRecords = relatedFeaturesResult[feature.attributes[objectIdField]].features;
+                        const relatedRecords = relatedFeaturesResult[objectId].features;
 
                         let content = "<div>";
                         relatedRecords.forEach(record => {
