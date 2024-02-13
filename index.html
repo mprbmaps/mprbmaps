@@ -404,6 +404,8 @@
                     // Modify the event listener for rows to pass inspection attributes correctly
 tbody.querySelectorAll("tr").forEach(row => {
     row.addEventListener("click", function() {
+        console.log("Row clicked."); // Check if the event listener is triggered
+
         // Remove highlighted class from all rows
         tbody.querySelectorAll("tr").forEach(row => {
             row.classList.remove("highlighted-row");
@@ -427,12 +429,19 @@ tbody.querySelectorAll("tr").forEach(row => {
 
         const inspection = inspections[inspectionIndex];
 
-        // Show detailed inspection if inspection is defined
-        if (inspection) {
-            showDetailedInspection(inspection.attributes);
+        // Check if inspection attributes are available
+        console.log("Inspection:", inspection); // Log the inspection object for debugging
+        if (!inspection || !inspection.attributes) {
+            console.error("Inspection data is missing or invalid.");
+            return;
         }
+
+        // Show detailed inspection if inspection is defined
+        console.log("Showing detailed inspection."); // Log a message to confirm the detailed inspection display
+        showDetailedInspection(inspection.attributes);
     });
 });
+
 
 
                 } else {
