@@ -305,7 +305,7 @@
                             showSidePanel();
                             document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
                         } else {
-                            document.getElementById("infoDiv").innerHTML = "No feature selected.";
+                            document.getElementById("infoTable").querySelector("tbody").innerHTML = "<tr><td colspan='3'>No feature selected.</td></tr>";
                             hideSidePanel();
                         }
                     }).catch(function(error) {
@@ -349,7 +349,6 @@
 
                 inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
                     displayInspections(inspectionResult.features);
-                    showSidePanel(); // Ensure the side panel remains visible after fetching inspections
                 }).catch(function(error) {
                     console.error("Inspection Query Error:", error);
                 });
@@ -405,7 +404,7 @@
 
             document.getElementById("clearSelectionButton").addEventListener("click", function() {
                 view.graphics.removeAll(); // Clear all graphics from the view
-                document.getElementById("infoDiv").innerHTML = ""; // Clear inspection info
+                document.getElementById("infoTable").querySelector("tbody").innerHTML = ""; // Clear inspection info
                 document.getElementById("detailedInspection").style.display = "none"; // Hide detailed inspection info
             });
 
@@ -418,42 +417,38 @@
                 const relfeatureglobalid = document.getElementById("relfeatureglobalid").value;
 
                 const inspectionAttributes = {
-                    "inspection_date": inspectionDate,
-                    "condition_score": conditionScore,
-                    "requires_maintenance": requiresMaintenance,
-                    "relfeatureglobalid": relfeatureglobalid
+                    inspection_date: inspectionDate,
+                    condition_score: conditionScore,
+                    requires_maintenance: requiresMaintenance,
+                    relfeatureglobalid: relfeatureglobalid
                 };
 
-                const inspectionGraphic = new Graphic({
-                    attributes: inspectionAttributes,
-                    geometry: selectedFeature.geometry
-                });
-
                 inspectionLayer.applyEdits({
-                    addFeatures: [inspectionGraphic]
+                    addFeatures: [new Graphic({
+                        attributes: inspectionAttributes
+                    })]
                 }).then(function() {
-                    // Show success message
-                    document.getElementById("successMessage").style.display = "block";
+                    document.getElementById("successMessage").style.display = "block"; // Show success message
                     setTimeout(function() {
-                        document.getElementById("successMessage").style.display = "none";
+                        document.getElementById("successMessage").style.display = "none"; // Hide success message after 3 seconds
                     }, 3000);
-
-                    fetchInspections(relfeatureglobalid); // Fetch and display updated inspections
+                    fetchInspections(relfeatureglobalid); // Update inspections after adding new inspection
                 }).catch(function(error) {
-                    console.error("Add Inspection Error:", error);
+                    console.error("Apply Edits Error:", error);
                 });
             });
 
             function showSidePanel() {
-                document.getElementById("sidePanel").style.right = "0"; // Ensure the side panel is open
+                document.getElementById("sidePanel").style.right = "0";
             }
 
             function hideSidePanel() {
-                document.getElementById("sidePanel").style.right = "-330px"; // Hide the side panel
+                document.getElementById("sidePanel").style.right = "-330px";
             }
 
             document.getElementById("filterButton").addEventListener("click", function() {
-                // Filter logic here
+                view.popup.close();
+                featureLayer.definitionExpression = "maintenance_required = 'Yes'";
             });
         });
     </script>
