@@ -365,46 +365,57 @@
             }
 
             function displayInspections(inspections) {
-                const tbody = document.querySelector("#infoTable tbody");
-                tbody.innerHTML = "";
+    const tbody = document.querySelector("#infoTable tbody");
+    
+    // Check if tbody exists before proceeding
+    if (!tbody) {
+        console.error("Tbody element not found.");
+        return;
+    }
 
-                if (inspections.length > 0) {
-                    inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+    tbody.innerHTML = "";
 
-                    inspections.forEach(inspection => {
-                        let row = document.createElement("tr");
-                        let inspectionDateCell = document.createElement("td");
-                        inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
-                        row.appendChild(inspectionDateCell);
-                        let conditionScoreCell = document.createElement("td");
-                        conditionScoreCell.textContent = inspection.attributes.condition_score;
-                        row.appendChild(conditionScoreCell);
-                        let requiresMaintenanceCell = document.createElement("td");
-                        requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
-                        row.appendChild(requiresMaintenanceCell);
-                        tbody.appendChild(row);
+    if (inspections.length > 0) {
+        inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
 
-                        // Add click event listener to each row
-                        row.addEventListener("click", function() {
-                            // Remove highlighted class from all rows
-                            tbody.querySelectorAll("tr").forEach(row => {
-                                row.classList.remove("highlighted-row");
-                            });
+        inspections.forEach(inspection => {
+            let row = document.createElement("tr");
+            let inspectionDateCell = document.createElement("td");
+            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
+            row.appendChild(inspectionDateCell);
 
-                            // Add highlighted class to clicked row
-                            row.classList.add("highlighted-row");
+            let conditionScoreCell = document.createElement("td");
+            conditionScoreCell.textContent = inspection.attributes.condition_score;
+            row.appendChild(conditionScoreCell);
 
-                            // Show detailed inspection
-                            showDetailedInspection(inspection.attributes);
-                        });
-                    });
-                } else {
-                    let row = tbody.insertRow();
-                    let cell = row.insertCell();
-                    cell.colSpan = 3;
-                    cell.textContent = "No inspections found.";
-                }
-            }
+            let requiresMaintenanceCell = document.createElement("td");
+            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
+            row.appendChild(requiresMaintenanceCell);
+
+            tbody.appendChild(row);
+
+            // Add click event listener to each row
+            row.addEventListener("click", function() {
+                // Remove highlighted class from all rows
+                tbody.querySelectorAll("tr").forEach(row => {
+                    row.classList.remove("highlighted-row");
+                });
+
+                // Add highlighted class to clicked row
+                row.classList.add("highlighted-row");
+
+                // Show detailed inspection
+                showDetailedInspection(inspection.attributes);
+            });
+        });
+    } else {
+        let row = tbody.insertRow();
+        let cell = row.insertCell();
+        cell.colSpan = 3;
+        cell.textContent = "No inspections found.";
+    }
+}
+
 
             function formatDate(dateString) {
                 const options = { year: 'numeric', month: 'long', day: 'numeric' };
