@@ -20,11 +20,12 @@
         #sidePanel {
             position: fixed;
             top: 0;
-            right: 0; /* Keep the side panel always open */
+            right: -100%;
             width: 330px;
             height: 100%;
             background: white;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            transition: right 0.5s;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -40,19 +41,19 @@
             overflow-y: auto;
         }
 
-        #infoTable {
+        #infoTable, #detailedInspectionTable {
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
         }
 
-        #infoTable th, #infoTable td {
+        #infoTable th, #infoTable td, #detailedInspectionTable th, #detailedInspectionTable td {
             padding: 8px;
             border: 1px solid #ddd;
             text-align: left;
         }
 
-        #infoTable th {
+        #infoTable th, #detailedInspectionTable th {
             background-color: #f2f2f2;
         }
 
@@ -88,7 +89,7 @@
             display: none;
         }
 
-        #inspectionsTitle {
+        #inspectionsTitle, #detailedInspectionTitle {
             font-size: 20;
             font-weight: bold;
             margin-top: 10px;
@@ -167,6 +168,14 @@
                             <th>Requires Maintenance</th>
                         </tr>
                     </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="detailedInspection" style="display: none;">
+                <h2 id="detailedInspectionTitle">Detailed Inspection</h2>
+                <table id="detailedInspectionTable">
                     <tbody>
                     </tbody>
                 </table>
@@ -329,6 +338,9 @@
                         let requiresMaintenanceCell = document.createElement("td");
                         requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
                         row.appendChild(requiresMaintenanceCell);
+                        row.addEventListener("click", function() {
+                            displayDetailedInspection(inspection.attributes);
+                        });
                         tbody.appendChild(row);
                     });
                 } else {
@@ -339,6 +351,24 @@
             function formatDate(dateString) {
                 const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
                 return new Date(dateString).toLocaleDateString(undefined, options);
+            }
+
+            function displayDetailedInspection(attributes) {
+                const detailedInspectionTable = document.querySelector("#detailedInspectionTable tbody");
+                detailedInspectionTable.innerHTML = "";
+
+                Object.keys(attributes).forEach(key => {
+                    let row = document.createElement("tr");
+                    let labelCell = document.createElement("th");
+                    labelCell.textContent = key;
+                    let valueCell = document.createElement("td");
+                    valueCell.textContent = attributes[key];
+                    row.appendChild(labelCell);
+                    row.appendChild(valueCell);
+                    detailedInspectionTable.appendChild(row);
+                });
+
+                document.getElementById("detailedInspection").style.display = "block";
             }
 
             function showSidePanel() {
