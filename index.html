@@ -412,8 +412,19 @@ tbody.querySelectorAll("tr").forEach(row => {
         // Add highlighted class to clicked row
         row.classList.add("highlighted-row");
 
+        // Check if inspections data is available
+        if (!inspections || inspections.length === 0) {
+            console.error("Inspections data is not available or empty.");
+            return;
+        }
+
         // Get the inspection attributes for the clicked row
         const inspectionIndex = Array.from(row.parentNode.children).indexOf(row);
+        if (inspectionIndex < 0 || inspectionIndex >= inspections.length) {
+            console.error("Invalid inspection index.");
+            return;
+        }
+
         const inspection = inspections[inspectionIndex];
 
         // Show detailed inspection if inspection is defined
@@ -422,6 +433,7 @@ tbody.querySelectorAll("tr").forEach(row => {
         }
     });
 });
+
 
                 } else {
                     let row = tbody.insertRow();
