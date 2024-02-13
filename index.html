@@ -354,10 +354,16 @@
             }
 
             function hideSidePanel() {
-                document.getElementById("sidePanel").style.right = "-100%";
-                document.getElementById("filterButton").style.right = "20px";
-                hideDetailedInspection(); // Hide detailed inspection when clearing selection
-            }
+    document.getElementById("sidePanel").style.right = "-100%";
+    document.getElementById("filterButton").style.right = "20px";
+    hideDetailedInspection(); // Hide detailed inspection when clearing selection
+    
+    // Remove event listeners from rows in the previous inspection table
+    document.querySelectorAll("#infoTable tbody tr").forEach(row => {
+        row.removeEventListener("click", showDetailedInspection);
+    });
+}
+
 
             function showDetailedInspection(inspection) {
                 const detailedInspectionDiv = document.getElementById("detailedInspection");
