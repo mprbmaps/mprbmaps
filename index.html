@@ -412,33 +412,34 @@ tbody.querySelectorAll("tr").forEach(row => {
 
         row.classList.add("highlighted-row");
 
-        if (!inspections || inspections.length === 0) {
-            console.error("Inspections data is not available or empty.");
-            return;
-        }
-
+        // Get the index of the clicked row
         const inspectionIndex = Array.from(row.parentNode.children).indexOf(row);
         if (inspectionIndex < 0 || inspectionIndex >= inspections.length) {
             console.error("Invalid inspection index.");
             return;
         }
 
+        // Get the inspection data from the array
         const inspection = inspections[inspectionIndex];
-
-        if (!inspection || !inspection.get("attributes")) {
+        if (!inspection) {
             console.error("Inspection data is missing or invalid.");
             return;
         }
 
         console.log("Showing detailed inspection.");
 
-        // Retrieve the inspection attributes using the get() method
-        const inspectionAttributes = inspection.get("attributes");
+        // Extract the inspection attributes
+        const inspectionAttributes = {
+            inspection_date: inspection.attributes.inspection_date,
+            condition_score: inspection.attributes.condition_score,
+            requires_maintenance: inspection.attributes.requires_maintenance
+        };
 
         // Show detailed inspection if inspection attributes are defined
         showDetailedInspection(inspectionAttributes);
     });
 });
+
 
 
 
