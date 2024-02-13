@@ -1,16 +1,12 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
     <title>Display Related Inspections on Feature Selection</title>
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css" />
     <style>
-        html,
-        body,
-        #mapContainer,
-        #viewDiv {
+        html, body, #mapContainer, #viewDiv {
             padding: 0;
             margin: 0;
             height: 100%;
@@ -45,26 +41,24 @@
             overflow-y: auto;
         }
 
-        #infoTable {
+        #infoTable, #detailedInspectionTable {
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
         }
 
-        #infoTable th,
-        #infoTable td {
+        #infoTable th, #infoTable td, #detailedInspectionTable th, #detailedInspectionTable td {
             padding: 8px;
             border: 1px solid #ddd;
             text-align: left;
         }
 
-        #infoTable th {
+        #infoTable th, #detailedInspectionTable th {
             background-color: #f2f2f2;
         }
 
-        #clearSelectionButton,
-        #submitInspectionButton {
-            background-color: #007bff;
+        #clearSelectionButton, #submitInspectionButton {
+            background-color: #007BFF;
             color: white;
             border: none;
             padding: 10px 15px;
@@ -73,19 +67,17 @@
             width: calc(50% - 5px);
         }
 
-        #clearSelectionButton:hover,
-        #submitInspectionButton:hover {
+        #clearSelectionButton:hover, #submitInspectionButton:hover {
             background-color: #0056b3;
         }
 
-        select,
-        input[type="date"] {
+        select, input[type="date"] {
             width: calc(100% - 12px);
             padding: 5px;
         }
 
         #successMessage {
-            background-color: #4caf50;
+            background-color: #4CAF50;
             color: white;
             padding: 10px;
             text-align: center;
@@ -110,7 +102,7 @@
         }
 
         #filterButton {
-            background-color: #007bff;
+            background-color: #007BFF;
             color: white;
             border: solid;
             border-width: .5px;
@@ -120,48 +112,19 @@
             position: absolute;
             top: 20px;
             right: 20px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            /* Add a shadow effect */
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); /* Add a shadow effect */
         }
 
         #filterButton:hover {
             background-color: #0056b3;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.7);
-            /* Adjust the shadow on hover */
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.7); /* Adjust the shadow on hover */
         }
 
         #detailedInspection {
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #ccc;
             display: none;
-        }
-
-        #detailedInspection h2 {
-            font-size: 20px;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-
-        #detailedInspectionTable {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-
-        #detailedInspectionTable th,
-        #detailedInspectionTable td {
-            padding: 8px;
-            border: 1px solid #ddd;
-            text-align: left;
-        }
-
-        #detailedInspectionTable th {
-            background-color: #f2f2f2;
         }
     </style>
 </head>
-
 <body>
     <div id="mapContainer">
         <div id="viewDiv"></div>
@@ -190,15 +153,15 @@
                 </select><br><br>
 
                 <input type="hidden" id="relfeatureglobalid">
-
+                
                 <div style="display: flex; justify-content: space-between;">
                     <button type="submit" id="submitInspectionButton">Submit</button>
                     <button type="button" id="clearSelectionButton">Clear Selection</button>
                 </div>
             </form>
-
+            
             <div class="line-separator"></div>
-
+        
             <div id="infoDiv">
                 <h2 id="inspectionsTitle">Previous Inspections</h2>
                 <table id="infoTable">
@@ -210,16 +173,14 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- Previous inspection rows will be populated here dynamically -->
                     </tbody>
                 </table>
             </div>
-
+            
             <div id="detailedInspection">
-                <h2>Detailed Inspection</h2>
+                <h2 id="detailedInspectionsTitle">Detailed Inspection Info</h2>
                 <table id="detailedInspectionTable">
                     <tbody>
-                        <!-- Detailed Inspection fields will be populated here dynamically -->
                     </tbody>
                 </table>
             </div>
@@ -242,7 +203,7 @@
             "esri/widgets/Locate",
             "esri/identity/IdentityManager",
             "esri/identity/OAuthInfo"
-        ], function (Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, geometryEngine, Point, Locate, IdentityManager, OAuthInfo) {
+        ], function(Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, geometryEngine, Point, Locate, IdentityManager, OAuthInfo) {
             const map = new Map({
                 basemap: {
                     portalItem: {
@@ -292,7 +253,7 @@
             });
 
             function attachClickListener() {
-                view.on("click", function (event) {
+                view.on("click", function(event) {
                     if (selectedFeature) {
                         view.graphics.remove(selectedFeature); // Remove the previously selected feature's graphic
                     }
@@ -306,7 +267,7 @@
                     query.returnGeometry = true;
                     query.outFields = ["*"];
 
-                    featureLayer.queryFeatures(query).then(function (result) {
+                    featureLayer.queryFeatures(query).then(function(result) {
                         if (result.features.length > 0) {
                             let feature = result.features[0];
                             displayFeature(feature);
@@ -317,7 +278,7 @@
                             document.getElementById("infoDiv").innerHTML = "No feature selected.";
                             hideSidePanel();
                         }
-                    }).catch(function (error) {
+                    }).catch(function(error) {
                         console.error("Query Error:", error);
                     });
                 });
@@ -340,7 +301,7 @@
                 });
 
                 view.graphics.add(selectedFeature);
-
+                
                 // Center the map on the selected feature and set zoom level to 15
                 view.goTo({
                     target: selectedFeature.geometry,
@@ -356,9 +317,9 @@
                 inspectionQuery.returnGeometry = false;
                 inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance"];
 
-                inspectionLayer.queryFeatures(inspectionQuery).then(function (inspectionResult) {
+                inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
                     displayInspections(inspectionResult.features);
-                }).catch(function (error) {
+                }).catch(function(error) {
                     console.error("Inspection Query Error:", error);
                 });
             }
@@ -383,8 +344,9 @@
                         row.appendChild(requiresMaintenanceCell);
                         tbody.appendChild(row);
 
-                        row.addEventListener("click", function () {
-                            displayDetailedInspection(inspection.attributes);
+                        // Add event listener to each row for detailed inspection info
+                        row.addEventListener("click", function() {
+                            displayDetailedInspectionInfo(inspection.attributes);
                         });
                     });
                 } else {
@@ -393,8 +355,27 @@
             }
 
             function formatDate(dateString) {
-                const [year, month, day] = dateString.split("-");
-                return `${day}/${month}/${year}`;
+                const dateParts = dateString.split("/");
+                const formattedDate = dateParts[1] + "/" + dateParts[0] + "/" + dateParts[2];
+                return formattedDate;
+            }
+
+            function displayDetailedInspectionInfo(attributes) {
+                const detailedInspectionTable = document.querySelector("#detailedInspectionTable tbody");
+                detailedInspectionTable.innerHTML = "";
+
+                Object.entries(attributes).forEach(([key, value]) => {
+                    let row = document.createElement("tr");
+                    let keyCell = document.createElement("td");
+                    keyCell.textContent = key.replace(/_/g, ' ').toUpperCase();
+                    let valueCell = document.createElement("td");
+                    valueCell.textContent = value;
+                    row.appendChild(keyCell);
+                    row.appendChild(valueCell);
+                    detailedInspectionTable.appendChild(row);
+                });
+
+                document.getElementById("detailedInspection").style.display = "block";
             }
 
             function showSidePanel() {
@@ -407,7 +388,7 @@
                 document.getElementById("filterButton").style.right = "10px";
             }
 
-            document.getElementById("inspectionForm").addEventListener("submit", function (event) {
+            document.getElementById("inspectionForm").addEventListener("submit", function(event) {
                 event.preventDefault();
 
                 const inspectionDate = document.getElementById("inspectionDate").value;
@@ -426,7 +407,7 @@
 
                 inspectionLayer.applyEdits({
                     addFeatures: [newInspection]
-                }).then(function (addResults) {
+                }).then(function(addResults) {
                     if (addResults.addFeatureResults.length > 0) {
                         console.log("New inspection added successfully:", addResults.addFeatureResults[0]);
                         document.getElementById("inspectionForm").reset();
@@ -435,12 +416,12 @@
                     } else {
                         console.error("Failed to add new inspection.");
                     }
-                }).catch(function (error) {
+                }).catch(function(error) {
                     console.error("Error adding new inspection:", error);
                 });
             });
 
-            document.getElementById("clearSelectionButton").addEventListener("click", function () {
+            document.getElementById("clearSelectionButton").addEventListener("click", function() {
                 if (selectedFeature) {
                     view.graphics.remove(selectedFeature); // Remove the selected feature's graphic
                     selectedFeature = null;
@@ -459,7 +440,7 @@
 
             let filteredFeatures = null; // Store the filtered features' graphics
 
-            document.getElementById("filterButton").addEventListener("click", function () {
+            document.getElementById("filterButton").addEventListener("click", function() {
                 filterFeaturesByRequiresMaintenance();
             });
 
@@ -468,7 +449,7 @@
                 query.where = "requires_maintenance = 'Yes'";
                 query.returnGeometry = true;
 
-                featureLayer.queryFeatures(query).then(function (result) {
+                featureLayer.queryFeatures(query).then(function(result) {
                     if (filteredFeatures) {
                         filteredFeatures.forEach(feature => {
                             view.graphics.remove(feature); // Remove the previously filtered features' graphics
@@ -495,7 +476,7 @@
 
                         return graphic;
                     });
-                }).catch(function (error) {
+                }).catch(function(error) {
                     console.error("Filter Query Error:", error);
                 });
             }
@@ -503,7 +484,7 @@
             function showSuccessMessage() {
                 const successMessage = document.getElementById("successMessage");
                 successMessage.style.display = "block";
-                setTimeout(function () {
+                setTimeout(function() {
                     successMessage.style.display = "none";
                 }, 3000);
             }
@@ -516,24 +497,6 @@
             });
 
             view.ui.add(locateWidget, "bottom-left");
-
-            function displayDetailedInspection(inspection) {
-                const detailedInspectionTable = document.getElementById("detailedInspectionTable");
-                detailedInspectionTable.innerHTML = "";
-
-                for (const [key, value] of Object.entries(inspection)) {
-                    let row = document.createElement("tr");
-                    let keyCell = document.createElement("td");
-                    keyCell.textContent = key.replace(/_/g, ' ');
-                    row.appendChild(keyCell);
-                    let valueCell = document.createElement("td");
-                    valueCell.textContent = key === 'inspection_date' ? formatDate(value) : value;
-                    row.appendChild(valueCell);
-                    detailedInspectionTable.appendChild(row);
-                }
-
-                document.getElementById("detailedInspection").style.display = "block";
-            }
         });
     </script>
 </body>
