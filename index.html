@@ -224,6 +224,7 @@
             map.add(inspectionLayer);
 
             let selectedFeature = null;
+            let selectedGraphic = null;
 
             featureLayer.when(() => {
                 attachClickListener();
@@ -232,52 +233,52 @@
             });
 
             function attachClickListener() {
-    view.on("click", function(event) {
-        if (selectedFeature) {
-            view.graphics.remove(selectedFeature);
-            selectedFeature = null;
-        }
-
-        const bufferDistance = 20;
-        const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
-
-        let query = featureLayer.createQuery();
-        query.geometry = bufferGeometry;
-        query.spatialRelationship = "intersects";
-        query.returnGeometry = true;
-        query.outFields = ["*"];
-
-        featureLayer.queryObjectIds(query).then(function(objectIds) {
-            if (objectIds.length > 0) {
-                let objectId = objectIds[0];
-                featureLayer.queryRelatedFeatures({ 
-                    outFields: ["*"],
-                    relationshipId: 20, // Modified
-                    objectIds: [objectId]
-                }).then(function(relatedRecords) {
-                    if (relatedRecords[objectId]) {
-                        const inspections = relatedRecords[objectId].features;
-                        console.log("Related inspections found:", inspections); // Diagnostic log to confirm related records are found
-                        displayInspections(inspections);
-                        showSidePanel(); // Call this function to ensure the side panel is shown when inspections are found
-                    } else {
-                        console.error("No related inspections found.");
-                        document.getElementById("infoDiv").innerHTML = "No related inspections found.";
-                        // Even if no inspections are found, you might still want to show the side panel with this message.
-                        showSidePanel();
+                view.on("click", function(event) {
+                    if (selectedFeature) {
+                        view.graphics.remove(selectedGraphic);
+                        selectedFeature = null;
                     }
-                }).catch(function(error) {
-                    console.error("Error querying related features:", error);
+
+                    const bufferDistance = 20;
+                    const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
+
+                    let query = featureLayer.createQuery();
+                    query.geometry = bufferGeometry;
+                    query.spatialRelationship = "intersects";
+                    query.returnGeometry = true;
+                    query.outFields = ["*"];
+
+                    featureLayer.queryObjectIds(query).then(function(objectIds) {
+                        if (objectIds.length > 0) {
+                            let objectId = objectIds[0];
+                            featureLayer.queryRelatedFeatures({ 
+                                outFields: ["*"],
+                                relationshipId: 20, // Modified
+                                objectIds: [objectId]
+                            }).then(function(relatedRecords) {
+                                if (relatedRecords[objectId]) {
+                                    const inspections = relatedRecords[objectId].features;
+                                    console.log("Related inspections found:", inspections); // Diagnostic log to confirm related records are found
+                                    displayInspections(inspections);
+                                    showSidePanel(); // Call this function to ensure the side panel is shown when inspections are found
+                                } else {
+                                    console.error("No related inspections found.");
+                                    document.getElementById("infoDiv").innerHTML = "No related inspections found.";
+                                    // Even if no inspections are found, you might still want to show the side panel with this message.
+                                    showSidePanel();
+                                }
+                            }).catch(function(error) {
+                                console.error("Error querying related features:", error);
+                            });
+                        } else {
+                            document.getElementById("infoDiv").innerHTML = "No feature selected.";
+                            hideSidePanel();
+                        }
+                    }).catch(function(error) {
+                        console.error("Query ObjectIds Error:", error);
+                    });
                 });
-            } else {
-                document.getElementById("infoDiv").innerHTML = "No feature selected.";
-                hideSidePanel();
             }
-        }).catch(function(error) {
-            console.error("Query ObjectIds Error:", error);
-        });
-    });
-}
 
             function displayInspections(inspections) {
                 const tbody = document.querySelector("#infoTable tbody");
@@ -350,8 +351,11 @@
 
             document.getElementById("clearSelectionButton").addEventListener("click", function() {
                 view.graphics.removeAll();
+                selectedFeature = null;
+                selectedGraphic = null;
                 document.getElementById("infoDiv").innerHTML = "";
                 hideSidePanel();
+                document.getElementById("detailedInspection").style.display = "none"; // Hide detailed inspection section
             });
 
             document.getElementById("filterButton").addEventListener("click", function() {
@@ -401,6 +405,24 @@
                 view: view
             });
             view.ui.add(locateWidget, "top-left");
+
+            view.on("click", function(event) {
+                if (selectedGraphic) {
+                    view.graphics.remove(selectedGraphic);
+                }
+                selectedGraphic = new Graphic({
+                    geometry: event.mapPoint,
+                    symbol: new SimpleMarkerSymbol({
+                        color: [226, 119, 40],
+                        size: 12,
+                        outline: {
+                            color: [255, 255, 255],
+                            width: 2
+                        }
+                    })
+                });
+                view.graphics.add(selectedGraphic);
+            });
         });
     </script>
 </body>
