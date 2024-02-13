@@ -20,7 +20,7 @@
         #sidePanel {
             position: fixed;
             top: 0;
-            right: -100%;
+            right: 0; /* Changed from -100% to 0 to keep the side panel always open */
             width: 330px;
             height: 100%;
             background: white;
@@ -37,7 +37,6 @@
         }
 
         #infoDiv {
-            flex-grow: 1;
             overflow-y: auto;
         }
 
@@ -119,10 +118,11 @@
             background-color: #0056b3;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.7); /* Adjust the shadow on hover */
         }
-        
+
+        /* New style for Detailed Inspection Info section */
         #detailedInspection {
             display: none;
-            margin-top: 20px;
+            margin-top: 20px; /* Adjusted margin-top */
         }
 
         #detailedInspection table {
@@ -193,7 +193,8 @@
                     </tbody>
                 </table>
             </div>
-            
+
+            <!-- Detailed Inspection Info section moved up and styled -->
             <div id="detailedInspection">
                 <h2>Detailed Inspection Info</h2>
                 <table>
@@ -210,12 +211,8 @@
                         <td id="requiresMaintenanceDetail"></td>
                     </tr>
                     <tr>
-                        <th>Broken/Missing Slats</th>
-                        <td id="brokenMissingSlatsDetail"></td>
-                    </tr>
-                    <tr>
-                        <th>Graffiti</th>
-                        <td id="graffitiDetail"></td>
+                        <th>Feature Global ID</th>
+                        <td id="featureGlobalIdDetail"></td>
                     </tr>
                 </table>
             </div>
@@ -350,7 +347,7 @@
                 const inspectionQuery = new Query();
                 inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
                 inspectionQuery.returnGeometry = false;
-                inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "broken_missing_slats", "graffiti"];
+                inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance"];
 
                 inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
                     displayInspections(inspectionResult.features);
@@ -377,10 +374,12 @@
                         let requiresMaintenanceCell = document.createElement("td");
                         requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
                         row.appendChild(requiresMaintenanceCell);
+                        tbody.appendChild(row);
+
+                        // Add click event listener to each row
                         row.addEventListener("click", function() {
                             showDetailedInspection(inspection.attributes);
                         });
-                        tbody.appendChild(row);
                     });
                 } else {
                     tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
@@ -389,67 +388,80 @@
 
             function formatDate(dateString) {
                 const date = new Date(dateString);
-                const day = date.getDate();
-                const month = date.getMonth() + 1;
+                const day = date.getDate().toString().padStart(2, '0');
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
                 const year = date.getFullYear();
                 return `${day}/${month}/${year}`;
             }
 
             function showDetailedInspection(inspection) {
+                const detailedInspectionDiv = document.getElementById("detailedInspection");
+                detailedInspectionDiv.style.display = "block";
+
                 document.getElementById("inspectionDateDetail").textContent = formatDate(inspection.inspection_date);
                 document.getElementById("conditionScoreDetail").textContent = inspection.condition_score;
                 document.getElementById("requiresMaintenanceDetail").textContent = inspection.requires_maintenance;
-                document.getElementById("brokenMissingSlatsDetail").textContent = inspection.broken_missing_slats || "N/A";
-                document.getElementById("graffitiDetail").textContent = inspection.graffiti || "N/A";
-                document.getElementById("detailedInspection").style.display = "block";
+                document.getElementById("featureGlobalIdDetail").textContent = inspection.relfeatureglobalid;
+            }
+
+            function showSidePanel() {
+                document.getElementById("sidePanel").style.right = "0";
+                document.getElementById("filterButton").style.right = "370px"; // Adjust the right value here
+            }
+
+            function hideSidePanel() {
+                document.getElementById("sidePanel").style.right = "-100%";
+                document.getElementById("filterButton").style.right = "10px";
             }
 
             document.getElementById("inspectionForm").addEventListener("submit", function(event) {
                 event.preventDefault();
-
-                const inspectionDate = document.getElementById("inspectionDate").value;
-                const conditionScore = document.getElementById("conditionScore").value;
-                const requiresMaintenance = document.getElementById("requiresMaintenance").value;
-                const relFeatureGlobalId = document.getElementById("relfeatureglobalid").value;
-
-                const newInspection = {
-                    attributes: {
-                        inspection_date: inspectionDate,
-                        condition_score: conditionScore,
-                        requires_maintenance: requiresMaintenance,
-                        relfeatureglobalid: relFeatureGlobalId
-                    }
-                };
-
-                inspectionLayer.applyEdits({
-                    addFeatures: [newInspection]
-                }).then(function() {
-                    document.getElementById("successMessage").style.display = "block";
-                    setTimeout(function() {
-                        document.getElementById("successMessage").style.display = "none";
-                    }, 3000);
-                    fetchInspections(relFeatureGlobalId);
-                }).catch(function(error) {
-                    console.error("Add Inspection Error:", error);
-                });
+                addInspection();
             });
 
             document.getElementById("clearSelectionButton").addEventListener("click", function() {
                 view.graphics.removeAll();
                 document.getElementById("infoDiv").innerHTML = "";
-                hideSidePanel();
+                document.getElementById("detailedInspection").style.display = "none";
             });
 
             document.getElementById("filterButton").addEventListener("click", function() {
-                featureLayer.definitionExpression = "requires_maintenance = 'Yes'";
+                featureLayer.definitionExpression = "maint_reqd = 'Yes'";
             });
 
-            function showSidePanel() {
-                document.getElementById("sidePanel").style.right = "0";
-            }
+            function addInspection() {
+                const inspectionDate = document.getElementById("inspectionDate").value;
+                const conditionScore = document.getElementById("conditionScore").value;
+                const requiresMaintenance = document.getElementById("requiresMaintenance").value;
+                const relFeatureGlobalId = document.getElementById("relfeatureglobalid").value;
 
-            function hideSidePanel() {
-                document.getElementById("sidePanel").style.right = "-100%";
+                const inspectionAttributes = {
+                    "inspection_date": inspectionDate,
+                    "condition_score": conditionScore,
+                    "requires_maintenance": requiresMaintenance,
+                    "relfeatureglobalid": relFeatureGlobalId
+                };
+
+                const inspectionGraphic = new Graphic({
+                    attributes: inspectionAttributes
+                });
+
+                inspectionLayer.applyEdits({
+                    addFeatures: [inspectionGraphic]
+                }).then(function(result) {
+                    if (result.addFeatureResults.length > 0 && !result.addFeatureResults[0].error) {
+                        document.getElementById("successMessage").style.display = "block";
+                        setTimeout(function() {
+                            document.getElementById("successMessage").style.display = "none";
+                        }, 3000);
+
+                        fetchInspections(relFeatureGlobalId);
+                    } else {
+                        console.error("Error adding inspection:", result.addFeatureResults[0].error);
+                    }
+                }).catch(function(error) {
+                    console.error("Error adding inspection:", error);
+                });
             }
         });
     </script>
