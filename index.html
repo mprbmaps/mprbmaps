@@ -183,56 +183,6 @@
     <div id="successMessage">New inspection added successfully!</div>
     <script src="https://js.arcgis.com/4.28"></script>
     <script>
-        function displayInspections(inspections) {
-            // Ensure that the table body (tbody) element exists
-            let tbody = document.querySelector("#infoTable tbody");
-            let table = document.getElementById("infoTable");
-            if (!tbody && table) {
-                // Create tbody element if it doesn't exist
-                tbody = document.createElement("tbody");
-                table.appendChild(tbody);
-            } else if (!table) {
-                // Log an error if the table doesn't exist
-                console.error("Table element not found.");
-                return;
-            } else {
-                // Clear existing rows if tbody already exists
-                tbody.innerHTML = "";
-            }
-
-            if (inspections.length > 0) {
-                inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
-
-                inspections.forEach(inspection => {
-                    let row = document.createElement("tr");
-                    row.addEventListener("click", function() {
-                        document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
-                        row.classList.add("selected-row");
-                        showDetailedInspection(inspection.attributes);
-                    });
-                    let inspectionDateCell = document.createElement("td");
-                    inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
-                    row.appendChild(inspectionDateCell);
-                    let conditionScoreCell = document.createElement("td");
-                    conditionScoreCell.textContent = inspection.attributes.condition_score;
-                    row.appendChild(conditionScoreCell);
-                    let requiresMaintenanceCell = document.createElement("td");
-                    requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
-                    row.appendChild(requiresMaintenanceCell);
-
-                    tbody.appendChild(row);
-                });
-            } else {
-                // Display message if no inspections are found
-                let row = document.createElement("tr");
-                let cell = document.createElement("td");
-                cell.textContent = "No related inspections found.";
-                cell.colSpan = 3;
-                row.appendChild(cell);
-                tbody.appendChild(row);
-            }
-        }
-
         require([
             "esri/Map",
             "esri/views/MapView",
@@ -342,98 +292,124 @@
                 });
             }
 
-            document.addEventListener("DOMContentLoaded", function() {
-                // Your JavaScript code here
-                // This ensures that the code runs after the DOM content is fully loaded
+            // Define formatDate function globally
+            function formatDate(dateString) {
+                const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+                return new Date(dateString).toLocaleDateString(undefined, options);
+            }
 
-                function formatDate(dateString) {
-                    const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
-                    return new Date(dateString).toLocaleDateString(undefined, options);
+            function displayInspections(inspections) {
+                // Ensure that the table body (tbody) element exists
+                let tbody = document.querySelector("#infoTable tbody");
+                let table = document.getElementById("infoTable");
+                if (!tbody && table) {
+                    // Create tbody element if it doesn't exist
+                    tbody = document.createElement("tbody");
+                    table.appendChild(tbody);
+                } else if (!table) {
+                    // Log an error if the table doesn't exist
+                    console.error("Table element not found.");
+                    return;
+                } else {
+                    // Clear existing rows if tbody already exists
+                    tbody.innerHTML = "";
                 }
 
-                function showSidePanel() {
-                    document.getElementById("sidePanel").style.right = "0";
-                    document.getElementById("filterButton").style.right = "370px";
-                }
+                if (inspections.length > 0) {
+                    inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
 
-                function hideSidePanel() {
-                    document.getElementById("sidePanel").style.right = "-100%";
-                    document.getElementById("filterButton").style.right = "20px";
-                    hideDetailedInspection(); // Hide detailed inspection when clearing selection
-                }
+                    inspections.forEach(inspection => {
+                        let row = document.createElement("tr");
+                        row.addEventListener("click", function() {
+                            document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
+                            row.classList.add("selected-row");
+                            showDetailedInspection(inspection.attributes);
+                        });
+                        let inspectionDateCell = document.createElement("td");
+                        inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
+                        row.appendChild(inspectionDateCell);
+                        let conditionScoreCell = document.createElement("td");
+                        conditionScoreCell.textContent = inspection.attributes.condition_score;
+                        row.appendChild(conditionScoreCell);
+                        let requiresMaintenanceCell = document.createElement("td");
+                        requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
+                        row.appendChild(requiresMaintenanceCell);
 
-                function showDetailedInspection(inspection) {
-                    const detailedInspectionDiv = document.getElementById("detailedInspection");
-                    detailedInspectionDiv.innerHTML = `
-                        <h2>Detailed Inspection</h2>
-                        <table class="info-table">
-                            <tbody>
-                                <tr><td><strong>Broken or Missing Slats:</strong></td><td>${inspection.broken_missing_slats || "N/A"}</td></tr>
-                                <tr><td><strong>Graffiti:</strong></td><td>${inspection.graffiti || "N/A"}</td></tr>
-                            </tbody>
-                        </table>
-                    `;
-                    detailedInspectionDiv.style.display = "block";
-                }
-
-                function hideDetailedInspection() {
-                    document.getElementById("detailedInspection").style.display = "none";
-                }
-
-                document.getElementById("clearSelectionButton").addEventListener("click", function() {
-                    view.graphics.removeAll();
-                    document.getElementById("infoDiv").innerHTML = "";
-                    hideSidePanel();
-                });
-
-                document.getElementById("filterButton").addEventListener("click", function() {
-                    inspectionLayer.definitionExpression = "requires_maintenance = 'Yes'";
-                });
-
-                document.getElementById("inspectionForm").addEventListener("submit", function(event) {
-                    event.preventDefault();
-                    const formData = new FormData(event.target);
-                    const inspectionDate = formData.get("inspectionDate");
-                    const conditionScore = formData.get("conditionScore");
-                    const requiresMaintenance = formData.get("requiresMaintenance");
-
-                    const point = new Point({
-                        longitude: selectedFeature.geometry.longitude,
-                        latitude: selectedFeature.geometry.latitude,
-                        spatialReference: view.spatialReference
+                        tbody.appendChild(row);
                     });
+                } else {
+                    // Display message if no inspections are found
+                    let row = document.createElement("tr");
+                    let cell = document.createElement("td");
+                    cell.textContent = "No related inspections found.";
+                    cell.colSpan = 3;
+                    row.appendChild(cell);
+                    tbody.appendChild(row);
+                }
+            }
 
-                    const inspectionGraphic = new Graphic({
-                        geometry: point,
-                        attributes: {
-                            inspection_date: inspectionDate,
-                            condition_score: conditionScore,
-                            requires_maintenance: requiresMaintenance,
-                            asset_id: selectedFeature.attributes.asset_id // Assuming asset_id is the unique identifier for the feature
-                        }
-                    });
+            function showSidePanel() {
+                document.getElementById("sidePanel").style.right = "0";
+                document.getElementById("filterButton").style.right = "370px";
+            }
 
-                    inspectionLayer.applyEdits({
-                        addFeatures: [inspectionGraphic]
-                    }).then(function(result) {
-                        if (result.addFeatureResults.length > 0) {
-                            document.getElementById("successMessage").style.display = "block";
-                            setTimeout(function() {
-                                document.getElementById("successMessage").style.display = "none";
-                            }, 3000);
-                        } else {
-                            console.error("Failed to add inspection.");
-                        }
-                    }).catch(function(error) {
-                        console.error("Error adding inspection:", error);
-                    });
-                });
+            function hideSidePanel() {
+                document.getElementById("sidePanel").style.right = "-100%";
+                document.getElementById("filterButton").style.right = "20px";
+                hideDetailedInspection(); // Hide detailed inspection when clearing selection
+            }
 
-                const locateWidget = new Locate({
-                    view: view
-                });
-                view.ui.add(locateWidget, "top-left");
+            function showDetailedInspection(inspection) {
+                const detailedInspectionDiv = document.getElementById("detailedInspection");
+                detailedInspectionDiv.style.display = "block";
 
+                // Update detailed inspection information
+                document.getElementById("brokenMissingSlats").textContent = inspection.broken_missing_slats;
+                document.getElementById("graffiti").textContent = inspection.graffiti;
+            }
+
+            function hideDetailedInspection() {
+                document.getElementById("detailedInspection").style.display = "none";
+            }
+
+            document.getElementById("clearSelectionButton").addEventListener("click", function() {
+                if (selectedGraphic) {
+                    view.graphics.remove(selectedGraphic);
+                }
+                selectedFeature = null;
+                selectedGraphic = null;
+                document.getElementById("infoDiv").innerHTML = "";
+                hideSidePanel();
+            });
+
+            document.getElementById("filterButton").addEventListener("click", function() {
+                alert("Filtering features by maintenance requirement.");
+                // Add your filtering logic here
+            });
+
+            document.getElementById("inspectionForm").addEventListener("submit", function(event) {
+                event.preventDefault();
+                const inspectionDate = document.getElementById("inspectionDate").value;
+                const conditionScore = document.getElementById("conditionScore").value;
+                const requiresMaintenance = document.getElementById("requiresMaintenance").value;
+                const relationshipID = document.getElementById("relationshipID").value; // Modified
+
+                if (selectedFeature && inspectionDate && conditionScore && requiresMaintenance) {
+                    // Add your logic to submit the inspection here
+                    console.log("Submitting inspection...");
+                    console.log("Feature ID:", selectedFeature.attributes.OBJECTID);
+                    console.log("Inspection Date:", inspectionDate);
+                    console.log("Condition Score:", conditionScore);
+                    console.log("Requires Maintenance:", requiresMaintenance);
+                    console.log("Relationship ID:", relationshipID); // Modified
+                    document.getElementById("inspectionForm").reset();
+                    document.getElementById("successMessage").style.display = "block";
+                    setTimeout(function() {
+                        document.getElementById("successMessage").style.display = "none";
+                    }, 3000);
+                } else {
+                    alert("Please select a feature on the map and fill out all fields.");
+                }
             });
         });
     </script>
