@@ -308,9 +308,11 @@
                             let feature = result.features[0];
                             displayFeature(feature);
                             fetchInspections(feature.attributes.GlobalID);
+                            showSidePanel();
                             document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
                         } else {
                             document.getElementById("infoDiv").innerHTML = "No feature selected.";
+                            hideSidePanel();
                         }
                     }).catch(function(error) {
                         console.error("Query Error:", error);
@@ -421,7 +423,18 @@
                     view.graphics.remove(selectedFeature); // Remove selected feature's graphic
                     selectedFeature = null; // Reset selected feature
                 }
+                document.querySelector("#infoTable tbody").innerHTML = ""; // Clear previous inspection table
             });
+
+            function showSidePanel() {
+                document.getElementById("sidePanel").style.display = "block";
+            }
+
+            // function hideSidePanel() {
+            //     document.getElementById("sidePanel").style.display = "none";
+            //     // Also hide Detailed Inspection Info when hiding side panel
+            //     document.getElementById("detailedInspection").style.display = "none";
+            // }
         });
     </script>
 </body>
