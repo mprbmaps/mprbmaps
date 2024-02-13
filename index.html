@@ -57,6 +57,26 @@
             background-color: #f2f2f2;
         }
 
+        #detailedInspection {
+            display: none;
+            margin-top: 20px;
+        }
+
+        #detailedInspection table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        #detailedInspection th, #detailedInspection td {
+            padding: 8px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        #detailedInspection th {
+            background-color: #f2f2f2;
+        }
+
         #clearSelectionButton, #submitInspectionButton {
             background-color: #007BFF;
             color: white;
@@ -119,10 +139,6 @@
             background-color: #0056b3;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.7); /* Adjust the shadow on hover */
         }
-
-        #detailedInspection {
-            margin-top: 20px; /* Adjust the margin to move the Detailed Inspection Info section further up */
-        }
     </style>
 </head>
 <body>
@@ -177,7 +193,7 @@
                 </table>
             </div>
 
-            <div id="detailedInspection" style="display: none;">
+            <div id="detailedInspection">
                 <h2>Detailed Inspection Info</h2>
                 <table id="detailedInspectionTable">
                     <tr>
@@ -194,11 +210,11 @@
                     </tr>
                     <tr>
                         <th>Broken/Missing Slats</th>
-                        <td id="brokenMissingSlats"></td>
+                        <td id="brokenMissingSlatsDetail"></td>
                     </tr>
                     <tr>
                         <th>Graffiti</th>
-                        <td id="graffiti"></td>
+                        <td id="graffitiDetail"></td>
                     </tr>
                 </table>
             </div>
@@ -368,6 +384,7 @@
                         let requiresMaintenanceCell = document.createElement("td");
                         requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
                         row.appendChild(requiresMaintenanceCell);
+                        row.addEventListener("click", () => showDetailedInspection(inspection.attributes));
                         tbody.appendChild(row);
                     });
                 } else {
@@ -385,14 +402,21 @@
                 document.getElementById("filterButton").style.right = "10px";
             }
 
+            function showDetailedInspection(inspection) {
+                document.getElementById("inspectionDateDetail").textContent = formatDate(inspection.inspection_date);
+                document.getElementById("conditionScoreDetail").textContent = inspection.condition_score;
+                document.getElementById("requiresMaintenanceDetail").textContent = inspection.requires_maintenance;
+                document.getElementById("brokenMissingSlatsDetail").textContent = inspection.broken_missing_slats || "N/A";
+                document.getElementById("graffitiDetail").textContent = inspection.graffiti || "N/A";
+                document.getElementById("detailedInspection").style.display = "block";
+            }
+
             document.getElementById("inspectionForm").addEventListener("submit", function(event) {
                 event.preventDefault();
 
                 const inspectionDate = document.getElementById("inspectionDate").value;
                 const conditionScore = document.getElementById("conditionScore").value;
                 const requiresMaintenance = document.getElementById("requiresMaintenance").value;
-                const brokenMissingSlats = document.getElementById("brokenMissingSlatsInput").checked ? "Yes" : "No";
-                const graffiti = document.getElementById("graffitiInput").checked ? "Yes" : "No";
                 const relfeatureglobalid = document.getElementById("relfeatureglobalid").value;
 
                 const newInspection = {
@@ -400,8 +424,6 @@
                         inspection_date: inspectionDate,
                         condition_score: conditionScore,
                         requires_maintenance: requiresMaintenance,
-                        broken_missing_slats: brokenMissingSlats,
-                        graffiti: graffiti,
                         relfeatureglobalid: relfeatureglobalid
                     }
                 };
@@ -428,8 +450,18 @@
                     selectedFeature = null;
                 }
 
+                if (filteredFeatures) {
+                    featureLayer.definitionExpression = ""; // Clear the filter
+                    filteredFeatures.forEach(feature => {
+                        view.graphics.remove(feature); // Remove the filtered features' graphics
+                    });
+                    filteredFeatures = null;
+                }
+
                 hideSidePanel();
             });
+
+            let filteredFeatures = null; // Store the filtered features' graphics
 
             document.getElementById("filterButton").addEventListener("click", function() {
                 filterFeaturesByRequiresMaintenance();
