@@ -305,7 +305,11 @@
                             showSidePanel();
                             document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
                         } else {
-                            document.getElementById("infoDiv").innerHTML = "No feature selected.";
+                            // Check if the infoDiv exists before updating its content
+                            const infoDiv = document.getElementById("infoDiv");
+                            if (infoDiv) {
+                                infoDiv.innerHTML = "No feature selected.";
+                            }
                             hideSidePanel();
                         }
                     }).catch(function(error) {
@@ -356,7 +360,16 @@
 
             function displayInspections(inspections) {
                 const tbody = document.querySelector("#infoTable tbody");
-                tbody.innerHTML = "";
+                
+                // Ensure that the infoDiv element exists before updating its content
+                const infoDiv = document.getElementById("infoDiv");
+                if (!infoDiv) {
+                    console.error("Error: infoDiv element not found.");
+                    return;
+                }
+
+                // Clear the previous content of the infoDiv
+                infoDiv.innerHTML = "";
 
                 if (inspections.length > 0) {
                     inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
@@ -444,8 +457,8 @@
 
             document.getElementById("clearSelectionButton").addEventListener("click", function() {
                 view.graphics.removeAll(); // Clear all graphics from the view
-                document.getElementById("detailedInspection").style.display = "none"; // Hide the detailed inspection info
-                hideSidePanel();
+                hideDetailedInspection(); // Hide the detailed inspection info
+                showSidePanel(); // Ensure the side panel remains open
             });
 
             document.getElementById("filterButton").addEventListener("click", function() {
@@ -454,7 +467,7 @@
 
             const locateWidget = new Locate({
                 view: view,
-                rotationEnabled: false, // DEPRECATED - Replace with rotationEnabled
+                rotationEnabled: false,
                 goToOverride: function(view, options) {
                     options.target.scale = 1500;
                     return view.goTo(options.target);
