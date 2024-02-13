@@ -183,6 +183,56 @@
     <div id="successMessage">New inspection added successfully!</div>
     <script src="https://js.arcgis.com/4.28"></script>
     <script>
+        function displayInspections(inspections) {
+            // Ensure that the table body (tbody) element exists
+            let tbody = document.querySelector("#infoTable tbody");
+            let table = document.getElementById("infoTable");
+            if (!tbody && table) {
+                // Create tbody element if it doesn't exist
+                tbody = document.createElement("tbody");
+                table.appendChild(tbody);
+            } else if (!table) {
+                // Log an error if the table doesn't exist
+                console.error("Table element not found.");
+                return;
+            } else {
+                // Clear existing rows if tbody already exists
+                tbody.innerHTML = "";
+            }
+
+            if (inspections.length > 0) {
+                inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+
+                inspections.forEach(inspection => {
+                    let row = document.createElement("tr");
+                    row.addEventListener("click", function() {
+                        document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
+                        row.classList.add("selected-row");
+                        showDetailedInspection(inspection.attributes);
+                    });
+                    let inspectionDateCell = document.createElement("td");
+                    inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
+                    row.appendChild(inspectionDateCell);
+                    let conditionScoreCell = document.createElement("td");
+                    conditionScoreCell.textContent = inspection.attributes.condition_score;
+                    row.appendChild(conditionScoreCell);
+                    let requiresMaintenanceCell = document.createElement("td");
+                    requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
+                    row.appendChild(requiresMaintenanceCell);
+
+                    tbody.appendChild(row);
+                });
+            } else {
+                // Display message if no inspections are found
+                let row = document.createElement("tr");
+                let cell = document.createElement("td");
+                cell.textContent = "No related inspections found.";
+                cell.colSpan = 3;
+                row.appendChild(cell);
+                tbody.appendChild(row);
+            }
+        }
+
         require([
             "esri/Map",
             "esri/views/MapView",
@@ -293,61 +343,8 @@
             }
 
             document.addEventListener("DOMContentLoaded", function() {
-                console.log("DOMContentLoaded event fired.");
                 // Your JavaScript code here
                 // This ensures that the code runs after the DOM content is fully loaded
-
-                function displayInspections(inspections) {
-                    console.log("Displaying inspections...");
-                    // Ensure that the table body (tbody) element exists
-                    let tbody = document.querySelector("#infoTable tbody");
-                    let table = document.getElementById("infoTable");
-                    if (!tbody && table) {
-                        // Create tbody element if it doesn't exist
-                        tbody = document.createElement("tbody");
-                        table.appendChild(tbody);
-                    } else if (!table) {
-                        // Log an error if the table doesn't exist
-                        console.error("Table element not found.");
-                        return;
-                    } else {
-                        // Clear existing rows if tbody already exists
-                        tbody.innerHTML = "";
-                    }
-
-                    if (inspections.length > 0) {
-                        inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
-
-                        inspections.forEach(inspection => {
-                            let row = document.createElement("tr");
-                            row.addEventListener("click", function() {
-                                console.log("Row clicked:", inspection.attributes);
-                                document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
-                                row.classList.add("selected-row");
-                                showDetailedInspection(inspection.attributes);
-                            });
-                            let inspectionDateCell = document.createElement("td");
-                            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
-                            row.appendChild(inspectionDateCell);
-                            let conditionScoreCell = document.createElement("td");
-                            conditionScoreCell.textContent = inspection.attributes.condition_score;
-                            row.appendChild(conditionScoreCell);
-                            let requiresMaintenanceCell = document.createElement("td");
-                            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
-                            row.appendChild(requiresMaintenanceCell);
-
-                            tbody.appendChild(row);
-                        });
-                    } else {
-                        // Display message if no inspections are found
-                        let row = document.createElement("tr");
-                        let cell = document.createElement("td");
-                        cell.textContent = "No related inspections found.";
-                        cell.colSpan = 3;
-                        row.appendChild(cell);
-                        tbody.appendChild(row);
-                    }
-                }
 
                 function formatDate(dateString) {
                     const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
@@ -355,21 +352,17 @@
                 }
 
                 function showSidePanel() {
-                    console.log("Showing side panel...");
                     document.getElementById("sidePanel").style.right = "0";
                     document.getElementById("filterButton").style.right = "370px";
                 }
 
                 function hideSidePanel() {
-                    console.log("Hiding side panel...");
                     document.getElementById("sidePanel").style.right = "-100%";
                     document.getElementById("filterButton").style.right = "20px";
                     hideDetailedInspection(); // Hide detailed inspection when clearing selection
                 }
 
                 function showDetailedInspection(inspection) {
-                    console.log("Showing detailed inspection...");
-                    document.getElementById("detailedInspection").style.display = "block";
                     const detailedInspectionDiv = document.getElementById("detailedInspection");
                     detailedInspectionDiv.innerHTML = `
                         <h2>Detailed Inspection</h2>
@@ -380,22 +373,20 @@
                             </tbody>
                         </table>
                     `;
+                    detailedInspectionDiv.style.display = "block";
                 }
 
                 function hideDetailedInspection() {
-                    console.log("Hiding detailed inspection...");
                     document.getElementById("detailedInspection").style.display = "none";
                 }
 
                 document.getElementById("clearSelectionButton").addEventListener("click", function() {
-                    console.log("Clearing selection...");
                     view.graphics.removeAll();
                     document.getElementById("infoDiv").innerHTML = "";
                     hideSidePanel();
                 });
 
                 document.getElementById("filterButton").addEventListener("click", function() {
-                    console.log("Filter button clicked...");
                     inspectionLayer.definitionExpression = "requires_maintenance = 'Yes'";
                 });
 
