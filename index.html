@@ -234,11 +234,9 @@
 
             function attachClickListener() {
                 view.on("click", function(event) {
-                    if (selectedFeature) {
+                    if (selectedGraphic) {
                         view.graphics.remove(selectedGraphic);
-                        selectedFeature = null;
                     }
-
                     const bufferDistance = 20;
                     const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
 
@@ -277,6 +275,20 @@
                     }).catch(function(error) {
                         console.error("Query ObjectIds Error:", error);
                     });
+
+                    // Add selected graphic to map
+                    selectedGraphic = new Graphic({
+                        geometry: event.mapPoint,
+                        symbol: new SimpleMarkerSymbol({
+                            color: [226, 119, 40],
+                            size: 12,
+                            outline: {
+                                color: [255, 255, 255],
+                                width: 2
+                            }
+                        })
+                    });
+                    view.graphics.add(selectedGraphic);
                 });
             }
 
@@ -333,6 +345,7 @@
             function hideSidePanel() {
                 document.getElementById("sidePanel").style.right = "-100%";
                 document.getElementById("filterButton").style.right = "20px";
+                hideDetailedInspection(); // Hide detailed inspection when clearing selection
             }
 
             function showDetailedInspection(inspection) {
@@ -349,13 +362,14 @@
                 detailedInspectionDiv.style.display = "block";
             }
 
+            function hideDetailedInspection() {
+                document.getElementById("detailedInspection").style.display = "none";
+            }
+
             document.getElementById("clearSelectionButton").addEventListener("click", function() {
                 view.graphics.removeAll();
-                selectedFeature = null;
-                selectedGraphic = null;
                 document.getElementById("infoDiv").innerHTML = "";
                 hideSidePanel();
-                document.getElementById("detailedInspection").style.display = "none"; // Hide detailed inspection section
             });
 
             document.getElementById("filterButton").addEventListener("click", function() {
@@ -406,23 +420,6 @@
             });
             view.ui.add(locateWidget, "top-left");
 
-            view.on("click", function(event) {
-                if (selectedGraphic) {
-                    view.graphics.remove(selectedGraphic);
-                }
-                selectedGraphic = new Graphic({
-                    geometry: event.mapPoint,
-                    symbol: new SimpleMarkerSymbol({
-                        color: [226, 119, 40],
-                        size: 12,
-                        outline: {
-                            color: [255, 255, 255],
-                            width: 2
-                        }
-                    })
-                });
-                view.graphics.add(selectedGraphic);
-            });
         });
     </script>
 </body>
