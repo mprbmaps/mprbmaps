@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
     <title>Display Related Inspections on Feature Selection</title>
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css" />
     <style>
@@ -56,7 +56,7 @@
             background-color: #f2f2f2;
         }
 
-        #clearSelectionButton, #submitInspectionButton, #filterButton {
+        #clearSelectionButton, #submitInspectionButton {
             background-color: #007BFF;
             color: white;
             border: none;
@@ -64,10 +64,9 @@
             cursor: pointer;
             border-radius: 0px;
             width: calc(50% - 5px);
-            margin-top: 10px;
         }
 
-        #clearSelectionButton:hover, #submitInspectionButton:hover, #filterButton:hover {
+        #clearSelectionButton:hover, #submitInspectionButton:hover {
             background-color: #0056b3;
         }
 
@@ -101,6 +100,25 @@
             margin-bottom: 10px;
         }
 
+        #filterButton {
+            background-color: #007BFF;
+            color: white;
+            border: solid;
+            border-width: .5px;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 0px;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); /* Add a shadow effect */
+        }
+
+        #filterButton:hover {
+            background-color: #0056b3;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.7); /* Adjust the shadow on hover */
+        }
+
         #detailedInspection {
             margin-top: 10px; /* Adjusted margin-top */
             display: none;
@@ -126,15 +144,15 @@
 <body>
     <div id="mapContainer">
         <div id="viewDiv"></div>
-        <button id="filterButton" aria-label="Filter Features with Maintenance Required">Maint. Req'd = Yes</button>
+        <button id="filterButton">Maint. Req'd = Yes</button>
         <div id="sidePanel">
             <h2>Add New Inspection</h2>
             <form id="addInspectionForm">
                 <label for="inspectionDate">Inspection Date:</label>
-                <input type="date" id="inspectionDate" required aria-label="Select Inspection Date"><br>
+                <input type="date" id="inspectionDate" required><br>
 
                 <label for="conditionScore">Condition Score:</label>
-                <select id="conditionScore" required aria-label="Select Condition Score">
+                <select id="conditionScore" required>
                     <option value="">Select</option>
                     <option value="1">1 - Very Poor</option>
                     <option value="2">2 - Poor</option>
@@ -144,7 +162,7 @@
                 </select><br>
 
                 <label for="requiresMaintenance">Requires Maintenance:</label>
-                <select id="requiresMaintenance" required aria-label="Select Maintenance Requirement">
+                <select id="requiresMaintenance" required>
                     <option value="">Select</option>
                     <option value="Yes">Yes</option>
                     <option value="No">No</option>
@@ -153,8 +171,8 @@
                 <input type="hidden" id="relfeatureglobalid">
                 
                 <div style="display: flex; justify-content: space-between;">
-                    <button type="submit" id="submitInspectionButton" aria-label="Submit Inspection">Submit</button>
-                    <button type="button" id="clearSelectionButton" aria-label="Clear Selection">Clear Selection</button>
+                    <button type="submit" id="submitInspectionButton">Submit</button>
+                    <button type="button" id="clearSelectionButton">Clear Selection</button>
                 </div>
             </form>
             
@@ -428,7 +446,6 @@
                 view.graphics.removeAll(); // Clear all graphics from the view
                 document.getElementById("infoDiv").innerHTML = ""; // Clear the inspection table
                 document.getElementById("detailedInspection").style.display = "none"; // Hide the detailed inspection info
-                hideSidePanel();
             });
 
             document.getElementById("filterButton").addEventListener("click", function() {
@@ -437,7 +454,7 @@
 
             const locateWidget = new Locate({
                 view: view,
-                useHeadingEnabled: false,
+                rotationEnabled: false,
                 goToOverride: function(view, options) {
                     options.target.scale = 1500;
                     return view.goTo(options.target);
