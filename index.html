@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
     <title>Display Related Inspections on Feature Selection</title>
-    <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
+    <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css" />
     <style>
         html, body, #mapContainer, #viewDiv {
             padding: 0;
@@ -156,6 +156,7 @@
             <form id="addInspectionForm">
                 <label for="inspectionDate">Inspection Date:</label>
                 <input type="date" id="inspectionDate" required><br>
+
                 <label for="conditionScore">Condition Score:</label>
                 <select id="conditionScore" required>
                     <option value="">Select</option>
@@ -165,19 +166,24 @@
                     <option value="4">4 - Good</option>
                     <option value="5">5 - Very Good</option>
                 </select><br>
+
                 <label for="requiresMaintenance">Requires Maintenance:</label>
                 <select id="requiresMaintenance" required>
                     <option value="">Select</option>
                     <option value="Yes">Yes</option>
                     <option value="No">No</option>
                 </select><br><br>
+
                 <input type="hidden" id="relfeatureglobalid">
+                
                 <div style="display: flex; justify-content: space-between;">
                     <button type="submit" id="submitInspectionButton">Submit</button>
                     <button type="button" id="clearSelectionButton">Clear Selection</button>
                 </div>
             </form>
+            
             <div class="line-separator"></div>
+        
             <div id="infoDiv">
                 <h2 id="inspectionsTitle">Previous Inspections</h2>
                 <table id="infoTable">
@@ -188,9 +194,11 @@
                             <th>Requires Maintenance</th>
                         </tr>
                     </thead>
-                    <tbody></tbody>
+                    <tbody>
+                    </tbody>
                 </table>
             </div>
+
             <div id="detailedInspection">
                 <h2>Detailed Inspection Info</h2>
                 <table>
@@ -214,7 +222,9 @@
             </div>
         </div>
     </div>
+
     <div id="successMessage">New inspection added successfully!</div>
+
     <script src="https://js.arcgis.com/4.28"></script>
     <script>
         require([
@@ -301,8 +311,7 @@
                             showSidePanel();
                             document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
                         } else {
-                            document.getElementById("infoDiv").innerHTML = "No feature selected.";
-                            hideSidePanel();
+                            displayNoFeatureSelectedMessage(); // Show message when no feature is selected
                         }
                     }).catch(function(error) {
                         console.error("Query Error:", error);
@@ -352,7 +361,6 @@
 
             function displayInspections(inspections) {
                 const tbody = document.querySelector("#infoTable tbody");
-
                 // Check if tbody exists before proceeding
                 if (!tbody) {
                     console.error("tbody element not found.");
@@ -362,25 +370,19 @@
                 tbody.innerHTML = "";
 
                 if (inspections.length > 0) {
-                    inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+                    inspections.forEach(function(inspection) {
+                        let row = tbody.insertRow();
+                        let dateCell = row.insertCell();
+                        let scoreCell = row.insertCell();
+                        let maintenanceCell = row.insertCell();
 
-                    inspections.forEach(inspection => {
-                        let row = document.createElement("tr");
-                        let inspectionDateCell = document.createElement("td");
-                        inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
-                        row.appendChild(inspectionDateCell);
+                        dateCell.textContent = formatDate(inspection.attributes.inspection_date);
+                        scoreCell.textContent = inspection.attributes.condition_score;
+                        maintenanceCell.textContent = inspection.attributes.requires_maintenance;
+                    });
 
-                        let conditionScoreCell = document.createElement("td");
-                        conditionScoreCell.textContent = inspection.attributes.condition_score;
-                        row.appendChild(conditionScoreCell);
-
-                        let requiresMaintenanceCell = document.createElement("td");
-                        requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
-                        row.appendChild(requiresMaintenanceCell);
-
-                        tbody.appendChild(row);
-
-                        // Add click event listener to each row
+                    // Add click event listener to each row
+                    tbody.querySelectorAll("tr").forEach(row => {
                         row.addEventListener("click", function() {
                             // Remove highlighted class from all rows
                             tbody.querySelectorAll("tr").forEach(row => {
@@ -428,19 +430,22 @@
                     selectedFeature = null; // Reset selected feature
                 }
                 hideDetailedInspection();
-
+                
                 // Remove all rows from the Previous Inspections table
                 const tbody = document.querySelector("#infoTable tbody");
-                if (tbody) {
-                    tbody.innerHTML = "";
-                } else {
-                    console.error("infoTable or tbody element not found.");
+                if (!tbody) {
+                    console.error("tbody element not found.");
+                    return;
                 }
+                tbody.innerHTML = "";
 
                 // Remove highlighted row
                 document.querySelectorAll(".highlighted-row").forEach(row => {
                     row.classList.remove("highlighted-row");
                 });
+
+                // Clear the relfeatureglobalid value
+                document.getElementById("relfeatureglobalid").value = "";
             });
 
             function showSidePanel() {
