@@ -366,8 +366,11 @@
             let selectedFeature = null; // Store the selected feature's graphic
 
             function fetchInspections(globalID) {
-    // Hide the detailed inspection info table
-    hideDetailedInspection();
+    // Hide the detailed inspection info table if it's visible
+    const detailedInspectionDiv = document.getElementById("detailedInspection");
+    if (detailedInspectionDiv.style.display !== "none") {
+        hideDetailedInspection();
+    }
 
     const inspectionQuery = new Query();
     inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
@@ -380,6 +383,7 @@
         console.error("Inspection Query Error:", error);
     });
 }
+
 
 
             function displayInspections(inspections) {
