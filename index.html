@@ -847,13 +847,18 @@
             }
 
             document.getElementById("clearSelectionButton").addEventListener("click", function() {
-                if (selectedFeature) {
-                    view.graphics.remove(selectedFeature); // Remove selected feature's graphic
-                    selectedFeature = null; // Reset selected feature
-                }
-                hideDetailedInspection();
-                // Side panel should remain open, so no need to call hideSidePanel();
-            });
+    if (selectedFeature) {
+        view.graphics.remove(selectedFeature); // Remove selected feature's graphic
+        selectedFeature = null; // Reset selected feature
+    }
+    hideDetailedInspection();
+    // Remove highlighted row
+    document.querySelectorAll(".highlighted-row").forEach(row => {
+        row.classList.remove("highlighted-row");
+    });
+    // Side panel should remain open, so no need to call hideSidePanel();
+});
+
 
             function showSidePanel() {
                 document.getElementById("sidePanel").style.display = "block";
