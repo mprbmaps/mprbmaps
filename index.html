@@ -299,54 +299,57 @@
             }
 
             function displayInspections(inspections) {
-                // Ensure that the table body (tbody) element exists
-                let tbody = document.querySelector("#infoTable tbody");
-                let table = document.getElementById("infoTable");
-                if (!tbody && table) {
-                    // Create tbody element if it doesn't exist
-                    tbody = document.createElement("tbody");
-                    table.appendChild(tbody);
-                } else if (!table) {
-                    // Log an error if the table doesn't exist
-                    console.error("Table element not found.");
-                    return;
-                } else {
-                    // Clear existing rows if tbody already exists
-                    tbody.innerHTML = "";
-                }
+    // Ensure that the table element exists
+    let table = document.getElementById("infoTable");
+    if (!table) {
+        console.error("Table element not found.");
+        return;
+    }
 
-                if (inspections.length > 0) {
-                    inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+    // Ensure that the tbody element exists
+    let tbody = table.querySelector("tbody");
+    if (!tbody) {
+        // Create tbody element if it doesn't exist
+        tbody = document.createElement("tbody");
+        table.appendChild(tbody);
+    } else {
+        // Clear existing rows if tbody already exists
+        tbody.innerHTML = "";
+    }
 
-                    inspections.forEach(inspection => {
-                        let row = document.createElement("tr");
-                        row.addEventListener("click", function() {
-                            document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
-                            row.classList.add("selected-row");
-                            showDetailedInspection(inspection.attributes);
-                        });
-                        let inspectionDateCell = document.createElement("td");
-                        inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
-                        row.appendChild(inspectionDateCell);
-                        let conditionScoreCell = document.createElement("td");
-                        conditionScoreCell.textContent = inspection.attributes.condition_score;
-                        row.appendChild(conditionScoreCell);
-                        let requiresMaintenanceCell = document.createElement("td");
-                        requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
-                        row.appendChild(requiresMaintenanceCell);
+    if (inspections.length > 0) {
+        inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
 
-                        tbody.appendChild(row);
-                    });
-                } else {
-                    // Display message if no inspections are found
-                    let row = document.createElement("tr");
-                    let cell = document.createElement("td");
-                    cell.textContent = "No related inspections found.";
-                    cell.colSpan = 3;
-                    row.appendChild(cell);
-                    tbody.appendChild(row);
-                }
-            }
+        inspections.forEach(inspection => {
+            let row = document.createElement("tr");
+            row.addEventListener("click", function() {
+                document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
+                row.classList.add("selected-row");
+                showDetailedInspection(inspection.attributes);
+            });
+            let inspectionDateCell = document.createElement("td");
+            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
+            row.appendChild(inspectionDateCell);
+            let conditionScoreCell = document.createElement("td");
+            conditionScoreCell.textContent = inspection.attributes.condition_score;
+            row.appendChild(conditionScoreCell);
+            let requiresMaintenanceCell = document.createElement("td");
+            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
+            row.appendChild(requiresMaintenanceCell);
+
+            tbody.appendChild(row);
+        });
+    } else {
+        // Display message if no inspections are found
+        let row = document.createElement("tr");
+        let cell = document.createElement("td");
+        cell.textContent = "No related inspections found.";
+        cell.colSpan = 3;
+        row.appendChild(cell);
+        tbody.appendChild(row);
+    }
+}
+
 
             function showSidePanel() {
                 document.getElementById("sidePanel").style.right = "0";
