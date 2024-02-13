@@ -302,27 +302,25 @@
 
             function displayInspections(inspections) {
     console.log("Displaying inspections...");
-    // Ensure that the table body (tbody) element exists
-    let tbody = document.querySelector("#infoTable tbody");
+    // Ensure that the table element exists
     let table = document.getElementById("infoTable");
     console.log("Table:", table);
-    if (!tbody && table) {
-        // Create tbody element if it doesn't exist
-        tbody = document.createElement("tbody");
-        table.appendChild(tbody);
-    } else if (!table) {
-        // Log an error if the table doesn't exist
+    if (!table) {
         console.error("Table element not found.");
         return;
-    } else {
-        // Clear existing rows if tbody already exists
-        tbody.innerHTML = "";
     }
 
+    // Ensure that the table body (tbody) element exists
+    let tbody = table.querySelector("tbody");
     if (!tbody) {
-        console.error("Table body (tbody) element does not exist.");
-        return;
+        // Create tbody element if it doesn't exist
+        console.log("Creating tbody element...");
+        tbody = document.createElement("tbody");
+        table.appendChild(tbody);
     }
+
+    // Clear existing rows if tbody already exists
+    tbody.innerHTML = "";
 
     if (inspections.length > 0) {
         inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
