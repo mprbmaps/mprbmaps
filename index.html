@@ -362,7 +362,7 @@
 
             function displayInspections(inspections) {
                 const tbody = document.querySelector("#infoTable tbody");
-                tbody.innerHTML = "";
+                tbody.innerHTML = ""; // Clear the table before adding new data
 
                 if (inspections.length > 0) {
                     inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
@@ -424,15 +424,20 @@
                     selectedFeature = null; // Reset selected feature
                 }
                 hideSidePanel();
+                clearPreviousInspections();
             });
+
+            function clearPreviousInspections() {
+                const tbody = document.querySelector("#infoTable tbody");
+                tbody.innerHTML = ""; // Clear the table
+            }
 
             function showSidePanel() {
                 document.getElementById("sidePanel").style.display = "block";
             }
 
             function hideSidePanel() {
-                // Commented out to keep side panel open
-                // document.getElementById("sidePanel").style.display = "none";
+                document.getElementById("sidePanel").style.display = "none";
                 // Also hide Detailed Inspection Info when hiding side panel
                 document.getElementById("detailedInspection").style.display = "none";
             }
