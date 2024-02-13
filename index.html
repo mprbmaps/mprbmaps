@@ -366,18 +366,17 @@
             let selectedFeature = null; // Store the selected feature's graphic
 
             function fetchInspections(globalID) {
-    const inspectionQuery = new Query();
-    inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
-    inspectionQuery.returnGeometry = false;
-    inspectionQuery.outFields = ["attributes.missing_hardware", "attributes.broken_missing_slats", "attributes.graffiti", "attributes.support_condition", "attributes.notes"];
+                const inspectionQuery = new Query();
+                inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
+                inspectionQuery.returnGeometry = false;
+                inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance"];
 
-    inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
-        displayInspections(inspectionResult.features);
-    }).catch(function(error) {
-        console.error("Inspection Query Error:", error);
-    });
-}
-
+                inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
+                    displayInspections(inspectionResult.features);
+                }).catch(function(error) {
+                    console.error("Inspection Query Error:", error);
+                });
+            }
 
             function displayInspections(inspections) {
                 const tbody = document.querySelector("#infoTable tbody");
@@ -438,18 +437,16 @@ tbody.querySelectorAll("tr").forEach(row => {
             }
 
             function showDetailedInspection(attributes) {
-    console.log("Inspection Attributes:", attributes); // Log inspection attributes to console
-    const detailedInspectionDiv = document.getElementById("detailedInspection");
-    detailedInspectionDiv.style.display = "block"; // Show Detailed Inspection Info
+                const detailedInspectionDiv = document.getElementById("detailedInspection");
+                detailedInspectionDiv.style.display = "block"; // Show Detailed Inspection Info
 
-    // Populate Detailed Inspection Info
-    document.getElementById("missingHardwareDetail").textContent = attributes.missing_hardware;
-    document.getElementById("brokenMissingSlatsDetail").textContent = attributes.broken_missing_slats;
-    document.getElementById("graffitiDetail").textContent = attributes.graffiti;
-    document.getElementById("supportConditionDetail").textContent = attributes.support_condition;
-    document.getElementById("notesDetail").textContent = attributes.notes;
-}
-
+                // Populate Detailed Inspection Info
+                document.getElementById("missingHardwareDetail").textContent = attributes.missing_hardware;
+                document.getElementById("brokenMissingSlatsDetail").textContent = attributes.broken_missing_slats;
+                document.getElementById("graffitiDetail").textContent = attributes.graffiti;
+                document.getElementById("supportConditionDetail").textContent = attributes.support_condition;
+                document.getElementById("notesDetail").textContent = attributes.notes;
+            }
 
             function hideDetailedInspection() {
                 document.getElementById("detailedInspection").style.display = "none";
