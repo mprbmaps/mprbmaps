@@ -57,26 +57,6 @@
             background-color: #f2f2f2;
         }
 
-        #detailedInspection {
-            display: none;
-            margin-top: 20px;
-        }
-
-        #detailedInspection table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        #detailedInspection th, #detailedInspection td {
-            padding: 8px;
-            border: 1px solid #ddd;
-            text-align: left;
-        }
-
-        #detailedInspection th {
-            background-color: #f2f2f2;
-        }
-
         #clearSelectionButton, #submitInspectionButton {
             background-color: #007BFF;
             color: white;
@@ -139,6 +119,27 @@
             background-color: #0056b3;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.7); /* Adjust the shadow on hover */
         }
+        
+        #detailedInspection {
+            display: none;
+            margin-top: 20px;
+        }
+
+        #detailedInspection table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        #detailedInspection th, #detailedInspection td {
+            padding: 8px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        #detailedInspection th {
+            background-color: #f2f2f2;
+        }
     </style>
 </head>
 <body>
@@ -192,10 +193,10 @@
                     </tbody>
                 </table>
             </div>
-
+            
             <div id="detailedInspection">
                 <h2>Detailed Inspection Info</h2>
-                <table id="detailedInspectionTable">
+                <table>
                     <tr>
                         <th>Inspection Date</th>
                         <td id="inspectionDateDetail"></td>
@@ -358,14 +359,6 @@
                 });
             }
 
-            function formatDate(dateString) {
-                const date = new Date(dateString);
-                const day = date.getDate();
-                const month = date.getMonth() + 1;
-                const year = date.getFullYear();
-                return `${day}/${month}/${year}`;
-            }
-
             function displayInspections(inspections) {
                 const tbody = document.querySelector("#infoTable tbody");
                 tbody.innerHTML = "";
@@ -384,7 +377,9 @@
                         let requiresMaintenanceCell = document.createElement("td");
                         requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
                         row.appendChild(requiresMaintenanceCell);
-                        row.addEventListener("click", () => showDetailedInspection(inspection.attributes));
+                        row.addEventListener("click", function() {
+                            showDetailedInspection(inspection.attributes);
+                        });
                         tbody.appendChild(row);
                     });
                 } else {
@@ -392,14 +387,12 @@
                 }
             }
 
-            function showSidePanel() {
-                document.getElementById("sidePanel").style.right = "0";
-                document.getElementById("filterButton").style.right = "370px"; // Adjust the right value here
-            }
-
-            function hideSidePanel() {
-                document.getElementById("sidePanel").style.right = "-100%";
-                document.getElementById("filterButton").style.right = "10px";
+            function formatDate(dateString) {
+                const date = new Date(dateString);
+                const day = date.getDate();
+                const month = date.getMonth() + 1;
+                const year = date.getFullYear();
+                return `${day}/${month}/${year}`;
             }
 
             function showDetailedInspection(inspection) {
@@ -417,109 +410,47 @@
                 const inspectionDate = document.getElementById("inspectionDate").value;
                 const conditionScore = document.getElementById("conditionScore").value;
                 const requiresMaintenance = document.getElementById("requiresMaintenance").value;
-                const relfeatureglobalid = document.getElementById("relfeatureglobalid").value;
+                const relFeatureGlobalId = document.getElementById("relfeatureglobalid").value;
 
                 const newInspection = {
                     attributes: {
                         inspection_date: inspectionDate,
                         condition_score: conditionScore,
                         requires_maintenance: requiresMaintenance,
-                        relfeatureglobalid: relfeatureglobalid
+                        relfeatureglobalid: relFeatureGlobalId
                     }
                 };
 
                 inspectionLayer.applyEdits({
                     addFeatures: [newInspection]
-                }).then(function(addResults) {
-                    if (addResults.addFeatureResults.length > 0) {
-                        console.log("New inspection added successfully:", addResults.addFeatureResults[0]);
-                        document.getElementById("inspectionForm").reset();
-                        fetchInspections(relfeatureglobalid);
-                        showSuccessMessage();
-                    } else {
-                        console.error("Failed to add new inspection.");
-                    }
+                }).then(function() {
+                    document.getElementById("successMessage").style.display = "block";
+                    setTimeout(function() {
+                        document.getElementById("successMessage").style.display = "none";
+                    }, 3000);
+                    fetchInspections(relFeatureGlobalId);
                 }).catch(function(error) {
-                    console.error("Error adding new inspection:", error);
+                    console.error("Add Inspection Error:", error);
                 });
             });
 
             document.getElementById("clearSelectionButton").addEventListener("click", function() {
-                if (selectedFeature) {
-                    view.graphics.remove(selectedFeature); // Remove the selected feature's graphic
-                    selectedFeature = null;
-                }
-
-                if (filteredFeatures) {
-                    featureLayer.definitionExpression = ""; // Clear the filter
-                    filteredFeatures.forEach(feature => {
-                        view.graphics.remove(feature); // Remove the filtered features' graphics
-                    });
-                    filteredFeatures = null;
-                }
-
+                view.graphics.removeAll();
+                document.getElementById("infoDiv").innerHTML = "";
                 hideSidePanel();
             });
 
-            let filteredFeatures = null; // Store the filtered features' graphics
-
             document.getElementById("filterButton").addEventListener("click", function() {
-                filterFeaturesByRequiresMaintenance();
+                featureLayer.definitionExpression = "requires_maintenance = 'Yes'";
             });
 
-            function filterFeaturesByRequiresMaintenance() {
-                const query = featureLayer.createQuery();
-                query.where = "requires_maintenance = 'Yes'";
-                query.returnGeometry = true;
-
-                featureLayer.queryFeatures(query).then(function(result) {
-                    if (filteredFeatures) {
-                        filteredFeatures.forEach(feature => {
-                            view.graphics.remove(feature); // Remove the previously filtered features' graphics
-                        });
-                    }
-
-                    filteredFeatures = result.features.map(feature => {
-                        let symbol = {
-                            type: "simple-marker",
-                            color: "blue", // Set the filtered features' graphic color to blue
-                            size: 8,
-                            outline: {
-                                color: [255, 255, 255],
-                                width: 1
-                            }
-                        };
-
-                        let graphic = new Graphic({
-                            geometry: feature.geometry,
-                            symbol: symbol
-                        });
-
-                        view.graphics.add(graphic);
-
-                        return graphic;
-                    });
-                }).catch(function(error) {
-                    console.error("Filter Query Error:", error);
-                });
+            function showSidePanel() {
+                document.getElementById("sidePanel").style.right = "0";
             }
 
-            function showSuccessMessage() {
-                const successMessage = document.getElementById("successMessage");
-                successMessage.style.display = "block";
-                setTimeout(function() {
-                    successMessage.style.display = "none";
-                }, 3000);
+            function hideSidePanel() {
+                document.getElementById("sidePanel").style.right = "-100%";
             }
-
-            const locateWidget = new Locate({
-                view: view,
-                geolocationOptions: {
-                    timeout: 5000
-                }
-            });
-
-            view.ui.add(locateWidget, "bottom-left");
         });
     </script>
 </body>
