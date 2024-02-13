@@ -233,64 +233,66 @@
             });
 
             function attachClickListener() {
-                view.on("click", function(event) {
-                    if (selectedGraphic) {
-                        view.graphics.remove(selectedGraphic);
+    view.on("click", function(event) {
+        console.log("Map clicked...");
+        if (selectedGraphic) {
+            view.graphics.remove(selectedGraphic);
+        }
+        const bufferDistance = 20;
+        const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
+
+        let query = featureLayer.createQuery();
+        query.geometry = bufferGeometry;
+        query.spatialRelationship = "intersects";
+        query.returnGeometry = true;
+        query.outFields = ["*"];
+
+        featureLayer.queryObjectIds(query).then(function(objectIds) {
+            console.log("Object IDs:", objectIds);
+            if (objectIds.length > 0) {
+                let objectId = objectIds[0];
+                featureLayer.queryRelatedFeatures({ 
+                    outFields: ["*"],
+                    relationshipId: 20,
+                    objectIds: [objectId]
+                }).then(function(relatedRecords) {
+                    console.log("Related records:", relatedRecords);
+                    if (relatedRecords[objectId]) {
+                        const inspections = relatedRecords[objectId].features;
+                        console.log("Related inspections found:", inspections);
+                        displayInspections(inspections);
+                        showSidePanel();
+                    } else {
+                        console.error("No related inspections found.");
+                        document.getElementById("infoDiv").innerHTML = "No related inspections found.";
+                        showSidePanel();
                     }
-                    const bufferDistance = 20;
-                    const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
-
-                    let query = featureLayer.createQuery();
-                    query.geometry = bufferGeometry;
-                    query.spatialRelationship = "intersects";
-                    query.returnGeometry = true;
-                    query.outFields = ["*"];
-
-                    featureLayer.queryObjectIds(query).then(function(objectIds) {
-                        if (objectIds.length > 0) {
-                            let objectId = objectIds[0];
-                            featureLayer.queryRelatedFeatures({ 
-                                outFields: ["*"],
-                                relationshipId: 20, // Modified
-                                objectIds: [objectId]
-                            }).then(function(relatedRecords) {
-                                if (relatedRecords[objectId]) {
-                                    const inspections = relatedRecords[objectId].features;
-                                    console.log("Related inspections found:", inspections); // Diagnostic log to confirm related records are found
-                                    displayInspections(inspections);
-                                    showSidePanel(); // Call this function to ensure the side panel is shown when inspections are found
-                                } else {
-                                    console.error("No related inspections found.");
-                                    document.getElementById("infoDiv").innerHTML = "No related inspections found.";
-                                    // Even if no inspections are found, you might still want to show the side panel with this message.
-                                    showSidePanel();
-                                }
-                            }).catch(function(error) {
-                                console.error("Error querying related features:", error);
-                            });
-                        } else {
-                            document.getElementById("infoDiv").innerHTML = "No feature selected.";
-                            hideSidePanel();
-                        }
-                    }).catch(function(error) {
-                        console.error("Query ObjectIds Error:", error);
-                    });
-
-                    // Add selected graphic to map
-                    selectedGraphic = new Graphic({
-                        geometry: event.mapPoint,
-                        symbol: new SimpleMarkerSymbol({
-                            color: [226, 119, 40],
-                            size: 12,
-                            outline: {
-                                color: [255, 255, 255],
-                                width: 2
-                            }
-                        })
-                    });
-                    view.graphics.add(selectedGraphic);
+                }).catch(function(error) {
+                    console.error("Error querying related features:", error);
                 });
+            } else {
+                document.getElementById("infoDiv").innerHTML = "No feature selected.";
+                hideSidePanel();
             }
+        }).catch(function(error) {
+            console.error("Query ObjectIds Error:", error);
+        });
+
+        // Add selected graphic to map
+        selectedGraphic = new Graphic({
+            geometry: event.mapPoint,
+            symbol: new SimpleMarkerSymbol({
+                color: [226, 119, 40],
+                size: 12,
+                outline: {
+                    color: [255, 255, 255],
+                    width: 2
+                }
+            })
+        });
+        view.graphics.add(selectedGraphic);
+    });
+}
 
             // Define formatDate function globally
             function formatDate(dateString) {
