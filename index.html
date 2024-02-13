@@ -295,10 +295,15 @@
             function displayInspections(inspections) {
     // Ensure that the table body (tbody) element exists
     let tbody = document.querySelector("#infoTable tbody");
-    if (!tbody) {
+    let table = document.getElementById("infoTable");
+    if (!tbody && table) {
         // Create tbody element if it doesn't exist
         tbody = document.createElement("tbody");
-        document.getElementById("infoTable").appendChild(tbody);
+        table.appendChild(tbody);
+    } else if (!table) {
+        // Log an error if the table doesn't exist
+        console.error("Table element not found.");
+        return;
     } else {
         // Clear existing rows if tbody already exists
         tbody.innerHTML = "";
