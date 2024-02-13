@@ -233,6 +233,7 @@
 
             function attachClickListener() {
                 view.on("click", function(event) {
+                    console.log("Map clicked"); // Diagnostic log
                     if (selectedFeature) {
                         view.graphics.remove(selectedFeature);
                         selectedFeature = null;
@@ -248,11 +249,12 @@
                     query.outFields = ["*"];
 
                     featureLayer.queryObjectIds(query).then(function(objectIds) {
+                        console.log("Object IDs found:", objectIds); // Diagnostic log
                         if (objectIds.length > 0) {
                             let objectId = objectIds[0];
                             featureLayer.queryRelatedFeatures({ 
                                 outFields: ["*"],
-                                relationshipId: 20, // Modified
+                                relationshipId: 20,
                                 objectIds: [objectId]
                             }).then(function(relatedRecords) {
                                 if (relatedRecords[objectId]) {
