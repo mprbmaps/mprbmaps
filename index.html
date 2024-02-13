@@ -20,35 +20,30 @@
         #sidePanel {
             position: fixed;
             top: 0;
-            right: -100%;
+            right: 0; /* Changed to always be open */
             width: 330px;
             height: 100%;
             background: white;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-            transition: right 0.5s;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             padding: 10px;
         }
 
-        #addInspectionTitle {
-            margin-top: 0; /* Adjusted margin */
-        }
-
         #addInspectionForm {
-            margin-top: 10px; /* Adjusted margin */
+            margin-bottom: 20px;
         }
 
         #infoDiv {
             flex-grow: 1;
             overflow-y: auto;
-            margin-top: 10px; /* Adjusted margin */
         }
 
         #infoTable {
             width: 100%;
             border-collapse: collapse;
+            margin-top: 10px;
         }
 
         #infoTable th, #infoTable td {
@@ -61,9 +56,23 @@
             background-color: #f2f2f2;
         }
 
-        #detailedInspection {
-            display: none;
-            margin-top: 10px; /* Adjusted margin */
+        #clearSelectionButton, #submitInspectionButton {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 0px;
+            width: calc(50% - 5px);
+        }
+
+        #clearSelectionButton:hover, #submitInspectionButton:hover {
+            background-color: #0056b3;
+        }
+
+        select, input[type="date"] {
+            width: calc(100% - 12px);
+            padding: 5px;
         }
 
         #successMessage {
@@ -82,6 +91,7 @@
         #inspectionsTitle {
             font-size: 20;
             font-weight: bold;
+            margin-top: 10px;
         }
 
         .line-separator {
@@ -108,6 +118,27 @@
             background-color: #0056b3;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.7); /* Adjust the shadow on hover */
         }
+
+        #detailedInspection {
+            margin-top: 10px; /* Adjusted margin-top */
+            display: none;
+        }
+
+        #detailedInspection table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        #detailedInspection th, #detailedInspection td {
+            padding: 8px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        #detailedInspection th {
+            background-color: #f2f2f2;
+        }
     </style>
 </head>
 <body>
@@ -115,7 +146,7 @@
         <div id="viewDiv"></div>
         <button id="filterButton">Maint. Req'd = Yes</button>
         <div id="sidePanel">
-            <h2 id="addInspectionTitle">Add New Inspection</h2>
+            <h2>Add New Inspection</h2>
             <form id="addInspectionForm">
                 <label for="inspectionDate">Inspection Date:</label>
                 <input type="date" id="inspectionDate" required><br>
@@ -161,24 +192,24 @@
                     </tbody>
                 </table>
             </div>
-            
+
             <div id="detailedInspection">
                 <h2>Detailed Inspection Info</h2>
                 <table>
                     <tr>
-                        <td>Inspection Date:</td>
+                        <th>Inspection Date</th>
                         <td id="inspectionDateDetail"></td>
                     </tr>
                     <tr>
-                        <td>Condition Score:</td>
+                        <th>Condition Score</th>
                         <td id="conditionScoreDetail"></td>
                     </tr>
                     <tr>
-                        <td>Requires Maintenance:</td>
+                        <th>Requires Maintenance</th>
                         <td id="requiresMaintenanceDetail"></td>
                     </tr>
                     <tr>
-                        <td>Feature Global ID:</td>
+                        <th>Feature Global ID</th>
                         <td id="featureGlobalIdDetail"></td>
                     </tr>
                 </table>
@@ -195,11 +226,14 @@
             "esri/views/MapView",
             "esri/layers/FeatureLayer",
             "esri/Graphic",
+            "esri/symbols/SimpleMarkerSymbol",
             "esri/rest/support/Query",
             "esri/geometry/geometryEngine",
+            "esri/geometry/Point",
+            "esri/widgets/Locate",
             "esri/identity/IdentityManager",
             "esri/identity/OAuthInfo"
-        ], function(Map, MapView, FeatureLayer, Graphic, Query, geometryEngine, IdentityManager, OAuthInfo) {
+        ], function(Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, geometryEngine, Point, Locate, IdentityManager, OAuthInfo) {
             const map = new Map({
                 basemap: {
                     portalItem: {
@@ -250,21 +284,28 @@
 
             function attachClickListener() {
                 view.on("click", function(event) {
-                    clearSelection();
+                    if (selectedFeature) {
+                        view.graphics.remove(selectedFeature); // Remove the previously selected feature's graphic
+                    }
+
                     const bufferDistance = 20;
                     const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
+
                     let query = featureLayer.createQuery();
                     query.geometry = bufferGeometry;
                     query.spatialRelationship = "intersects";
                     query.returnGeometry = true;
                     query.outFields = ["*"];
+
                     featureLayer.queryFeatures(query).then(function(result) {
                         if (result.features.length > 0) {
-                            const feature = result.features[0];
+                            let feature = result.features[0];
                             displayFeature(feature);
                             fetchInspections(feature.attributes.GlobalID);
-                            showDetailedInspection(null);
+                            showSidePanel();
+                            document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
                         } else {
+                            document.getElementById("infoDiv").innerHTML = "No feature selected.";
                             hideSidePanel();
                         }
                     }).catch(function(error) {
@@ -273,40 +314,39 @@
                 });
             }
 
-            let selectedFeature = null;
-
             function displayFeature(feature) {
-                const symbol = {
+                let symbol = {
                     type: "simple-marker",
-                    color: "red",
+                    color: "red", // Set the selected feature's graphic color to red
                     size: 8,
                     outline: {
                         color: [255, 255, 255],
                         width: 1
                     }
                 };
+
                 selectedFeature = new Graphic({
                     geometry: feature.geometry,
                     symbol: symbol
                 });
+
                 view.graphics.add(selectedFeature);
+                
+                // Center the map on the selected feature and set zoom level to 15
                 view.goTo({
                     target: selectedFeature.geometry,
                     zoom: 15
                 });
             }
 
-            function clearSelection() {
-                view.graphics.removeAll();
-                document.getElementById("infoDiv").innerHTML = "";
-                document.getElementById("detailedInspection").style.display = "none";
-            }
+            let selectedFeature = null; // Store the selected feature's graphic
 
             function fetchInspections(globalID) {
                 const inspectionQuery = new Query();
                 inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
                 inspectionQuery.returnGeometry = false;
                 inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance"];
+
                 inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
                     displayInspections(inspectionResult.features);
                 }).catch(function(error) {
@@ -317,20 +357,24 @@
             function displayInspections(inspections) {
                 const tbody = document.querySelector("#infoTable tbody");
                 tbody.innerHTML = "";
+
                 if (inspections.length > 0) {
                     inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+
                     inspections.forEach(inspection => {
-                        const row = document.createElement("tr");
-                        const inspectionDateCell = document.createElement("td");
+                        let row = document.createElement("tr");
+                        let inspectionDateCell = document.createElement("td");
                         inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
                         row.appendChild(inspectionDateCell);
-                        const conditionScoreCell = document.createElement("td");
+                        let conditionScoreCell = document.createElement("td");
                         conditionScoreCell.textContent = inspection.attributes.condition_score;
                         row.appendChild(conditionScoreCell);
-                        const requiresMaintenanceCell = document.createElement("td");
+                        let requiresMaintenanceCell = document.createElement("td");
                         requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
                         row.appendChild(requiresMaintenanceCell);
                         tbody.appendChild(row);
+
+                        // Add click event listener to each row
                         row.addEventListener("click", function() {
                             showDetailedInspection(inspection.attributes);
                         });
@@ -342,77 +386,82 @@
 
             function formatDate(dateString) {
                 const date = new Date(dateString);
-                const day = date.getDate().toString().padStart(2, "0");
-                const month = (date.getMonth() + 1).toString().padStart(2, "0");
+                const day = date.getDate();
+                const month = date.getMonth() + 1;
                 const year = date.getFullYear();
                 return `${day}/${month}/${year}`;
             }
 
-            function showDetailedInspection(attributes) {
-                if (attributes) {
-                    document.getElementById("inspectionDateDetail").textContent = formatDate(attributes.inspection_date);
-                    document.getElementById("conditionScoreDetail").textContent = attributes.condition_score;
-                    document.getElementById("requiresMaintenanceDetail").textContent = attributes.requires_maintenance;
-                    document.getElementById("featureGlobalIdDetail").textContent = attributes.relfeatureglobalid;
-                    document.getElementById("detailedInspection").style.display = "block";
-                } else {
-                    document.getElementById("detailedInspection").style.display = "none";
-                }
-            }
-
-            function hideSidePanel() {
-                document.getElementById("sidePanel").style.right = "-100%";
+            function showDetailedInspection(inspection) {
+                document.getElementById("inspectionDateDetail").textContent = formatDate(inspection.inspection_date);
+                document.getElementById("conditionScoreDetail").textContent = inspection.condition_score;
+                document.getElementById("requiresMaintenanceDetail").textContent = inspection.requires_maintenance;
+                document.getElementById("featureGlobalIdDetail").textContent = inspection.relfeatureglobalid;
+                document.getElementById("detailedInspection").style.display = "block";
             }
 
             function showSidePanel() {
                 document.getElementById("sidePanel").style.right = "0";
+                document.getElementById("filterButton").style.right = "370px"; // Adjust the right value here
+            }
+
+            function hideSidePanel() {
+                document.getElementById("sidePanel").style.right = "-100%";
+                document.getElementById("filterButton").style.right = "10px";
             }
 
             document.getElementById("addInspectionForm").addEventListener("submit", function(event) {
                 event.preventDefault();
-                addInspection();
+
+                const inspectionDate = document.getElementById("inspectionDate").value;
+                const conditionScore = document.getElementById("conditionScore").value;
+                const requiresMaintenance = document.getElementById("requiresMaintenance").value;
+                const relfeatureglobalid = document.getElementById("relfeatureglobalid").value;
+
+                const inspectionAttributes = {
+                    inspection_date: inspectionDate,
+                    condition_score: conditionScore,
+                    requires_maintenance: requiresMaintenance,
+                    relfeatureglobalid: relfeatureglobalid
+                };
+
+                inspectionLayer.applyEdits({
+                    addFeatures: [new Graphic({
+                        attributes: inspectionAttributes
+                    })]
+                }).then(function() {
+                    document.getElementById("successMessage").style.display = "block";
+                    setTimeout(function() {
+                        document.getElementById("successMessage").style.display = "none";
+                    }, 3000);
+
+                    // Refresh the inspection list
+                    fetchInspections(relfeatureglobalid);
+                }).catch(function(error) {
+                    console.error("Add Inspection Error:", error);
+                });
             });
 
             document.getElementById("clearSelectionButton").addEventListener("click", function() {
-                clearSelection();
+                view.graphics.removeAll(); // Clear all graphics from the view
+                document.getElementById("infoDiv").innerHTML = ""; // Clear the inspection table
+                document.getElementById("detailedInspection").style.display = "none"; // Hide the detailed inspection info
                 hideSidePanel();
             });
 
             document.getElementById("filterButton").addEventListener("click", function() {
-                featureLayer.definitionExpression = "maint_reqd = 'Yes'";
+                // Handle filter button click event here
             });
 
-            function addInspection() {
-                const inspectionDate = document.getElementById("inspectionDate").value;
-                const conditionScore = document.getElementById("conditionScore").value;
-                const requiresMaintenance = document.getElementById("requiresMaintenance").value;
-                const relFeatureGlobalId = document.getElementById("relfeatureglobalid").value;
-                const inspectionAttributes = {
-                    "inspection_date": inspectionDate,
-                    "condition_score": conditionScore,
-                    "requires_maintenance": requiresMaintenance,
-                    "relfeatureglobalid": relFeatureGlobalId
-                };
-                const inspectionGraphic = new Graphic({
-                    attributes: inspectionAttributes
-                });
-                inspectionLayer.applyEdits({
-                    addFeatures: [inspectionGraphic]
-                }).then(function(result) {
-                    if (result.addFeatureResults.length > 0 && !result.addFeatureResults[0].error) {
-                        document.getElementById("successMessage").style.display = "block";
-                        setTimeout(function() {
-                            document.getElementById("successMessage").style.display = "none";
-                        }, 3000);
-                        fetchInspections(relFeatureGlobalId);
-                    } else {
-                        console.error("Error adding inspection:", result.addFeatureResults[0].error);
-                    }
-                }).catch(function(error) {
-                    console.error("Add Inspection Error:", error);
-                });
-            }
-
+            const locateWidget = new Locate({
+                view: view,
+                useHeadingEnabled: false,
+                goToOverride: function(view, options) {
+                    options.target.scale = 1500;
+                    return view.goTo(options.target);
+                }
+            });
+            view.ui.add(locateWidget, "top-left");
         });
     </script>
 </body>
