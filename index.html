@@ -305,11 +305,7 @@
                             showSidePanel();
                             document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
                         } else {
-                            // Check if the infoDiv exists before updating its content
-                            const infoDiv = document.getElementById("infoDiv");
-                            if (infoDiv) {
-                                infoDiv.innerHTML = "No feature selected.";
-                            }
+                            document.getElementById("infoDiv").innerHTML = "No feature selected.";
                             hideSidePanel();
                         }
                     }).catch(function(error) {
@@ -353,6 +349,7 @@
 
                 inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
                     displayInspections(inspectionResult.features);
+                    showSidePanel(); // Ensure the side panel remains visible after fetching inspections
                 }).catch(function(error) {
                     console.error("Inspection Query Error:", error);
                 });
@@ -360,16 +357,7 @@
 
             function displayInspections(inspections) {
                 const tbody = document.querySelector("#infoTable tbody");
-                
-                // Ensure that the infoDiv element exists before updating its content
-                const infoDiv = document.getElementById("infoDiv");
-                if (!infoDiv) {
-                    console.error("Error: infoDiv element not found.");
-                    return;
-                }
-
-                // Clear the previous content of the infoDiv
-                infoDiv.innerHTML = "";
+                tbody.innerHTML = "";
 
                 if (inspections.length > 0) {
                     inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
@@ -393,16 +381,13 @@
                         });
                     });
                 } else {
-                    tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
+                    let row = document.createElement("tr");
+                    let noDataCell = document.createElement("td");
+                    noDataCell.textContent = "No previous inspections available.";
+                    noDataCell.colSpan = 3;
+                    row.appendChild(noDataCell);
+                    tbody.appendChild(row);
                 }
-            }
-
-            function formatDate(dateString) {
-                const date = new Date(dateString);
-                const day = date.getDate();
-                const month = date.getMonth() + 1;
-                const year = date.getFullYear();
-                return `${day}/${month}/${year}`;
             }
 
             function showDetailedInspection(inspection) {
@@ -413,18 +398,19 @@
                 document.getElementById("detailedInspection").style.display = "block";
             }
 
-            function showSidePanel() {
-                document.getElementById("sidePanel").style.right = "0";
-                document.getElementById("filterButton").style.right = "370px"; // Adjust the right value here
+            function formatDate(dateString) {
+                const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                return new Date(dateString).toLocaleDateString('en-US', options);
             }
 
-            function hideSidePanel() {
-                document.getElementById("sidePanel").style.right = "-100%";
-                document.getElementById("filterButton").style.right = "10px";
-            }
+            document.getElementById("clearSelectionButton").addEventListener("click", function() {
+                view.graphics.removeAll(); // Clear all graphics from the view
+                document.getElementById("infoDiv").innerHTML = ""; // Clear inspection info
+                document.getElementById("detailedInspection").style.display = "none"; // Hide detailed inspection info
+            });
 
-            document.getElementById("addInspectionForm").addEventListener("submit", function(event) {
-                event.preventDefault();
+            document.getElementById("submitInspectionButton").addEventListener("click", function(event) {
+                event.preventDefault(); // Prevent form submission
 
                 const inspectionDate = document.getElementById("inspectionDate").value;
                 const conditionScore = document.getElementById("conditionScore").value;
@@ -432,48 +418,43 @@
                 const relfeatureglobalid = document.getElementById("relfeatureglobalid").value;
 
                 const inspectionAttributes = {
-                    inspection_date: inspectionDate,
-                    condition_score: conditionScore,
-                    requires_maintenance: requiresMaintenance,
-                    relfeatureglobalid: relfeatureglobalid
+                    "inspection_date": inspectionDate,
+                    "condition_score": conditionScore,
+                    "requires_maintenance": requiresMaintenance,
+                    "relfeatureglobalid": relfeatureglobalid
                 };
 
+                const inspectionGraphic = new Graphic({
+                    attributes: inspectionAttributes,
+                    geometry: selectedFeature.geometry
+                });
+
                 inspectionLayer.applyEdits({
-                    addFeatures: [new Graphic({
-                        attributes: inspectionAttributes
-                    })]
+                    addFeatures: [inspectionGraphic]
                 }).then(function() {
+                    // Show success message
                     document.getElementById("successMessage").style.display = "block";
                     setTimeout(function() {
                         document.getElementById("successMessage").style.display = "none";
                     }, 3000);
 
-                    // Refresh the inspection list
-                    fetchInspections(relfeatureglobalid);
+                    fetchInspections(relfeatureglobalid); // Fetch and display updated inspections
                 }).catch(function(error) {
                     console.error("Add Inspection Error:", error);
                 });
             });
 
-            document.getElementById("clearSelectionButton").addEventListener("click", function() {
-                view.graphics.removeAll(); // Clear all graphics from the view
-                hideDetailedInspection(); // Hide the detailed inspection info
-                showSidePanel(); // Ensure the side panel remains open
-            });
+            function showSidePanel() {
+                document.getElementById("sidePanel").style.right = "0"; // Ensure the side panel is open
+            }
+
+            function hideSidePanel() {
+                document.getElementById("sidePanel").style.right = "-330px"; // Hide the side panel
+            }
 
             document.getElementById("filterButton").addEventListener("click", function() {
-                // Handle filter button click event here
+                // Filter logic here
             });
-
-            const locateWidget = new Locate({
-                view: view,
-                rotationEnabled: false,
-                goToOverride: function(view, options) {
-                    options.target.scale = 1500;
-                    return view.goTo(options.target);
-                }
-            });
-            view.ui.add(locateWidget, "top-left");
         });
     </script>
 </body>
