@@ -152,6 +152,7 @@
                     <option value="Yes">Yes</option>
                     <option value="No">No</option>
                 </select><br><br>
+                <input type="hidden" id="relationshipID" value="20"> <!-- Added -->
                 <div style="display: flex; justify-content: space-between;">
                     <button type="submit" id="submitInspectionButton">Submit</button>
                     <button type="button" id="clearSelectionButton">Clear Selection</button>
@@ -252,6 +253,7 @@
                         if (result.features.length > 0) {
                             let feature = result.features[0];
                             displayFeature(feature);
+                            fetchInspections(feature.attributes.relationshipID); // Modified
                         } else {
                             document.getElementById("infoDiv").innerHTML = "No feature selected.";
                             hideSidePanel();
@@ -291,18 +293,101 @@
                 }
             }
 
+            function fetchInspections(relationshipID) { // Modified
+                const query = inspectionLayer.createQuery();
+                query.where = "relationshipID = " + relationshipID; // Modified
+                query.returnGeometry = false;
+                query.outFields = ["*"];
+
+                inspectionLayer.queryFeatures(query).then(function(results) {
+                    displayInspections(results.features);
+                }).catch(function(error) {
+                    console.error("Inspection Query Error:", error);
+                });
+            }
+
+            function displayInspections(inspections) {
+                const tbody = document.querySelector("#infoTable tbody");
+                if (tbody) {
+                    tbody.innerHTML = "";
+
+                    if (inspections.length > 0) {
+                        inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+
+                        inspections.forEach(inspection => {
+                            let row = document.createElement("tr");
+                            row.addEventListener("click", function() {
+                                document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
+                                row.classList.add("selected-row");
+                                showDetailedInspection(inspection.attributes);
+                            });
+                            let inspectionDateCell = document.createElement("td");
+                            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
+                            row.appendChild(inspectionDateCell);
+                            let conditionScoreCell = document.createElement("td");
+                            conditionScoreCell.textContent = inspection.attributes.condition_score;
+                            row.appendChild(conditionScoreCell);
+                            let requiresMaintenanceCell = document.createElement("td");
+                            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
+                            row.appendChild(requiresMaintenanceCell);
+
+                            tbody.appendChild(row);
+                        });
+                    } else {
+                        let row = document.createElement("tr");
+                        let cell = document.createElement("td");
+                        cell.textContent = "No related inspections found.";
+                        cell.colSpan = 3;
+                        row.appendChild(cell);
+                        tbody.appendChild(row);
+                    }
+                } else {
+                    console.error("The table body (tbody) element does not exist.");
+                }
+            }
+
+            function formatDate(dateString) {
+                const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+                return new Date(dateString).toLocaleDateString(undefined, options);
+            }
+
+            function showSidePanel() {
+                document.getElementById("sidePanel").style.right = "0";
+                document.getElementById("filterButton").style.right = "370px";
+            }
+
+            function hideSidePanel() {
+                document.getElementById("sidePanel").style.right = "-100%";
+                document.getElementById("filterButton").style.right = "20px";
+            }
+
+            function showDetailedInspection(inspection) {
+                const detailedInspectionDiv = document.getElementById("detailedInspection");
+                detailedInspectionDiv.innerHTML = `
+                    <h2>Detailed Inspection</h2>
+                    <table class="info-table">
+                        <tbody>
+                            <tr><td><strong>Broken or Missing Slats:</strong></td><td>${inspection.broken_missing_slats || "N/A"}</td></tr>
+                            <tr><td><strong>Graffiti:</strong></td><td>${inspection.graffiti || "N/A"}</td></tr>
+                        </tbody>
+                    </table>`;
+                detailedInspectionDiv.style.display = "block";
+            }
+
             document.getElementById("inspectionForm").addEventListener("submit", function(event) {
                 event.preventDefault();
 
                 const inspectionDate = document.getElementById("inspectionDate").value;
                 const conditionScore = document.getElementById("conditionScore").value;
                 const requiresMaintenance = document.getElementById("requiresMaintenance").value;
+                const relationshipID = document.getElementById("relationshipID").value; // Modified
 
                 const newInspection = {
                     attributes: {
                         inspection_date: inspectionDate,
                         condition_score: conditionScore,
-                        requires_maintenance: requiresMaintenance
+                        requires_maintenance: requiresMaintenance,
+                        relationshipID: relationshipID // Modified
                     }
                 };
 
@@ -312,6 +397,7 @@
                     if (addResults.addFeatureResults.length > 0) {
                         console.log("New inspection added successfully:", addResults.addFeatureResults[0]);
                         document.getElementById("inspectionForm").reset();
+                        fetchInspections(relationshipID); // Modified
                         showSuccessMessage();
                     } else {
                         console.error("Failed to add new inspection.");
@@ -334,6 +420,8 @@
                     detailedInspectionDiv.style.display = "none";
                 }
             });
+
+            let filteredFeatures = null;
 
             document.getElementById("filterButton").addEventListener("click", function() {
                 filterFeaturesByRequiresMaintenance();
