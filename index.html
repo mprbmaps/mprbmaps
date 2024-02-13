@@ -29,6 +29,7 @@
             flex-direction: column;
             justify-content: space-between;
             padding: 10px;
+            overflow-y: auto; /* Allow vertical scrolling */
         }
 
         #addInspectionForm {
@@ -120,15 +121,16 @@
         }
 
         #detailedInspection {
-    margin-top: 10px; /* Adjusted margin-top */
-    overflow-y: auto; /* Allow vertical scrolling */
-}
+            margin-top: 10px; /* Adjusted margin-top */
+            display: none; /* Hide Detailed Inspection Info initially */
+            overflow-y: auto; /* Allow vertical scrolling */
+        }
 
-#detailedInspection table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
-}
+        #detailedInspection table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
 
         #detailedInspection th, #detailedInspection td {
             padding: 8px;
@@ -141,9 +143,8 @@
         }
 
         .highlighted-row {
-    background-color: #ffffcc; /* Light yellow background color */
-}
-
+            background-color: #ffffcc; /* Light yellow background color */
+        }
     </style>
 </head>
 <body>
@@ -199,27 +200,26 @@
             </div>
 
             <div id="detailedInspection">
-    <h2>Detailed Inspection Info</h2>
-    <table>
-        <tr>
-            <th>Inspection Date</th>
-            <td id="inspectionDateDetail"></td>
-        </tr>
-        <tr>
-            <th>Condition Score</th>
-            <td id="conditionScoreDetail"></td>
-        </tr>
-        <tr>
-            <th>Requires Maintenance</th>
-            <td id="requiresMaintenanceDetail"></td>
-        </tr>
-        <tr>
-            <th>Feature Global ID</th>
-            <td id="featureGlobalIdDetail"></td>
-        </tr>
-    </table>
-</div>
-
+                <h2>Detailed Inspection Info</h2>
+                <table>
+                    <tr>
+                        <th>Inspection Date</th>
+                        <td id="inspectionDateDetail"></td>
+                    </tr>
+                    <tr>
+                        <th>Condition Score</th>
+                        <td id="conditionScoreDetail"></td>
+                    </tr>
+                    <tr>
+                        <th>Requires Maintenance</th>
+                        <td id="requiresMaintenanceDetail"></td>
+                    </tr>
+                    <tr>
+                        <th>Feature Global ID</th>
+                        <td id="featureGlobalIdDetail"></td>
+                    </tr>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -311,7 +311,7 @@
                             showSidePanel();
                             document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
                         } else {
-                            document.getElementById("infoTable").querySelector("tbody").innerHTML = "<tr><td colspan='3'>No feature selected.</td></tr>";
+                            document.getElementById("infoDiv").innerHTML = "No feature selected.";
                             hideSidePanel();
                         }
                     }).catch(function(error) {
@@ -361,111 +361,80 @@
             }
 
             function displayInspections(inspections) {
-    const tbody = document.querySelector("#infoTable tbody");
-    tbody.innerHTML = "";
+                const tbody = document.querySelector("#infoTable tbody");
+                tbody.innerHTML = "";
 
-    if (inspections.length > 0) {
-        inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+                if (inspections.length > 0) {
+                    inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
 
-        inspections.forEach(inspection => {
-            let row = document.createElement("tr");
-            let inspectionDateCell = document.createElement("td");
-            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
-            row.appendChild(inspectionDateCell);
-            let conditionScoreCell = document.createElement("td");
-            conditionScoreCell.textContent = inspection.attributes.condition_score;
-            row.appendChild(conditionScoreCell);
-            let requiresMaintenanceCell = document.createElement("td");
-            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
-            row.appendChild(requiresMaintenanceCell);
-            tbody.appendChild(row);
+                    inspections.forEach(inspection => {
+                        let row = document.createElement("tr");
+                        let inspectionDateCell = document.createElement("td");
+                        inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
+                        row.appendChild(inspectionDateCell);
+                        let conditionScoreCell = document.createElement("td");
+                        conditionScoreCell.textContent = inspection.attributes.condition_score;
+                        row.appendChild(conditionScoreCell);
+                        let requiresMaintenanceCell = document.createElement("td");
+                        requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
+                        row.appendChild(requiresMaintenanceCell);
+                        tbody.appendChild(row);
 
-            // Add click event listener to each row
-            row.addEventListener("click", function() {
-                // Remove highlighted class from all rows
-                tbody.querySelectorAll("tr").forEach(row => {
-                    row.classList.remove("highlighted-row");
-                });
+                        // Add click event listener to each row
+                        row.addEventListener("click", function() {
+                            // Remove highlighted class from all rows
+                            tbody.querySelectorAll("tr").forEach(row => {
+                                row.classList.remove("highlighted-row");
+                            });
 
-                // Add highlighted class to clicked row
-                row.classList.add("highlighted-row");
+                            // Add highlighted class to clicked row
+                            row.classList.add("highlighted-row");
 
-                // Show detailed inspection
-                showDetailedInspection(inspection.attributes);
-            });
-        });
-    } else {
-        let row = document.createElement("tr");
-        let noDataCell = document.createElement("td");
-        noDataCell.textContent = "No previous inspections available.";
-        noDataCell.colSpan = 3;
-        row.appendChild(noDataCell);
-        tbody.appendChild(row);
-    }
-}
-
-
-            function showDetailedInspection(inspection) {
-                document.getElementById("inspectionDateDetail").textContent = formatDate(inspection.inspection_date);
-                document.getElementById("conditionScoreDetail").textContent = inspection.condition_score;
-                document.getElementById("requiresMaintenanceDetail").textContent = inspection.requires_maintenance;
-                document.getElementById("featureGlobalIdDetail").textContent = inspection.relfeatureglobalid;
-                document.getElementById("detailedInspection").style.display = "block";
+                            // Show detailed inspection
+                            showDetailedInspection(inspection.attributes);
+                        });
+                    });
+                } else {
+                    let row = tbody.insertRow();
+                    let cell = row.insertCell();
+                    cell.colSpan = 3;
+                    cell.textContent = "No inspections found.";
+                }
             }
 
             function formatDate(dateString) {
                 const options = { year: 'numeric', month: 'long', day: 'numeric' };
-                return new Date(dateString).toLocaleDateString('en-US', options);
+                return new Date(dateString).toLocaleDateString(undefined, options);
+            }
+
+            function showDetailedInspection(attributes) {
+                const detailedInspectionDiv = document.getElementById("detailedInspection");
+                detailedInspectionDiv.style.display = "block"; // Show Detailed Inspection Info
+
+                // Populate Detailed Inspection Info
+                document.getElementById("inspectionDateDetail").textContent = formatDate(attributes.inspection_date);
+                document.getElementById("conditionScoreDetail").textContent = attributes.condition_score;
+                document.getElementById("requiresMaintenanceDetail").textContent = attributes.requires_maintenance;
+                document.getElementById("featureGlobalIdDetail").textContent = attributes.feature_globalid;
             }
 
             document.getElementById("clearSelectionButton").addEventListener("click", function() {
-                view.graphics.removeAll(); // Clear all graphics from the view
-                document.getElementById("infoTable").querySelector("tbody").innerHTML = ""; // Clear inspection info
-                document.getElementById("detailedInspection").style.display = "none"; // Hide detailed inspection info
-            });
-
-            document.getElementById("submitInspectionButton").addEventListener("click", function(event) {
-                event.preventDefault(); // Prevent form submission
-
-                const inspectionDate = document.getElementById("inspectionDate").value;
-                const conditionScore = document.getElementById("conditionScore").value;
-                const requiresMaintenance = document.getElementById("requiresMaintenance").value;
-                const relfeatureglobalid = document.getElementById("relfeatureglobalid").value;
-
-                const inspectionAttributes = {
-                    inspection_date: inspectionDate,
-                    condition_score: conditionScore,
-                    requires_maintenance: requiresMaintenance,
-                    relfeatureglobalid: relfeatureglobalid
-                };
-
-                inspectionLayer.applyEdits({
-                    addFeatures: [new Graphic({
-                        attributes: inspectionAttributes
-                    })]
-                }).then(function() {
-                    document.getElementById("successMessage").style.display = "block"; // Show success message
-                    setTimeout(function() {
-                        document.getElementById("successMessage").style.display = "none"; // Hide success message after 3 seconds
-                    }, 3000);
-                    fetchInspections(relfeatureglobalid); // Update inspections after adding new inspection
-                }).catch(function(error) {
-                    console.error("Apply Edits Error:", error);
-                });
+                if (selectedFeature) {
+                    view.graphics.remove(selectedFeature); // Remove selected feature's graphic
+                    selectedFeature = null; // Reset selected feature
+                }
+                hideSidePanel();
             });
 
             function showSidePanel() {
-                document.getElementById("sidePanel").style.right = "0";
+                document.getElementById("sidePanel").style.display = "block";
             }
 
             function hideSidePanel() {
-                document.getElementById("sidePanel").style.right = "-330px";
+                document.getElementById("sidePanel").style.display = "none";
+                // Also hide Detailed Inspection Info when hiding side panel
+                document.getElementById("detailedInspection").style.display = "none";
             }
-
-            document.getElementById("filterButton").addEventListener("click", function() {
-                view.popup.close();
-                featureLayer.definitionExpression = "maintenance_required = 'Yes'";
-            });
         });
     </script>
 </body>
