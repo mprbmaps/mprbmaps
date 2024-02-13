@@ -293,44 +293,46 @@
             }
 
             function displayInspections(inspections) {
-                const tbody = document.querySelector("#infoTable tbody");
-                if (tbody) {
-                    tbody.innerHTML = "";
+    let tbody = document.querySelector("#infoTable tbody");
+    if (!tbody) {
+        // Recreate the tbody element if it doesn't exist
+        tbody = document.createElement("tbody");
+        document.getElementById("infoTable").appendChild(tbody);
+    } else {
+        tbody.innerHTML = ""; // Clear existing rows
+    }
 
-                    if (inspections.length > 0) {
-                        inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+    if (inspections.length > 0) {
+        inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
 
-                        inspections.forEach(inspection => {
-                            let row = document.createElement("tr");
-                            row.addEventListener("click", function() {
-                                document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
-                                row.classList.add("selected-row");
-                                showDetailedInspection(inspection.attributes);
-                            });
-                            let inspectionDateCell = document.createElement("td");
-                            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
-                            row.appendChild(inspectionDateCell);
-                            let conditionScoreCell = document.createElement("td");
-                            conditionScoreCell.textContent = inspection.attributes.condition_score;
-                            row.appendChild(conditionScoreCell);
-                            let requiresMaintenanceCell = document.createElement("td");
-                            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
-                            row.appendChild(requiresMaintenanceCell);
+        inspections.forEach(inspection => {
+            let row = document.createElement("tr");
+            row.addEventListener("click", function() {
+                document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
+                row.classList.add("selected-row");
+                showDetailedInspection(inspection.attributes);
+            });
+            let inspectionDateCell = document.createElement("td");
+            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
+            row.appendChild(inspectionDateCell);
+            let conditionScoreCell = document.createElement("td");
+            conditionScoreCell.textContent = inspection.attributes.condition_score;
+            row.appendChild(conditionScoreCell);
+            let requiresMaintenanceCell = document.createElement("td");
+            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
+            row.appendChild(requiresMaintenanceCell);
 
-                            tbody.appendChild(row);
-                        });
-                    } else {
-                        let row = document.createElement("tr");
-                        let cell = document.createElement("td");
-                        cell.textContent = "No related inspections found.";
-                        cell.colSpan = 3;
-                        row.appendChild(cell);
-                        tbody.appendChild(row);
-                    }
-                } else {
-                    console.error("The table body (tbody) element does not exist.");
-                }
-            }
+            tbody.appendChild(row);
+        });
+    } else {
+        let row = document.createElement("tr");
+        let cell = document.createElement("td");
+        cell.textContent = "No related inspections found.";
+        cell.colSpan = 3;
+        row.appendChild(cell);
+        tbody.appendChild(row);
+    }
+}
 
             function formatDate(dateString) {
                 const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
