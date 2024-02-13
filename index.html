@@ -397,20 +397,28 @@
                     });
 
                     // Add click event listener to each row
-                    tbody.querySelectorAll("tr").forEach(row => {
-                        row.addEventListener("click", function() {
-                            // Remove highlighted class from all rows
-                            tbody.querySelectorAll("tr").forEach(row => {
-                                row.classList.remove("highlighted-row");
-                            });
+                    // Modify the event listener for rows to pass inspection attributes correctly
+tbody.querySelectorAll("tr").forEach(row => {
+    row.addEventListener("click", function() {
+        // Remove highlighted class from all rows
+        tbody.querySelectorAll("tr").forEach(row => {
+            row.classList.remove("highlighted-row");
+        });
 
-                            // Add highlighted class to clicked row
-                            row.classList.add("highlighted-row");
+        // Add highlighted class to clicked row
+        row.classList.add("highlighted-row");
 
-                            // Show detailed inspection
-                            showDetailedInspection(inspection.attributes);
-                        });
-                    });
+        // Get the inspection attributes for the clicked row
+        const inspectionIndex = Array.from(row.parentNode.children).indexOf(row);
+        const inspection = inspections[inspectionIndex];
+
+        // Show detailed inspection if inspection is defined
+        if (inspection) {
+            showDetailedInspection(inspection.attributes);
+        }
+    });
+});
+
                 } else {
                     let row = tbody.insertRow();
                     let cell = row.insertCell();
