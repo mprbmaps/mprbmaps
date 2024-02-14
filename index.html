@@ -377,7 +377,13 @@
 
     inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
         displayInspections(inspectionResult.features);
-        hideDetailedInspection(); // Hide detailed inspection table initially
+
+        // Check if there are inspections for the selected feature
+        if (inspectionResult.features.length > 0) {
+            showDetailedInspection(); // Show detailed inspection table if inspections are found
+        } else {
+            hideDetailedInspection(); // Hide detailed inspection table if no inspections are found
+        }
     }).catch(function(error) {
         console.error("Inspection Query Error:", error);
     });
