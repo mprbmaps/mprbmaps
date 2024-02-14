@@ -147,10 +147,7 @@
         }
 
         #attachmentThumbnails {
-            display: flex; /* Display thumbnails in a row */
-            flex-wrap: wrap; /* Allow thumbnails to wrap to the next line if necessary */
-            justify-content: center; /* Center thumbnails horizontally */
-            align-items: center; /* Center thumbnails vertically */
+            display: none; /* Hide attachment thumbnails initially */
             margin-top: 10px;
             text-align: center;
         }
@@ -159,7 +156,6 @@
             max-width: 100px;
             max-height: 100px;
             margin: 5px;
-            cursor: pointer; /* Change cursor to pointer on hover */
         }
     </style>
 </head>
@@ -362,8 +358,8 @@
             function displayFeature(feature) {
                 let symbol = {
                     type: "simple-marker",
-                    color: "red", // Set the selected feature's symbol color to red
-                    size: "16px",
+                    color: "red", // Set the selected feature's graphic color to red
+                    size: 8,
                     outline: {
                         color: [255, 255, 255],
                         width: 1
@@ -376,144 +372,197 @@
                 });
 
                 view.graphics.add(selectedFeature);
-            }
-
-            function fetchInspections(globalId) {
-                const query = inspectionLayer.createQuery();
-                query.where = `rel_feature_globalid = '${globalId}'`;
-                query.outFields = ["*"];
-
-                inspectionLayer.queryFeatures(query).then((result) => {
-                    const tbody = document.querySelector("#infoTable tbody");
-                    tbody.innerHTML = "";
-
-                    if (result.features.length > 0) {
-                        result.features.forEach((feature) => {
-                            const attributes = feature.attributes;
-                            let row = tbody.insertRow();
-                            row.addEventListener("click", () => {
-                                displayDetailedInspection(attributes);
-                            });
-                            row.setAttribute("data-inspection-id", attributes.OBJECTID);
-                            row.insertCell().textContent = new Date(attributes.InspectionDate).toLocaleDateString();
-                            row.insertCell().textContent = attributes.ConditionScore;
-                            row.insertCell().textContent = attributes.RequiresMaintenance;
-                        });
-                    } else {
-                        let row = tbody.insertRow();
-                        row.insertCell().textContent = "No inspections found.";
-                        row.addEventListener("click", () => {
-                            hideDetailedInspection();
-                        });
-                    }
-                }).catch((error) => {
-                    console.error("Error querying inspections:", error);
+                
+                // Center the map on the selected feature and set zoom level to 15
+                view.goTo({
+                    target: selectedFeature.geometry,
+                    zoom: 15
                 });
             }
 
-            function displayDetailedInspection(attributes) {
-                const detailedInspectionDiv = document.getElementById("detailedInspection");
+            let selectedFeature = null; // Store the selected feature's graphic
 
-                document.getElementById("missingHardwareDetail").textContent = attributes.MissingHardware || "N/A";
-                document.getElementById("brokenMissingSlatsDetail").textContent = attributes.BrokenMissingSlats || "N/A";
-                document.getElementById("graffitiDetail").textContent = attributes.Graffiti || "N/A";
-                document.getElementById("supportConditionDetail").textContent = attributes.SupportCondition || "N/A";
-                document.getElementById("notesDetail").textContent = attributes.Notes || "N/A";
+            function fetchInspections(globalID) {
+                const inspectionQuery = new Query();
+                inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
+                inspectionQuery.returnGeometry = false;
+                inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "missing_hardware", "broken_missing_slats", "graffiti", "support_condition", "notes"];
 
-                detailedInspectionDiv.style.display = "block";
-                fetchInspectionAttachments(attributes.OBJECTID);
+                inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
+                    displayInspections(inspectionResult.features);
+                }).catch(function(error) {
+                    console.error("Inspection Query Error:", error);
+                });
+            }
+
+            function displayInspections(inspections) {
+                const tbody = document.querySelector("#infoTable tbody");
+                // Check if tbody exists before proceeding
+                if (!tbody) {
+                    console.error("tbody element not found.");
+                    return;
+                }
+
+                tbody.innerHTML = "";
+
+                if (inspections.length > 0) {
+                    inspections.forEach(function(inspection) {
+                        let row = tbody.insertRow();
+                        let dateCell = row.insertCell();
+                        let scoreCell = row.insertCell();
+                        let maintenanceCell = row.insertCell();
+
+                        dateCell.textContent = formatDate(inspection.attributes.inspection_date);
+                        scoreCell.textContent = inspection.attributes.condition_score;
+                        maintenanceCell.textContent = inspection.attributes.requires_maintenance;
+                    });
+
+                    // Add click event listener to each row
+                    tbody.querySelectorAll("tr").forEach(row => {
+                        row.addEventListener("click", function() {
+                            console.log("Row clicked.");
+
+                            tbody.querySelectorAll("tr").forEach(row => {
+                                row.classList.remove("highlighted-row");
+                            });
+
+                            row.classList.add("highlighted-row");
+
+                            // Get the index of the selected row
+                            let index = Array.from(row.parentNode.children).indexOf(row);
+
+                            // Display detailed inspection info for the selected inspection
+                            displayDetailedInspection(inspections[index].attributes);
+                            
+                            // Fetch and display attachments for the selected inspection
+                            fetchAttachments(inspections[index].attributes.OBJECTID);
+                        });
+                    });
+
+                    // Show the Detailed Inspection Info div
+                    document.getElementById("detailedInspection").style.display = "block";
+                } else {
+                    tbody.innerHTML = "<tr><td colspan='3'>No inspections found.</td></tr>";
+                }
+            }
+
+            function formatDate(dateString) {
+                const options = { year: 'numeric', month: 'short', day: 'numeric' };
+                const date = new Date(dateString);
+                return date.toLocaleDateString("en-US", options);
+            }
+
+            function displayDetailedInspection(inspectionAttributes) {
+                document.getElementById("missingHardwareDetail").textContent = inspectionAttributes.missing_hardware;
+                document.getElementById("brokenMissingSlatsDetail").textContent = inspectionAttributes.broken_missing_slats;
+                document.getElementById("graffitiDetail").textContent = inspectionAttributes.graffiti;
+                document.getElementById("supportConditionDetail").textContent = inspectionAttributes.support_condition;
+                document.getElementById("notesDetail").textContent = inspectionAttributes.notes;
             }
 
             function hideDetailedInspection() {
-                const detailedInspectionDiv = document.getElementById("detailedInspection");
-                detailedInspectionDiv.style.display = "none";
-            }
-
-            function fetchInspectionAttachments(inspectionId) {
-                const attachmentDiv = document.getElementById("attachmentThumbnails");
-                attachmentDiv.innerHTML = ""; // Clear previous attachments
-
-                inspectionLayer.queryAttachments({
-                    objectIds: [inspectionId],
-                    attachmentTypes: ["image/jpeg", "image/png"] // Fetch only image attachments
-                }).then((attachments) => {
-                    if (attachments[inspectionId] && attachments[inspectionId].length > 0) {
-                        attachments[inspectionId].forEach((attachment) => {
-                            const attachmentUrl = `${inspectionLayer.url}/${inspectionId}/attachments/${attachment.id}`;
-                            const imgElement = document.createElement("img");
-                            imgElement.src = attachmentUrl;
-                            imgElement.alt = "Attachment";
-                            imgElement.addEventListener("click", () => {
-                                window.open(attachmentUrl); // Open the image in a new tab on click
-                            });
-                            attachmentDiv.appendChild(imgElement);
-                        });
-                    }
-                }).catch((error) => {
-                    console.error("Error fetching inspection attachments:", error);
-                });
+                document.getElementById("detailedInspection").style.display = "none";
             }
 
             function showSidePanel() {
-                const sidePanel = document.getElementById("sidePanel");
-                sidePanel.style.display = "block";
+                document.getElementById("sidePanel").style.display = "block";
             }
 
             function hideSidePanel() {
-                const sidePanel = document.getElementById("sidePanel");
-                sidePanel.style.display = "none";
+                document.getElementById("sidePanel").style.display = "none";
             }
 
-            document.getElementById("filterButton").addEventListener("click", function() {
-                featureLayer.definitionExpression = "RequiresMaintenance = 'Yes'";
-            });
-
             document.getElementById("clearSelectionButton").addEventListener("click", function() {
-                view.graphics.removeAll();
+                if (selectedFeature) {
+                    view.graphics.remove(selectedFeature); // Remove the selected feature's graphic
+                }
+                displayNoFeatureSelectedMessage(); // Show message when no feature is selected
                 hideSidePanel();
             });
+
+            document.getElementById("filterButton").addEventListener("click", function() {
+                console.log("Filter button clicked.");
+                // Add filtering logic here
+            });
+
+            function fetchAttachments(inspectionOID) {
+                // Clear any existing attachment thumbnails
+                const attachmentThumbnails = document.getElementById("attachmentThumbnails");
+                attachmentThumbnails.innerHTML = "";
+
+                // Construct the query URL for fetching attachments
+                const queryUrl = inspectionLayer.url + "/" + inspectionLayer.layerId + "/" + inspectionOID + "/attachments?f=json";
+
+                // Send a GET request to retrieve attachment info
+                fetch(queryUrl)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.attachmentInfos.length > 0) {
+                            data.attachmentInfos.forEach(attachmentInfo => {
+                                // Construct the URL for each attachment
+                                const attachmentUrl = inspectionLayer.url + "/" + inspectionLayer.layerId + "/" + inspectionOID + "/attachments/" + attachmentInfo.id;
+                                
+                                // Create an img element for the attachment thumbnail
+                                const img = document.createElement("img");
+                                img.src = attachmentUrl;
+                                img.alt = "Attachment Thumbnail";
+                                
+                                // Add a click event listener to view the attachment in its original size
+                                img.addEventListener("click", function() {
+                                    window.open(attachmentUrl, "_blank");
+                                });
+                                
+                                // Append the thumbnail to the attachmentThumbnails div
+                                attachmentThumbnails.appendChild(img);
+                            });
+                            
+                            // Show the attachmentThumbnails div
+                            attachmentThumbnails.style.display = "block";
+                        } else {
+                            // No attachments found
+                            attachmentThumbnails.innerHTML = "<p>No attachments found for this inspection.</p>";
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error fetching attachments:", error);
+                    });
+            }
 
             document.getElementById("addInspectionForm").addEventListener("submit", function(event) {
                 event.preventDefault();
 
-                const inspectionDate = document.getElementById("inspectionDate").value;
-                const conditionScore = document.getElementById("conditionScore").value;
-                const requiresMaintenance = document.getElementById("requiresMaintenance").value;
-                const relFeatureGlobalId = document.getElementById("relfeatureglobalid").value;
+                const formData = new FormData(event.target);
+                const inspectionData = {};
+                formData.forEach((value, key) => {
+                    inspectionData[key] = value;
+                });
 
-                if (!inspectionDate || !conditionScore || !requiresMaintenance || !relFeatureGlobalId) {
-                    alert("Please fill in all fields.");
+                const selectedFeatureGlobalID = document.getElementById("relfeatureglobalid").value;
+                if (!selectedFeatureGlobalID) {
+                    alert("Please select a feature on the map before submitting an inspection.");
                     return;
                 }
 
-                const inspectionAttributes = {
-                    InspectionDate: inspectionDate,
-                    ConditionScore: conditionScore,
-                    RequiresMaintenance: requiresMaintenance,
-                    rel_feature_globalid: relFeatureGlobalId
-                };
+                inspectionData["relfeatureglobalid"] = selectedFeatureGlobalID;
 
                 inspectionLayer.applyEdits({
-                    addFeatures: [new Graphic({
-                        attributes: inspectionAttributes
-                    })]
-                }).then(() => {
+                    addFeatures: [{
+                        attributes: inspectionData
+                    }]
+                }).then(function() {
+                    console.log("Inspection added successfully!");
                     document.getElementById("successMessage").style.display = "block";
-                    setTimeout(() => {
+                    setTimeout(function() {
                         document.getElementById("successMessage").style.display = "none";
                     }, 3000);
 
-                    fetchInspections(relFeatureGlobalId); // Refresh inspections after adding a new one
-                }).catch((error) => {
+                    // Refresh the inspections list
+                    fetchInspections(selectedFeatureGlobalID);
+                }).catch(function(error) {
                     console.error("Error adding inspection:", error);
+                    alert("Error adding inspection. Please try again.");
                 });
             });
-
-            const locateWidget = new Locate({
-                view: view
-            });
-
-            view.ui.add(locateWidget, "top-left");
         });
     </script>
 </body>
