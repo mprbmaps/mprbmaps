@@ -86,12 +86,11 @@
         }
 
         #inspectionsTitle {
-            font-size: 20;
+            font-size: 20px; /* Added px for font-size */
             font-weight: bold;
             margin-top: 10px;
         }
 
-        /* Add a line separator */
         .line-separator {
             border-top: 1px solid #ccc;
             margin-top: 10px;
@@ -139,7 +138,6 @@
             </form>
         </div>
         
-        <!-- Line Separator -->
         <div class="line-separator"></div>
 
         <div id="infoDiv">
@@ -168,7 +166,7 @@
     "esri/Graphic",
     "esri/symbols/SimpleMarkerSymbol",
     "esri/rest/support/Query",
-    "esri/rest/support/AttachmentQuery", // corrected import
+    "esri/rest/support/AttachmentQuery",
     "esri/geometry/geometryEngine",
     "esri/geometry/Point",
     "esri/identity/IdentityManager",
@@ -284,7 +282,7 @@
             const inspectionQuery = new Query();
             inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
             inspectionQuery.returnGeometry = false;
-            inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance"];
+            inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "OBJECTID"];
 
             inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
                 displayInspections(inspectionResult.features);
@@ -323,12 +321,14 @@
         }
 
         function displayAttachments(inspections) {
-            inspections.forEach(inspection => {
-                const attachmentCell = document.querySelector(`#infoTable td.attachments:nth-child(${inspections.indexOf(inspection) + 1})`);
-                const attachmentQuery = new AttachmentQuery({
-                    objectIds: [inspection.attributes.OBJECTID]
-                });
+            inspections.forEach((inspection, index) => {
+                const attachmentQuery = new AttachmentQuery();
+                attachmentQuery.objectIds = [inspection.attributes.OBJECTID];
+                attachmentQuery.globalIds = []; // Optional, use if needed
+                attachmentQuery.attachmentTypes = ["image/jpeg", "image/png"]; // Optional, specify types if needed
+
                 inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentsResult) {
+                    const attachmentCell = document.querySelectorAll("#infoTable .attachments")[index];
                     if (attachmentsResult[inspection.attributes.OBJECTID] && attachmentsResult[inspection.attributes.OBJECTID].length > 0) {
                         const attachmentInfos = attachmentsResult[inspection.attributes.OBJECTID];
                         attachmentInfos.forEach(attachmentInfo => {
