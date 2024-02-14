@@ -505,16 +505,30 @@
             }
 
             function fetchAttachments(objectId) {
-    const attachmentQuery = inspectionLayer.createAttachmentQuery(); // This line creates an AttachmentQuery object
-    attachmentQuery.attachmentIds = [objectId]; // Use attachmentIds instead of objectIds
-    attachmentQuery.returnMetadata = true; // Optionally return metadata along with attachments
+    // Create a new query to fetch the feature associated with the inspection
+    const query = new Query();
+    query.objectIds = [objectId];
+    query.outFields = ["*"]; // Include all fields for the inspection feature
 
-    inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentResult) {
-        displayAttachments(attachmentResult[objectId]);
+    // Query the feature layer to get the feature associated with the inspection
+    featureLayer.queryFeatures(query).then(function(result) {
+        if (result.features.length > 0) {
+            // Retrieve the first feature (there should only be one)
+            const feature = result.features[0];
+
+            // Access the attachments of the feature directly
+            const attachments = feature.attachments;
+            
+            // Pass the attachments to the displayAttachments function
+            displayAttachments(attachments);
+        } else {
+            console.error("Feature not found for Object ID:", objectId);
+        }
     }).catch(function(error) {
-        console.error("Attachment Query Error:", error);
+        console.error("Error querying feature:", error);
     });
 }
+
 
 
             function displayAttachments(attachments) {
