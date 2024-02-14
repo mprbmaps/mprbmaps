@@ -390,46 +390,46 @@
             let selectedFeature = null; // Store the selected feature's graphic
 
             function fetchInspections(globalID) {
-                const query = inspectionLayer.createQuery();
-                query.outFields = ["*"];
-                query.relationshipId = 20; // Set relationshipId to 20
-                query.objectIds = [globalID];
+    const query = inspectionLayer.createQuery();
+    query.outFields = ["*"];
+    query.relationshipId = 20; // Set relationshipId to 20
+    query.objectIds = [globalID];
 
-                inspectionLayer.queryRelatedFeatures(query).then(function(relatedFeatures) {
-                    const tbody = document.querySelector("#infoTable tbody");
-                    if (!tbody) {
-                        console.error("tbody element not found.");
-                        return;
-                    }
-                    
-                    tbody.innerHTML = "";
+    inspectionLayer.queryRelatedFeatures(query).then(function(relatedFeatures) {
+        const tbody = document.querySelector("#infoTable tbody");
+        if (!tbody) {
+            console.error("tbody element not found.");
+            return;
+        }
+        
+        tbody.innerHTML = "";
 
-                    if (relatedFeatures && relatedFeatures[globalID]) {
-                        const features = relatedFeatures[globalID].features;
-                        features.forEach(function(feature) {
-                            const inspectionDate = feature.attributes["Inspection Date"];
-                            const conditionScore = feature.attributes["Condition Score"];
-                            const requiresMaintenance = feature.attributes["Requires Maintenance"];
+        if (relatedFeatures && relatedFeatures[globalID]) {
+            const features = relatedFeatures[globalID].features;
+            features.forEach(function(feature) {
+                const inspectionDate = feature.attributes["Inspection Date"];
+                const conditionScore = feature.attributes["Condition Score"];
+                const requiresMaintenance = feature.attributes["Requires Maintenance"];
 
-                            let row = tbody.insertRow();
-                            let cell1 = row.insertCell();
-                            let cell2 = row.insertCell();
-                            let cell3 = row.insertCell();
+                let row = tbody.insertRow();
+                let cell1 = row.insertCell();
+                let cell2 = row.insertCell();
+                let cell3 = row.insertCell();
 
-                            cell1.textContent = new Date(inspectionDate).toLocaleDateString();
-                            cell2.textContent = conditionScore;
-                            cell3.textContent = requiresMaintenance;
-                        });
-                    } else {
-                        let row = tbody.insertRow();
-                        let cell = row.insertCell();
-                        cell.colSpan = 3;
-                        cell.textContent = "No inspections found.";
-                    }
-                }).catch(function(error) {
-                    console.error("Query Related Features Error:", error);
-                });
-            }
+                cell1.textContent = new Date(inspectionDate).toLocaleDateString();
+                cell2.textContent = conditionScore;
+                cell3.textContent = requiresMaintenance;
+            });
+        } else {
+            let row = tbody.insertRow();
+            let cell = row.insertCell();
+            cell.colSpan = 3;
+            cell.textContent = "No inspections found.";
+        }
+    }).catch(function(error) {
+        console.error("Query Related Features Error:", error);
+    });
+}
 
             function showSidePanel() {
                 const sidePanel = document.getElementById("sidePanel");
