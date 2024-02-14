@@ -405,42 +405,43 @@
 
     inspectionLayer.queryAttachments(attachmentsQuery).then(function(attachmentsResult) {
         // Check if there are attachments for the given objectId
-        if (attachmentsResult[inspectionObjectId] && attachmentsResult[inspectionObjectId].attachmentInfos.length > 0) {
-            displayAttachments(attachmentsResult[inspectionObjectId], inspectionObjectId);
-        } else {
-            console.log("No attachments found for objectId:", inspectionObjectId);
+        if (attachmentsResult[inspectionObjectId] && attachmentsResult[inspectionObjectId].length > 0) {
+            const attachmentInfos = attachmentsResult[inspectionObjectId].map(function(attachment) {
+                return {
+                    name: attachment.name,
+                    contentType: attachment.contentType,
+                    url: attachment.url,
+                };
+            });
+
+            displayAttachments(inspectionObjectId, attachmentInfos);
         }
     }).catch(function(error) {
-        console.error("Attachments Query Error:", error);
-        // Additional logging for debugging
-        console.log("Failed Query Parameters:", JSON.stringify(attachmentsQuery, null, 2));
-        console.log("Check if the inspectionObjectId is correct and the layer supports attachments with the specified relationshipId.");
+        console.error("Attachment Query Error:", error);
     });
 }
 
+function displayAttachments(inspectionObjectId, attachmentInfos) {
+    // Display the attachments in the detailed inspection section
+    const attachmentDetail = document.getElementById("attachmentDetail");
+    const attachmentRow = document.getElementById("attachmentRow");
 
+    // Clear previous attachment information
+    attachmentDetail.innerHTML = "";
+    attachmentRow.style.display = ""; // Show attachment row
 
-            function displayAttachments(attachments, inspectionObjectId) {
-                // Find the row in the table that corresponds to the inspectionObjectId
-                const attachmentDetailCell = document.getElementById("attachmentDetail");
-                if (attachments && attachments.attachmentInfos && attachments.attachmentInfos.length > 0) {
-                    document.getElementById("attachmentRow").style.display = ""; // Show the attachments row
-                    attachments.attachmentInfos.forEach(function(attachment) {
-                        let link = document.createElement("a");
-                        link.href = attachment.url;
-                        link.textContent = attachment.name;
-                        link.className = "attachment-link";
-                        link.target = "_blank"; // Open in new tab
-                        attachmentDetailCell.appendChild(link);
-                    });
-                } else {
-                    document.getElementById("attachmentRow").style.display = "none"; // Hide if no attachments
-                }
-            }
+    // Create links for each attachment
+    attachmentInfos.forEach(function(attachment) {
+        const link = document.createElement("a");
+        link.href = attachment.url;
+        link.textContent = attachment.name;
+        link.className = "attachment-link";
+        attachmentDetail.appendChild(link);
+    });
+}
 
             function displayInspections(inspections) {
                 const tbody = document.querySelector("#infoTable tbody");
-                // Check if tbody exists before proceeding
                 if (!tbody) {
                     console.error("tbody element not found.");
                     return;
@@ -448,76 +449,16 @@
 
                 tbody.innerHTML = "";
 
-                if (inspections.length > 0) {
-                    inspections.forEach(function(inspection) {
-                        let row = tbody.insertRow();
-                        let dateCell = row.insertCell();
-                        let scoreCell = row.insertCell();
-                        let maintenanceCell = row.insertCell();
-
-                        dateCell.textContent = formatDate(inspection.attributes.inspection_date);
-                        scoreCell.textContent = inspection.attributes.condition_score;
-                        maintenanceCell.textContent = inspection.attributes.requires_maintenance;
-                    });
-
-                    // Add click event listener to each row
-                    tbody.querySelectorAll("tr").forEach(row => {
-                        row.addEventListener("click", function() {
-                            console.log("Row clicked.");
-
-                            tbody.querySelectorAll("tr").forEach(row => {
-                                row.classList.remove("highlighted-row");
-                            });
-
-                            row.classList.add("highlighted-row");
-
-                            // Get the index of the clicked row
-                            const inspectionIndex = Array.from(row.parentNode.children).indexOf(row);
-                            if (inspectionIndex < 0 || inspectionIndex >= inspections.length) {
-                                console.error("Invalid inspection index.");
-                                return;
-                            }
-
-                            // Get the inspection data from the array
-                            const inspection = inspections[inspectionIndex];
-                            if (!inspection) {
-                                console.error("Inspection data is missing or invalid.");
-                                return;
-                            }
-
-                            console.log("Showing detailed inspection.");
-
-                            // Extract the inspection details
-                            const missingHardware = inspection.attributes.missing_hardware || "N/A";
-                            const brokenMissingSlats = inspection.attributes.broken_missing_slats || "N/A";
-                            const graffiti = inspection.attributes.graffiti || "N/A";
-                            const supportCondition = inspection.attributes.support_condition || "N/A";
-                            const notes = inspection.attributes.notes || "N/A";
-
-                            // Update the detailed inspection info in the side panel
-                            document.getElementById("missingHardwareDetail").textContent = missingHardware;
-                            document.getElementById("brokenMissingSlatsDetail").textContent = brokenMissingSlats;
-                            document.getElementById("graffitiDetail").textContent = graffiti;
-                            document.getElementById("supportConditionDetail").textContent = supportCondition;
-                            document.getElementById("notesDetail").textContent = notes;
-                            // Clear previous attachments
-                            document.getElementById("attachmentDetail").innerHTML = "";
-
-                            // Show the detailed inspection info panel
-                            showDetailedInspection();
-                        });
-                    });
-                } else {
+                inspections.forEach(function(inspection) {
                     let row = tbody.insertRow();
-                    let cell = row.insertCell();
-                    cell.colSpan = 3;
-                    cell.textContent = "No inspections found.";
-                }
-            }
+                    let cell1 = row.insertCell();
+                    let cell2 = row.insertCell();
+                    let cell3 = row.insertCell();
 
-            function formatDate(dateString) {
-                const date = new Date(dateString);
-                return date.toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' });
+                    cell1.textContent = new Date(inspection.attributes.inspection_date).toLocaleDateString();
+                    cell2.textContent = inspection.attributes.condition_score;
+                    cell3.textContent = inspection.attributes.requires_maintenance;
+                });
             }
 
             function showSidePanel() {
@@ -534,57 +475,85 @@
                 }
             }
 
-            function showDetailedInspection() {
-                const highlightedRow = document.querySelector(".highlighted-row");
-                if (highlightedRow) {
-                    const detailedInspection = document.getElementById("detailedInspection");
-                    if (detailedInspection) {
-                        detailedInspection.style.display = "block";
-                    }
-                }
+            function clearSelection() {
+                view.graphics.remove(selectedFeature); // Remove the selected feature's graphic
+                hideDetailedInspection(); // Hide detailed inspection info when selection is cleared
+                displayNoFeatureSelectedMessage(); // Show message indicating no feature is selected
+                document.getElementById("addInspectionForm").reset(); // Reset the inspection form
             }
 
-            // Clear selection button functionality
-            document.getElementById("clearSelectionButton").addEventListener("click", function() {
-                if (selectedFeature) {
-                    view.graphics.remove(selectedFeature);
-                    selectedFeature = null;
-                }
-                displayNoFeatureSelectedMessage(); // Show message when no feature is selected
-            });
+            document.getElementById("clearSelectionButton").addEventListener("click", clearSelection);
 
-            // Filter button functionality
-            document.getElementById("filterButton").addEventListener("click", function() {
-                console.log("Filter button clicked.");
-                // Implement filter functionality here
-            });
-
-            // Add inspection form submission functionality
             document.getElementById("addInspectionForm").addEventListener("submit", function(event) {
-                event.preventDefault(); // Prevent form submission from reloading the page
+                event.preventDefault();
 
                 const inspectionDate = document.getElementById("inspectionDate").value;
                 const conditionScore = document.getElementById("conditionScore").value;
                 const requiresMaintenance = document.getElementById("requiresMaintenance").value;
-                const relFeatureGlobalID = document.getElementById("relfeatureglobalid").value;
+                const relfeatureglobalid = document.getElementById("relfeatureglobalid").value;
 
-                console.log("Inspection Date:", inspectionDate);
-                console.log("Condition Score:", conditionScore);
-                console.log("Requires Maintenance:", requiresMaintenance);
-                console.log("Related Feature Global ID:", relFeatureGlobalID);
-
-                // Perform form validation here if needed
-
-                // Submit the inspection data to the server
-                // For demonstration purposes, just display a success message
-                const successMessage = document.getElementById("successMessage");
-                if (successMessage) {
-                    successMessage.style.display = "block";
-                    setTimeout(function() {
-                        successMessage.style.display = "none";
-                    }, 3000); // Hide the success message after 3 seconds
+                if (!inspectionDate || !conditionScore || !requiresMaintenance) {
+                    alert("Please fill in all fields.");
+                    return;
                 }
+
+                const newInspection = {
+                    attributes: {
+                        inspection_date: new Date(inspectionDate).toISOString(),
+                        condition_score: conditionScore,
+                        requires_maintenance: requiresMaintenance,
+                        relfeatureglobalid: relfeatureglobalid
+                    }
+                };
+
+                inspectionLayer.applyEdits({
+                    addFeatures: [newInspection]
+                }).then(function(editsResult) {
+                    if (editsResult.addFeatureResults.length > 0) {
+                        document.getElementById("successMessage").style.display = "block";
+                        setTimeout(function() {
+                            document.getElementById("successMessage").style.display = "none";
+                        }, 3000);
+                        clearSelection(); // Clear selection and reset form after adding new inspection
+                    }
+                }).catch(function(error) {
+                    console.error("Apply Edits Error:", error);
+                    alert("Error adding new inspection. Please try again.");
+                });
             });
+
+            // Function to display detailed inspection info
+            function displayDetailedInspectionInfo(inspection) {
+                document.getElementById("missingHardwareDetail").textContent = inspection.attributes.missing_hardware;
+                document.getElementById("brokenMissingSlatsDetail").textContent = inspection.attributes.broken_missing_slats;
+                document.getElementById("graffitiDetail").textContent = inspection.attributes.graffiti;
+                document.getElementById("supportConditionDetail").textContent = inspection.attributes.support_condition;
+                document.getElementById("notesDetail").textContent = inspection.attributes.notes;
+
+                // Show the detailed inspection info section
+                const detailedInspection = document.getElementById("detailedInspection");
+                if (detailedInspection) {
+                    detailedInspection.style.display = "block";
+                }
+            }
+
+            // Function to handle clicks on rows in the inspections table
+            function attachRowClickEvent() {
+                const inspectionsTable = document.getElementById("infoTable");
+                if (inspectionsTable) {
+                    inspectionsTable.addEventListener("click", function(event) {
+                        const selectedRow = event.target.parentElement;
+                        if (selectedRow.nodeName === "TR" && selectedRow.parentNode.nodeName === "TBODY") {
+                            const inspectionIndex = selectedRow.rowIndex - 1; // Adjust for header row
+                            const selectedInspection = inspections[inspectionIndex];
+                            displayDetailedInspectionInfo(selectedInspection);
+                        }
+                    });
+                }
+            }
+
+            // Call the function to attach click event to rows in the inspections table
+            attachRowClickEvent();
         });
     </script>
 </body>
