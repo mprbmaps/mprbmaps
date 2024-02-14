@@ -345,12 +345,11 @@
         outFields: ["inspection_date", "condition_score", "requires_maintenance", "missing_hardware", "broken_missing_slats", "graffiti", "support_condition", "notes"], // Specify which fields to include in the returned related records
         relationshipId: 20, // The ID of the relationship as defined in your service
         objectIds: [objectId], // OBJECTID of the selected feature
-        returnGeometry: false // Set to true if you need the geometry of the related records
+        returnGeometry: false // Set to false since related tables don't have geometries
     }).then(function(relatedFeaturesSet) {
-        console.log("Related features set:", relatedFeaturesSet);
         // Accessing the related features from the returned object
         let relatedFeatures = relatedFeaturesSet[objectId].features;
-        console.log("Related inspections for OBJECTID:", objectId, ":", relatedFeatures);
+        console.log("Related features received:", relatedFeatures); // Log related features
         if (relatedFeatures && relatedFeatures.length > 0) {
             console.log("Related inspections found:", relatedFeatures);
             displayInspections(relatedFeatures); // Function to display related inspections
@@ -362,6 +361,7 @@
         console.error("Error fetching related inspections:", error);
     });
 }
+
 
 
 
