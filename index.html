@@ -147,6 +147,7 @@
         }
 
         #attachmentThumbnails {
+            display: none; /* Hide attachment thumbnails initially */
             margin-top: 10px;
             text-align: center;
         }
@@ -155,7 +156,7 @@
             max-width: 100px;
             max-height: 100px;
             margin: 5px;
-            cursor: pointer; /* Add cursor pointer for image click */
+            cursor: pointer;
         }
     </style>
 </head>
@@ -291,19 +292,20 @@
             const featureLayer = new FeatureLayer({
                 url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/4",
                 outFields: ["*"],
-                
-                
+                popupTemplate: {  // Enable a popup
+                    title: "{name}",
+                    content: "GlobalID: {GlobalID}"
+                }
             });
 
             const inspectionLayer = new FeatureLayer({
-    url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5",
-    outFields: ["*"],
-    popupTemplate: {  // Enable a popup
-        title: "{inspection_date}",
-        content: "Condition Score: {condition_score}<br>Requires Maintenance: {requires_maintenance}"
-    },
-    relationshipId: 20 // Specify the correct relationship ID here
-});
+                url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5",
+                outFields: ["*"],
+                popupTemplate: {  // Enable a popup
+                    title: "{inspection_date}",
+                    content: "Condition Score: {condition_score}<br>Requires Maintenance: {requires_maintenance}"
+                }
+            });
 
             map.add(featureLayer);
             map.add(inspectionLayer);
@@ -395,7 +397,7 @@
                 const inspectionQuery = new Query();
                 inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
                 inspectionQuery.returnGeometry = false;
-                inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "missing_hardware", "broken_missing_slats", "graffiti", "support_condition", "notes"];
+                inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "missing_hardware", "broken_missing_slats", "graffiti", "support_condition", "notes", "attachments"];
 
                 inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
                     displayInspections(inspectionResult.features);
@@ -424,9 +426,19 @@
                         dateCell.textContent = formatDate(inspection.attributes.inspection_date);
                         scoreCell.textContent = inspection.attributes.condition_score;
                         maintenanceCell.textContent = inspection.attributes.requires_maintenance;
+
                         row.addEventListener("click", function() {
-                            displayDetailedInspection(inspection.attributes);
-                            displayAttachmentThumbnails(inspection.attributes);
+                            // Remove highlighting from previously selected row
+                            const previouslySelectedRow = document.querySelector(".highlighted-row");
+                            if (previouslySelectedRow) {
+                                previouslySelectedRow.classList.remove("highlighted-row");
+                            }
+
+                            // Highlight the clicked row
+                            row.classList.add("highlighted-row");
+
+                            // Display detailed inspection info
+                            displayDetailedInspectionInfo(inspection.attributes);
                         });
                     });
                 } else {
@@ -438,101 +450,159 @@
             }
 
             function formatDate(dateString) {
-                const date = new Date(dateString);
-                return date.toLocaleDateString();
+                const options = { year: 'numeric', month: 'short', day: 'numeric' };
+                return new Date(dateString).toLocaleDateString(undefined, options);
             }
 
-            function displayDetailedInspection(attributes) {
+            function displayDetailedInspectionInfo(attributes) {
                 const detailedInspectionDiv = document.getElementById("detailedInspection");
                 if (!detailedInspectionDiv) {
-                    console.error("Detailed inspection div not found.");
+                    console.error("Detailed Inspection Div element not found.");
                     return;
                 }
 
-                detailedInspectionDiv.style.display = "block"; // Show detailed inspection info
+                detailedInspectionDiv.style.display = "block"; // Show Detailed Inspection Info
 
                 document.getElementById("missingHardwareDetail").textContent = attributes.missing_hardware;
                 document.getElementById("brokenMissingSlatsDetail").textContent = attributes.broken_missing_slats;
                 document.getElementById("graffitiDetail").textContent = attributes.graffiti;
                 document.getElementById("supportConditionDetail").textContent = attributes.support_condition;
                 document.getElementById("notesDetail").textContent = attributes.notes;
+
+                // Display attachment thumbnails
+                displayAttachmentThumbnails(attributes.attachments);
             }
 
-            function hideDetailedInspection() {
-                const detailedInspectionDiv = document.getElementById("detailedInspection");
-                if (!detailedInspectionDiv) {
-                    console.error("Detailed inspection div not found.");
-                    return;
-                }
-
-                detailedInspectionDiv.style.display = "none"; // Hide detailed inspection info
-            }
-
-            function displayAttachmentThumbnails(attributes) {
+            function displayAttachmentThumbnails(attachments) {
                 const attachmentThumbnailsDiv = document.getElementById("attachmentThumbnails");
                 if (!attachmentThumbnailsDiv) {
-                    console.error("Attachment thumbnails div not found.");
+                    console.error("Attachment Thumbnails Div element not found.");
                     return;
                 }
 
                 attachmentThumbnailsDiv.innerHTML = ""; // Clear previous thumbnails
 
-                if (attributes.attachments && attributes.attachments.length > 0) {
-                    attributes.attachments.forEach(function(attachment) {
-                        let img = document.createElement("img");
-                        img.src = attachment.url;
-                        img.alt = attachment.name;
-                        img.addEventListener("click", function() {
-                            window.open(attachment.url, "_blank"); // Open attachment in new tab on click
-                        });
-                        attachmentThumbnailsDiv.appendChild(img);
+                if (attachments && attachments.length > 0) {
+                    attachments.forEach(function(attachment) {
+                        const imgElement = document.createElement("img");
+                        imgElement.src = attachment.url;
+                        imgElement.alt = attachment.name;
+                        imgElement.onclick = function() {
+                            window.open(attachment.url); // Open the attachment in a new tab when clicked
+                        };
+                        attachmentThumbnailsDiv.appendChild(imgElement);
                     });
-
                     attachmentThumbnailsDiv.style.display = "block"; // Show attachment thumbnails
                 } else {
-                    attachmentThumbnailsDiv.style.display = "none"; // Hide attachment thumbnails if no attachments
+                    attachmentThumbnailsDiv.style.display = "none"; // Hide attachment thumbnails if no attachments found
                 }
             }
 
-            function showSidePanel() {
-                const sidePanel = document.getElementById("sidePanel");
-                if (sidePanel) {
-                    sidePanel.style.display = "block";
+            function hideDetailedInspection() {
+                const detailedInspectionDiv = document.getElementById("detailedInspection");
+                if (!detailedInspectionDiv) {
+                    console.error("Detailed Inspection Div element not found.");
+                    return;
                 }
+
+                detailedInspectionDiv.style.display = "none"; // Hide Detailed Inspection Info
+
+                // Clear highlighted row
+                const previouslySelectedRow = document.querySelector(".highlighted-row");
+                if (previouslySelectedRow) {
+                    previouslySelectedRow.classList.remove("highlighted-row");
+                }
+
+                // Hide attachment thumbnails
+                const attachmentThumbnailsDiv = document.getElementById("attachmentThumbnails");
+                if (!attachmentThumbnailsDiv) {
+                    console.error("Attachment Thumbnails Div element not found.");
+                    return;
+                }
+                attachmentThumbnailsDiv.style.display = "none"; // Hide attachment thumbnails
+            }
+
+            function showSidePanel() {
+                document.getElementById("sidePanel").style.display = "block";
+            }
+
+            function hideSidePanel() {
+                document.getElementById("sidePanel").style.display = "none";
             }
 
             document.getElementById("clearSelectionButton").addEventListener("click", function() {
                 view.graphics.removeAll(); // Remove all graphics from the view
-                displayNoFeatureSelectedMessage();
+                hideSidePanel(); // Hide side panel when selection is cleared
+                displayNoFeatureSelectedMessage(); // Show message when no feature is selected
+            });
+
+            document.getElementById("filterButton").addEventListener("click", function() {
+                // Query feature layer to only show features that require maintenance
+                featureLayer.definitionExpression = "requires_maintenance = 'Yes'";
             });
 
             document.getElementById("addInspectionForm").addEventListener("submit", function(event) {
-                event.preventDefault(); // Prevent form submission
+                event.preventDefault();
+
                 const inspectionDate = document.getElementById("inspectionDate").value;
                 const conditionScore = document.getElementById("conditionScore").value;
                 const requiresMaintenance = document.getElementById("requiresMaintenance").value;
                 const relfeatureglobalid = document.getElementById("relfeatureglobalid").value;
 
-                const newInspection = {
-                    attributes: {
-                        inspection_date: inspectionDate,
-                        condition_score: conditionScore,
-                        requires_maintenance: requiresMaintenance,
-                        relfeatureglobalid: relfeatureglobalid
-                    }
+                const inspectionAttributes = {
+                    inspection_date: inspectionDate,
+                    condition_score: conditionScore,
+                    requires_maintenance: requiresMaintenance,
+                    relfeatureglobalid: relfeatureglobalid
                 };
 
                 inspectionLayer.applyEdits({
-                    addFeatures: [newInspection]
-                }).then(function() {
-                    document.getElementById("successMessage").style.display = "block";
-                    setTimeout(function() {
-                        document.getElementById("successMessage").style.display = "none";
-                    }, 3000);
+                    addFeatures: [{
+                        attributes: inspectionAttributes
+                    }]
+                }).then(function(editsResult) {
+                    if (editsResult.addFeatureResults.length > 0) {
+                        const successMessage = document.getElementById("successMessage");
+                        if (!successMessage) {
+                            console.error("Success Message element not found.");
+                            return;
+                        }
+
+                        successMessage.style.display = "block"; // Show success message
+                        setTimeout(function() {
+                            successMessage.style.display = "none"; // Hide success message after 3 seconds
+                        }, 3000);
+
+                        // Refresh inspections list
+                        fetchInspections(relfeatureglobalid);
+                    } else {
+                        console.error("No feature added.");
+                    }
                 }).catch(function(error) {
-                    console.error("Add Inspection Error:", error);
+                    console.error("Apply Edits Error:", error);
                 });
             });
+
+            const locateWidget = new Locate({
+                view: view,
+                graphic: new Graphic({
+                    symbol: new SimpleMarkerSymbol({
+                        style: "circle",
+                        color: "blue",
+                        size: "32px",  // pixels
+                        outline: {  // autocasts as new SimpleLineSymbol()
+                            color: [255, 255, 0],  // RGB color values as an array
+                            width: 2  // points
+                        }
+                    }),
+                    popupTemplate: {
+                        // autocasts as new PopupTemplate()
+                        title: "Current Location"
+                    }
+                })
+            });
+
+            view.ui.add(locateWidget, "top-left");
         });
     </script>
 </body>
