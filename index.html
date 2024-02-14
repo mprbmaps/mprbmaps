@@ -397,24 +397,26 @@
             }
 
             function fetchAttachments(inspectionObjectId) {
-                const attachmentsQuery = {
-                    objectIds: [inspectionObjectId],
-                    globalIds: [],
-                    keywords: [],
-                    attachmentTypes: [],
-                    size: [],
-                    // Use the provided relationshipId
-                    relationshipId: 20,
-                };
-                
-                inspectionLayer.queryAttachments(attachmentsQuery).then(function(attachmentsResult) {
-                    if (attachmentsResult[inspectionObjectId]) {
-                        displayAttachments(attachmentsResult[inspectionObjectId], inspectionObjectId);
-                    }
-                }).catch(function(error) {
-                    console.error("Attachments Query Error:", error);
-                });
-            }
+    const attachmentsQuery = {
+        objectIds: [inspectionObjectId],
+        globalIds: [],
+        keywords: [],
+        attachmentTypes: [],
+        size: [],
+        relationshipId: 20,
+    };
+
+    inspectionLayer.queryAttachments(attachmentsQuery).then(function(attachmentsResult) {
+        if (attachmentsResult[inspectionObjectId]) {
+            displayAttachments(attachmentsResult[inspectionObjectId], inspectionObjectId);
+        }
+    }).catch(function(error) {
+        console.error("Attachments Query Error:", error);
+        console.log("Failed Query Parameters:", attachmentsQuery);
+        console.log("Make sure the inspectionObjectId is correct and the layer supports attachments with the specified relationshipId.");
+    });
+}
+
 
             function displayAttachments(attachments, inspectionObjectId) {
                 // Find the row in the table that corresponds to the inspectionObjectId
