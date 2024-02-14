@@ -327,20 +327,20 @@
                 query.outFields = ["*"];
 
                 featureLayer.queryFeatures(query).then(function(result) {
-                    if (result.features.length > 0) {
-                        let feature = result.features[0];
-                        displayFeature(feature);
-                        fetchInspections(feature.attributes.GlobalID);
-                        showSidePanel();
-                        document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
-                    } else {
-                        displayNoFeatureSelectedMessage(); // Show message when no feature is selected
-                    }
-                }).catch(function(error) {
-                    console.error("Query Error:", error);
-                });
-            });
+        if (result.features.length > 0) {
+            let feature = result.features[0];
+            let objectId = feature.attributes.OBJECTID; // Correctly extract OBJECTID
+            console.log("OBJECTID of selected feature:", objectId);
+
+            fetchInspections(objectId); // Pass OBJECTID to fetchInspections
+        } else {
+            console.log("No feature selected.");
+            // Handle no feature selected scenario
         }
+    }).catch(function(error) {
+        console.error("Error querying features:", error);
+    });
+});
 
             function displayFeature(feature) {
                 let symbol = {
