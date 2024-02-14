@@ -370,17 +370,18 @@
             let selectedFeature = null; // Store the selected feature's graphic
 
             function fetchInspections(globalID) {
-                const inspectionQuery = new Query();
-                inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
-                inspectionQuery.returnGeometry = false;
-                inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "missing_hardware", "broken_missing_slats", "graffiti", "support_condition", "notes"];
+    const inspectionQuery = new Query();
+    inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
+    inspectionQuery.returnGeometry = false;
+    inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "missing_hardware", "broken_missing_slats", "graffiti", "support_condition", "notes"];
 
-                inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
-                    displayInspections(inspectionResult.features);
-                }).catch(function(error) {
-                    console.error("Inspection Query Error:", error);
-                });
-            }
+    inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
+        displayInspections(inspectionResult.features);
+        hideDetailedInspection(); // Hide detailed inspection table initially
+    }).catch(function(error) {
+        console.error("Inspection Query Error:", error);
+    });
+}
 
             function displayInspections(inspections) {
                 const tbody = document.querySelector("#infoTable tbody");
