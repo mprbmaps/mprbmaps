@@ -97,6 +97,11 @@
             margin-top: 10px;
             margin-bottom: 10px;
         }
+
+        .attachment-image {
+            max-width: 100%;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -145,6 +150,7 @@
                         <th>Inspection Date</th>
                         <th>Condition Score</th>
                         <th>Requires Maintenance</th>
+                        <th>Attachments</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -162,11 +168,12 @@
         "esri/Graphic",
         "esri/symbols/SimpleMarkerSymbol",
         "esri/rest/support/Query",
+        "esri/rest/support/QueryAttachments",
         "esri/geometry/geometryEngine",
         "esri/geometry/Point",
         "esri/identity/IdentityManager",
         "esri/identity/OAuthInfo"
-    ], function(Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, geometryEngine, Point, IdentityManager, OAuthInfo) {
+    ], function(Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, QueryAttachments, geometryEngine, Point, IdentityManager, OAuthInfo) {
         const info = new OAuthInfo({
             appId: "ti3fi1FqvHE2Hhyw",
             popup: false
@@ -281,6 +288,7 @@
 
                 inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
                     displayInspections(inspectionResult.features);
+                    displayAttachments(inspectionResult.features);
                 }).catch(function(error) {
                     console.error("Inspection Query Error:", error);
                 });
@@ -304,11 +312,42 @@
                         let requiresMaintenanceCell = document.createElement("td");
                         requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
                         row.appendChild(requiresMaintenanceCell);
+                        let attachmentCell = document.createElement("td");
+                        attachmentCell.classList.add("attachments");
+                        row.appendChild(attachmentCell);
                         tbody.appendChild(row);
                     });
                 } else {
-                    tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
+                    tbody.innerHTML = "<tr><td colspan='4'>No related inspections found.</td></tr>";
                 }
+            }
+
+            function displayAttachments(inspections) {
+                inspections.forEach(inspection => {
+                    const attachmentCell = document.querySelector(`#infoTable td.attachments:nth-child(${inspections.indexOf(inspection) + 1})`);
+                    const queryAttachments = new QueryAttachments({
+                        objectIds: [inspection.attributes.OBJECTID]
+                    });
+                    inspectionLayer.queryAttachments(queryAttachments).then(function(attachmentsResult) {
+                        if (attachmentsResult[inspection.attributes.OBJECTID] && attachmentsResult[inspection.attributes.OBJECTID].length > 0) {
+                            const attachmentInfos = attachmentsResult[inspection.attributes.OBJECTID];
+                            attachmentInfos.forEach(attachmentInfo => {
+                                const attachmentUrl = attachmentInfo.url;
+                                const attachmentImg = document.createElement("img");
+                                attachmentImg.src = attachmentUrl;
+                                attachmentImg.classList.add("attachment-image");
+                                attachmentImg.onclick = function() {
+                                    window.open(attachmentUrl, "_blank");
+                                };
+                                attachmentCell.appendChild(attachmentImg);
+                            });
+                        } else {
+                            attachmentCell.textContent = "No attachments";
+                        }
+                    }).catch(function(error) {
+                        console.error("Attachments Query Error:", error);
+                    });
+                });
             }
 
             function formatDate(dateString) {
