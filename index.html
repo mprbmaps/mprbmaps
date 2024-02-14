@@ -311,38 +311,36 @@
             }
             
             function attachClickListener() {
-                view.onfunction attachClickListener() {
-    view.on("click", function(evfunction attachClickListener() {
-    view.on("click", function(event) {
-        if (selectedFeature) {
-            view.graphics.remove(selectedFeature); // Remove the previously selected feature's graphic
-        }
+                view.on("click", function(event) {
+                    if (selectedFeature) {
+                        view.graphics.remove(selectedFeature); // Remove the previously selected feature's graphic
+                    }
 
-        const bufferDistance = 20;
-        const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
+                    const bufferDistance = 20;
+                    const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
 
-        let query = featureLayer.createQuery();
-        query.geometry = bufferGeometry;
-        query.spatialRelationship = "intersects";
-        query.returnGeometry = true;
-        query.outFields = ["*"];
+                    let query = featureLayer.createQuery();
+                    query.geometry = bufferGeometry;
+                    query.spatialRelationship = "intersects";
+                    query.returnGeometry = true;
+                    query.outFields = ["*"];
 
-        featureLayer.queryFeatures(query).then(function(result) {
-            if (result.features.length > 0) {
-                let feature = result.features[0];
-                displayFeature(feature);
-                fetchInspections(feature.attributes.GlobalID);
-                showSidePanel();
-                document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
-            } else {
-                displayNoFeatureSelectedMessage(); // Show message when no feature is selected
-                hideDetailedInspection(); // Hide detailed inspection info when no feature is selected
+                    featureLayer.queryFeatures(query).then(function(result) {
+                        if (result.features.length > 0) {
+                            let feature = result.features[0];
+                            displayFeature(feature);
+                            fetchInspections(feature.attributes.GlobalID);
+                            showSidePanel();
+                            document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
+                        } else {
+                            displayNoFeatureSelectedMessage(); // Show message when no feature is selected
+                        }
+                    }).catch(function(error) {
+                        console.error("Query Error:", error);
+                    });
+                });
             }
-        }).catch(function(error) {
-            console.error("Query Error:", error);
-        });
-    });
-}
+
             function displayFeature(feature) {
                 let symbol = {
                     type: "simple-marker",
@@ -371,24 +369,17 @@
             let selectedFeature = null; // Store the selected feature's graphic
 
             function fetchInspections(globalID) {
-    const inspectionQuery = new Query();
-    inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
-    inspectionQuery.returnGeometry = false;
-    inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "missing_hardware", "broken_missing_slats", "graffiti", "support_condition", "notes"];
+                const inspectionQuery = new Query();
+                inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
+                inspectionQuery.returnGeometry = false;
+                inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "missing_hardware", "broken_missing_slats", "graffiti", "support_condition", "notes"];
 
-    inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
-        displayInspections(inspectionResult.features);
-
-        // Check if there are inspections for the selected feature
-        if (inspectionResult.features.length > 0) {
-            showDetailedInspection(); // Show detailed inspection table if inspections are found
-        } else {
-            hideDetailedInspection(); // Hide detailed inspection table if no inspections are found
-        }
-    }).catch(function(error) {
-        console.error("Inspection Query Error:", error);
-    });
-}
+                inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
+                    displayInspections(inspectionResult.features);
+                }).catch(function(error) {
+                    console.error("Inspection Query Error:", error);
+                });
+            }
 
             function displayInspections(inspections) {
                 const tbody = document.querySelector("#infoTable tbody");
@@ -439,37 +430,35 @@
 
                             console.log("Showing detailed inspection.");
 
-                            // Extract the inspection attributes
-                            const inspectionAttributes = {
-                                inspection_date: inspection.attributes.inspection_date,
-                                condition_score: inspection.attributes.condition_score,
-                                requires_maintenance: inspection.attributes.requires_maintenance,
-                                missing_hardware: inspection.attributes.missing_hardware,
-                                broken_missing_slats: inspection.attributes.broken_missing_slats,
-                                graffiti: inspection.attributes.graffiti,
-                                support_condition: inspection.attributes.support_condition,
-                                notes: inspection.attributes.notes
-                            };
+                            // Extract the inspection details
+                            const missingHardware = inspection.attributes.missing_hardware || "N/A";
+                            const brokenMissingSlats = inspection.attributes.broken_missing_slats || "N/A";
+                            const graffiti = inspection.attributes.graffiti || "N/A";
+                            const supportCondition = inspection.attributes.support_condition || "N/A";
+                            const notes = inspection.attributes.notes || "N/A";
 
-                            // Show detailed inspection if inspection attributes are defined
-                            showDetailedInspection(inspectionAttributes);
+                            // Update the detailed inspection info in the side panel
+                            document.getElementById("missingHardwareDetail").textContent = missingHardware;
+                            document.getElementById("brokenMissingSlatsDetail").textContent = brokenMissingSlats;
+                            document.getElementById("graffitiDetail").textContent = graffiti;
+                            document.getElementById("supportConditionDetail").textContent = supportCondition;
+                            document.getElementById("notesDetail").textContent = notes;
+
+                            // Show the detailed inspection info panel
+                            showDetailedInspection();
                         });
                     });
                 } else {
-                    // If there are no inspections, display a message
                     let row = tbody.insertRow();
                     let cell = row.insertCell();
                     cell.colSpan = 3;
                     cell.textContent = "No inspections found.";
-
-                    // Hide detailed inspection info when no inspection is found
-                    hideDetailedInspection();
                 }
             }
 
             function formatDate(dateString) {
-                const options = { year: "numeric", month: "long", day: "numeric" };
-                return new Date(dateString).toLocaleDateString(undefined, options);
+                const date = new Date(dateString);
+                return date.toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' });
             }
 
             function showSidePanel() {
@@ -486,76 +475,53 @@
                 }
             }
 
-            function showDetailedInspection(inspectionAttributes) {
+            function showDetailedInspection() {
                 const detailedInspection = document.getElementById("detailedInspection");
                 if (detailedInspection) {
                     detailedInspection.style.display = "block";
-
-                    // Populate detailed inspection info
-                    document.getElementById("missingHardwareDetail").textContent = inspectionAttributes.missing_hardware;
-                    document.getElementById("brokenMissingSlatsDetail").textContent = inspectionAttributes.broken_missing_slats;
-                    document.getElementById("graffitiDetail").textContent = inspectionAttributes.graffiti;
-                    document.getElementById("supportConditionDetail").textContent = inspectionAttributes.support_condition;
-                    document.getElementById("notesDetail").textContent = inspectionAttributes.notes;
                 }
             }
 
+            // Clear selection button functionality
             document.getElementById("clearSelectionButton").addEventListener("click", function() {
                 if (selectedFeature) {
                     view.graphics.remove(selectedFeature);
                     selectedFeature = null;
                 }
-
-                // Clear selected row and detailed inspection info
-                const highlightedRow = document.querySelector(".highlighted-row");
-                if (highlightedRow) {
-                    highlightedRow.classList.remove("highlighted-row");
-                }
-                hideDetailedInspection();
+                displayNoFeatureSelectedMessage(); // Show message when no feature is selected
             });
 
+            // Filter button functionality
+            document.getElementById("filterButton").addEventListener("click", function() {
+                console.log("Filter button clicked.");
+                // Implement filter functionality here
+            });
+
+            // Add inspection form submission functionality
             document.getElementById("addInspectionForm").addEventListener("submit", function(event) {
-                event.preventDefault(); // Prevent the default form submission
+                event.preventDefault(); // Prevent form submission from reloading the page
 
                 const inspectionDate = document.getElementById("inspectionDate").value;
                 const conditionScore = document.getElementById("conditionScore").value;
                 const requiresMaintenance = document.getElementById("requiresMaintenance").value;
-                const relfeatureglobalid = document.getElementById("relfeatureglobalid").value;
+                const relFeatureGlobalID = document.getElementById("relfeatureglobalid").value;
 
-                if (!inspectionDate || !conditionScore || !requiresMaintenance) {
-                    alert("Please fill in all fields.");
-                    return;
-                }
+                console.log("Inspection Date:", inspectionDate);
+                console.log("Condition Score:", conditionScore);
+                console.log("Requires Maintenance:", requiresMaintenance);
+                console.log("Related Feature Global ID:", relFeatureGlobalID);
 
-                const inspectionAttributes = {
-                    inspection_date: inspectionDate,
-                    condition_score: conditionScore,
-                    requires_maintenance: requiresMaintenance,
-                    relfeatureglobalid: relfeatureglobalid
-                };
+                // Perform form validation here if needed
 
-                console.log("Submitting inspection:", inspectionAttributes);
-
-                // Simulate submission success with a message
+                // Submit the inspection data to the server
+                // For demonstration purposes, just display a success message
                 const successMessage = document.getElementById("successMessage");
                 if (successMessage) {
                     successMessage.style.display = "block";
                     setTimeout(function() {
                         successMessage.style.display = "none";
-                    }, 3000);
+                    }, 3000); // Hide the success message after 3 seconds
                 }
-
-                // Clear form fields after submission
-                document.getElementById("inspectionDate").value = "";
-                document.getElementById("conditionScore").value = "";
-                document.getElementById("requiresMaintenance").value = "";
-
-                // Refresh inspections for the selected feature
-                fetchInspections(relfeatureglobalid);
-            });
-
-            document.getElementById("filterButton").addEventListener("click", function() {
-                alert("Filtering functionality to be implemented.");
             });
         });
     </script>
