@@ -145,6 +145,18 @@
         .highlighted-row {
             background-color: #ffffcc; /* Light yellow background color */
         }
+
+        #attachmentThumbnails {
+            display: none; /* Hide attachment thumbnails initially */
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        #attachmentThumbnails img {
+            max-width: 100px;
+            max-height: 100px;
+            margin: 5px;
+        }
     </style>
 </head>
 <body>
@@ -223,6 +235,7 @@
                         <td id="notesDetail"></td>
                     </tr>
                 </table>
+                <div id="attachmentThumbnails"></div> <!-- New div for attachment thumbnails -->
             </div>
         </div>
     </div>
@@ -311,36 +324,36 @@
             }
             
             function attachClickListener() {
-            view.on("click", function(event) {
-                if (selectedFeature) {
-                    view.graphics.remove(selectedFeature); // Remove the previously selected feature's graphic
-                    hideDetailedInspection(); // Hide detailed inspection info when a new feature is selected
-                }
-
-                const bufferDistance = 20;
-                const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
-
-                let query = featureLayer.createQuery();
-                query.geometry = bufferGeometry;
-                query.spatialRelationship = "intersects";
-                query.returnGeometry = true;
-                query.outFields = ["*"];
-
-                featureLayer.queryFeatures(query).then(function(result) {
-                    if (result.features.length > 0) {
-                        let feature = result.features[0];
-                        displayFeature(feature);
-                        fetchInspections(feature.attributes.GlobalID);
-                        showSidePanel();
-                        document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
-                    } else {
-                        displayNoFeatureSelectedMessage(); // Show message when no feature is selected
+                view.on("click", function(event) {
+                    if (selectedFeature) {
+                        view.graphics.remove(selectedFeature); // Remove the previously selected feature's graphic
+                        hideDetailedInspection(); // Hide detailed inspection info when a new feature is selected
                     }
-                }).catch(function(error) {
-                    console.error("Query Error:", error);
+
+                    const bufferDistance = 20;
+                    const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
+
+                    let query = featureLayer.createQuery();
+                    query.geometry = bufferGeometry;
+                    query.spatialRelationship = "intersects";
+                    query.returnGeometry = true;
+                    query.outFields = ["*"];
+
+                    featureLayer.queryFeatures(query).then(function(result) {
+                        if (result.features.length > 0) {
+                            let feature = result.features[0];
+                            displayFeature(feature);
+                            fetchInspections(feature.attributes.GlobalID);
+                            showSidePanel();
+                            document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
+                        } else {
+                            displayNoFeatureSelectedMessage(); // Show message when no feature is selected
+                        }
+                    }).catch(function(error) {
+                        console.error("Query Error:", error);
+                    });
                 });
-            });
-        }
+            }
 
             function displayFeature(feature) {
                 let symbol = {
@@ -447,6 +460,9 @@
 
                             // Show the detailed inspection info panel
                             showDetailedInspection();
+
+                            // Fetch and display attachments
+                            fetchAttachments(inspection.attributes.objectid);
                         });
                     });
                 } else {
@@ -473,59 +489,130 @@
                 const detailedInspection = document.getElementById("detailedInspection");
                 if (detailedInspection) {
                     detailedInspection.style.display = "none";
+                    // Also hide attachment thumbnails when hiding detailed inspection info
+                    document.getElementById("attachmentThumbnails").style.display = "none";
                 }
             }
 
             function showDetailedInspection() {
-            const highlightedRow = document.querySelector(".highlighted-row");
-            if (highlightedRow) {
-                const detailedInspection = document.getElementById("detailedInspection");
-                if (detailedInspection) {
-                    detailedInspection.style.display = "block";
+                const highlightedRow = document.querySelector(".highlighted-row");
+                if (highlightedRow) {
+                    const detailedInspection = document.getElementById("detailedInspection");
+                    if (detailedInspection) {
+                        detailedInspection.style.display = "block";
+                    }
                 }
             }
-        }
 
-            // Clear selection button functionality
+            function fetchAttachments(objectId) {
+                const attachmentQuery = inspectionLayer.createQuery();
+                attachmentQuery.objectIds = [objectId];
+                attachmentQuery.returnAttachments = true;
+                attachmentQuery.outFields = ["OBJECTID"];
+
+                inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentResult) {
+                    displayAttachments(attachmentResult[objectId]);
+                }).catch(function(error) {
+                    console.error("Attachment Query Error:", error);
+                });
+            }
+
+            function displayAttachments(attachments) {
+                const attachmentThumbnails = document.getElementById("attachmentThumbnails");
+                if (!attachmentThumbnails) {
+                    console.error("attachmentThumbnails element not found.");
+                    return;
+                }
+
+                attachmentThumbnails.innerHTML = "";
+
+                if (attachments && attachments.length > 0) {
+                    attachments.forEach(function(attachment) {
+                        const img = document.createElement("img");
+                        img.src = attachment.url;
+                        attachmentThumbnails.appendChild(img);
+                    });
+
+                    // Show attachment thumbnails when attachments are available
+                    attachmentThumbnails.style.display = "block";
+                } else {
+                    attachmentThumbnails.textContent = "No attachments found.";
+                    attachmentThumbnails.style.display = "none";
+                }
+            }
+
+            // Show side panel by default
+            showSidePanel();
+
             document.getElementById("clearSelectionButton").addEventListener("click", function() {
                 if (selectedFeature) {
-                    view.graphics.remove(selectedFeature);
-                    selectedFeature = null;
+                    view.graphics.remove(selectedFeature); // Remove the selected feature's graphic
                 }
-                displayNoFeatureSelectedMessage(); // Show message when no feature is selected
+
+                displayNoFeatureSelectedMessage();
             });
 
-            // Filter button functionality
-            document.getElementById("filterButton").addEventListener("click", function() {
-                console.log("Filter button clicked.");
-                // Implement filter functionality here
-            });
-
-            // Add inspection form submission functionality
-            document.getElementById("addInspectionForm").addEventListener("submit", function(event) {
-                event.preventDefault(); // Prevent form submission from reloading the page
+            document.getElementById("submitInspectionButton").addEventListener("click", function(event) {
+                event.preventDefault();
 
                 const inspectionDate = document.getElementById("inspectionDate").value;
                 const conditionScore = document.getElementById("conditionScore").value;
                 const requiresMaintenance = document.getElementById("requiresMaintenance").value;
-                const relFeatureGlobalID = document.getElementById("relfeatureglobalid").value;
+                const relfeatureglobalid = document.getElementById("relfeatureglobalid").value;
 
-                console.log("Inspection Date:", inspectionDate);
-                console.log("Condition Score:", conditionScore);
-                console.log("Requires Maintenance:", requiresMaintenance);
-                console.log("Related Feature Global ID:", relFeatureGlobalID);
-
-                // Perform form validation here if needed
-
-                // Submit the inspection data to the server
-                // For demonstration purposes, just display a success message
-                const successMessage = document.getElementById("successMessage");
-                if (successMessage) {
-                    successMessage.style.display = "block";
-                    setTimeout(function() {
-                        successMessage.style.display = "none";
-                    }, 3000); // Hide the success message after 3 seconds
+                // Perform validation
+                if (!inspectionDate || !conditionScore || !requiresMaintenance || !relfeatureglobalid) {
+                    alert("Please fill in all fields.");
+                    return;
                 }
+
+                // Create new inspection feature
+                const newInspection = {
+                    attributes: {
+                        inspection_date: new Date(inspectionDate).toISOString(),
+                        condition_score: conditionScore,
+                        requires_maintenance: requiresMaintenance,
+                        relfeatureglobalid: relfeatureglobalid
+                    }
+                };
+
+                // Add new inspection feature to the inspection layer
+                inspectionLayer.applyEdits({
+                    addFeatures: [newInspection]
+                }).then(function(addFeatureResult) {
+                    if (addFeatureResult.addFeatureResults.length > 0) {
+                        console.log("New inspection added successfully.");
+                        document.getElementById("addInspectionForm").reset();
+                        document.getElementById("successMessage").style.display = "block";
+                        setTimeout(function() {
+                            document.getElementById("successMessage").style.display = "none";
+                        }, 3000);
+
+                        // Refresh inspection data
+                        fetchInspections(relfeatureglobalid);
+                    } else {
+                        console.error("Failed to add new inspection.");
+                        alert("Failed to add new inspection.");
+                    }
+                }).catch(function(error) {
+                    console.error("Add Inspection Error:", error);
+                    alert("An error occurred while adding the new inspection.");
+                });
+            });
+
+            // Filter inspections with maintenance required
+            document.getElementById("filterButton").addEventListener("click", function() {
+                inspectionLayer.definitionExpression = "requires_maintenance = 'Yes'";
+            });
+
+            // Handle Locate button click event
+            const locateButton = new Locate({
+                view: view
+            });
+
+            // Add the locate widget to the top left corner of the view
+            view.ui.add(locateButton, {
+                position: "top-left"
             });
         });
     </script>
