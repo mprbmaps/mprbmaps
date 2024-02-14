@@ -297,8 +297,8 @@
     function attachClickListener() {
         view.on("click", function(event) {
             if (selectedFeature) {
-                view.graphics.remove(selectedFeature); // Remove the previously selected feature's graphic
-                hideDetailedInspection(); // Hide detailed inspection info when a new feature is selected
+                view.graphics.remove(selectedFeature);
+                hideDetailedInspection();
             }
 
             const bufferDistance = 20;
@@ -313,13 +313,24 @@
             featureLayer.queryFeatures(query).then(function(result) {
                 if (result.features.length > 0) {
                     let feature = result.features[0];
-                    let objectId = feature.attributes.OBJECTID; // Correctly extract OBJECTID
-                    console.log("OBJECTID of selected feature:", objectId);
+                    let objectId = feature.attributes.OBJECTID;
 
-                    fetchInspections(objectId); // Pass OBJECTID to fetchInspections
+                    // Create a graphic for the selected feature and add it to the view
+                    selectedFeature = new Graphic({
+                        geometry: feature.geometry,
+                        symbol: new SimpleMarkerSymbol({
+                            color: [226, 119, 40],
+                            outline: {
+                                color: [255, 255, 255],
+                                width: 1
+                            }
+                        })
+                    });
+                    view.graphics.add(selectedFeature);
+
+                    fetchInspections(objectId);
                 } else {
                     console.log("No feature selected.");
-                    // Handle no feature selected scenario
                 }
             }).catch(function(error) {
                 console.error("Error querying features:", error);
