@@ -347,23 +347,22 @@
         objectIds: [objectId], // OBJECTID of the selected feature
         returnGeometry: false // Set to true if you need the geometry of the related records
     }).then(function(relatedFeaturesSet) {
+        console.log("Related features set:", relatedFeaturesSet);
         // Accessing the related features from the returned object
-        try {
-            let relatedFeatures = relatedFeaturesSet[objectId].features;
-            if (relatedFeatures && relatedFeatures.length > 0) {
-                console.log("Related inspections found:", relatedFeatures);
-                displayInspections(relatedFeatures); // Function to display related inspections
-            } else {
-                console.log("No related inspections found.");
-                displayNoInspectionsMessage(); // Function to handle no related inspections found
-            }
-        } catch (error) {
-            console.error("Error processing related features:", error);
+        let relatedFeatures = relatedFeaturesSet[objectId].features;
+        console.log("Related inspections for OBJECTID:", objectId, ":", relatedFeatures);
+        if (relatedFeatures && relatedFeatures.length > 0) {
+            console.log("Related inspections found:", relatedFeatures);
+            displayInspections(relatedFeatures); // Function to display related inspections
+        } else {
+            console.log("No related inspections found.");
+            displayNoInspectionsMessage(); // Function to handle no related inspections found
         }
     }).catch(function(error) {
         console.error("Error fetching related inspections:", error);
     });
 }
+
 
 
     function displayInspections(inspections) {
