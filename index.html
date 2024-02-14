@@ -101,6 +101,11 @@
             max-width: 100%;
             cursor: pointer;
         }
+
+        .selected-row {
+            background-color: lightyellow;
+        }
+
     </style>
 </head>
 <body>
@@ -295,32 +300,39 @@
         }
 
         function displayInspections(inspections) {
-            const tbody = document.querySelector("#infoTable tbody");
-            tbody.innerHTML = "";
+    const tbody = document.querySelector("#infoTable tbody");
+    tbody.innerHTML = "";
 
-            if (inspections.length > 0) {
-                inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+    if (inspections.length > 0) {
+        inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
 
-                inspections.forEach(inspection => {
-                    let row = document.createElement("tr");
-                    let inspectionDateCell = document.createElement("td");
-                    inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
-                    row.appendChild(inspectionDateCell);
-                    let conditionScoreCell = document.createElement("td");
-                    conditionScoreCell.textContent = inspection.attributes.condition_score;
-                    row.appendChild(conditionScoreCell);
-                    let requiresMaintenanceCell = document.createElement("td");
-                    requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
-                    row.appendChild(requiresMaintenanceCell);
-                    let attachmentCell = document.createElement("td");
-                    attachmentCell.classList.add("attachments");
-                    row.appendChild(attachmentCell);
-                    tbody.appendChild(row);
-                });
-            } else {
-                tbody.innerHTML = "<tr><td colspan='4'>No related inspections found.</td></tr>";
-            }
-        }
+        inspections.forEach((inspection, index) => {
+            let row = document.createElement("tr");
+            row.addEventListener('click', () => {
+                // Highlight the selected row and display attachments for that inspection
+                document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
+                row.classList.add("selected-row");
+                displayAttachments([inspection]); // Display attachments for only this inspection
+            });
+
+            let inspectionDateCell = document.createElement("td");
+            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
+            row.appendChild(inspectionDateCell);
+
+            let conditionScoreCell = document.createElement("td");
+            conditionScoreCell.textContent = inspection.attributes.condition_score;
+            row.appendChild(conditionScoreCell);
+
+            let requiresMaintenanceCell = document.createElement("td");
+            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
+            row.appendChild(requiresMaintenanceCell);
+
+            tbody.appendChild(row);
+        });
+    } else {
+        tbody.innerHTML = "<tr><td colspan='4'>No related inspections found.</td></tr>";
+    }
+}
 
         function displayAttachments(inspections) {
     // Clear previous attachments
@@ -405,9 +417,12 @@
         });
 
         document.getElementById("clearSelectionButton").addEventListener("click", function() {
-            view.graphics.removeAll();
-            hideSidePanel();
-        });
+    view.graphics.removeAll();
+    hideSidePanel();
+    document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row")); // Remove highlighting
+    document.getElementById("attachmentsDiv").innerHTML = ''; // Clear attachments display
+});
+
 
         function showSuccessMessage() {
             const successMessage = document.getElementById("successMessage");
