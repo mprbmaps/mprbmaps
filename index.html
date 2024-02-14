@@ -232,267 +232,222 @@
     <script src="https://js.arcgis.com/4.28"></script>
     <script>
         require([
-            "esri/Map",
-            "esri/views/MapView",
-            "esri/layers/FeatureLayer",
-            "esri/Graphic",
-            "esri/symbols/SimpleMarkerSymbol",
-            "esri/rest/support/Query",
-            "esri/geometry/geometryEngine",
-            "esri/geometry/Point",
-            "esri/widgets/Locate",
-            "esri/identity/IdentityManager",
-            "esri/identity/OAuthInfo"
-        ], function(Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, geometryEngine, Point, Locate, IdentityManager, OAuthInfo) {
-            const map = new Map({
-                basemap: {
-                    portalItem: {
-                        id: "a11d663a981947b99aac7ff05437758f"
-                    }
-                }
-            });
-
-            const view = new MapView({
-                container: "viewDiv",
-                map: map,
-                center: [-93.2650, 44.9778],
-                zoom: 11
-            });
-
-            const oAuthInfo = new OAuthInfo({
-                appId: "ti3fi1FqvHE2Hhyw",
-                popup: false // Change to true if you want to use a popup window for authentication
-            });
-
-            IdentityManager.registerOAuthInfos([oAuthInfo]);
-
-            // Optionally set up authentication events
-            IdentityManager.checkSignInStatus(oAuthInfo.portalUrl + "/sharing").then(function () {
-                // User is signed in
-                console.log("User is signed in");
-            }).catch(function () {
-                // User is not signed in
-                console.log("User is not signed in");
-            });
-
-            const featureLayer = new FeatureLayer({
-                url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/4"
-            });
-
-            const inspectionLayer = new FeatureLayer({
-                url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5"
-            });
-
-            map.add(featureLayer);
-            map.add(inspectionLayer);
-
-            featureLayer.when(() => {
-                attachClickListener();
-            }).catch((error) => {
-                console.error("Error loading Feature Layer:", error);
-            });
-
-            function displayNoFeatureSelectedMessage() {
-                const tbody = document.querySelector("#infoTable tbody");
-                if (!tbody) {
-                    console.error("tbody element not found.");
-                    return;
-                }
-
-                tbody.innerHTML = "";
-
-                let row = tbody.insertRow();
-                let cell = row.insertCell();
-                cell.colSpan = 3;
-                cell.textContent = "No feature selected.";
-
-                // Hide detailed inspection info when no feature is selected
-                hideDetailedInspection();
+    "esri/Map",
+    "esri/views/MapView",
+    "esri/layers/FeatureLayer",
+    "esri/Graphic",
+    "esri/symbols/SimpleMarkerSymbol",
+    "esri/rest/support/Query",
+    "esri/geometry/geometryEngine",
+    "esri/geometry/Point",
+    "esri/widgets/Locate",
+    "esri/identity/IdentityManager",
+    "esri/identity/OAuthInfo"
+], function(Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, geometryEngine, Point, Locate, IdentityManager, OAuthInfo) {
+    const map = new Map({
+        basemap: {
+            portalItem: {
+                id: "a11d663a981947b99aac7ff05437758f"
             }
-            
-            function attachClickListener() {
-            view.on("click", function(event) {
-                if (selectedFeature) {
-                    view.graphics.remove(selectedFeature); // Remove the previously selected feature's graphic
-                    hideDetailedInspection(); // Hide detailed inspection info when a new feature is selected
-                }
-
-                const bufferDistance = 20;
-                const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
-
-                let query = featureLayer.createQuery();
-                query.geometry = bufferGeometry;
-                query.spatialRelationship = "intersects";
-                query.returnGeometry = true;
-                query.outFields = ["*"];
-
-                featureLayer.queryFeatures(query).then(function(result) {
-        if (result.features.length > 0) {
-            let feature = result.features[0];
-            let objectId = feature.attributes.OBJECTID; // Correctly extract OBJECTID
-            console.log("OBJECTID of selected feature:", objectId);
-
-            fetchInspections(objectId); // Pass OBJECTID to fetchInspections
-        } else {
-            console.log("No feature selected.");
-            // Handle no feature selected scenario
         }
-    }).catch(function(error) {
-        console.error("Error querying features:", error);
     });
-});
 
-            function displayFeature(feature) {
-                let symbol = {
-                    type: "simple-marker",
-                    color: "red", // Set the selected feature's graphic color to red
-                    size: 8,
-                    outline: {
-                        color: [255, 255, 255],
-                        width: 1
-                    }
-                };
+    const view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-93.2650, 44.9778],
+        zoom: 11
+    });
 
-                selectedFeature = new Graphic({
-                    geometry: feature.geometry,
-                    symbol: symbol
-                });
+    const oAuthInfo = new OAuthInfo({
+        appId: "ti3fi1FqvHE2Hhyw",
+        popup: false // Change to true if you want to use a popup window for authentication
+    });
 
-                view.graphics.add(selectedFeature);
-                
-                // Center the map on the selected feature and set zoom level to 15
-                view.goTo({
-                    target: selectedFeature.geometry,
-                    zoom: 15
-                });
+    IdentityManager.registerOAuthInfos([oAuthInfo]);
+
+    // Optionally set up authentication events
+    IdentityManager.checkSignInStatus(oAuthInfo.portalUrl + "/sharing").then(function () {
+        // User is signed in
+        console.log("User is signed in");
+    }).catch(function () {
+        // User is not signed in
+        console.log("User is not signed in");
+    });
+
+    const featureLayer = new FeatureLayer({
+        url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/4"
+    });
+
+    const inspectionLayer = new FeatureLayer({
+        url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5"
+    });
+
+    map.add(featureLayer);
+    map.add(inspectionLayer);
+
+    featureLayer.when(() => {
+        attachClickListener();
+    }).catch((error) => {
+        console.error("Error loading Feature Layer:", error);
+    });
+
+    function attachClickListener() {
+        view.on("click", function(event) {
+            if (selectedFeature) {
+                view.graphics.remove(selectedFeature); // Remove the previously selected feature's graphic
+                hideDetailedInspection(); // Hide detailed inspection info when a new feature is selected
             }
 
-            let selectedFeature = null; // Store the selected feature's graphic
+            const bufferDistance = 20;
+            const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
 
-            function fetchInspections(objectId) {
-    console.log("Fetching inspections for OBJECTID:", objectId);
-    // Correctly use queryRelatedFeatures with the appropriate relationshipId
-    inspectionLayer.queryRelatedFeatures({
-       outFields: ["inspection_date", "condition_score", "requires_maintenance", "missing_hardware", "broken_missing_slats", "graffiti", "support_condition", "notes"], // Specify which fields to include in the returned related records
-        relationshipId: 20, // The ID of the relationship as defined in your service
-        objectIds: [objectId], // OBJECTID of the selected feature
-        returnGeometry: true // Set to true if you need the geometry of the related records
-    }).then(function(relatedFeaturesSet) {
-        // Accessing the related features from the returned object
-        let relatedFeatures = relatedFeaturesSet[objectId].features;
-        if (relatedFeatures && relatedFeatures.length > 0) {
-            console.log("Related inspections found:", relatedFeatures);
-            displayInspections(relatedFeatures); // Function to display related inspections
-        } else {
-            console.log("No related inspections found.");
-            displayNoInspectionsMessage(); // Function to handle no related inspections found
+            let query = featureLayer.createQuery();
+            query.geometry = bufferGeometry;
+            query.spatialRelationship = "intersects";
+            query.returnGeometry = true;
+            query.outFields = ["*"];
+
+            featureLayer.queryFeatures(query).then(function(result) {
+                if (result.features.length > 0) {
+                    let feature = result.features[0];
+                    let objectId = feature.attributes.OBJECTID; // Correctly extract OBJECTID
+                    console.log("OBJECTID of selected feature:", objectId);
+
+                    fetchInspections(objectId); // Pass OBJECTID to fetchInspections
+                } else {
+                    console.log("No feature selected.");
+                    // Handle no feature selected scenario
+                }
+            }).catch(function(error) {
+                console.error("Error querying features:", error);
+            });
+        });
+    }
+
+    function fetchInspections(objectId) {
+        console.log("Fetching inspections for OBJECTID:", objectId);
+        // Correctly use queryRelatedFeatures with the appropriate relationshipId
+        inspectionLayer.queryRelatedFeatures({
+            outFields: ["inspection_date", "condition_score", "requires_maintenance", "missing_hardware", "broken_missing_slats", "graffiti", "support_condition", "notes"], // Specify which fields to include in the returned related records
+            relationshipId: 20, // The ID of the relationship as defined in your service
+            objectIds: [objectId], // OBJECTID of the selected feature
+            returnGeometry: true // Set to true if you need the geometry of the related records
+        }).then(function(relatedFeaturesSet) {
+            // Accessing the related features from the returned object
+            let relatedFeatures = relatedFeaturesSet[objectId].features;
+            if (relatedFeatures && relatedFeatures.length > 0) {
+                console.log("Related inspections found:", relatedFeatures);
+                displayInspections(relatedFeatures); // Function to display related inspections
+            } else {
+                console.log("No related inspections found.");
+                displayNoInspectionsMessage(); // Function to handle no related inspections found
+            }
+        }).catch(function(error) {
+            console.error("Error fetching related inspections:", error);
+        });
+    }
+
+    function displayInspections(inspections) {
+        const tbody = document.querySelector("#infoTable tbody");
+        // Check if tbody exists before proceeding
+        if (!tbody) {
+            console.error("tbody element not found.");
+            return;
         }
-    }).catch(function(error) {
-        console.error("Error fetching related inspections:", error);
+
+        tbody.innerHTML = ""; // Clear existing table rows
+
+        inspections.forEach((inspection) => {
+            const attributes = inspection.attributes;
+            const row = tbody.insertRow();
+            row.innerHTML = `<td>${attributes.InspectionDate}</td><td>${attributes.ConditionScore}</td><td>${attributes.RequiresMaintenance}</td>`;
+        });
+    }
+
+    function displayNoInspectionsMessage() {
+        const tbody = document.querySelector("#infoTable tbody");
+        if (!tbody) {
+            console.error("tbody element not found.");
+            return;
+        }
+
+        tbody.innerHTML = "";
+
+        let row = tbody.insertRow();
+        let cell = row.insertCell();
+        cell.colSpan = 3;
+        cell.textContent = "No inspections found for this feature.";
+    }
+
+    function hideDetailedInspection() {
+        const detailedInspectionDiv = document.getElementById("detailedInspection");
+        if (detailedInspectionDiv) {
+            detailedInspectionDiv.style.display = "none";
+        }
+    }
+
+    function showSidePanel() {
+        const sidePanel = document.getElementById("sidePanel");
+        if (sidePanel) {
+            sidePanel.style.display = "block";
+        }
+    }
+
+    function hideSidePanel() {
+        const sidePanel = document.getElementById("sidePanel");
+        if (sidePanel) {
+            sidePanel.style.display = "none";
+        }
+    }
+
+    function clearSelection() {
+        view.graphics.removeAll(); // Remove all graphics from the view
+        displayNoFeatureSelectedMessage(); // Show message when no feature is selected
+        hideSidePanel(); // Hide the side panel when selection is cleared
+    }
+
+    document.getElementById("clearSelectionButton").addEventListener("click", clearSelection);
+
+    document.getElementById("filterButton").addEventListener("click", function() {
+        view.whenLayerView(featureLayer).then(function(layerView) {
+            layerView.filter = {
+                where: "Maint_Req = 'Yes'"
+            };
+        });
     });
-}
 
+    document.getElementById("addInspectionForm").addEventListener("submit", function(event) {
+        event.preventDefault();
 
-            function displayInspections(inspections) {
-                const tbody = document.querySelector("#infoTable tbody");
-                // Check if tbody exists before proceeding
-                if (!tbody) {
-                    console.error("tbody element not found.");
-                    return;
-                }
+        const inspectionDate = document.getElementById("inspectionDate").value;
+        const conditionScore = document.getElementById("conditionScore").value;
+        const requiresMaintenance = document.getElementById("requiresMaintenance").value;
+        const relFeatureGlobalID = document.getElementById("relfeatureglobalid").value;
 
-                tbody.innerHTML = ""; // Clear existing table rows
+        const newInspection = {
+            attributes: {
+                InspectionDate: inspectionDate,
+                ConditionScore: conditionScore,
+                RequiresMaintenance: requiresMaintenance,
+                RelationshipId: 20,
+                RelGlobalID: relFeatureGlobalID
+            },
+            geometry: null
+        };
 
-                inspections.forEach((inspection) => {
-                    const attributes = inspection.attributes;
-                    const row = tbody.insertRow();
-                    row.innerHTML = `<td>${attributes.InspectionDate}</td><td>${attributes.ConditionScore}</td><td>${attributes.RequiresMaintenance}</td>`;
-                });
-            }
-
-            function displayNoInspectionsMessage() {
-                const tbody = document.querySelector("#infoTable tbody");
-                if (!tbody) {
-                    console.error("tbody element not found.");
-                    return;
-                }
-
-                tbody.innerHTML = "";
-
-                let row = tbody.insertRow();
-                let cell = row.insertCell();
-                cell.colSpan = 3;
-                cell.textContent = "No inspections found for this feature.";
-            }
-
-            function hideDetailedInspection() {
-                const detailedInspectionDiv = document.getElementById("detailedInspection");
-                if (detailedInspectionDiv) {
-                    detailedInspectionDiv.style.display = "none";
-                }
-            }
-
-            function showSidePanel() {
-                const sidePanel = document.getElementById("sidePanel");
-                if (sidePanel) {
-                    sidePanel.style.display = "block";
-                }
-            }
-
-            function hideSidePanel() {
-                const sidePanel = document.getElementById("sidePanel");
-                if (sidePanel) {
-                    sidePanel.style.display = "none";
-                }
-            }
-
-            function clearSelection() {
-                view.graphics.removeAll(); // Remove all graphics from the view
-                displayNoFeatureSelectedMessage(); // Show message when no feature is selected
-                hideSidePanel(); // Hide the side panel when selection is cleared
-            }
-
-            document.getElementById("clearSelectionButton").addEventListener("click", clearSelection);
-
-            document.getElementById("filterButton").addEventListener("click", function() {
-                view.whenLayerView(featureLayer).then(function(layerView) {
-                    layerView.filter = {
-                        where: "Maint_Req = 'Yes'"
-                    };
-                });
-            });
-
-            document.getElementById("addInspectionForm").addEventListener("submit", function(event) {
-                event.preventDefault();
-
-                const inspectionDate = document.getElementById("inspectionDate").value;
-                const conditionScore = document.getElementById("conditionScore").value;
-                const requiresMaintenance = document.getElementById("requiresMaintenance").value;
-                const relFeatureGlobalID = document.getElementById("relfeatureglobalid").value;
-
-                const newInspection = {
-                    attributes: {
-                        InspectionDate: inspectionDate,
-                        ConditionScore: conditionScore,
-                        RequiresMaintenance: requiresMaintenance,
-                        RelationshipId: 20,
-                        RelGlobalID: relFeatureGlobalID
-                    },
-                    geometry: null
-                };
-
-                inspectionLayer.applyEdits({
-                    addFeatures: [newInspection]
-                }).then(function() {
-                    document.getElementById("successMessage").style.display = "block";
-                    setTimeout(function() {
-                        document.getElementById("successMessage").style.display = "none";
-                    }, 3000);
-                    fetchInspections(relFeatureGlobalID);
-                }).catch(function(error) {
-                    console.error("Error adding inspection:", error);
-                });
-            });
+        inspectionLayer.applyEdits({
+            addFeatures: [newInspection]
+        }).then(function() {
+            document.getElementById("successMessage").style.display = "block";
+            setTimeout(function() {
+                document.getElementById("successMessage").style.display = "none";
+            }, 3000);
+            fetchInspections(relFeatureGlobalID);
+        }).catch(function(error) {
+            console.error("Error adding inspection:", error);
+        });
+    });
         });
     </script>
 </body>
