@@ -339,15 +339,16 @@
     }
 
     function fetchInspections(objectId) {
-        console.log("Fetching inspections for OBJECTID:", objectId);
-        // Correctly use queryRelatedFeatures with the appropriate relationshipId
-        inspectionLayer.queryRelatedFeatures({
-            outFields: ["inspection_date", "condition_score", "requires_maintenance", "missing_hardware", "broken_missing_slats", "graffiti", "support_condition", "notes"], // Specify which fields to include in the returned related records
-            relationshipId: 20, // The ID of the relationship as defined in your service
-            objectIds: [objectId], // OBJECTID of the selected feature
-            returnGeometry: true // Set to true if you need the geometry of the related records
-        }).then(function(relatedFeaturesSet) {
-            // Accessing the related features from the returned object
+    console.log("Fetching inspections for OBJECTID:", objectId);
+    // Correctly use queryRelatedFeatures with the appropriate relationshipId
+    inspectionLayer.queryRelatedFeatures({
+        outFields: ["inspection_date", "condition_score", "requires_maintenance", "missing_hardware", "broken_missing_slats", "graffiti", "support_condition", "notes"], // Specify which fields to include in the returned related records
+        relationshipId: 20, // The ID of the relationship as defined in your service
+        objectIds: [objectId], // OBJECTID of the selected feature
+        returnGeometry: true // Set to true if you need the geometry of the related records
+    }).then(function(relatedFeaturesSet) {
+        // Accessing the related features from the returned object
+        try {
             let relatedFeatures = relatedFeaturesSet[objectId].features;
             if (relatedFeatures && relatedFeatures.length > 0) {
                 console.log("Related inspections found:", relatedFeatures);
@@ -356,10 +357,14 @@
                 console.log("No related inspections found.");
                 displayNoInspectionsMessage(); // Function to handle no related inspections found
             }
-        }).catch(function(error) {
-            console.error("Error fetching related inspections:", error);
-        });
-    }
+        } catch (error) {
+            console.error("Error processing related features:", error);
+        }
+    }).catch(function(error) {
+        console.error("Error fetching related inspections:", error);
+    });
+}
+
 
     function displayInspections(inspections) {
         const tbody = document.querySelector("#infoTable tbody");
