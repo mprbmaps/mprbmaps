@@ -370,22 +370,21 @@
             let selectedFeature = null; // Store the selected feature's graphic
 
             function fetchInspections(globalID) {
-                const relQuery = inspectionLayer.createQuery();
-                relQuery.outFields = ["*"];
-                relQuery.relationshipId = 20;
-                relQuery.objectIds = [globalID];
-                relQuery.returnGeometry = false;
-
-                inspectionLayer.queryRelatedFeatures(relQuery).then(function(relatedRecords) {
-                    if (relatedRecords && relatedRecords.hasOwnProperty(globalID)) {
-                        const inspections = relatedRecords[globalID].features;
-                        displayInspections(inspections);
+                featureLayer.queryRelatedFeatures({
+                    outFields: ["inspection_date", "condition_score", "requires_maintenance", "missing_hardware", "broken_missing_slats", "graffiti", "support_condition", "notes"],
+                    relationshipId: 20,
+                    objectIds: [globalID],
+                    returnGeometry: false
+                }).then(function(relatedFeatures) {
+                    // Assuming the relationshipId correctly matches and returns related features
+                    var relatedFeatureSet = relatedFeatures[globalID]; // Access the related features using the globalID as key
+                    if (relatedFeatureSet && relatedFeatureSet.features.length > 0) {
+                        displayInspections(relatedFeatureSet.features);
                     } else {
-                        displayNoInspectionsMessage();
+                        displayNoFeatureSelectedMessage(); // Show message if no related features found
                     }
                 }).catch(function(error) {
-                    console.error("Query Error:", error);
-                    displayNoInspectionsMessage();
+                    console.error("Related Features Query Error:", error);
                 });
             }
 
