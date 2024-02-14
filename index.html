@@ -276,11 +276,11 @@
     });
 
     const featureLayer = new FeatureLayer({
-        url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Asssets2/FeatureServer/4"
+        url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/4"
     });
 
     const inspectionLayer = new FeatureLayer({
-        url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Asssets2/FeatureServer/5"
+        url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5"
     });
 
     map.add(featureLayer);
@@ -340,16 +340,22 @@
 
     function fetchInspections(objectId) {
     console.log("Fetching inspections for OBJECTID:", objectId);
+
+    // Add console log to check relationshipId
+    console.log("Relationship ID:", inspectionLayer.relationships[0].id);
+
     // Correctly use queryRelatedFeatures with the appropriate relationshipId
     inspectionLayer.queryRelatedFeatures({
         outFields: ["inspection_date", "condition_score", "requires_maintenance", "missing_hardware", "broken_missing_slats", "graffiti", "support_condition", "notes"], // Specify which fields to include in the returned related records
-        relationshipId: 20, // The ID of the relationship as defined in your service
+        relationshipId: inspectionLayer.relationships[0].id, // The ID of the relationship as defined in your service
         objectIds: [objectId], // OBJECTID of the selected feature
-        returnGeometry: false // Set to false since related tables don't have geometries
+        returnGeometry: false // Set to true if you need the geometry of the related records
     }).then(function(relatedFeaturesSet) {
+        // Add console log to check if related records are obtained
+        console.log("Related inspections set:", relatedFeaturesSet[objectId]);
+
         // Accessing the related features from the returned object
         let relatedFeatures = relatedFeaturesSet[objectId].features;
-        console.log("Related features received:", relatedFeatures); // Log related features
         if (relatedFeatures && relatedFeatures.length > 0) {
             console.log("Related inspections found:", relatedFeatures);
             displayInspections(relatedFeatures); // Function to display related inspections
@@ -361,6 +367,7 @@
         console.error("Error fetching related inspections:", error);
     });
 }
+
 
 
 
