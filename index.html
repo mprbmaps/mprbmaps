@@ -505,17 +505,17 @@
             }
 
             function fetchAttachments(objectId) {
-                const attachmentQuery = inspectionLayer.createQuery();
-                attachmentQuery.objectIds = [objectId];
-                attachmentQuery.returnAttachments = true;
-                attachmentQuery.outFields = ["OBJECTID"];
+    const attachmentQuery = inspectionLayer.createAttachmentQuery(); // This line creates an AttachmentQuery object
+    attachmentQuery.attachmentIds = [objectId]; // Use attachmentIds instead of objectIds
+    attachmentQuery.returnMetadata = true; // Optionally return metadata along with attachments
 
-                inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentResult) {
-                    displayAttachments(attachmentResult[objectId]);
-                }).catch(function(error) {
-                    console.error("Attachment Query Error:", error);
-                });
-            }
+    inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentResult) {
+        displayAttachments(attachmentResult[objectId]);
+    }).catch(function(error) {
+        console.error("Attachment Query Error:", error);
+    });
+}
+
 
             function displayAttachments(attachments) {
                 const attachmentThumbnails = document.getElementById("attachmentThumbnails");
