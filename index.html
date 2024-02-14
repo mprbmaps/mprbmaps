@@ -154,6 +154,8 @@
                 <tbody>
                 </tbody>
             </table>
+            <!-- New Attachments Section -->
+            <div id="attachmentsDiv"></div>
         </div>
     </div>
     <div id="successMessage">New inspection added successfully!</div>
@@ -321,34 +323,40 @@
         }
 
         function displayAttachments(inspections) {
-            inspections.forEach((inspection, index) => {
-                const attachmentQuery = new AttachmentQuery();
-                attachmentQuery.objectIds = [inspection.attributes.OBJECTID];
-                attachmentQuery.globalIds = []; // Optional, use if needed
-                attachmentQuery.attachmentTypes = ["image/jpeg", "image/png"]; // Optional, specify types if needed
+    // Clear previous attachments
+    document.getElementById("attachmentsDiv").innerHTML = '';
 
-                inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentsResult) {
-                    const attachmentCell = document.querySelectorAll("#infoTable .attachments")[index];
-                    if (attachmentsResult[inspection.attributes.OBJECTID] && attachmentsResult[inspection.attributes.OBJECTID].length > 0) {
-                        const attachmentInfos = attachmentsResult[inspection.attributes.OBJECTID];
-                        attachmentInfos.forEach(attachmentInfo => {
-                            const attachmentUrl = attachmentInfo.url;
-                            const attachmentImg = document.createElement("img");
-                            attachmentImg.src = attachmentUrl;
-                            attachmentImg.classList.add("attachment-image");
-                            attachmentImg.onclick = function() {
-                                window.open(attachmentUrl, "_blank");
-                            };
-                            attachmentCell.appendChild(attachmentImg);
-                        });
-                    } else {
-                        attachmentCell.textContent = "No attachments";
-                    }
-                }).catch(function(error) {
-                    console.error("Attachments Query Error:", error);
+    inspections.forEach((inspection, index) => {
+        const attachmentQuery = new AttachmentQuery();
+        attachmentQuery.objectIds = [inspection.attributes.OBJECTID];
+
+        inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentsResult) {
+            if (attachmentsResult[inspection.attributes.OBJECTID] && attachmentsResult[inspection.attributes.OBJECTID].length > 0) {
+                const attachmentInfos = attachmentsResult[inspection.attributes.OBJECTID];
+                const attachmentsDiv = document.getElementById("attachmentsDiv");
+
+                // Optionally, add a header or separator for each inspection's attachments
+                const attachmentHeader = document.createElement("h3");
+                attachmentHeader.textContent = `Attachments for Inspection ${index + 1}`;
+                attachmentsDiv.appendChild(attachmentHeader);
+
+                attachmentInfos.forEach(attachmentInfo => {
+                    const attachmentUrl = attachmentInfo.url;
+                    const attachmentImg = document.createElement("img");
+                    attachmentImg.src = attachmentUrl;
+                    attachmentImg.classList.add("attachment-image");
+                    attachmentImg.onclick = function() {
+                        window.open(attachmentUrl, "_blank");
+                    };
+                    attachmentsDiv.appendChild(attachmentImg);
                 });
-            });
-        }
+            }
+        }).catch(function(error) {
+            console.error("Attachments Query Error:", error);
+        });
+    });
+}
+
 
         function formatDate(dateString) {
             const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
