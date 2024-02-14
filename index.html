@@ -397,25 +397,27 @@
             }
 
             function fetchAttachments(inspectionObjectId) {
+    // Assuming 'inspectionLayer' is correctly pointing to the layer with attachments
     const attachmentsQuery = {
         objectIds: [inspectionObjectId],
-        globalIds: [],
-        keywords: [],
-        attachmentTypes: [],
-        size: [],
-        relationshipId: 20,
+        relationshipId: 20, // Ensure this ID is correct for the relationship between the features and their attachments
     };
 
     inspectionLayer.queryAttachments(attachmentsQuery).then(function(attachmentsResult) {
-        if (attachmentsResult[inspectionObjectId]) {
+        // Check if there are attachments for the given objectId
+        if (attachmentsResult[inspectionObjectId] && attachmentsResult[inspectionObjectId].attachmentInfos.length > 0) {
             displayAttachments(attachmentsResult[inspectionObjectId], inspectionObjectId);
+        } else {
+            console.log("No attachments found for objectId:", inspectionObjectId);
         }
     }).catch(function(error) {
         console.error("Attachments Query Error:", error);
-        console.log("Failed Query Parameters:", attachmentsQuery);
-        console.log("Make sure the inspectionObjectId is correct and the layer supports attachments with the specified relationshipId.");
+        // Additional logging for debugging
+        console.log("Failed Query Parameters:", JSON.stringify(attachmentsQuery, null, 2));
+        console.log("Check if the inspectionObjectId is correct and the layer supports attachments with the specified relationshipId.");
     });
 }
+
 
 
             function displayAttachments(attachments, inspectionObjectId) {
