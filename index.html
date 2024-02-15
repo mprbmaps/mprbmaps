@@ -291,6 +291,9 @@
     inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "OBJECTID"];
 
     inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
+        const infoDiv = document.getElementById("infoDiv");
+        if (!infoDiv) return; // Check if infoDiv element exists
+
         if (inspectionResult.features.length > 0) {
             displayInspections(inspectionResult.features);
             displayAttachments(inspectionResult.features);
@@ -304,10 +307,10 @@
 
 function clearSidePanel() {
     const infoDiv = document.getElementById("infoDiv");
+    if (!infoDiv) return; // Check if infoDiv element exists
+
     infoDiv.innerHTML = "<h2 id='inspectionsTitle'>Previous Inspections</h2><table id='infoTable'><thead><tr><th>Inspection Date</th><th>Condition Score</th><th>Requires Maintenance</th></tr></thead><tbody></tbody></table><div id='attachmentsDiv' style='display: none;'></div>";
 }
-
-
 
         function displayInspections(inspections) {
     const tbody = document.querySelector("#infoTable tbody");
