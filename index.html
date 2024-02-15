@@ -285,29 +285,49 @@
                 }
 
                 function fetchInspections(globalID) {
-    showSidePanel(); // Show the side panel
+    // Show the side panel
+    showSidePanel(); 
     
+    // Retrieve elements for info and attachments
     const infoDiv = document.getElementById("infoDiv");
-    if (!infoDiv) return; // Check if infoDiv element exists
-
     const attachmentsDiv = document.getElementById("attachmentsDiv");
-    if (!attachmentsDiv) return; // Check if attachmentsDiv element exists
+    
+    // Check if infoDiv and attachmentsDiv elements exist
+    if (!infoDiv || !attachmentsDiv) return;
 
-    attachmentsDiv.innerHTML = ''; // Clear previous attachments
-    attachmentsDiv.style.display = 'none'; // Hide the attachments div
+    // Clear previous attachments and hide the attachments div
+    attachmentsDiv.innerHTML = ''; 
+    attachmentsDiv.style.display = 'none'; 
 
+    // Retrieve the tbody element of the inspection table
+    const tbody = document.querySelector("#infoTable tbody");
+    
+    // Check if tbody element exists
+    if (!tbody) return;
+
+    // Clear previous inspections from the table
+    tbody.innerHTML = ''; 
+
+    // If no feature is selected, exit the function
+    if (!globalID) return; 
+
+    // Create a query to retrieve inspections related to the selected feature
     const inspectionQuery = new Query();
     inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
     inspectionQuery.returnGeometry = false;
     inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "OBJECTID"];
 
+    // Query the inspection layer for related inspections
     inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
-        displayInspections(inspectionResult.features, true); // Display inspections and clear the table
+        // Display the retrieved inspections in the inspection table
+        displayInspections(inspectionResult.features);
+        // Display attachments for the retrieved inspections
         displayAttachments(inspectionResult.features);
     }).catch(function(error) {
         console.error("Inspection Query Error:", error);
     });
 }
+
 
 
 
