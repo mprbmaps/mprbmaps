@@ -236,39 +236,43 @@
         });
 
         function attachClickListener() {
-    view.on("click", function(event) {
-        view.graphics.removeAll();
+            view.on("click", function(event) {
+                view.graphics.removeAll();
 
-        document.getElementById("inspectionForm").reset();
+                // Hide the attachments section when a new feature is selected or no feature is selected
+                const attachmentsDiv = document.getElementById("attachmentsDiv");
+                if (attachmentsDiv) {
+                    attachmentsDiv.style.display = 'none';
+                }
 
-        // Hide the attachments section when a new feature is selected
-        document.getElementById("attachmentsDiv").style.display = 'none';
+                document.getElementById("inspectionForm").reset(); // Reset the form on new click
 
-        const bufferDistance = 20;
-        const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
+                const bufferDistance = 20;
+                const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
 
-        let query = featureLayer.createQuery();
-        query.geometry = bufferGeometry;
-        query.spatialRelationship = "intersects";
-        query.returnGeometry = true;
-        query.outFields = ["*"];
+                let query = featureLayer.createQuery();
+                query.geometry = bufferGeometry;
+                query.spatialRelationship = "intersects";
+                query.returnGeometry = true;
+                query.outFields = ["*"];
 
-        featureLayer.queryFeatures(query).then(function(result) {
-            if (result.features.length > 0) {
-                let feature = result.features[0];
-                displayFeature(feature);
-                fetchInspections(feature.attributes.GlobalID);
-                showSidePanel();
-                document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
-            } else {
-                document.getElementById("infoDiv").innerHTML = "No feature selected.";
-                hideSidePanel();
-            }
-        }).catch(function(error) {
-            console.error("Query Error:", error);
-        });
-    });
-}
+                featureLayer.queryFeatures(query).then(function(result) {
+                    if (result.features.length > 0) {
+                        let feature = result.features[0];
+                        displayFeature(feature);
+                        fetchInspections(feature.attributes.GlobalID);
+                        showSidePanel();
+                        document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
+                    } else {
+                        document.getElementById("infoDiv").innerHTML = "<h2>Previous Inspections</h2>No feature selected.";
+                        // Ensure side panel is appropriately handled when no feature is selected
+                        hideSidePanel(); // This function should ensure it does not cause errors when no feature is selected
+                    }
+                }).catch(function(error) {
+                    console.error("Query Error:", error);
+                });
+            });
+        }
 
 
 
@@ -391,7 +395,10 @@
         }
 
         function hideSidePanel() {
-            document.getElementById("sidePanel").style.right = "-330px";
+            const sidePanel = document.getElementById("sidePanel");
+            if (sidePanel) {
+                sidePanel.style.right = "-330px";
+            }
         }
 
         document.getElementById("inspectionForm").addEventListener("submit", function(event) {
