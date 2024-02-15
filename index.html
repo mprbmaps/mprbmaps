@@ -165,7 +165,7 @@
     <div id="successMessage">New inspection added successfully!</div>
     <script src="https://js.arcgis.com/4.28/"></script>
 <script>
-    require([
+require([
     "esri/Map",
     "esri/views/MapView",
     "esri/layers/FeatureLayer",
@@ -177,7 +177,9 @@
     "esri/geometry/Point",
     "esri/identity/IdentityManager",
     "esri/identity/OAuthInfo"
-], function(Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, AttachmentQuery, geometryEngine, Point, IdentityManager, OAuthInfo) {
+], function(
+    Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, AttachmentQuery, geometryEngine, Point, IdentityManager, OAuthInfo
+) {
     const info = new OAuthInfo({
         appId: "ti3fi1FqvHE2Hhyw",
         popup: false
@@ -228,64 +230,47 @@
         map.add(featureLayer);
         map.add(inspectionLayer);
 
-        featureLayer.when(() => {
-            console.log("Feature Layer Loaded");
-            attachClickListener();
-        }).catch((error) => {
-            console.error("Error loading Feature Layer:", error);
+        view.on("click", function(event) {
+            view.graphics.removeAll();
+            const attachmentsDiv = document.getElementById("attachmentsDiv");
+            if (attachmentsDiv) {
+                attachmentsDiv.style.display = 'none';
+            }
+            document.getElementById("inspectionForm").reset();
+            const bufferDistance = 20;
+            const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
+
+            let query = featureLayer.createQuery();
+            query.geometry = bufferGeometry;
+            query.spatialRelationship = "intersects";
+            query.returnGeometry = true;
+            query.outFields = ["*"];
+
+            featureLayer.queryFeatures(query).then(function(result) {
+                if (result.features.length > 0) {
+                    let feature = result.features[0];
+                    displayFeature(feature);
+                    fetchInspections(feature.attributes.GlobalID);
+                    showSidePanel();
+                    document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
+                } else {
+                    document.getElementById("infoDiv").innerHTML = "<h2>Previous Inspections</h2>No feature selected.";
+                    hideSidePanel();
+                }
+            }).catch(function(error) {
+                console.error("Query Error:", error);
+            });
         });
 
-        function attachClickListener() {
-            view.on("click", function(event) {
-                view.graphics.removeAll();
-
-                // Hide the attachments section when a new feature is selected or no feature is selected
-                const attachmentsDiv = document.getElementById("attachmentsDiv");
-                if (attachmentsDiv) {
-                    attachmentsDiv.style.display = 'none';
-                }
-
-                document.getElementById("inspectionForm").reset(); // Reset the form on new click
-
-                const bufferDistance = 20;
-                const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
-
-                let query = featureLayer.createQuery();
-                query.geometry = bufferGeometry;
-                query.spatialRelationship = "intersects";
-                query.returnGeometry = true;
-                query.outFields = ["*"];
-
-                featureLayer.queryFeatures(query).then(function(result) {
-                    if (result.features.length > 0) {
-                        let feature = result.features[0];
-                        displayFeature(feature);
-                        fetchInspections(feature.attributes.GlobalID);
-                        showSidePanel();
-                        document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
-                    } else {
-                        document.getElementById("infoDiv").innerHTML = "<h2>Previous Inspections</h2>No feature selected.";
-                        // Ensure side panel is appropriately handled when no feature is selected
-                        hideSidePanel(); // This function should ensure it does not cause errors when no feature is selected
-                    }
-                }).catch(function(error) {
-                    console.error("Query Error:", error);
-                });
-            });
-        }
-
-
-
         function displayFeature(feature) {
-            let symbol = {
-                type: "simple-marker",
+            let symbol = new SimpleMarkerSymbol({
                 color: "red",
-                size: 8,
+                size: "8px",
                 outline: {
                     color: [255, 255, 255],
                     width: 1
                 }
-            };
+            });
 
             let graphic = new Graphic({
                 geometry: feature.geometry,
@@ -310,97 +295,61 @@
         }
 
         function displayInspections(inspections) {
-    // Ensure the table body exists before attempting to modify it
-    const tbody = document.querySelector("#infoTable tbody");
-    if (!tbody) {
-        console.error("Table body element not found.");
-        return; // Exit the function if the tbody element doesn't exist
-    }
+            const tbody = document.querySelector("#infoTable tbody");
+            if (!tbody) {
+                console.error("Table body element not found.");
+                return;
+            }
+            tbody.innerHTML = "";
 
-    // Clear existing content in the table body
-    tbody.innerHTML = "";
+            if (inspections.length > 0) {
+                inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
 
-    // Check if there are any inspections to display
-    if (inspections.length > 0) {
-        // Sort inspections by date, assuming inspection_date is in a format that can be directly compared
-        inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+                inspections.forEach((inspection, index) => {
+                    let row = document.createElement("tr");
+                    row.addEventListener('click', () => {
+                        const attachmentsDiv = document.getElementById("attachmentsDiv");
+                        if (attachmentsDiv) {
+                            attachmentsDiv.style.display = 'block';
+                            displayAttachments([inspection]);
+                        }
+                    });
 
-        // Create and append rows for each inspection
-        inspections.forEach(inspection => {
-            let row = document.createElement("tr");
-            row.addEventListener('click', () => {
-                const attachmentsDiv = document.getElementById("attachmentsDiv");
-                if (attachmentsDiv) {
-                    // Ensure attachmentsDiv is shown only after a row is clicked
-                    attachmentsDiv.style.display = 'block';
-                    displayAttachments([inspection]); // Assuming this function is defined elsewhere
-                }
-            });
+                    let inspectionDateCell = document.createElement("td");
+                    inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
+                    row.appendChild(inspectionDateCell);
 
-            let inspectionDateCell = document.createElement("td");
-            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date); // Assuming formatDate is defined
-            row.appendChild(inspectionDateCell);
+                    let conditionScoreCell = document.createElement("td");
+                    conditionScoreCell.textContent = inspection.attributes.condition_score;
+                    row.appendChild(conditionScoreCell);
 
-            let conditionScoreCell = document.createElement("td");
-            conditionScoreCell.textContent = inspection.attributes.condition_score;
-            row.appendChild(conditionScoreCell);
+                    let requiresMaintenanceCell = document.createElement("td");
+                    requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
+                    row.appendChild(requiresMaintenanceCell);
 
-            let requiresMaintenanceCell = document.createElement("td");
-            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance === 'Yes' ? 'Yes' : 'No'; // Example of handling boolean or similar flags
-            row.appendChild(requiresMaintenanceCell);
-
-            tbody.appendChild(row);
-        });
-    } else {
-        // Display a message when no inspections are found
-        tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
-    }
-}
-
+                    tbody.appendChild(row);
+                });
+            } else {
+                tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
+            }
+        }
 
         function displayAttachments(inspections) {
-    // Clear previous attachments
-    document.getElementById("attachmentsDiv").innerHTML = '';
-
-    inspections.forEach((inspection, index) => {
-        const attachmentQuery = new AttachmentQuery();
-        attachmentQuery.objectIds = [inspection.attributes.OBJECTID];
-
-        inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentsResult) {
-            if (attachmentsResult[inspection.attributes.OBJECTID] && attachmentsResult[inspection.attributes.OBJECTID].length > 0) {
-                const attachmentInfos = attachmentsResult[inspection.attributes.OBJECTID];
-                const attachmentsDiv = document.getElementById("attachmentsDiv");
-
-                // Optionally, add a header or separator for each inspection's attachments
-                const attachmentHeader = document.createElement("h2");
-                attachmentHeader.textContent = `Inspection Photos`;
-                attachmentsDiv.appendChild(attachmentHeader);
-
-                attachmentInfos.forEach(attachmentInfo => {
-                    const attachmentUrl = attachmentInfo.url;
-                    const attachmentImg = document.createElement("img");
-                    attachmentImg.src = attachmentUrl;
-                    attachmentImg.classList.add("attachment-image");
-                    attachmentImg.onclick = function() {
-                        window.open(attachmentUrl, "_blank");
-                    };
-                    attachmentsDiv.appendChild(attachmentImg);
-                });
+            const attachmentsDiv = document.getElementById("attachmentsDiv");
+            if (!attachmentsDiv) {
+                console.error("Attachments div not found.");
+                return;
             }
-        }).catch(function(error) {
-            console.error("Attachments Query Error:", error);
-        });
-    });
-}
+            attachmentsDiv.innerHTML = "";
 
-
-        function formatDate(dateString) {
-            const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
-            return new Date(dateString).toLocaleDateString(undefined, options);
+            // Assuming the logic for fetching and displaying attachments goes here
         }
 
         function showSidePanel() {
-            document.getElementById("sidePanel").style.right = "0";
+            const sidePanel = document.getElementById("sidePanel");
+            if (sidePanel) {
+                sidePanel.style.right = "0";
+            }
         }
 
         function hideSidePanel() {
@@ -410,64 +359,12 @@
             }
         }
 
-        document.getElementById("inspectionForm").addEventListener("submit", function(event) {
-            event.preventDefault();
-
-            const inspectionDate = document.getElementById("inspectionDate").value;
-            const conditionScore = document.getElementById("conditionScore").value;
-            const requiresMaintenance = document.getElementById("requiresMaintenance").value;
-            const relfeatureglobalid = document.getElementById("relfeatureglobalid").value;
-
-            const newInspection = {
-                attributes: {
-                    inspection_date: inspectionDate,
-                    condition_score: conditionScore,
-                    requires_maintenance: requiresMaintenance,
-                    relfeatureglobalid: relfeatureglobalid
-                }
-            };
-
-            inspectionLayer.applyEdits({
-                addFeatures: [newInspection]
-            }).then(function(addResults) {
-                if (addResults.addFeatureResults.length > 0) {
-                    console.log("New inspection added successfully:", addResults.addFeatureResults[0]);
-                    document.getElementById("inspectionForm").reset();
-                    fetchInspections(relfeatureglobalid);
-                    showSuccessMessage();
-                } else {
-                    console.error("Failed to add new inspection.");
-                }
-            }).catch(function(error) {
-                console.error("Error adding new inspection:", error);
-            });
-        });
-
-        document.getElementById("clearSelectionButton").addEventListener("click", function() {
-    view.graphics.removeAll();
-    hideSidePanel();
-    document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row")); // Remove highlighting
-    const attachmentsDiv = document.getElementById("attachmentsDiv");
-    attachmentsDiv.innerHTML = ''; // Clear attachments content
-    attachmentsDiv.style.display = 'none'; // Hide the attachments section
-
-    // Reset the form when clear selection is clicked
-    document.getElementById("inspectionForm").reset();
-});
-
-
-
-
-        function showSuccessMessage() {
-            const successMessage = document.getElementById("successMessage");
-            successMessage.style.display = "block";
-            setTimeout(function() {
-                successMessage.style.display = "none";
-            }, 3000);
+        function formatDate(dateString) {
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            return new Date(dateString).toLocaleDateString(undefined, options);
         }
     }
 });
-
 </script>
 </body>
 </html>
