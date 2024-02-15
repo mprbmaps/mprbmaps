@@ -235,35 +235,38 @@
                     });
 
                     function attachClickListener() {
-                        view.on("click", function(event) {
-                            view.graphics.removeAll();
+    view.on("click", function(event) {
+        view.graphics.removeAll();
 
-                            const bufferDistance = 20;
-                            const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
+        const bufferDistance = 20;
+        const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
 
-                            let query = featureLayer.createQuery();
-                            query.geometry = bufferGeometry;
-                            query.spatialRelationship = "intersects";
-                            query.returnGeometry = true;
-                            query.outFields = ["*"];
+        let query = featureLayer.createQuery();
+        query.geometry = bufferGeometry;
+        query.spatialRelationship = "intersects";
+        query.returnGeometry = true;
+        query.outFields = ["*"];
 
-                            featureLayer.queryFeatures(query).then(function(result) {
-                                if (result.features.length > 0) {
-                                    let feature = result.features[0];
-                                    displayFeature(feature);
-                                    resetSelections(); // Reset selections whenever a new feature is selected
-                                    fetchInspections(feature.attributes.GlobalID);
-                                    showSidePanel();
-                                    document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
-                                } else {
-                                    document.getElementById("infoDiv").innerHTML = "No feature selected.";
-                                    hideSidePanel();
-                                }
-                            }).catch(function(error) {
-                                console.error("Query Error:", error);
-                            });
-                        });
-                    }
+        featureLayer.queryFeatures(query).then(function(result) {
+            if (result.features.length > 0) {
+                let feature = result.features[0];
+                displayFeature(feature);
+                resetSelections(); // Reset selections whenever a new feature is selected
+                // Now, use showSidePanel with fetchInspections as a callback
+                showSidePanel(() => {
+                    fetchInspections(feature.attributes.GlobalID);
+                });
+                document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
+            } else {
+                document.getElementById("infoDiv").innerHTML = "No feature selected.";
+                hideSidePanel();
+            }
+        }).catch(function(error) {
+            console.error("Query Error:", error);
+        });
+    });
+}
+
 
                     function displayFeature(feature) {
                         let symbol = new SimpleMarkerSymbol({
@@ -386,9 +389,16 @@
                         return new Date(dateString).toLocaleDateString(undefined, options);
                     }
 
-                    function showSidePanel() {
-                        document.getElementById("sidePanel").style.right = "0";
-                    }
+                    function showSidePanel(callback) {
+    document.getElementById("sidePanel").style.right = "0";
+    // Wait for the side panel to be fully visible before executing the callback
+    setTimeout(() => {
+        if (typeof callback === "function") {
+            callback();
+        }
+    }, 500); // Adjust the timeout duration if needed
+}
+
 
                     function hideSidePanel() {
                         document.getElementById("sidePanel").style.right = "-330px";
