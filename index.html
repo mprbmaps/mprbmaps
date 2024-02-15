@@ -329,32 +329,39 @@ require([
         }
 
         function displayAttachments(inspections, globalID) {
-            const attachmentsDiv = document.getElementById("attachmentsDiv");
-            attachmentsDiv.innerHTML = ""; // Clear previous attachments
-            attachmentsDiv.style.display = 'none'; // Hide initially
+    const attachmentsDiv = document.getElementById("attachmentsDiv");
+    if (!attachmentsDiv) {
+        console.error("Attachments div not found.");
+        return;
+    }
+    attachmentsDiv.innerHTML = ""; // Clear previous attachments
+    attachmentsDiv.style.display = 'none'; // Hide initially
 
-            inspections.forEach(inspection => {
-                const attachmentQuery = new AttachmentQuery();
-                attachmentQuery.objectIds = [inspection.attributes.OBJECTID];
-                attachmentQuery.globalIds = [globalID]; // Use globalID if needed for query
-                inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentsResult) {
-                    if (attachmentsResult[inspection.attributes.OBJECTID].length > 0) {
-                        const attachmentInfos = attachmentsResult[inspection.attributes.OBJECTID];
-                        attachmentsDiv.style.display = 'block';
+    inspections.forEach(inspection => {
+        const attachmentQuery = new AttachmentQuery();
+        attachmentQuery.objectIds = [inspection.attributes.OBJECTID];
+        // No need for globalID in AttachmentQuery as per original API usage
 
-                        attachmentInfos.forEach(attachmentInfo => {
-                            const img = document.createElement("img");
-                            img.src = attachmentInfo.url;
-                            img.alt = "Attachment";
-                            img.style.width = "100px"; // Set image size
-                            attachmentsDiv.appendChild(img);
-                        });
-                    }
-                }).catch(function(error) {
-                    console.error("Attachments Query Error:", error);
+        inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentsResult) {
+            // Check if there are any attachments for the current OBJECTID
+            const attachmentInfos = attachmentsResult[inspection.attributes.OBJECTID];
+            if (attachmentInfos && attachmentInfos.length > 0) {
+                attachmentsDiv.style.display = 'block'; // Show attachments div if attachments exist
+
+                attachmentInfos.forEach(attachmentInfo => {
+                    const img = document.createElement("img");
+                    img.src = attachmentInfo.url;
+                    img.alt = "Attachment";
+                    img.style.width = "100px"; // Example: Adjust as needed
+                    attachmentsDiv.appendChild(img);
                 });
-            });
-        }
+            }
+        }).catch(function(error) {
+            console.error("Attachments Query Error:", error);
+        });
+    });
+}
+
 
         function showSidePanel() {
             const sidePanel = document.getElementById("sidePanel");
