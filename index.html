@@ -1,3 +1,6 @@
+Here's the full code with the changes implemented:
+
+```html
 <!DOCTYPE html>
 <html>
 <head>
@@ -164,288 +167,286 @@
     <script src="https://js.arcgis.com/4.28/"></script>
     <script>
         require([
-        "esri/Map",
-        "esri/views/MapView",
-        "esri/layers/FeatureLayer",
-        "esri/Graphic",
-        "esri/symbols/SimpleMarkerSymbol",
-        "esri/rest/support/Query",
-        "esri/rest/support/AttachmentQuery",
-        "esri/geometry/geometryEngine",
-        "esri/geometry/Point",
-        "esri/identity/IdentityManager",
-        "esri/identity/OAuthInfo"
-    ], function(Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, AttachmentQuery, geometryEngine, Point, IdentityManager, OAuthInfo) {
-        const info = new OAuthInfo({
-            appId: "ti3fi1FqvHE2Hhyw", // Replace with your actual App ID
-            popup: false
-        });
+            "esri/Map",
+            "esri/views/MapView",
+            "esri/layers/FeatureLayer",
+            "esri/Graphic",
+            "esri/symbols/SimpleMarkerSymbol",
+            "esri/rest/support/Query",
+            "esri/rest/support/AttachmentQuery",
+            "esri/geometry/geometryEngine",
+            "esri/identity/IdentityManager",
+            "esri/identity/OAuthInfo"
+        ], function(Map, MapView, FeatureLayer, Graphic, SimpleMarkerSymbol, Query, AttachmentQuery, geometryEngine, IdentityManager, OAuthInfo) {
+            const info = new OAuthInfo({
+                appId: "ti3fi1FqvHE2Hhyw", // Replace with your actual App ID
+                popup: false
+            });
 
-        IdentityManager.registerOAuthInfos([info]);
+            IdentityManager.registerOAuthInfos([info]);
 
-        IdentityManager.on("credential-create", function() {
-            localStorage.setItem("esriJSAPIOAuthCredentials", JSON.stringify(IdentityManager.toJSON()));
-        });
+            IdentityManager.on("credential-create", function() {
+                localStorage.setItem("esriJSAPIOAuthCredentials", JSON.stringify(IdentityManager.toJSON()));
+            });
 
-        IdentityManager.checkSignInStatus(info.portalUrl).then(
-            function() {
-                console.log("Signed in");
-                initMap();
-            }
-        ).catch(
-            function() {
-                console.log("Not signed in");
-                IdentityManager.getCredential(info.portalUrl);
-            }
-        );
+            IdentityManager.checkSignInStatus(info.portalUrl).then(
+                function() {
+                    console.log("Signed in");
+                    initMap();
+                }
+            ).catch(
+                function() {
+                    console.log("Not signed in");
+                    IdentityManager.getCredential(info.portalUrl);
+                }
+            );
 
-        function initMap() {
-            const map = new Map({
-                basemap: {
-                    portalItem: {
-                        id: "a11d663a981947b99aac7ff05437758f" // Replace with your actual basemap ID
+            function initMap() {
+                const map = new Map({
+                    basemap: {
+                        portalItem: {
+                            id: "a11d663a981947b99aac7ff05437758f" // Replace with your actual basemap ID
+                        }
+                    }
+                });
+
+                const view = new MapView({
+                    container: "viewDiv",
+                    map: map,
+                    center: [-93.2650, 44.9778],
+                    zoom: 11
+                });
+
+                const featureLayer = new FeatureLayer({
+                    url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c
+
+194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/4" // Replace with your actual feature layer URL
+                });
+
+                const inspectionLayer = new FeatureLayer({
+                    url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5" // Replace with your actual inspection layer URL
+                });
+
+                map.add(featureLayer);
+                map.add(inspectionLayer);
+
+                featureLayer.when(() => {
+                    console.log("Feature Layer Loaded");
+                    attachClickListener();
+                }).catch((error) => {
+                    console.error("Error loading Feature Layer:", error);
+                });
+
+                function attachClickListener() {
+                    view.on("click", function(event) {
+                        view.graphics.removeAll();
+
+                        const bufferDistance = 20;
+                        const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
+
+                        let query = featureLayer.createQuery();
+                        query.geometry = bufferGeometry;
+                        query.spatialRelationship = "intersects";
+                        query.returnGeometry = true;
+                        query.outFields = ["*"];
+
+                        featureLayer.queryFeatures(query).then(function(result) {
+                            if (result.features.length > 0) {
+                                let feature = result.features[0];
+                                displayFeature(feature);
+                                resetSelections(); // Reset selections whenever a new feature is selected
+                                fetchInspections(feature.attributes.GlobalID);
+                                showSidePanel();
+                                document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
+                            } else {
+                                document.getElementById("infoDiv").innerHTML = "No feature selected.";
+                                hideSidePanel();
+                            }
+                        }).catch(function(error) {
+                            console.error("Query Error:", error);
+                        });
+                    });
+                }
+
+                function displayFeature(feature) {
+                    let symbol = new SimpleMarkerSymbol({
+                        color: "red",
+                        size: "8px",
+                        outline: {
+                            color: [255, 255, 255],
+                            width: 1
+                        }
+                    });
+
+                    let graphic = new Graphic({
+                        geometry: feature.geometry,
+                        symbol: symbol
+                    });
+
+                    view.graphics.add(graphic);
+                }
+
+                function fetchInspections(globalID) {
+                    const inspectionQuery = new Query();
+                    inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
+                    inspectionQuery.returnGeometry = false;
+                    inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "OBJECTID"];
+
+                    inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
+                        displayInspections(inspectionResult.features);
+                        // Do not automatically display attachments
+                    }).catch(function(error) {
+                        console.error("Inspection Query Error:", error);
+                    });
+                }
+
+                function displayInspections(inspections) {
+                    const tbody = document.querySelector("#infoTable tbody");
+                    if (!tbody) {
+                        console.error("#infoTable tbody not found.");
+                        return;
+                    }
+
+                    tbody.innerHTML = "";
+
+                    if (inspections.length > 0) {
+                        inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+
+                        inspections.forEach((inspection, index) => {
+                            let row = document.createElement("tr");
+                            row.addEventListener('click', () => {
+                                document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
+                                row.classList.add("selected-row");
+                                displayAttachments([inspection]); // Display attachments for only this inspection
+                            });
+
+                            let inspectionDateCell = document.createElement("td");
+                            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
+                            row.appendChild(inspectionDateCell);
+
+                            let conditionScoreCell = document.createElement("td");
+                            conditionScoreCell.textContent = inspection.attributes.condition_score;
+                            row.appendChild(conditionScoreCell);
+
+                            let requiresMaintenanceCell = document.createElement("td");
+                            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
+                            row.appendChild(requiresMaintenanceCell);
+
+                            tbody.appendChild(row);
+                        });
+                    } else {
+                        tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
                     }
                 }
-            });
 
-            const view = new MapView({
-                container: "viewDiv",
-                map: map,
-                center: [-93.2650, 44.9778],
-                zoom: 11
-            });
+                function displayAttachments(inspections) {
+                    const attachmentsDiv = document.getElementById("attachmentsDiv");
+                    attachmentsDiv.innerHTML = ''; // Clear previous attachments
+                    attachmentsDiv.style.display = 'none'; // Hide attachments by default
 
-            const featureLayer = new FeatureLayer({
-                url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/4" // Replace with your actual feature layer URL
-            });
+                    inspections.forEach((inspection, index) => {
+                        const attachmentQuery = new AttachmentQuery();
+                        attachmentQuery.objectIds = [inspection.attributes.OBJECTID];
 
-            const inspectionLayer = new FeatureLayer({
-                url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5" // Replace with your actual inspection layer URL
-            });
+                        inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentsResult) {
+                            if (attachmentsResult[inspection.attributes.OBJECTID] && attachmentsResult[inspection.attributes.OBJECTID].length > 0) {
+                                const attachmentInfos = attachmentsResult[inspection.attributes.OBJECTID];
+                                attachmentsDiv.style.display = 'block'; // Show attachments only if there are any
 
-            map.add(featureLayer);
-            map.add(inspectionLayer);
+                                attachmentInfos.forEach(attachmentInfo => {
+                                    const attachmentUrl = attachmentInfo.url;
+                                    const attachmentImg = document.createElement("img");
+                                    attachmentImg.src = attachmentUrl;
+                                    attachmentImg.classList.add("attachment-image");
+                                    attachmentImg.onclick = function() {
+                                        window.open(attachmentUrl, "_blank");
+                                    };
+                                    attachmentsDiv.appendChild(attachmentImg);
+                                });
+                            }
+                        }).catch(function(error) {
+                            console.error("Attachments Query Error:", error);
+                        });
+                    });
+                }
 
-            featureLayer.when(() => {
-                console.log("Feature Layer Loaded");
-                attachClickListener();
-            }).catch((error) => {
-                console.error("Error loading Feature Layer:", error);
-            });
+                function resetSelections() {
+                    const infoDiv = document.getElementById("infoDiv");
+                    if (infoDiv) {
+                        infoDiv.innerHTML = "No feature selected.";
+                    }
+                    // Clear highlighted rows and hide attachments
+                    document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
+                    const attachmentsDiv = document.getElementById("attachmentsDiv");
+                    if (attachmentsDiv) {
+                        attachmentsDiv.innerHTML = '';
+                        attachmentsDiv.style.display = 'none';
+                    }
+                }
 
-            function attachClickListener() {
-                view.on("click", function(event) {
-                    view.graphics.removeAll();
+                function formatDate(dateString) {
+                    const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+                    return new Date(dateString).toLocaleDateString(undefined, options);
+                }
 
-                    const bufferDistance = 20;
-                    const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
+                function showSidePanel() {
+                    document.getElementById("sidePanel").style.right = "0";
+                }
 
-                    let query = featureLayer.createQuery();
-                    query.geometry = bufferGeometry;
-                    query.spatialRelationship = "intersects";
-                    query.returnGeometry = true;
-                    query.outFields = ["*"];
+                function hideSidePanel() {
+                    document.getElementById("sidePanel").style.right = "-330px";
+                }
 
-                    featureLayer.queryFeatures(query).then(function(result) {
-                        if (result.features.length > 0) {
-                            let feature = result.features[0];
-                            displayFeature(feature);
-                            resetSelections(); // Reset selections whenever a new feature is selected
-                            fetchInspections(feature.attributes.GlobalID);
-                            showSidePanel();
-                            document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
+                document.getElementById("inspectionForm").addEventListener("submit", function(event) {
+                    event.preventDefault();
+
+                    const inspectionDate = document.getElementById("inspectionDate").value;
+                    const conditionScore = document.getElementById("conditionScore").value;
+                    const requiresMaintenance = document.getElementById("requiresMaintenance").value;
+                    const relfeatureglobalid = document.getElementById("relfeatureglobalid").value;
+
+                    const newInspection = {
+                        attributes: {
+                            inspection_date: inspectionDate,
+                            condition_score: conditionScore,
+                            requires_maintenance: requiresMaintenance,
+                            relfeatureglobalid: relfeatureglobalid
+                        }
+                    };
+
+                    inspectionLayer.applyEdits({
+                        addFeatures: [newInspection]
+                    }).then(function(addResults) {
+                        if (addResults.addFeatureResults.length > 0) {
+                            console.log("New inspection added successfully:", addResults.addFeatureResults[0]);
+                            document.getElementById("inspectionForm").reset();
+                            fetchInspections(relfeatureglobalid);
+                            showSuccessMessage();
                         } else {
-                            document.getElementById("infoDiv").innerHTML = "No feature selected.";
-                            hideSidePanel();
+                            console.error("Failed to add new inspection.");
                         }
                     }).catch(function(error) {
-                        console.error("Query Error:", error);
+                        console.error("Error adding new inspection:", error);
+
+
                     });
                 });
-            }
 
-            function displayFeature(feature) {
-                let symbol = new SimpleMarkerSymbol({
-                    color: "red",
-                    size: "8px",
-                    outline: {
-                        color: [255, 255, 255],
-                        width: 1
-                    }
+                document.getElementById("clearSelectionButton").addEventListener("click", function() {
+                    view.graphics.removeAll();
+                    hideSidePanel();
+                    resetSelections();
                 });
 
-                let graphic = new Graphic({
-                    geometry: feature.geometry,
-                    symbol: symbol
-                });
-
-                view.graphics.add(graphic);
+                function showSuccessMessage() {
+                    const successMessage = document.getElementById("successMessage");
+                    successMessage.style.display = "block";
+                    setTimeout(function() {
+                        successMessage.style.display = "none";
+                    }, 3000);
+                }
             }
-
-            function fetchInspections(globalID) {
-                const inspectionQuery = new Query();
-                inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
-                inspectionQuery.returnGeometry = false;
-                inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "OBJECTID"];
-
-                inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
-                    displayInspections(inspectionResult.features);
-                    // Do not automatically display attachments
-                }).catch(function(error) {
-                    console.error("Inspection Query Error:", error);
-                });
-            }
-
-            function displayInspections(inspections) {
-    const tbody = document.querySelector("#infoTable tbody");
-    if (!tbody) {
-        console.error("#infoTable tbody not found.");
-        return;
-    }
-
-    tbody.innerHTML = "";
-
-    if (inspections.length > 0) {
-        inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
-
-        inspections.forEach((inspection, index) => {
-            let row = document.createElement("tr");
-            row.addEventListener('click', () => {
-                document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
-                row.classList.add("selected-row");
-                displayAttachments([inspection]); // Display attachments for only this inspection
-            });
-
-            let inspectionDateCell = document.createElement("td");
-            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
-            row.appendChild(inspectionDateCell);
-
-            let conditionScoreCell = document.createElement("td");
-            conditionScoreCell.textContent = inspection.attributes.condition_score;
-            row.appendChild(conditionScoreCell);
-
-            let requiresMaintenanceCell = document.createElement("td");
-            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
-            row.appendChild(requiresMaintenanceCell);
-
-            tbody.appendChild(row);
         });
-    } else {
-        tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
-    }
-}
-
-
-            function displayAttachments(inspections) {
-                const attachmentsDiv = document.getElementById("attachmentsDiv");
-                attachmentsDiv.innerHTML = ''; // Clear previous attachments
-                attachmentsDiv.style.display = 'none'; // Hide attachments by default
-
-                inspections.forEach((inspection, index) => {
-                    const attachmentQuery = new AttachmentQuery();
-                    attachmentQuery.objectIds = [inspection.attributes.OBJECTID];
-
-                    inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentsResult) {
-                        if (attachmentsResult[inspection.attributes.OBJECTID] && attachmentsResult[inspection.attributes.OBJECTID].length > 0) {
-                            const attachmentInfos = attachmentsResult[inspection.attributes.OBJECTID];
-                            attachmentsDiv.style.display = 'block'; // Show attachments only if there are any
-
-                            attachmentInfos.forEach(attachmentInfo => {
-                                const attachmentUrl = attachmentInfo.url;
-                                const attachmentImg = document.createElement("img");
-                                attachmentImg.src = attachmentUrl;
-                                attachmentImg.classList.add("attachment-image");
-                                attachmentImg.onclick = function() {
-                                    window.open(attachmentUrl, "_blank");
-                                };
-                                attachmentsDiv.appendChild(attachmentImg);
-                            });
-                        }
-                    }).catch(function(error) {
-                        console.error("Attachments Query Error:", error);
-                    });
-                });
-            }
-
-            function resetSelections() {
-    const infoDiv = document.getElementById("infoDiv");
-    if (infoDiv) {
-        infoDiv.innerHTML = "No feature selected.";
-    }
-    // Clear highlighted rows and hide attachments
-    const selectedRows = document.querySelectorAll("#infoTable tbody tr.selected-row");
-    selectedRows.forEach(row => row.classList.remove("selected-row"));
-
-    const attachmentsDiv = document.getElementById("attachmentsDiv");
-    if (attachmentsDiv) {
-        attachmentsDiv.innerHTML = '';
-        attachmentsDiv.style.display = 'none';
-    }
-}
-
-
-
-            function formatDate(dateString) {
-                const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
-                return new Date(dateString).toLocaleDateString(undefined, options);
-            }
-
-            function showSidePanel() {
-                document.getElementById("sidePanel").style.right = "0";
-            }
-
-            function hideSidePanel() {
-                document.getElementById("sidePanel").style.right = "-330px";
-            }
-
-            document.getElementById("inspectionForm").addEventListener("submit", function(event) {
-                event.preventDefault();
-
-                const inspectionDate = document.getElementById("inspectionDate").value;
-                const conditionScore = document.getElementById("conditionScore").value;
-                const requiresMaintenance = document.getElementById("requiresMaintenance").value;
-                const relfeatureglobalid = document.getElementById("relfeatureglobalid").value;
-
-                const newInspection = {
-                    attributes: {
-                        inspection_date: inspectionDate,
-                        condition_score: conditionScore,
-                        requires_maintenance: requiresMaintenance,
-                        relfeatureglobalid: relfeatureglobalid
-                    }
-                };
-
-                inspectionLayer.applyEdits({
-                    addFeatures: [newInspection]
-                }).then(function(addResults) {
-                    if (addResults.addFeatureResults.length > 0) {
-                        console.log("New inspection added successfully:", addResults.addFeatureResults[0]);
-                        document.getElementById("inspectionForm").reset();
-                        fetchInspections(relfeatureglobalid);
-                        showSuccessMessage();
-                    } else {
-                        console.error("Failed to add new inspection.");
-                    }
-                }).catch(function(error) {
-                    console.error("Error adding new inspection:", error);
-                });
-            });
-
-            document.getElementById("clearSelectionButton").addEventListener("click", function() {
-                view.graphics.removeAll();
-                hideSidePanel();
-                resetSelections();
-            });
-
-            function showSuccessMessage() {
-                const successMessage = document.getElementById("successMessage");
-                successMessage.style.display = "block";
-                setTimeout(function() {
-                    successMessage.style.display = "none";
-                }, 3000);
-            }
-        }
-    });
     </script>
 </body>
 </html>
