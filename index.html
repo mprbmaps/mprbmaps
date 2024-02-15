@@ -430,58 +430,7 @@ select, input[type="date"] {
     }
 }
 
-
-                function displayAttachments(inspections) {
-    const attachmentsDiv = document.getElementById("attachmentsDiv");
-
-    // Check if attachmentsDiv exists
-    if (!attachmentsDiv) {
-        console.error("AttachmentsDiv not found.");
-        return;
-    }
-
-    // Clear previous attachments content
-    attachmentsDiv.innerHTML = '';
-
-    if (inspections.length > 0) {
-        inspections.forEach((inspection, index) => {
-            const attachmentQuery = new AttachmentQuery();
-            attachmentQuery.objectIds = [inspection.attributes.OBJECTID];
-
-            inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentsResult) {
-                if (attachmentsResult && attachmentsResult[inspection.attributes.OBJECTID] && attachmentsResult[inspection.attributes.OBJECTID].length > 0) {
-                    const attachmentInfos = attachmentsResult[inspection.attributes.OBJECTID];
-
-                    // Optionally, add a header or separator for each inspection's attachments
-                    const attachmentHeader = document.createElement("h3");
-                    attachmentHeader.textContent = `Attachments for Inspection ${index + 1}`;
-                    attachmentsDiv.appendChild(attachmentHeader);
-
-                    attachmentInfos.forEach(attachmentInfo => {
-                        const attachmentUrl = attachmentInfo.url;
-                        const attachmentImg = document.createElement("img");
-                        attachmentImg.src = attachmentUrl;
-                        attachmentImg.classList.add("attachment-image");
-                        attachmentImg.onclick = function() {
-                            window.open(attachmentUrl, "_blank");
-                        };
-                        attachmentsDiv.appendChild(attachmentImg);
-                    });
-                } else {
-                    console.log("No attachments found for inspection ", index + 1);
-                }
-            }).catch(function(error) {
-                console.error("Attachments Query Error:", error);
-            });
-        });
-        attachmentsDiv.style.display = 'block'; // Ensure attachmentsDiv is displayed
-    } else {
-        // Hide the attachments section if inspections is empty
-        attachmentsDiv.style.display = 'none';
-    }
-}
-
-
+               
                 function formatDate(dateString) {
                     const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
                     return new Date(dateString).toLocaleDateString(undefined, options);
