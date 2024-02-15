@@ -201,6 +201,8 @@
         }
     );
 
+    let selectedInspection = null; // Global variable to store the currently selected inspection
+
     function initMap() {
         const map = new Map({
             basemap: {
@@ -311,10 +313,9 @@
                         document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
                         row.classList.add("selected-row");
 
-                        // Show the attachmentsDiv and display attachments for the selected inspection
-                        const attachmentsDiv = document.getElementById("attachmentsDiv");
-                        attachmentsDiv.style.display = 'block'; // Make sure to show the attachmentsDiv
-                        displayAttachments([inspection]); // Display attachments for only this inspection
+                        // Update selectedInspection and display attachments
+                        selectedInspection = inspection;
+                        displayAttachments();
                     });
 
                     let inspectionDateCell = document.createElement("td");
@@ -336,22 +337,22 @@
             }
         }
 
-        function displayAttachments(inspections) {
+        function displayAttachments() {
             // Clear previous attachments
-            document.getElementById("attachmentsDiv").innerHTML = '';
+            const attachmentsDiv = document.getElementById("attachmentsDiv");
+            attachmentsDiv.innerHTML = '';
 
-            inspections.forEach((inspection, index) => {
+            if (selectedInspection) {
                 const attachmentQuery = new AttachmentQuery();
-                attachmentQuery.objectIds = [inspection.attributes.OBJECTID];
+                attachmentQuery.objectIds = [selectedInspection.attributes.OBJECTID];
 
                 inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentsResult) {
-                    if (attachmentsResult[inspection.attributes.OBJECTID] && attachmentsResult[inspection.attributes.OBJECTID].length > 0) {
-                        const attachmentInfos = attachmentsResult[inspection.attributes.OBJECTID];
-                        const attachmentsDiv = document.getElementById("attachmentsDiv");
+                    if (attachmentsResult[selectedInspection.attributes.OBJECTID] && attachmentsResult[selectedInspection.attributes.OBJECTID].length > 0) {
+                        const attachmentInfos = attachmentsResult[selectedInspection.attributes.OBJECTID];
 
                         // Optionally, add a header or separator for each inspection's attachments
                         const attachmentHeader = document.createElement("h3");
-                        attachmentHeader.textContent = `Attachments for Inspection ${index + 1}`;
+                        attachmentHeader.textContent = `Attachments for Inspection`;
                         attachmentsDiv.appendChild(attachmentHeader);
 
                         attachmentInfos.forEach(attachmentInfo => {
@@ -368,7 +369,7 @@
                 }).catch(function(error) {
                     console.error("Attachments Query Error:", error);
                 });
-            });
+            }
         }
 
         function formatDate(dateString) {
@@ -421,9 +422,9 @@
             view.graphics.removeAll();
             hideSidePanel();
             document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row")); // Remove highlighting
+            selectedInspection = null; // Reset selected inspection
             const attachmentsDiv = document.getElementById("attachmentsDiv");
             attachmentsDiv.innerHTML = ''; // Clear attachments content
-            attachmentsDiv.style.display = 'none'; // Hide the attachments section
         });
 
         function showSuccessMessage() {
@@ -435,6 +436,7 @@
         }
     }
 });
+
 
 </script>
 </body>
