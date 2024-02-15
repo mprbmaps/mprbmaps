@@ -465,19 +465,22 @@ select, input[type="date"] {
                     });
                 });
 
-                document.getElementById("clearSelectionButton").addEventListener("click", function() {
-                    view.graphics.removeAll();
-                    hideSidePanel();
-                    const infoDiv = document.getElementById("infoDiv");
-                    if (infoDiv) {
-                        infoDiv.innerHTML = ''; // Clear previous inspections
-                    }
-                    const attachmentsDiv = document.getElementById("attachmentsDiv");
-                    if (attachmentsDiv) {
-                        attachmentsDiv.innerHTML = ''; // Clear previous attachments
-                        attachmentsDiv.style.display = 'none'; // Hide the attachments section
-                    }
-                });
+                document.getElementById("clearSelectionButton").addEventListener("click", function(event) {
+    event.preventDefault(); // Prevent the default behavior of the button click event
+    
+    // Clear previous selections and content
+    view.graphics.removeAll();
+    const infoDiv = document.getElementById("infoDiv");
+    if (infoDiv) {
+        infoDiv.innerHTML = ''; // Clear previous inspections
+    }
+    const attachmentsDiv = document.getElementById("attachmentsDiv");
+    if (attachmentsDiv) {
+        attachmentsDiv.innerHTML = ''; // Clear previous attachments
+        attachmentsDiv.style.display = 'none'; // Hide the attachments section
+    }
+});
+
 
                 function showSuccessMessage() {
                     const successMessage = document.getElementById("successMessage");
