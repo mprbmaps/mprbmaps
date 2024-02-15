@@ -285,6 +285,9 @@
                 }
 
                 function fetchInspections(globalID) {
+    // Log the received globalID
+    console.log("GlobalID:", globalID);
+
     // Show the side panel
     showSidePanel(); 
     
@@ -293,7 +296,10 @@
     const attachmentsDiv = document.getElementById("attachmentsDiv");
     
     // Check if infoDiv and attachmentsDiv elements exist
-    if (!infoDiv || !attachmentsDiv) return;
+    if (!infoDiv || !attachmentsDiv) {
+        console.error("InfoDiv or AttachmentsDiv not found.");
+        return;
+    }
 
     // Clear previous attachments and hide the attachments div
     attachmentsDiv.innerHTML = ''; 
@@ -303,13 +309,19 @@
     const tbody = document.querySelector("#infoTable tbody");
     
     // Check if tbody element exists
-    if (!tbody) return;
+    if (!tbody) {
+        console.error("Tbody not found.");
+        return;
+    }
 
     // Clear previous inspections from the table
     tbody.innerHTML = ''; 
 
     // If no feature is selected, exit the function
-    if (!globalID) return; 
+    if (!globalID) {
+        console.warn("No feature selected.");
+        return; 
+    }
 
     // Create a query to retrieve inspections related to the selected feature
     const inspectionQuery = new Query();
@@ -327,6 +339,7 @@
         console.error("Inspection Query Error:", error);
     });
 }
+
 
                 function clearSidePanel() {
                     const infoDiv = document.getElementById("infoDiv");
