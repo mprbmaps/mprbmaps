@@ -337,7 +337,47 @@ select, input[type="date"] {
     });
 }
 
+    function displayInspections(inspections) {
+    const tbody = document.querySelector("#infoTable tbody");
 
+    if (!tbody) return; // Check if tbody element exists
+
+    tbody.innerHTML = "";
+
+    if (inspections.length > 0) {
+        inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+
+        inspections.forEach((inspection, index) => {
+            let row = document.createElement("tr");
+            row.addEventListener('click', () => {
+                // Remove highlighting from all rows and then highlight the selected one
+                document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
+                row.classList.add("selected-row");
+
+                // Show the attachmentsDiv and display attachments for the selected inspection
+                const attachmentsDiv = document.getElementById("attachmentsDiv");
+                attachmentsDiv.style.display = 'block'; // Make sure to show the attachmentsDiv
+                displayAttachments([inspection]); // Display attachments for only this inspection
+            });
+
+            let inspectionDateCell = document.createElement("td");
+            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
+            row.appendChild(inspectionDateCell);
+
+            let conditionScoreCell = document.createElement("td");
+            conditionScoreCell.textContent = inspection.attributes.condition_score;
+            row.appendChild(conditionScoreCell);
+
+            let requiresMaintenanceCell = document.createElement("td");
+            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
+            row.appendChild(requiresMaintenanceCell);
+
+            tbody.appendChild(row);
+        });
+    } else {
+        tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
+    }
+}
 
 
                 function displayAttachments(inspections) {
