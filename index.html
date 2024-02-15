@@ -201,8 +201,6 @@
         }
     );
 
-    let inspectionLayer;
-
     function initMap() {
         const map = new Map({
             basemap: {
@@ -223,7 +221,7 @@
             url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/4"
         });
 
-        inspectionLayer = new FeatureLayer({
+        const inspectionLayer = new FeatureLayer({
             url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5"
         });
 
@@ -258,7 +256,9 @@
                         showSidePanel();
                         document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
                     } else {
-                        document.getElementById("infoDiv").innerHTML = "No feature selected.";
+                        clearInspectionsTable();
+                        hideAttachmentsSection();
+                        document.getElementById("sidePanel").innerHTML = "No feature selected.";
                         hideSidePanel();
                     }
                 }).catch(function(error) {
@@ -293,8 +293,13 @@
             inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "OBJECTID"];
 
             inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
-                displayInspections(inspectionResult.features);
-                displayAttachments(inspectionResult.features);
+                if (inspectionResult.features.length > 0) {
+                    displayInspections(inspectionResult.features);
+                    displayAttachments(inspectionResult.features);
+                } else {
+                    clearInspectionsTable();
+                    hideAttachmentsSection();
+                }
             }).catch(function(error) {
                 console.error("Inspection Query Error:", error);
             });
@@ -312,7 +317,6 @@
                     row.addEventListener('click', () => {
                         document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
                         row.classList.add("selected-row");
-
                         const attachmentsDiv = document.getElementById("attachmentsDiv");
                         attachmentsDiv.style.display = 'block';
                         displayAttachments([inspection]);
@@ -432,11 +436,18 @@
                 successMessage.style.display = "none";
             }, 3000);
         }
+
+        function clearInspectionsTable() {
+            document.querySelector("#infoTable tbody").innerHTML = "";
+        }
+
+        function hideAttachmentsSection() {
+            const attachmentsDiv = document.getElementById("attachmentsDiv");
+            attachmentsDiv.innerHTML = '';
+            attachmentsDiv.style.display = 'none';
+        }
     }
 });
-
-
-
 
 </script>
 </body>
