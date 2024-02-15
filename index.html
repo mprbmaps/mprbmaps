@@ -329,41 +329,46 @@ select, input[type="date"] {
             }
 
             function displayInspections(inspections) {
-                console.log("Checking #infoTable:", document.querySelector("#infoTable")); // Debugging statement to check the table
-                console.log("Checking #infoTable tbody:", document.querySelector("#infoTable tbody")); // Debugging statement
-                console.log("Displaying inspections");
-                const tbody = document.querySelector("#infoTable tbody");
-                tbody.innerHTML = "";
+    console.log("Checking #infoTable:", document.querySelector("#infoTable")); // Debugging statement to check the table
+    console.log("Checking #infoTable tbody:", document.querySelector("#infoTable tbody")); // Existing debugging statement
+    console.log("Displaying inspections");
+    const tbody = document.querySelector("#infoTable tbody");
+    if (!tbody) {
+        console.error("Cannot find tbody within #infoTable. Aborting displayInspections.");
+        return; // Adding a return statement to prevent trying to access properties of null
+    }
+    tbody.innerHTML = "";
 
-                if (inspections.length > 0) {
-                    inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+    if (inspections.length > 0) {
+        inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
 
-                    inspections.forEach((inspection) => {
-                        let row = document.createElement("tr");
-                        row.addEventListener('click', () => {
-                            document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
-                            row.classList.add("selected-row");
-                            displayAttachments([inspection]);
-                        });
+        inspections.forEach((inspection) => {
+            let row = document.createElement("tr");
+            row.addEventListener('click', () => {
+                document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
+                row.classList.add("selected-row");
+                displayAttachments([inspection]);
+            });
 
-                        let inspectionDateCell = document.createElement("td");
-                        inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
-                        row.appendChild(inspectionDateCell);
+            let inspectionDateCell = document.createElement("td");
+            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
+            row.appendChild(inspectionDateCell);
 
-                        let conditionScoreCell = document.createElement("td");
-                        conditionScoreCell.textContent = inspection.attributes.condition_score;
-                        row.appendChild(conditionScoreCell);
+            let conditionScoreCell = document.createElement("td");
+            conditionScoreCell.textContent = inspection.attributes.condition_score;
+            row.appendChild(conditionScoreCell);
 
-                        let requiresMaintenanceCell = document.createElement("td");
-                        requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
-                        row.appendChild(requiresMaintenanceCell);
+            let requiresMaintenanceCell = document.createElement("td");
+            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
+            row.appendChild(requiresMaintenanceCell);
 
-                        tbody.appendChild(row);
-                    });
-                } else {
-                    tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
-                }
-            }
+            tbody.appendChild(row);
+        });
+    } else {
+        tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
+    }
+}
+
 
             function displayAttachments(inspections) {
                 console.log("Preparing to display attachments");
