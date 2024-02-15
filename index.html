@@ -382,6 +382,56 @@
         function hideSidePanel() {
             document.getElementById("sidePanel").style.right = "-330px";
         }
+
+        document.getElementById("inspectionForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+
+            const inspectionDate = document.getElementById("inspectionDate").value;
+            const conditionScore = document.getElementById("conditionScore").value;
+            const requiresMaintenance = document.getElementById("requiresMaintenance").value;
+            const relfeatureglobalid = document.getElementById("relfeatureglobalid").value;
+
+            const newInspection = {
+                attributes: {
+                    inspection_date: inspectionDate,
+                    condition_score: conditionScore,
+                    requires_maintenance: requiresMaintenance,
+                    relfeatureglobalid: relfeatureglobalid
+                }
+            };
+
+            inspectionLayer.applyEdits({
+                addFeatures: [newInspection]
+            }).then(function(addResults) {
+                if (addResults.addFeatureResults.length > 0) {
+                    console.log("New inspection added successfully:", addResults.addFeatureResults[0]);
+                    document.getElementById("inspectionForm").reset();
+                    fetchInspections(relfeatureglobalid);
+                    showSuccessMessage();
+                } else {
+                    console.error("Failed to add new inspection.");
+                }
+            }).catch(function(error) {
+                console.error("Error adding new inspection:", error);
+            });
+        });
+
+        document.getElementById("clearSelectionButton").addEventListener("click", function() {
+            view.graphics.removeAll();
+            hideSidePanel();
+            document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
+            const attachmentsDiv = document.getElementById("attachmentsDiv");
+            attachmentsDiv.innerHTML = '';
+            attachmentsDiv.style.display = 'none';
+        });
+
+        function showSuccessMessage() {
+            const successMessage = document.getElementById("successMessage");
+            successMessage.style.display = "block";
+            setTimeout(function() {
+                successMessage.style.display = "none";
+            }, 3000);
+        }
     }
 });
 
