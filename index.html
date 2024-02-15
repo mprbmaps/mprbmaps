@@ -256,9 +256,7 @@
                         showSidePanel();
                         document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
                     } else {
-                        clearInspectionsTable(); // Clear the inspections table when no feature is selected
-                        hideAttachmentsSection(); // Hide attachments section
-                        document.getElementById("infoDiv").innerHTML = "No feature selected.";
+                        document.getElementById("infoDiv").innerHTML = "<h2>No feature selected</h2>";
                         hideSidePanel();
                     }
                 }).catch(function(error) {
@@ -422,11 +420,8 @@
 
         document.getElementById("clearSelectionButton").addEventListener("click", function() {
             view.graphics.removeAll();
-            document.getElementById("infoDiv").innerHTML = "No feature selected.";
-            document.getElementById("sidePanel").style.right = "-330px";
-            clearInspectionsTable(); // Clear inspections table when clearing selection
-            hideAttachmentsSection(); // Hide attachments section
-            document.getElementById("inspectionForm").reset(); // Reset inspection form
+            document.getElementById("infoDiv").innerHTML = "<h2>No feature selected</h2>";
+            hideSidePanel();
         });
 
         function showSuccessMessage() {
@@ -435,14 +430,6 @@
             setTimeout(function() {
                 successMessage.style.display = "none";
             }, 3000);
-        }
-
-        function clearInspectionsTable() {
-            document.querySelector("#infoTable tbody").innerHTML = "";
-        }
-
-        function hideAttachmentsSection() {
-            document.getElementById("attachmentsDiv").style.display = "none";
         }
     }
 });
