@@ -339,47 +339,56 @@ select, input[type="date"] {
 
 
 
-                function displayInspections(inspections) {
-                    const tbody = document.querySelector("#infoTable tbody");
+                function displayAttachments(inspections) {
+    const attachmentsDiv = document.getElementById("attachmentsDiv");
 
-                    if (!tbody) return; // Check if tbody element exists
+    // Check if attachmentsDiv exists
+    if (!attachmentsDiv) {
+        console.error("AttachmentsDiv not found.");
+        return;
+    }
 
-                    tbody.innerHTML = "";
+    // Clear previous attachments content
+    attachmentsDiv.innerHTML = '';
 
-                    if (inspections.length > 0) {
-                        inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+    if (inspections.length > 0) {
+        inspections.forEach((inspection, index) => {
+            const attachmentQuery = new AttachmentQuery();
+            attachmentQuery.objectIds = [inspection.attributes.OBJECTID];
 
-                        inspections.forEach((inspection, index) => {
-                            let row = document.createElement("tr");
-                            row.addEventListener('click', () => {
-                                // Remove highlighting from all rows and then highlight the selected one
-                                document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
-                                row.classList.add("selected-row");
+            inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentsResult) {
+                if (attachmentsResult && attachmentsResult[inspection.attributes.OBJECTID] && attachmentsResult[inspection.attributes.OBJECTID].length > 0) {
+                    const attachmentInfos = attachmentsResult[inspection.attributes.OBJECTID];
 
-                                // Show the attachmentsDiv and display attachments for the selected inspection
-                                const attachmentsDiv = document.getElementById("attachmentsDiv");
-                                attachmentsDiv.style.display = 'block'; // Make sure to show the attachmentsDiv
-                                displayAttachments([inspection]); // Display attachments for only this inspection
-                            });
+                    // Optionally, add a header or separator for each inspection's attachments
+                    const attachmentHeader = document.createElement("h3");
+                    attachmentHeader.textContent = `Attachments for Inspection ${index + 1}`;
+                    attachmentsDiv.appendChild(attachmentHeader);
 
-                            let inspectionDateCell = document.createElement("td");
-                            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
-                            row.appendChild(inspectionDateCell);
-
-                            let conditionScoreCell = document.createElement("td");
-                            conditionScoreCell.textContent = inspection.attributes.condition_score;
-                            row.appendChild(conditionScoreCell);
-
-                            let requiresMaintenanceCell = document.createElement("td");
-                            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
-                            row.appendChild(requiresMaintenanceCell);
-
-                            tbody.appendChild(row);
-                        });
-                    } else {
-                        tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
-                    }
+                    attachmentInfos.forEach(attachmentInfo => {
+                        const attachmentUrl = attachmentInfo.url;
+                        const attachmentImg = document.createElement("img");
+                        attachmentImg.src = attachmentUrl;
+                        attachmentImg.classList.add("attachment-image");
+                        attachmentImg.onclick = function() {
+                            window.open(attachmentUrl, "_blank");
+                        };
+                        attachmentsDiv.appendChild(attachmentImg);
+                    });
+                } else {
+                    console.log("No attachments found for inspection ", index + 1);
                 }
+            }).catch(function(error) {
+                console.error("Attachments Query Error:", error);
+            });
+        });
+        attachmentsDiv.style.display = 'block'; // Ensure attachmentsDiv is displayed
+    } else {
+        // Hide the attachments section if inspections is empty
+        attachmentsDiv.style.display = 'none';
+    }
+}
+
 
                 function displayAttachments(inspections) {
     const attachmentsDiv = document.getElementById("attachmentsDiv");
