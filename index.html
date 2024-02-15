@@ -297,38 +297,44 @@
             }
 
             function displayInspections(inspections) {
-                const tbody = document.querySelector("#infoTable tbody");
-                tbody.innerHTML = "";
+    const tbody = document.querySelector("#infoTable tbody");
+    if (!tbody) {
+        console.error("#infoTable tbody not found.");
+        return;
+    }
 
-                if (inspections.length > 0) {
-                    inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+    tbody.innerHTML = "";
 
-                    inspections.forEach((inspection, index) => {
-                        let row = document.createElement("tr");
-                        row.addEventListener('click', () => {
-                            document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
-                            row.classList.add("selected-row");
-                            displayAttachments([inspection]); // Display attachments for only this inspection
-                        });
+    if (inspections.length > 0) {
+        inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
 
-                        let inspectionDateCell = document.createElement("td");
-                        inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
-                        row.appendChild(inspectionDateCell);
+        inspections.forEach((inspection, index) => {
+            let row = document.createElement("tr");
+            row.addEventListener('click', () => {
+                document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
+                row.classList.add("selected-row");
+                displayAttachments([inspection]); // Display attachments for only this inspection
+            });
 
-                        let conditionScoreCell = document.createElement("td");
-                        conditionScoreCell.textContent = inspection.attributes.condition_score;
-                        row.appendChild(conditionScoreCell);
+            let inspectionDateCell = document.createElement("td");
+            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
+            row.appendChild(inspectionDateCell);
 
-                        let requiresMaintenanceCell = document.createElement("td");
-                        requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
-                        row.appendChild(requiresMaintenanceCell);
+            let conditionScoreCell = document.createElement("td");
+            conditionScoreCell.textContent = inspection.attributes.condition_score;
+            row.appendChild(conditionScoreCell);
 
-                        tbody.appendChild(row);
-                    });
-                } else {
-                    tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
-                }
-            }
+            let requiresMaintenanceCell = document.createElement("td");
+            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
+            row.appendChild(requiresMaintenanceCell);
+
+            tbody.appendChild(row);
+        });
+    } else {
+        tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
+    }
+}
+
 
             function displayAttachments(inspections) {
                 const attachmentsDiv = document.getElementById("attachmentsDiv");
