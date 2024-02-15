@@ -305,10 +305,18 @@
 
 function clearSidePanel() {
     const infoDiv = document.getElementById("infoDiv");
-    if (!infoDiv) return; // Check if infoDiv element exists
-
-    infoDiv.innerHTML = "<h2 id='inspectionsTitle'>Previous Inspections</h2><table id='infoTable'><thead><tr><th>Inspection Date</th><th>Condition Score</th><th>Requires Maintenance</th></tr></thead><tbody></tbody></table><div id='attachmentsDiv' style='display: none;'></div>";
+    const attachmentsDiv = document.getElementById("attachmentsDiv");
+    
+    if (infoDiv) {
+        infoDiv.innerHTML = "<h2 id='inspectionsTitle'>Previous Inspections</h2><table id='infoTable'><thead><tr><th>Inspection Date</th><th>Condition Score</th><th>Requires Maintenance</th></tr></thead><tbody></tbody></table>";
+    }
+    
+    if (attachmentsDiv) {
+        attachmentsDiv.innerHTML = '';
+        attachmentsDiv.style.display = 'none'; // Hide the attachments div
+    }
 }
+
 
 
         function displayInspections(inspections) {
@@ -445,10 +453,11 @@ function clearSidePanel() {
         });
 
         document.getElementById("clearSelectionButton").addEventListener("click", function() {
-            view.graphics.removeAll();
-            document.getElementById("infoDiv").innerHTML = "<h2>No feature selected</h2>";
-            hideSidePanel();
-        });
+    view.graphics.removeAll(); // Remove graphics from the map
+    hideSidePanel(); // Hide the side panel
+    clearSidePanel(); // Clear the side panel content
+});
+
 
         function showSuccessMessage() {
             const successMessage = document.getElementById("successMessage");
