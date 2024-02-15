@@ -286,41 +286,40 @@
                 }
 
                 function fetchInspections(globalID) {
-    console.log("Fetching inspections for global ID:", globalID);
+                    console.log("Fetching inspections for global ID:", globalID);
 
-    // Show the side panel
-    showSidePanel();
+                    // Show the side panel
+                    showSidePanel();
 
-    // Log the state of infoDiv and attachmentsDiv before accessing them
-    console.log("Before accessing infoDiv and attachmentsDiv:");
-    const infoDiv = document.getElementById("infoDiv");
-    const attachmentsDiv = document.getElementById("attachmentsDiv");
-    console.log("infoDiv:", infoDiv);
-    console.log("attachmentsDiv:", attachmentsDiv);
+                    // Log the state of infoDiv and attachmentsDiv before accessing them
+                    console.log("Before accessing infoDiv and attachmentsDiv:");
+                    const infoDiv = document.getElementById("infoDiv");
+                    const attachmentsDiv = document.getElementById("attachmentsDiv");
+                    console.log("infoDiv:", infoDiv);
+                    console.log("attachmentsDiv:", attachmentsDiv);
 
-    // Check if infoDiv and attachmentsDiv exist
-    if (infoDiv && attachmentsDiv) {
-        console.log("infoDiv and attachmentsDiv found. Proceeding with inspections fetch.");
-        attachmentsDiv.innerHTML = ''; // Clear previous attachments
-        attachmentsDiv.style.display = 'none'; // Hide the attachments div
+                    // Check if infoDiv and attachmentsDiv exist
+                    if (infoDiv && attachmentsDiv) {
+                        console.log("infoDiv and attachmentsDiv found. Proceeding with inspections fetch.");
+                        attachmentsDiv.innerHTML = ''; // Clear previous attachments
+                        attachmentsDiv.style.display = 'none'; // Hide the attachments div
 
-        const inspectionQuery = new Query();
-        inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
-        inspectionQuery.returnGeometry = false;
-        inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "OBJECTID"];
+                        const inspectionQuery = new Query();
+                        inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
+                        inspectionQuery.returnGeometry = false;
+                        inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "OBJECTID"];
 
-        inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
-            console.log("Inspection query successful. Displaying inspections and attachments.");
-            displayInspections(inspectionResult.features);
-            displayAttachments(inspectionResult.features);
-        }).catch(function(error) {
-            console.error("Inspection Query Error:", error);
-        });
-    } else {
-        console.error("InfoDiv or AttachmentsDiv not found.");
-    }
-}
-
+                        inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
+                            console.log("Inspection query successful. Displaying inspections and attachments.");
+                            displayInspections(inspectionResult.features);
+                            displayAttachments(inspectionResult.features);
+                        }).catch(function(error) {
+                            console.error("Inspection Query Error:", error);
+                        });
+                    } else {
+                        console.error("InfoDiv or AttachmentsDiv not found.");
+                    }
+                }
 
                 function displayInspections(inspections) {
                     const tbody = document.querySelector("#infoTable tbody");
