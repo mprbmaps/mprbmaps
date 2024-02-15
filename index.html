@@ -310,27 +310,35 @@
         }
 
         function displayInspections(inspections) {
+    // Ensure the table body exists before attempting to modify it
     const tbody = document.querySelector("#infoTable tbody");
+    if (!tbody) {
+        console.error("Table body element not found.");
+        return; // Exit the function if the tbody element doesn't exist
+    }
+
+    // Clear existing content in the table body
     tbody.innerHTML = "";
 
+    // Check if there are any inspections to display
     if (inspections.length > 0) {
+        // Sort inspections by date, assuming inspection_date is in a format that can be directly compared
         inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
 
-        inspections.forEach((inspection, index) => {
+        // Create and append rows for each inspection
+        inspections.forEach(inspection => {
             let row = document.createElement("tr");
             row.addEventListener('click', () => {
-                // Remove highlighting from all rows and then highlight the selected one
-                document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
-                row.classList.add("selected-row");
-
-                // Show the attachmentsDiv and display attachments for the selected inspection
                 const attachmentsDiv = document.getElementById("attachmentsDiv");
-                attachmentsDiv.style.display = 'block'; // Make sure to show the attachmentsDiv
-                displayAttachments([inspection]); // Display attachments for only this inspection
+                if (attachmentsDiv) {
+                    // Ensure attachmentsDiv is shown only after a row is clicked
+                    attachmentsDiv.style.display = 'block';
+                    displayAttachments([inspection]); // Assuming this function is defined elsewhere
+                }
             });
 
             let inspectionDateCell = document.createElement("td");
-            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
+            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date); // Assuming formatDate is defined
             row.appendChild(inspectionDateCell);
 
             let conditionScoreCell = document.createElement("td");
@@ -338,12 +346,13 @@
             row.appendChild(conditionScoreCell);
 
             let requiresMaintenanceCell = document.createElement("td");
-            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
+            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance === 'Yes' ? 'Yes' : 'No'; // Example of handling boolean or similar flags
             row.appendChild(requiresMaintenanceCell);
 
             tbody.appendChild(row);
         });
     } else {
+        // Display a message when no inspections are found
         tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
     }
 }
