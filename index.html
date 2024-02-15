@@ -256,9 +256,9 @@
                         showSidePanel();
                         document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
                     } else {
-                        clearInspectionsTable();
-                        hideAttachmentsSection();
-                        document.getElementById("sidePanel").innerHTML = "No feature selected.";
+                        clearInspectionsTable(); // Clear the inspections table when no feature is selected
+                        hideAttachmentsSection(); // Hide attachments section
+                        document.getElementById("infoDiv").innerHTML = "No feature selected.";
                         hideSidePanel();
                     }
                 }).catch(function(error) {
@@ -293,13 +293,8 @@
             inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "OBJECTID"];
 
             inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
-                if (inspectionResult.features.length > 0) {
-                    displayInspections(inspectionResult.features);
-                    displayAttachments(inspectionResult.features);
-                } else {
-                    clearInspectionsTable();
-                    hideAttachmentsSection();
-                }
+                displayInspections(inspectionResult.features);
+                displayAttachments(inspectionResult.features);
             }).catch(function(error) {
                 console.error("Inspection Query Error:", error);
             });
@@ -315,11 +310,14 @@
                 inspections.forEach((inspection, index) => {
                     let row = document.createElement("tr");
                     row.addEventListener('click', () => {
+                        // Remove highlighting from all rows and then highlight the selected one
                         document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
                         row.classList.add("selected-row");
+
+                        // Show the attachmentsDiv and display attachments for the selected inspection
                         const attachmentsDiv = document.getElementById("attachmentsDiv");
-                        attachmentsDiv.style.display = 'block';
-                        displayAttachments([inspection]);
+                        attachmentsDiv.style.display = 'block'; // Make sure to show the attachmentsDiv
+                        displayAttachments([inspection]); // Display attachments for only this inspection
                     });
 
                     let inspectionDateCell = document.createElement("td");
@@ -342,6 +340,7 @@
         }
 
         function displayAttachments(inspections) {
+            // Clear previous attachments
             document.getElementById("attachmentsDiv").innerHTML = '';
 
             inspections.forEach((inspection, index) => {
@@ -353,6 +352,7 @@
                         const attachmentInfos = attachmentsResult[inspection.attributes.OBJECTID];
                         const attachmentsDiv = document.getElementById("attachmentsDiv");
 
+                        // Optionally, add a header or separator for each inspection's attachments
                         const attachmentHeader = document.createElement("h3");
                         attachmentHeader.textContent = `Attachments for Inspection ${index + 1}`;
                         attachmentsDiv.appendChild(attachmentHeader);
@@ -422,11 +422,11 @@
 
         document.getElementById("clearSelectionButton").addEventListener("click", function() {
             view.graphics.removeAll();
-            hideSidePanel();
-            document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
-            const attachmentsDiv = document.getElementById("attachmentsDiv");
-            attachmentsDiv.innerHTML = '';
-            attachmentsDiv.style.display = 'none';
+            document.getElementById("infoDiv").innerHTML = "No feature selected.";
+            document.getElementById("sidePanel").style.right = "-330px";
+            clearInspectionsTable(); // Clear inspections table when clearing selection
+            hideAttachmentsSection(); // Hide attachments section
+            document.getElementById("inspectionForm").reset(); // Reset inspection form
         });
 
         function showSuccessMessage() {
@@ -442,13 +442,10 @@
         }
 
         function hideAttachmentsSection() {
-            const attachmentsDiv = document.getElementById("attachmentsDiv");
-            attachmentsDiv.innerHTML = '';
-            attachmentsDiv.style.display = 'none';
+            document.getElementById("attachmentsDiv").style.display = "none";
         }
     }
 });
-
 </script>
 </body>
 </html>
