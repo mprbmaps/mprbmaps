@@ -250,34 +250,34 @@ select, input[type="date"] {
                 });
 
                 function attachClickListener() {
-                    view.on("click", function(event) {
-                        view.graphics.removeAll();
+    view.on("click", function(event) {
+        view.graphics.removeAll();
 
-                        const bufferDistance = 20;
-                        const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
+        const bufferDistance = 20;
+        const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
 
-                        let query = featureLayer.createQuery();
-                        query.geometry = bufferGeometry;
-                        query.spatialRelationship = "intersects";
-                        query.returnGeometry = true;
-                        query.outFields = ["*"];
+        let query = featureLayer.createQuery();
+        query.geometry = bufferGeometry;
+        query.spatialRelationship = "intersects";
+        query.returnGeometry = true;
+        query.outFields = ["*"];
 
-                        featureLayer.queryFeatures(query).then(function(result) {
-                            if (result.features.length > 0) {
-                                let feature = result.features[0];
-                                displayFeature(feature);
-                                fetchInspections(feature.attributes.GlobalID);
-                                showSidePanel();
-                            } else {
-                                // Call fetchInspections with null if no feature is selected
-                                fetchInspections(null);
-                                hideSidePanel();
-                            }
-                        }).catch(function(error) {
-                            console.error("Query Error:", error);
-                        });
-                    });
-                }
+        featureLayer.queryFeatures(query).then(function(result) {
+            if (result.features.length > 0) {
+                let feature = result.features[0];
+                displayFeature(feature);
+                fetchInspections(feature.attributes.GlobalID);
+                showSidePanel();
+            } else {
+                // Call fetchInspections with null if no feature is selected
+                fetchInspections(null);
+            }
+        }).catch(function(error) {
+            console.error("Query Error:", error);
+        });
+    });
+}
+
 
                 function displayFeature(feature) {
                     let symbol = {
