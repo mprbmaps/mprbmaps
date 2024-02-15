@@ -236,34 +236,38 @@
         });
 
         function attachClickListener() {
-            view.on("click", function(event) {
-                view.graphics.removeAll();
+    view.on("click", function(event) {
+        view.graphics.removeAll();
 
-                const bufferDistance = 20;
-                const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
+        // Reset the form when a new feature is selected
+        document.getElementById("inspectionForm").reset();
 
-                let query = featureLayer.createQuery();
-                query.geometry = bufferGeometry;
-                query.spatialRelationship = "intersects";
-                query.returnGeometry = true;
-                query.outFields = ["*"];
+        const bufferDistance = 20;
+        const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
 
-                featureLayer.queryFeatures(query).then(function(result) {
-                    if (result.features.length > 0) {
-                        let feature = result.features[0];
-                        displayFeature(feature);
-                        fetchInspections(feature.attributes.GlobalID);
-                        showSidePanel();
-                        document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
-                    } else {
-                        document.getElementById("infoDiv").innerHTML = "No feature selected.";
-                        hideSidePanel();
-                    }
-                }).catch(function(error) {
-                    console.error("Query Error:", error);
-                });
-            });
-        }
+        let query = featureLayer.createQuery();
+        query.geometry = bufferGeometry;
+        query.spatialRelationship = "intersects";
+        query.returnGeometry = true;
+        query.outFields = ["*"];
+
+        featureLayer.queryFeatures(query).then(function(result) {
+            if (result.features.length > 0) {
+                let feature = result.features[0];
+                displayFeature(feature);
+                fetchInspections(feature.attributes.GlobalID);
+                showSidePanel();
+                document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
+            } else {
+                document.getElementById("infoDiv").innerHTML = "No feature selected.";
+                hideSidePanel();
+            }
+        }).catch(function(error) {
+            console.error("Query Error:", error);
+        });
+    });
+}
+
 
         function displayFeature(feature) {
             let symbol = {
@@ -427,7 +431,11 @@
     const attachmentsDiv = document.getElementById("attachmentsDiv");
     attachmentsDiv.innerHTML = ''; // Clear attachments content
     attachmentsDiv.style.display = 'none'; // Hide the attachments section
+
+    // Reset the form when clear selection is clicked
+    document.getElementById("inspectionForm").reset();
 });
+
 
 
 
