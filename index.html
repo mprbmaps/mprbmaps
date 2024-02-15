@@ -285,22 +285,23 @@
         }
 
         function fetchInspections(globalID) {
+    const attachmentsDiv = document.getElementById("attachmentsDiv");
+    attachmentsDiv.innerHTML = ''; // Clear previous attachments
+    attachmentsDiv.style.display = 'none'; // Hide the attachments div
+
     const inspectionQuery = new Query();
     inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
     inspectionQuery.returnGeometry = false;
     inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "OBJECTID"];
 
     inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
-        if (inspectionResult.features.length > 0) {
-            displayInspections(inspectionResult.features);
-            displayAttachments(inspectionResult.features);
-        } else {
-            clearSidePanel(); // Clear the side panel content if no inspections are found
-        }
+        displayInspections(inspectionResult.features);
+        displayAttachments(inspectionResult.features);
     }).catch(function(error) {
         console.error("Inspection Query Error:", error);
     });
 }
+
 
 
 function clearSidePanel() {
