@@ -285,18 +285,29 @@
         }
 
         function fetchInspections(globalID) {
-            const inspectionQuery = new Query();
-            inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
-            inspectionQuery.returnGeometry = false;
-            inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "OBJECTID"];
+    const inspectionQuery = new Query();
+    inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
+    inspectionQuery.returnGeometry = false;
+    inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "OBJECTID"];
 
-            inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
-                displayInspections(inspectionResult.features);
-                displayAttachments(inspectionResult.features);
-            }).catch(function(error) {
-                console.error("Inspection Query Error:", error);
-            });
+    inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
+        if (inspectionResult.features.length > 0) {
+            displayInspections(inspectionResult.features);
+            displayAttachments(inspectionResult.features);
+        } else {
+            // If no inspections found, clear the side panel content
+            clearSidePanel();
         }
+    }).catch(function(error) {
+        console.error("Inspection Query Error:", error);
+    });
+}
+
+function clearSidePanel() {
+    const infoDiv = document.getElementById("infoDiv");
+    infoDiv.innerHTML = "<h2 id='inspectionsTitle'>Previous Inspections</h2><table id='infoTable'><thead><tr><th>Inspection Date</th><th>Condition Score</th><th>Requires Maintenance</th></tr></thead><tbody></tbody></table><div id='attachmentsDiv' style='display: none;'></div>";
+}
+
 
         function displayInspections(inspections) {
     const tbody = document.querySelector("#infoTable tbody");
