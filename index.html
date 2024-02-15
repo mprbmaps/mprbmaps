@@ -382,7 +382,6 @@ select, input[type="date"] {
                 }
 
                 function displayAttachments(inspections) {
-    const selectedRow = document.querySelector("#infoTable tbody tr.selected-row");
     const attachmentsDiv = document.getElementById("attachmentsDiv");
 
     // Check if attachmentsDiv exists
@@ -394,8 +393,7 @@ select, input[type="date"] {
     // Clear previous attachments content
     attachmentsDiv.innerHTML = '';
 
-    // Proceed only if there is a selectedRow and inspections is not empty
-    if (selectedRow && inspections.length > 0) {
+    if (inspections.length > 0) {
         inspections.forEach((inspection, index) => {
             const attachmentQuery = new AttachmentQuery();
             attachmentQuery.objectIds = [inspection.attributes.OBJECTID];
@@ -428,7 +426,7 @@ select, input[type="date"] {
         });
         attachmentsDiv.style.display = 'block'; // Ensure attachmentsDiv is displayed
     } else {
-        // Hide the attachments section if no row is selected or if inspections is empty
+        // Hide the attachments section if inspections is empty
         attachmentsDiv.style.display = 'none';
     }
 }
