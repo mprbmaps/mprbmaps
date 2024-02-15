@@ -201,7 +201,7 @@
         }
     );
 
-    let inspectionLayer; // Define inspectionLayer variable in the outer scope
+    let inspectionLayer;
 
     function initMap() {
         const map = new Map({
@@ -223,7 +223,7 @@
             url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/4"
         });
 
-        inspectionLayer = new FeatureLayer({ // Assign value to inspectionLayer variable
+        inspectionLayer = new FeatureLayer({
             url: "https://utility.arcgis.com/usrsvcs/servers/e50cdf496c194699819e28e23bbb64f4/rest/services/Asssets2/FeatureServer/5"
         });
 
@@ -285,66 +285,106 @@
 
             view.graphics.add(graphic);
         }
-    }
 
-    function fetchInspections(globalID) {
-        const inspectionQuery = new Query();
-        inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
-        inspectionQuery.returnGeometry = false;
-        inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "OBJECTID"];
+        function fetchInspections(globalID) {
+            const inspectionQuery = new Query();
+            inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
+            inspectionQuery.returnGeometry = false;
+            inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "OBJECTID"];
 
-        inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
-            displayInspections(inspectionResult.features);
-            displayAttachments(inspectionResult.features);
-        }).catch(function(error) {
-            console.error("Inspection Query Error:", error);
-        });
-    }
+            inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
+                displayInspections(inspectionResult.features);
+                displayAttachments(inspectionResult.features);
+            }).catch(function(error) {
+                console.error("Inspection Query Error:", error);
+            });
+        }
 
-    function displayInspections(inspections) {
-        const tbody = document.querySelector("#infoTable tbody");
-        tbody.innerHTML = "";
+        function displayInspections(inspections) {
+            const tbody = document.querySelector("#infoTable tbody");
+            tbody.innerHTML = "";
 
-        if (inspections.length > 0) {
-            inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+            if (inspections.length > 0) {
+                inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+
+                inspections.forEach((inspection, index) => {
+                    let row = document.createElement("tr");
+                    row.addEventListener('click', () => {
+                        document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
+                        row.classList.add("selected-row");
+
+                        const attachmentsDiv = document.getElementById("attachmentsDiv");
+                        attachmentsDiv.style.display = 'block';
+                        displayAttachments([inspection]);
+                    });
+
+                    let inspectionDateCell = document.createElement("td");
+                    inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
+                    row.appendChild(inspectionDateCell);
+
+                    let conditionScoreCell = document.createElement("td");
+                    conditionScoreCell.textContent = inspection.attributes.condition_score;
+                    row.appendChild(conditionScoreCell);
+
+                    let requiresMaintenanceCell = document.createElement("td");
+                    requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
+                    row.appendChild(requiresMaintenanceCell);
+
+                    tbody.appendChild(row);
+                });
+            } else {
+                tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
+            }
+        }
+
+        function displayAttachments(inspections) {
+            document.getElementById("attachmentsDiv").innerHTML = '';
 
             inspections.forEach((inspection, index) => {
-                let row = document.createElement("tr");
-                row.addEventListener('click', () => {
-                    // Remove highlighting from all rows and then highlight the selected one
-                    document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
-                    row.classList.add("selected-row");
+                const attachmentQuery = new AttachmentQuery();
+                attachmentQuery.objectIds = [inspection.attributes.OBJECTID];
 
-                    // Show the attachmentsDiv and display attachments for the selected inspection
-                    const attachmentsDiv = document.getElementById("attachmentsDiv");
-                    attachmentsDiv.style.display = 'block'; // Make sure to show the attachmentsDiv
-                    displayAttachments([inspection]); // Display attachments for only this inspection
+                inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentsResult) {
+                    if (attachmentsResult[inspection.attributes.OBJECTID] && attachmentsResult[inspection.attributes.OBJECTID].length > 0) {
+                        const attachmentInfos = attachmentsResult[inspection.attributes.OBJECTID];
+                        const attachmentsDiv = document.getElementById("attachmentsDiv");
+
+                        const attachmentHeader = document.createElement("h3");
+                        attachmentHeader.textContent = `Attachments for Inspection ${index + 1}`;
+                        attachmentsDiv.appendChild(attachmentHeader);
+
+                        attachmentInfos.forEach(attachmentInfo => {
+                            const attachmentUrl = attachmentInfo.url;
+                            const attachmentImg = document.createElement("img");
+                            attachmentImg.src = attachmentUrl;
+                            attachmentImg.classList.add("attachment-image");
+                            attachmentImg.onclick = function() {
+                                window.open(attachmentUrl, "_blank");
+                            };
+                            attachmentsDiv.appendChild(attachmentImg);
+                        });
+                    }
+                }).catch(function(error) {
+                    console.error("Attachments Query Error:", error);
                 });
-
-                let inspectionDateCell = document.createElement("td");
-                inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
-                row.appendChild(inspectionDateCell);
-
-                let conditionScoreCell = document.createElement("td");
-                conditionScoreCell.textContent = inspection.attributes.condition_score;
-                row.appendChild(conditionScoreCell);
-
-                let requiresMaintenanceCell = document.createElement("td");
-                requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
-                row.appendChild(requiresMaintenanceCell);
-
-                tbody.appendChild(row);
             });
-        } else {
-            tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
+        }
+
+        function formatDate(dateString) {
+            const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+            return new Date(dateString).toLocaleDateString(undefined, options);
+        }
+
+        function showSidePanel() {
+            document.getElementById("sidePanel").style.right = "0";
+        }
+
+        function hideSidePanel() {
+            document.getElementById("sidePanel").style.right = "-330px";
         }
     }
-
-    function formatDate(dateString) {
-        const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
-        return new Date(dateString).toLocaleDateString(undefined, options);
-    }
 });
+
 
 
 
