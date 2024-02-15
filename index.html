@@ -237,32 +237,32 @@
 
         function attachClickListener() {
     view.on("click", function(event) {
-        view.graphics.removeAll();
+    view.graphics.removeAll();
 
-        const bufferDistance = 20;
-        const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
+    const bufferDistance = 20;
+    const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
 
-        let query = featureLayer.createQuery();
-        query.geometry = bufferGeometry;
-        query.spatialRelationship = "intersects";
-        query.returnGeometry = true;
-        query.outFields = ["*"];
+    let query = featureLayer.createQuery();
+    query.geometry = bufferGeometry;
+    query.spatialRelationship = "intersects";
+    query.returnGeometry = true;
+    query.outFields = ["*"];
 
-        featureLayer.queryFeatures(query).then(function(result) {
-            if (result.features.length > 0) {
-                let feature = result.features[0];
-                displayFeature(feature);
-                fetchInspections(feature.attributes.GlobalID);
-                showSidePanel();
-                document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
-            } else {
-                clearSidePanel(); // Clear the side panel content if no features are found
-            }
-        }).catch(function(error) {
-            console.error("Query Error:", error);
-        });
+    featureLayer.queryFeatures(query).then(function(result) {
+        if (result.features.length > 0) {
+            let feature = result.features[0];
+            displayFeature(feature);
+            fetchInspections(feature.attributes.GlobalID);
+            showSidePanel();
+        } else {
+            // Call fetchInspections with null if no feature is selected
+            fetchInspections(null);
+            hideSidePanel();
+        }
+    }).catch(function(error) {
+        console.error("Query Error:", error);
     });
-}
+});
 
 
         function displayFeature(feature) {
@@ -461,9 +461,17 @@ function clearSidePanel() {
         });
 
         document.getElementById("clearSelectionButton").addEventListener("click", function() {
-    view.graphics.removeAll(); // Remove graphics from the map
-    hideSidePanel(); // Hide the side panel
-    clearSidePanel(); // Clear the side panel content
+    view.graphics.removeAll();
+    hideSidePanel();
+    const infoDiv = document.getElementById("infoDiv");
+    if (infoDiv) {
+        infoDiv.innerHTML = ''; // Clear previous inspections
+    }
+    const attachmentsDiv = document.getElementById("attachmentsDiv");
+    if (attachmentsDiv) {
+        attachmentsDiv.innerHTML = ''; // Clear previous attachments
+        attachmentsDiv.style.display = 'none'; // Hide the attachments section
+    }
 });
 
 
