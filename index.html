@@ -287,17 +287,19 @@
         }
 
         function fetchInspections(globalID) {
-            const inspectionQuery = new Query();
-            inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
-            inspectionQuery.returnGeometry = false;
-            inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "OBJECTID"];
+    const inspectionQuery = new Query();
+    inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
+    inspectionQuery.returnGeometry = false;
+    inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "OBJECTID"];
 
-            inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
-                displayInspections(inspectionResult.features);
-            }).catch(function(error) {
-                console.error("Inspection Query Error:", error);
-            });
-        }
+    inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
+        displayInspections(inspectionResult.features);
+        displayAttachments(inspectionResult.features);
+    }).catch(function(error) {
+        console.error("Inspection Query Error:", error);
+    });
+}
+
 
         function displayInspections(inspections) {
     const tbody = document.querySelector("#infoTable tbody");
