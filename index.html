@@ -236,34 +236,41 @@
         });
 
         function attachClickListener() {
-            view.on("click", function(event) {
-                view.graphics.removeAll();
+    view.on("click", function(event) {
+        view.graphics.removeAll(); // Remove existing map graphics
 
-                const bufferDistance = 20;
-                const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
+        // Clear existing attachments and hide the attachments section
+        const attachmentsDiv = document.getElementById("attachmentsDiv");
+        attachmentsDiv.innerHTML = ''; // Clear attachments content
+        attachmentsDiv.style.display = 'none'; // Hide the attachments section
 
-                let query = featureLayer.createQuery();
-                query.geometry = bufferGeometry;
-                query.spatialRelationship = "intersects";
-                query.returnGeometry = true;
-                query.outFields = ["*"];
+        // Define the bufferGeometry and query parameters
+        const bufferDistance = 20;
+        const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
 
-                featureLayer.queryFeatures(query).then(function(result) {
-                    if (result.features.length > 0) {
-                        let feature = result.features[0];
-                        displayFeature(feature);
-                        fetchInspections(feature.attributes.GlobalID);
-                        showSidePanel();
-                        document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
-                    } else {
-                        document.getElementById("infoDiv").innerHTML = "No feature selected.";
-                        hideSidePanel();
-                    }
-                }).catch(function(error) {
-                    console.error("Query Error:", error);
-                });
-            });
-        }
+        let query = featureLayer.createQuery();
+        query.geometry = bufferGeometry;
+        query.spatialRelationship = "intersects";
+        query.returnGeometry = true;
+        query.outFields = ["*"];
+
+        featureLayer.queryFeatures(query).then(function(result) {
+            if (result.features.length > 0) {
+                let feature = result.features[0];
+                displayFeature(feature);
+                fetchInspections(feature.attributes.GlobalID); // Fetch inspections for the new feature
+                showSidePanel();
+                document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
+            } else {
+                document.getElementById("infoDiv").innerHTML = "No feature selected.";
+                hideSidePanel();
+            }
+        }).catch(function(error) {
+            console.error("Query Error:", error);
+        });
+    });
+}
+
 
         function displayFeature(feature) {
             let symbol = {
@@ -337,10 +344,10 @@
 
 
         function displayAttachments(inspections) {
-    // Clear previous attachments
+    // Clear previous attachments and initially hide the attachments section
     const attachmentsDiv = document.getElementById("attachmentsDiv");
-    attachmentsDiv.innerHTML = '';
-    attachmentsDiv.style.display = 'none'; // Hide by default, show only if there are attachments
+    attachmentsDiv.innerHTML = ''; // Clear any previous attachments
+    attachmentsDiv.style.display = 'none'; // Hide until attachments are found
 
     inspections.forEach((inspection, index) => {
         const attachmentQuery = new AttachmentQuery();
@@ -348,19 +355,21 @@
 
         inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentsResult) {
             if (attachmentsResult[inspection.attributes.OBJECTID] && attachmentsResult[inspection.attributes.OBJECTID].length > 0) {
-                const attachmentInfos = attachmentsResult[inspection.attributes.OBJECTID];
-                attachmentsDiv.style.display = 'block'; // Show the attachmentsDiv if there are attachments
-
+                // If attachments are found, proceed to display them
+                attachmentsDiv.style.display = 'block'; // Show the attachmentsDiv
+                
                 // Optionally, add a header or separator for each inspection's attachments
                 const attachmentHeader = document.createElement("h3");
                 attachmentHeader.textContent = `Attachments for Inspection ${index + 1}`;
                 attachmentsDiv.appendChild(attachmentHeader);
 
+                const attachmentInfos = attachmentsResult[inspection.attributes.OBJECTID];
                 attachmentInfos.forEach(attachmentInfo => {
                     const attachmentUrl = attachmentInfo.url;
                     const attachmentImg = document.createElement("img");
                     attachmentImg.src = attachmentUrl;
                     attachmentImg.classList.add("attachment-image");
+                    attachmentImg.alt = "Attachment";
                     attachmentImg.onclick = function() {
                         window.open(attachmentUrl, "_blank");
                     };
@@ -372,6 +381,7 @@
         });
     });
 }
+
 
 
 
