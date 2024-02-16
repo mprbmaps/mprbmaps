@@ -236,38 +236,37 @@
         });
 
         function attachClickListener() {
-    view.on("click", function(event) {
-        view.graphics.removeAll();
+            view.on("click", function(event) {
+                view.graphics.removeAll();
 
-        const bufferDistance = 20;
-        const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
+                const bufferDistance = 20;
+                const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
 
-        let query = featureLayer.createQuery();
-        query.geometry = bufferGeometry;
-        query.spatialRelationship = "intersects";
-        query.returnGeometry = true;
-        query.outFields = ["*"];
+                let query = featureLayer.createQuery();
+                query.geometry = bufferGeometry;
+                query.spatialRelationship = "intersects";
+                query.returnGeometry = true;
+                query.outFields = ["*"];
 
-        featureLayer.queryFeatures(query).then(function(result) {
-            if (result.features.length > 0) {
-                let feature = result.features[0];
-                displayFeature(feature);
-                fetchInspections(feature.attributes.GlobalID);
-                showSidePanel();
-                document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
-                
-                // Clear attachments when a new feature is clicked
-                clearAttachments();
-            } else {
-                document.getElementById("infoDiv").innerHTML = "No feature selected.";
-                hideSidePanel();
-            }
-        }).catch(function(error) {
-            console.error("Query Error:", error);
-        });
-    });
-}
-
+                featureLayer.queryFeatures(query).then(function(result) {
+                    if (result.features.length > 0) {
+                        let feature = result.features[0];
+                        displayFeature(feature);
+                        fetchInspections(feature.attributes.GlobalID);
+                        showSidePanel();
+                        document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
+                        
+                        // Clear attachments when a new feature is clicked
+                        clearAttachments();
+                    } else {
+                        document.getElementById("infoDiv").innerHTML = "No feature selected.";
+                        hideSidePanel();
+                    }
+                }).catch(function(error) {
+                    console.error("Query Error:", error);
+                });
+            });
+        }
 
         function displayFeature(feature) {
             let symbol = {
@@ -289,149 +288,77 @@
         }
 
         function fetchAttachments(objectIds) {
-    // Clear previous attachments
-    document.getElementById("attachmentsDiv").innerHTML = '';
+            // Clear previous attachments
+            document.getElementById("attachmentsDiv").innerHTML = '';
 
-    objectIds.forEach(objectId => {
-        const attachmentQuery = new AttachmentQuery();
-        attachmentQuery.objectIds = [objectId];
+            objectIds.forEach(objectId => {
+                const attachmentQuery = new AttachmentQuery();
+                attachmentQuery.objectIds = [objectId];
 
-        inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentsResult) {
-            if (attachmentsResult[objectId] && attachmentsResult[objectId].length > 0) {
-                const attachmentInfos = attachmentsResult[objectId];
-                const attachmentsDiv = document.getElementById("attachmentsDiv");
+                inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentsResult) {
+                    if (attachmentsResult[objectId] && attachmentsResult[objectId].length > 0) {
+                        const attachmentInfos = attachmentsResult[objectId];
+                        const attachmentsDiv = document.getElementById("attachmentsDiv");
 
-                attachmentInfos.forEach(attachmentInfo => {
-                    const attachmentUrl = attachmentInfo.url;
-                    const attachmentImg = document.createElement("img");
-                    attachmentImg.src = attachmentUrl;
-                    attachmentImg.classList.add("attachment-image");
-                    attachmentImg.onclick = function() {
-                        window.open(attachmentUrl, "_blank");
-                    };
-                    attachmentsDiv.appendChild(attachmentImg);
+                        attachmentInfos.forEach(attachmentInfo => {
+                            const attachmentUrl = attachmentInfo.url;
+                            const attachmentImg = document.createElement("img");
+                            attachmentImg.src = attachmentUrl;
+                            attachmentImg.classList.add("attachment-image");
+                            attachmentImg.onclick = function() {
+                                window.open(attachmentUrl, "_blank");
+                            };
+                            attachmentsDiv.appendChild(attachmentImg);
+                        });
+                    }
+                }).catch(function(error) {
+                    console.error("Attachments Query Error:", error);
                 });
-            }
-        }).catch(function(error) {
-            console.error("Attachments Query Error:", error);
-        });
-    });
-}
+            });
+        }
 
-function attachClickListener() {
-    view.on("click", function(event) {
-        view.graphics.removeAll();
-
-        const bufferDistance = 20;
-        const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
-
-        let query = featureLayer.createQuery();
-        query.geometry = bufferGeometry;
-        query.spatialRelationship = "intersects";
-        query.returnGeometry = true;
-        query.outFields = ["*"];
-
-        featureLayer.queryFeatures(query).then(function(result) {
-            if (result.features.length > 0) {
-                let feature = result.features[0];
-                displayFeature(feature);
-                fetchInspections(feature.attributes.GlobalID);
-                showSidePanel();
-                document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
-                
-                // Clear attachments when a new feature is clicked
-                clearAttachments();
-            } else {
-                document.getElementById("infoDiv").innerHTML = "No feature selected.";
-                hideSidePanel();
-            }
-        }).catch(function(error) {
-            console.error("Query Error:", error);
-        });
-    });
-}
-
-function clearAttachments() {
-    document.getElementById("attachmentsDiv").innerHTML = '';
-}
-
-
+        function clearAttachments() {
+            document.getElementById("attachmentsDiv").innerHTML = '';
+        }
 
         function displayInspections(inspections) {
-    const tbody = document.querySelector("#infoTable tbody");
-    tbody.innerHTML = "";
+            const tbody = document.querySelector("#infoTable tbody");
+            tbody.innerHTML = "";
 
-    if (inspections.length > 0) {
-        inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+            if (inspections.length > 0) {
+                inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
 
-        inspections.forEach((inspection, index) => {
-            let row = document.createElement("tr");
-            row.addEventListener('click', () => {
-                // Remove highlighting from all rows and then highlight the selected one
-                document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
-                row.classList.add("selected-row");
+                inspections.forEach((inspection, index) => {
+                    let row = document.createElement("tr");
+                    row.addEventListener('click', () => {
+                        // Remove highlighting from all rows and then highlight the selected one
+                        document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
+                        row.classList.add("selected-row");
 
-                // Show the attachmentsDiv and display attachments for the selected inspection
-                const attachmentsDiv = document.getElementById("attachmentsDiv");
-                attachmentsDiv.style.display = 'block'; // Make sure to show the attachmentsDiv
-                fetchAttachments([inspection.attributes.OBJECTID]); // Fetch attachments for only this inspection
-            });
+                        // Show the attachmentsDiv and display attachments for the selected inspection
+                        const attachmentsDiv = document.getElementById("attachmentsDiv");
+                        attachmentsDiv.style.display = 'block'; // Make sure to show the attachmentsDiv
+                        displayAttachments([inspection]); // Display attachments for only this inspection
+                    });
 
-            let inspectionDateCell = document.createElement("td");
-            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
-            row.appendChild(inspectionDateCell);
+                    let inspectionDateCell = document.createElement("td");
+                    inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
+                    row.appendChild(inspectionDateCell);
 
-            let conditionScoreCell = document.createElement("td");
-            conditionScoreCell.textContent = inspection.attributes.condition_score;
-            row.appendChild(conditionScoreCell);
+                    let conditionScoreCell = document.createElement("td");
+                    conditionScoreCell.textContent = inspection.attributes.condition_score;
+                    row.appendChild(conditionScoreCell);
 
-            let requiresMaintenanceCell = document.createElement("td");
-            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
-            row.appendChild(requiresMaintenanceCell);
+                    let requiresMaintenanceCell = document.createElement("td");
+                    requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
+                    row.appendChild(requiresMaintenanceCell);
 
-            tbody.appendChild(row);
-        });
-    } else {
-        tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
-    }
-}
-
-
-        function displayAttachments(inspections) {
-    // Clear previous attachments
-    document.getElementById("attachmentsDiv").innerHTML = '';
-
-    inspections.forEach((inspection, index) => {
-        const attachmentQuery = new AttachmentQuery();
-        attachmentQuery.objectIds = [inspection.attributes.OBJECTID];
-
-        inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentsResult) {
-            if (attachmentsResult[inspection.attributes.OBJECTID] && attachmentsResult[inspection.attributes.OBJECTID].length > 0) {
-                const attachmentInfos = attachmentsResult[inspection.attributes.OBJECTID];
-                const attachmentsDiv = document.getElementById("attachmentsDiv");
-
-                // Optionally, add a header or separator for each inspection's attachments
-                const attachmentHeader = document.createElement("h3");
-                attachmentHeader.textContent = `Attachments for Inspection ${index + 1}`;
-                attachmentsDiv.appendChild(attachmentHeader);
-
-                attachmentInfos.forEach(attachmentInfo => {
-                    const attachmentUrl = attachmentInfo.url;
-                    const attachmentImg = document.createElement("img");
-                    attachmentImg.src = attachmentUrl;
-                    attachmentImg.classList.add("attachment-image");
-                    attachmentImg.onclick = function() {
-                        window.open(attachmentUrl, "_blank");
-                    };
-                    attachmentsDiv.appendChild(attachmentImg);
+                    tbody.appendChild(row);
                 });
+            } else {
+                tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
             }
-        }).catch(function(error) {
-            console.error("Attachments Query Error:", error);
-        });
-    });
-}
-
+        }
 
         function formatDate(dateString) {
             const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
@@ -480,15 +407,13 @@ function clearAttachments() {
         });
 
         document.getElementById("clearSelectionButton").addEventListener("click", function() {
-    view.graphics.removeAll();
-    hideSidePanel();
-    document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row")); // Remove highlighting
-    const attachmentsDiv = document.getElementById("attachmentsDiv");
-    attachmentsDiv.innerHTML = ''; // Clear attachments content
-    attachmentsDiv.style.display = 'none'; // Hide the attachments section
-});
-
-
+            view.graphics.removeAll();
+            hideSidePanel();
+            document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row")); // Remove highlighting
+            const attachmentsDiv = document.getElementById("attachmentsDiv");
+            attachmentsDiv.innerHTML = ''; // Clear attachments content
+            attachmentsDiv.style.display = 'none'; // Hide the attachments section
+        });
 
         function showSuccessMessage() {
             const successMessage = document.getElementById("successMessage");
