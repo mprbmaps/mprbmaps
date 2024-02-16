@@ -289,13 +289,13 @@
         }
 
         function fetchInspections(globalID) {
+    // Clear previous attachments before querying for new ones
+    clearAttachments();
+
     const inspectionQuery = new Query();
     inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
     inspectionQuery.returnGeometry = false;
     inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "OBJECTID"];
-
-    // Clear previous attachments before querying for new ones
-    clearAttachments();
 
     inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
         displayInspections(inspectionResult.features);
@@ -305,9 +305,43 @@
     });
 }
 
+function attachClickListener() {
+    view.on("click", function(event) {
+        view.graphics.removeAll();
+
+        const bufferDistance = 20;
+        const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
+
+        let query = featureLayer.createQuery();
+        query.geometry = bufferGeometry;
+        query.spatialRelationship = "intersects";
+        query.returnGeometry = true;
+        query.outFields = ["*"];
+
+        featureLayer.queryFeatures(query).then(function(result) {
+            if (result.features.length > 0) {
+                let feature = result.features[0];
+                displayFeature(feature);
+                fetchInspections(feature.attributes.GlobalID);
+                showSidePanel();
+                document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
+                
+                // Clear attachments when a new feature is clicked
+                clearAttachments();
+            } else {
+                document.getElementById("infoDiv").innerHTML = "No feature selected.";
+                hideSidePanel();
+            }
+        }).catch(function(error) {
+            console.error("Query Error:", error);
+        });
+    });
+}
+
 function clearAttachments() {
     document.getElementById("attachmentsDiv").innerHTML = '';
 }
+
 
 
         function displayInspections(inspections) {
