@@ -312,10 +312,8 @@
                 document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
                 row.classList.add("selected-row");
 
-                // Show the attachmentsDiv and display attachments for the selected inspection
-                const attachmentsDiv = document.getElementById("attachmentsDiv");
-                attachmentsDiv.style.display = 'block'; // Make sure to show the attachmentsDiv
-                displayAttachments([inspection]); // Display attachments for only this inspection
+                // Call displayAttachments here for the selected inspection
+                displayAttachments([inspection]);
             });
 
             let inspectionDateCell = document.createElement("td");
@@ -338,9 +336,12 @@
 }
 
 
+
         function displayAttachments(inspections) {
     // Clear previous attachments
-    document.getElementById("attachmentsDiv").innerHTML = '';
+    const attachmentsDiv = document.getElementById("attachmentsDiv");
+    attachmentsDiv.innerHTML = '';
+    attachmentsDiv.style.display = 'none'; // Hide by default, show only if there are attachments
 
     inspections.forEach((inspection, index) => {
         const attachmentQuery = new AttachmentQuery();
@@ -349,7 +350,7 @@
         inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentsResult) {
             if (attachmentsResult[inspection.attributes.OBJECTID] && attachmentsResult[inspection.attributes.OBJECTID].length > 0) {
                 const attachmentInfos = attachmentsResult[inspection.attributes.OBJECTID];
-                const attachmentsDiv = document.getElementById("attachmentsDiv");
+                attachmentsDiv.style.display = 'block'; // Show the attachmentsDiv if there are attachments
 
                 // Optionally, add a header or separator for each inspection's attachments
                 const attachmentHeader = document.createElement("h3");
@@ -372,6 +373,7 @@
         });
     });
 }
+
 
 
         function formatDate(dateString) {
