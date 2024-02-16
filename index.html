@@ -235,56 +235,35 @@
             console.error("Error loading Feature Layer:", error);
         });
 
-        function fetchInspections(globalId) {
-    const query = inspectionLayer.createQuery();
-    query.where = `relfeatureglobalid = '${globalId}'`; // Filter inspections based on the related globalId
-    query.outFields = ["inspection_date", "condition_score", "requires_maintenance"];
+        function attachClickListener() {
+            view.on("click", function(event) {
+                view.graphics.removeAll();
 
-    inspectionLayer.queryFeatures(query)
-        .then(function(result) {
-            console.log("Query result:", result); // Log the query result
-            const inspections = result.features.map(feature => feature.attributes);
-            console.log("Inspections:", inspections); // Log the inspections array
-            displayInspections(inspections);
-        })
-        .catch(function(error) {
-            console.error("Error fetching inspections:", error);
-        });
-}
+                const bufferDistance = 20;
+                const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
 
+                let query = featureLayer.createQuery();
+                query.geometry = bufferGeometry;
+                query.spatialRelationship = "intersects";
+                query.returnGeometry = true;
+                query.outFields = ["*"];
 
-function attachClickListener() {
-    view.on("click", function(event) {
-        view.graphics.removeAll();
-
-        const bufferDistance = 20;
-        const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
-
-        let query = featureLayer.createQuery();
-        query.geometry = bufferGeometry;
-        query.spatialRelationship = "intersects";
-        query.returnGeometry = true;
-        query.outFields = ["*"];
-
-        featureLayer.queryFeatures(query).then(function(result) {
-            if (result.features.length > 0) {
-                let feature = result.features[0];
-                displayFeature(feature);
-                fetchInspections(feature.attributes.GlobalID);
-                showSidePanel();
-                document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
-                
-                // Clear attachments when a new feature is clicked
-                clearAttachments();
-            } else {
-                document.getElementById("infoDiv").innerHTML = "No feature selected.";
-                hideSidePanel();
-            }
-        }).catch(function(error) {
-            console.error("Query Error:", error);
-        });
-    });
-}
+                featureLayer.queryFeatures(query).then(function(result) {
+                    if (result.features.length > 0) {
+                        let feature = result.features[0];
+                        displayFeature(feature);
+                        fetchInspections(feature.attributes.GlobalID);
+                        showSidePanel();
+                        document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
+                    } else {
+                        document.getElementById("infoDiv").innerHTML = "No feature selected.";
+                        hideSidePanel();
+                    }
+                }).catch(function(error) {
+                    console.error("Query Error:", error);
+                });
+            });
+        }
 
         function displayFeature(feature) {
             let symbol = {
@@ -305,38 +284,18 @@ function attachClickListener() {
             view.graphics.add(graphic);
         }
 
-        function fetchAttachments(objectIds) {
-            // Clear previous attachments
-            document.getElementById("attachmentsDiv").innerHTML = '';
+        function fetchInspections(globalID) {
+            const inspectionQuery = new Query();
+            inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
+            inspectionQuery.returnGeometry = false;
+            inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "OBJECTID"];
 
-            objectIds.forEach(objectId => {
-                const attachmentQuery = new AttachmentQuery();
-                attachmentQuery.objectIds = [objectId];
-
-                inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentsResult) {
-                    if (attachmentsResult[objectId] && attachmentsResult[objectId].length > 0) {
-                        const attachmentInfos = attachmentsResult[objectId];
-                        const attachmentsDiv = document.getElementById("attachmentsDiv");
-
-                        attachmentInfos.forEach(attachmentInfo => {
-                            const attachmentUrl = attachmentInfo.url;
-                            const attachmentImg = document.createElement("img");
-                            attachmentImg.src = attachmentUrl;
-                            attachmentImg.classList.add("attachment-image");
-                            attachmentImg.onclick = function() {
-                                window.open(attachmentUrl, "_blank");
-                            };
-                            attachmentsDiv.appendChild(attachmentImg);
-                        });
-                    }
-                }).catch(function(error) {
-                    console.error("Attachments Query Error:", error);
-                });
+            inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
+                displayInspections(inspectionResult.features);
+                displayAttachments(inspectionResult.features);
+            }).catch(function(error) {
+                console.error("Inspection Query Error:", error);
             });
-        }
-
-        function clearAttachments() {
-            document.getElementById("attachmentsDiv").innerHTML = '';
         }
 
         function displayInspections(inspections) {
@@ -344,7 +303,7 @@ function attachClickListener() {
     tbody.innerHTML = "";
 
     if (inspections.length > 0) {
-        inspections.sort((a, b) => b.inspection_date - a.inspection_date);
+        inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
 
         inspections.forEach((inspection, index) => {
             let row = document.createElement("tr");
@@ -356,19 +315,19 @@ function attachClickListener() {
                 // Show the attachmentsDiv and display attachments for the selected inspection
                 const attachmentsDiv = document.getElementById("attachmentsDiv");
                 attachmentsDiv.style.display = 'block'; // Make sure to show the attachmentsDiv
-                fetchAttachments([inspection.OBJECTID]); // Fetch attachments for only this inspection
+                displayAttachments([inspection]); // Display attachments for only this inspection
             });
 
             let inspectionDateCell = document.createElement("td");
-            inspectionDateCell.textContent = formatDate(inspection.inspection_date);
+            inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
             row.appendChild(inspectionDateCell);
 
             let conditionScoreCell = document.createElement("td");
-            conditionScoreCell.textContent = inspection.condition_score;
+            conditionScoreCell.textContent = inspection.attributes.condition_score;
             row.appendChild(conditionScoreCell);
 
             let requiresMaintenanceCell = document.createElement("td");
-            requiresMaintenanceCell.textContent = inspection.requires_maintenance;
+            requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
             row.appendChild(requiresMaintenanceCell);
 
             tbody.appendChild(row);
@@ -378,10 +337,47 @@ function attachClickListener() {
     }
 }
 
-function formatDate(timestamp) {
-    const date = new Date(timestamp);
-    return date.toLocaleDateString();
+
+        function displayAttachments(inspections) {
+    // Clear previous attachments
+    document.getElementById("attachmentsDiv").innerHTML = '';
+
+    inspections.forEach((inspection, index) => {
+        const attachmentQuery = new AttachmentQuery();
+        attachmentQuery.objectIds = [inspection.attributes.OBJECTID];
+
+        inspectionLayer.queryAttachments(attachmentQuery).then(function(attachmentsResult) {
+            if (attachmentsResult[inspection.attributes.OBJECTID] && attachmentsResult[inspection.attributes.OBJECTID].length > 0) {
+                const attachmentInfos = attachmentsResult[inspection.attributes.OBJECTID];
+                const attachmentsDiv = document.getElementById("attachmentsDiv");
+
+                // Optionally, add a header or separator for each inspection's attachments
+                const attachmentHeader = document.createElement("h3");
+                attachmentHeader.textContent = `Attachments for Inspection ${index + 1}`;
+                attachmentsDiv.appendChild(attachmentHeader);
+
+                attachmentInfos.forEach(attachmentInfo => {
+                    const attachmentUrl = attachmentInfo.url;
+                    const attachmentImg = document.createElement("img");
+                    attachmentImg.src = attachmentUrl;
+                    attachmentImg.classList.add("attachment-image");
+                    attachmentImg.onclick = function() {
+                        window.open(attachmentUrl, "_blank");
+                    };
+                    attachmentsDiv.appendChild(attachmentImg);
+                });
+            }
+        }).catch(function(error) {
+            console.error("Attachments Query Error:", error);
+        });
+    });
 }
+
+
+        function formatDate(dateString) {
+            const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+            return new Date(dateString).toLocaleDateString(undefined, options);
+        }
 
         function showSidePanel() {
             document.getElementById("sidePanel").style.right = "0";
@@ -425,13 +421,15 @@ function formatDate(timestamp) {
         });
 
         document.getElementById("clearSelectionButton").addEventListener("click", function() {
-            view.graphics.removeAll();
-            hideSidePanel();
-            document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row")); // Remove highlighting
-            const attachmentsDiv = document.getElementById("attachmentsDiv");
-            attachmentsDiv.innerHTML = ''; // Clear attachments content
-            attachmentsDiv.style.display = 'none'; // Hide the attachments section
-        });
+    view.graphics.removeAll();
+    hideSidePanel();
+    document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row")); // Remove highlighting
+    const attachmentsDiv = document.getElementById("attachmentsDiv");
+    attachmentsDiv.innerHTML = ''; // Clear attachments content
+    attachmentsDiv.style.display = 'none'; // Hide the attachments section
+});
+
+
 
         function showSuccessMessage() {
             const successMessage = document.getElementById("successMessage");
