@@ -285,18 +285,19 @@
         }
 
         function fetchInspections(globalID) {
-            const inspectionQuery = new Query();
-            inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
-            inspectionQuery.returnGeometry = false;
-            inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "OBJECTID"];
+    const inspectionQuery = new Query();
+    inspectionQuery.where = "relfeatureglobalid = '" + globalID + "'";
+    inspectionQuery.returnGeometry = false;
+    inspectionQuery.outFields = ["inspection_date", "condition_score", "requires_maintenance", "OBJECTID"];
 
-            inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
-                displayInspections(inspectionResult.features);
-                displayAttachments(inspectionResult.features);
-            }).catch(function(error) {
-                console.error("Inspection Query Error:", error);
-            });
-        }
+    inspectionLayer.queryFeatures(inspectionQuery).then(function(inspectionResult) {
+        displayInspections(inspectionResult.features);
+        // Ensure displayAttachments is not called here
+    }).catch(function(error) {
+        console.error("Inspection Query Error:", error);
+    });
+}
+
 
         function displayInspections(inspections) {
     const tbody = document.querySelector("#infoTable tbody");
@@ -308,11 +309,9 @@
         inspections.forEach((inspection, index) => {
             let row = document.createElement("tr");
             row.addEventListener('click', () => {
-                // Remove highlighting from all rows and then highlight the selected one
                 document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
                 row.classList.add("selected-row");
-
-                // Call displayAttachments here for the selected inspection
+                // Call displayAttachments for the selected inspection
                 displayAttachments([inspection]);
             });
 
