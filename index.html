@@ -340,48 +340,48 @@ function attachClickListener() {
         }
 
         function displayInspections(inspections) {
-            const tbody = document.querySelector("#infoTable tbody");
-            tbody.innerHTML = "";
+    const tbody = document.querySelector("#infoTable tbody");
+    tbody.innerHTML = "";
 
-            if (inspections.length > 0) {
-                inspections.sort((a, b) => new Date(b.attributes.inspection_date) - new Date(a.attributes.inspection_date));
+    if (inspections.length > 0) {
+        inspections.sort((a, b) => b.inspection_date - a.inspection_date);
 
-                inspections.forEach((inspection, index) => {
-                    let row = document.createElement("tr");
-                    row.addEventListener('click', () => {
-                        // Remove highlighting from all rows and then highlight the selected one
-                        document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
-                        row.classList.add("selected-row");
+        inspections.forEach((inspection, index) => {
+            let row = document.createElement("tr");
+            row.addEventListener('click', () => {
+                // Remove highlighting from all rows and then highlight the selected one
+                document.querySelectorAll("#infoTable tbody tr").forEach(el => el.classList.remove("selected-row"));
+                row.classList.add("selected-row");
 
-                        // Show the attachmentsDiv and display attachments for the selected inspection
-                        const attachmentsDiv = document.getElementById("attachmentsDiv");
-                        attachmentsDiv.style.display = 'block'; // Make sure to show the attachmentsDiv
-                        displayAttachments([inspection]); // Display attachments for only this inspection
-                    });
+                // Show the attachmentsDiv and display attachments for the selected inspection
+                const attachmentsDiv = document.getElementById("attachmentsDiv");
+                attachmentsDiv.style.display = 'block'; // Make sure to show the attachmentsDiv
+                fetchAttachments([inspection.OBJECTID]); // Fetch attachments for only this inspection
+            });
 
-                    let inspectionDateCell = document.createElement("td");
-                    inspectionDateCell.textContent = formatDate(inspection.attributes.inspection_date);
-                    row.appendChild(inspectionDateCell);
+            let inspectionDateCell = document.createElement("td");
+            inspectionDateCell.textContent = formatDate(inspection.inspection_date);
+            row.appendChild(inspectionDateCell);
 
-                    let conditionScoreCell = document.createElement("td");
-                    conditionScoreCell.textContent = inspection.attributes.condition_score;
-                    row.appendChild(conditionScoreCell);
+            let conditionScoreCell = document.createElement("td");
+            conditionScoreCell.textContent = inspection.condition_score;
+            row.appendChild(conditionScoreCell);
 
-                    let requiresMaintenanceCell = document.createElement("td");
-                    requiresMaintenanceCell.textContent = inspection.attributes.requires_maintenance;
-                    row.appendChild(requiresMaintenanceCell);
+            let requiresMaintenanceCell = document.createElement("td");
+            requiresMaintenanceCell.textContent = inspection.requires_maintenance;
+            row.appendChild(requiresMaintenanceCell);
 
-                    tbody.appendChild(row);
-                });
-            } else {
-                tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
-            }
-        }
+            tbody.appendChild(row);
+        });
+    } else {
+        tbody.innerHTML = "<tr><td colspan='3'>No related inspections found.</td></tr>";
+    }
+}
 
-        function formatDate(dateString) {
-            const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
-            return new Date(dateString).toLocaleDateString(undefined, options);
-        }
+function formatDate(timestamp) {
+    const date = new Date(timestamp);
+    return date.toLocaleDateString();
+}
 
         function showSidePanel() {
             document.getElementById("sidePanel").style.right = "0";
