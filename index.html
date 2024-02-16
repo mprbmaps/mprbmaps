@@ -237,44 +237,43 @@
 
         function attachClickListener() {
     view.on("click", function(event) {
-        view.graphics.removeAll(); // Remove existing map graphics
+    view.graphics.removeAll(); // Remove existing map graphics
 
-        // Clear existing attachments and hide the attachments section
-        const attachmentsDiv = document.getElementById("attachmentsDiv");
-        attachmentsDiv.innerHTML = ''; // Clear attachments content
-        attachmentsDiv.style.display = 'none'; // Hide the attachments section
+    // Clear existing attachments and hide the attachments section
+    const attachmentsDiv = document.getElementById("attachmentsDiv");
+    attachmentsDiv.innerHTML = ''; // Clear attachments content
+    attachmentsDiv.style.display = 'none'; // Hide the attachments section
 
-        // Define the bufferGeometry and query parameters
-        const bufferDistance = 20;
-        const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
+    // Define the bufferGeometry and query parameters
+    const bufferDistance = 20;
+    const bufferGeometry = geometryEngine.geodesicBuffer(event.mapPoint, bufferDistance, "feet");
 
-        let query = featureLayer.createQuery();
-        query.geometry = bufferGeometry;
-        query.spatialRelationship = "intersects";
-        query.returnGeometry = true;
-        query.outFields = ["*"];
+    let query = featureLayer.createQuery();
+    query.geometry = bufferGeometry;
+    query.spatialRelationship = "intersects";
+    query.returnGeometry = true;
+    query.outFields = ["*"];
 
-        featureLayer.queryFeatures(query).then(function(result) {
-            if (result.features.length > 0) {
-                let feature = result.features[0];
-                displayFeature(feature);
-                fetchInspections(feature.attributes.GlobalID); // Fetch inspections for the new feature
-                showSidePanel();
-                document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
-            } else {
-                // This is where you update the UI to indicate no feature has been selected
-                const infoDiv = document.getElementById("infoDiv");
-                if (infoDiv) {
-                    infoDiv.innerHTML = "No feature selected."; // Safely setting innerHTML
-                }
-                console.log("No feature selected.");
-                hideSidePanel();
+    featureLayer.queryFeatures(query).then(function(result) {
+        if (result.features.length > 0) {
+            let feature = result.features[0];
+            displayFeature(feature);
+            fetchInspections(feature.attributes.GlobalID); // Fetch inspections for the new feature
+            showSidePanel();
+            document.getElementById("relfeatureglobalid").value = feature.attributes.GlobalID;
+        } else {
+            console.log("No feature selected.");
+            hideSidePanel();
+            // Additional safeguard for updating UI when no feature is selected
+            const infoDiv = document.getElementById("infoDiv");
+            if (infoDiv) {
+                infoDiv.innerHTML = "<h2>No feature selected.</h2>"; // Safely updating UI
             }
-        }).catch(function(error) {
-            console.error("Query Error:", error);
-        });
+        }
+    }).catch(function(error) {
+        console.error("Query Error:", error);
     });
-}
+});
 
 
 
