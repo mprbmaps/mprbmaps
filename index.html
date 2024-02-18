@@ -38,15 +38,11 @@
           "esri/identity/IdentityManager"
         ], function(esriConfig, Map, MapView, FeatureLayer, esriRequest, OAuthInfo, esriId) {
 
-          console.log("Modules loaded.");
-
           const oauthInfo = new OAuthInfo({
             appId: "ti3fi1FqvHE2Hhyw",
             popup: true
           });
           esriId.registerOAuthInfos([oauthInfo]);
-
-          console.log("OAuthInfo registered.");
 
           esriId.checkSignInStatus(oauthInfo.portalUrl + "/sharing").then(
             function() {
@@ -59,8 +55,6 @@
           });
 
           function initApp() {
-            console.log("Initializing application...");
-
             const map = new Map({
               basemap: "arcgis-topographic"
             });
@@ -72,24 +66,17 @@
               center: [-100, 40]
             });
 
-            console.log("Map and view created.");
-
             const snowRoutesLayer = new FeatureLayer({
               url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/SnowRoutes_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer"
             });
             map.add(snowRoutesLayer);
 
-            console.log("Feature layer added to the map.");
-
             document.getElementById("updateButton").addEventListener("click", function() {
-              console.log("Update button clicked.");
               fetchSourceDataAndUpdateLayer(snowRoutesLayer);
             });
           }
 
           function fetchSourceDataAndUpdateLayer(snowRoutesLayer) {
-            console.log("Fetching source data...");
-
             const sourceTableUrl = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/segment_time_to_reach_snowroute/FeatureServer/0/query";
             
             esriRequest(sourceTableUrl, {
@@ -100,8 +87,6 @@
               },
               responseType: "json"
             }).then(function(sourceResponse) {
-              console.log("Source data fetched successfully.");
-
               const sourceFeatures = sourceResponse.data.features;
               
               const query = snowRoutesLayer.createQuery();
@@ -109,19 +94,22 @@
               query.outFields = ["OBJECTID", "snowroutesegmentid"];
 
               snowRoutesLayer.queryFeatures(query).then(function(targetResponse) {
-                console.log("Target layer features fetched for matching.");
-
                 const targetFeatures = targetResponse.features;
                 
                 const updates = prepareUpdates(sourceFeatures, targetFeatures);
-
-                console.log(`Prepared ${updates.length} updates.`);
 
                 if (updates.length > 0) {
                   snowRoutesLayer.applyEdits({
                     updateFeatures: updates
                   }).then(function(results) {
-                    console.log("Successfully updated features:", results);
+                    console.log("Update operation completed.");
+                    results.updateFeatureResults.forEach((result, index) => {
+                        if (result.error) {
+                            console.error(`Error updating feature ${index}:`, result.error);
+                        } else {
+                            console.log(`Feature ${index} updated successfully, OBJECTID: ${result.objectId}`);
+                        }
+                    });
                   }).catch(function(error) {
                     console.error("Error applying updates:", error);
                   });
@@ -135,24 +123,19 @@
           }
 
           function prepareUpdates(sourceFeatures, targetFeatures) {
-            console.log("Preparing updates...");
-
             return sourceFeatures.map(sourceFeature => {
               const matchedTargetFeature = targetFeatures.find(targetFeature => 
                 targetFeature.attributes.snowroutesegmentid === sourceFeature.attributes.segmentID);
 
               if (matchedTargetFeature) {
-                console.log(`Match found for segmentID: ${sourceFeature.attributes.segmentID}`);
                 return {
                   attributes: {
                     OBJECTID: matchedTargetFeature.attributes.OBJECTID,
                     Hrs21stPlow_2024_2: sourceFeature.attributes.hours
                   }
                 };
-              } else {
-                console.log(`No match found for segmentID: ${sourceFeature.attributes.segmentID}`);
-                return null;
               }
+              return null;
             }).filter(update => update !== null);
           }
 
