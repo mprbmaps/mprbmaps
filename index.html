@@ -2,21 +2,21 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>ArcGIS JavaScript API OAuth Example with Data Update</title>
+    <title>Update Feature Layer Fields</title>
     <link rel="stylesheet" href="https://js.arcgis.com/4.23/esri/themes/light/main.css">
     <style>
         html, body, #viewDiv {
-            padding: 0;
-            margin: 0;
             height: 100%;
             width: 100%;
+            margin: 0;
+            padding: 0;
         }
         #updateButton {
             position: absolute;
             top: 20px;
             left: 20px;
             z-index: 99;
-            background-color: white;
+            background-color: #fff;
             padding: 10px;
             cursor: pointer;
         }
@@ -38,22 +38,20 @@
           "esri/identity/IdentityManager"
         ], function(esriConfig, Map, MapView, FeatureLayer, esriRequest, OAuthInfo, esriId) {
 
-          const info = new OAuthInfo({
+          const oauthInfo = new OAuthInfo({
             appId: "ti3fi1FqvHE2Hhyw",
-            popup: false
+            popup: true
           });
-          esriId.registerOAuthInfos([info]);
+          esriId.registerOAuthInfos([oauthInfo]);
 
-          esriId.checkSignInStatus(info.portalUrl + "/sharing").then(
+          esriId.checkSignInStatus(oauthInfo.portalUrl + "/sharing").then(
             function() {
               console.log("Signed in");
               initApp();
             }
-          ).catch(
-            function() {
-              esriId.getCredential(info.portalUrl + "/sharing");
-            }
-          );
+          ).catch(function() {
+              esriId.getCredential(oauthInfo.portalUrl + "/sharing");
+          });
 
           function initApp() {
             const map = new Map({
@@ -70,50 +68,56 @@
             const snowRoutesLayer = new FeatureLayer({
               url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/SnowRoutes_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer"
             });
-
             map.add(snowRoutesLayer);
 
             document.getElementById("updateButton").addEventListener("click", function() {
-              updateData();
+              fetchAndUpdateData();
             });
+          }
 
-            function updateData() {
-  esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/segment_time_to_reach_snowroute/FeatureServer/0/query?where=1%3D1&outFields=segmentID,hours&f=json", {
-    responseType: "json"
-  }).then(function(response) {
-    const features = response.data.features;
-    
-    // Verify we have multiple features to update
-    console.log("Fetched features for update:", features.length);
+          function fetchAndUpdateData() {
+            // Assume sourceFeatures is populated with your source data
+            let sourceFeatures; // Placeholder - populate this with actual data
 
-    const updates = features.map(feature => ({
-      attributes: {
-        snowroutesegmentid: feature.attributes.segmentID, // Ensure this ID matches the target layer's field name exactly
-        Hrs21stPlow_2024_2: feature.attributes.hours
-      }
-    }));
+            const query = snowRoutesLayer.createQuery();
+            query.where = "1=1";
+            query.outFields = ["OBJECTID", "snowroutesegmentid"];
 
-    if (updates.length > 0) {
-      snowRoutesLayer.applyEdits({
-        updateFeatures: updates
-      }).then(function(results) {
-        console.log("Update results:", results);
-        if (results.updateFeatureResults.length > 0) {
-          console.log("Successfully updated", results.updateFeatureResults.length, "features.");
-        }
-      }).catch(function(error) {
-        console.error("Error updating features:", error);
-      });
-    } else {
-      console.log("No updates to apply.");
-    }
-  }).catch(function(error) {
-    console.error("Error fetching data:", error);
-  });
-}
+            snowRoutesLayer.queryFeatures(query).then(function(response) {
+              const targetFeatures = response.features;
 
+              const updates = sourceFeatures.map(sourceFeature => {
+                const matchedTargetFeature = targetFeatures.find(targetFeature => 
+                  targetFeature.attributes.snowroutesegmentid === sourceFeature.attributes.segmentID);
+
+                if (matchedTargetFeature) {
+                  return {
+                    attributes: {
+                      OBJECTID: matchedTargetFeature.attributes.OBJECTID,
+                      Hrs21stPlow_2024_2: sourceFeature.attributes.hours
+                    }
+                  };
+                }
+                return null;
+              }).filter(update => update !== null);
+
+              if (updates.length > 0) {
+                snowRoutesLayer.applyEdits({
+                  updateFeatures: updates
+                }).then(function(results) {
+                  console.log("Update results:", results);
+                }).catch(function(error) {
+                  console.error("Error applying updates:", error);
+                });
+              } else {
+                console.log("No matching features found to update.");
+              }
+            }).catch(function(error) {
+              console.error("Error querying target features:", error);
+            });
           }
         });
     </script>
 </body>
 </html>
+
