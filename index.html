@@ -71,53 +71,70 @@
             map.add(snowRoutesLayer);
 
             document.getElementById("updateButton").addEventListener("click", function() {
-              fetchAndUpdateData();
+              fetchSourceDataAndUpdateLayer(snowRoutesLayer);
             });
           }
 
-          function fetchAndUpdateData() {
-            // Assume sourceFeatures is populated with your source data
-            let sourceFeatures; // Placeholder - populate this with actual data
+          function fetchSourceDataAndUpdateLayer(snowRoutesLayer) {
+            // Replace with the URL of your source table
+            const sourceTableUrl = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/segment_time_to_reach_snowroute/FeatureServer/0/query";
+            
+            // Fetch source data
+            esriRequest(sourceTableUrl, {
+              query: {
+                where: "1=1",
+                outFields: "*",
+                f: "json"
+              },
+              responseType: "json"
+            }).then(function(sourceResponse) {
+              const sourceFeatures = sourceResponse.data.features;
+              
+              // Now, fetch target layer features to match and update
+              const query = snowRoutesLayer.createQuery();
+              query.where = "1=1";
+              query.outFields = ["OBJECTID", "snowroutesegmentid"];
 
-            const query = snowRoutesLayer.createQuery();
-            query.where = "1=1";
-            query.outFields = ["OBJECTID", "snowroutesegmentid"];
+              snowRoutesLayer.queryFeatures(query).then(function(targetResponse) {
+                const targetFeatures = targetResponse.features;
+                
+                const updates = prepareUpdates(sourceFeatures, targetFeatures);
 
-            snowRoutesLayer.queryFeatures(query).then(function(response) {
-              const targetFeatures = response.features;
-
-              const updates = sourceFeatures.map(sourceFeature => {
-                const matchedTargetFeature = targetFeatures.find(targetFeature => 
-                  targetFeature.attributes.snowroutesegmentid === sourceFeature.attributes.segmentID);
-
-                if (matchedTargetFeature) {
-                  return {
-                    attributes: {
-                      OBJECTID: matchedTargetFeature.attributes.OBJECTID,
-                      Hrs21stPlow_2024_2: sourceFeature.attributes.hours
-                    }
-                  };
+                if (updates.length > 0) {
+                  snowRoutesLayer.applyEdits({
+                    updateFeatures: updates
+                  }).then(function(results) {
+                    console.log("Successfully updated features:", results);
+                  }).catch(function(error) {
+                    console.error("Error applying updates:", error);
+                  });
+                } else {
+                  console.log("No matching features found to update.");
                 }
-                return null;
-              }).filter(update => update !== null);
-
-              if (updates.length > 0) {
-                snowRoutesLayer.applyEdits({
-                  updateFeatures: updates
-                }).then(function(results) {
-                  console.log("Update results:", results);
-                }).catch(function(error) {
-                  console.error("Error applying updates:", error);
-                });
-              } else {
-                console.log("No matching features found to update.");
-              }
+              });
             }).catch(function(error) {
-              console.error("Error querying target features:", error);
+              console.error("Error fetching source data:", error);
             });
           }
+
+          function prepareUpdates(sourceFeatures, targetFeatures) {
+            return sourceFeatures.map(sourceFeature => {
+              const matchedTargetFeature = targetFeatures.find(targetFeature => 
+                targetFeature.attributes.snowroutesegmentid === sourceFeature.attributes.segmentID);
+
+              if (matchedTargetFeature) {
+                return {
+                  attributes: {
+                    OBJECTID: matchedTargetFeature.attributes.OBJECTID,
+                    Hrs21stPlow_2024_2: sourceFeature.attributes.hours
+                  }
+                };
+              }
+              return null;
+            }).filter(update => update !== null);
+          }
+
         });
     </script>
 </body>
 </html>
-
