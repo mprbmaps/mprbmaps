@@ -78,7 +78,7 @@
 
           function fetchSourceDataAndUpdateLayer(snowRoutesLayer) {
             const sourceTableUrl = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/segment_time_to_reach_snowroute/FeatureServer/0/query";
-            
+
             esriRequest(sourceTableUrl, {
               query: {
                 where: "1=1",
@@ -88,28 +88,21 @@
               responseType: "json"
             }).then(function(sourceResponse) {
               const sourceFeatures = sourceResponse.data.features;
-              
+
               const query = snowRoutesLayer.createQuery();
               query.where = "1=1";
               query.outFields = ["OBJECTID", "snowroutesegmentid"];
 
               snowRoutesLayer.queryFeatures(query).then(function(targetResponse) {
                 const targetFeatures = targetResponse.features;
-                
+
                 const updates = prepareUpdates(sourceFeatures, targetFeatures);
 
                 if (updates.length > 0) {
                   snowRoutesLayer.applyEdits({
                     updateFeatures: updates
                   }).then(function(results) {
-                    console.log("Update operation completed.");
-                    results.updateFeatureResults.forEach((result, index) => {
-                        if (result.error) {
-                            console.error(`Error updating feature ${index}:`, result.error);
-                        } else {
-                            console.log(`Feature ${index} updated successfully, OBJECTID: ${result.objectId}`);
-                        }
-                    });
+                    console.log("Updates applied successfully.");
                   }).catch(function(error) {
                     console.error("Error applying updates:", error);
                   });
@@ -125,18 +118,18 @@
           function prepareUpdates(sourceFeatures, targetFeatures) {
             return sourceFeatures.map(sourceFeature => {
               const matchedTargetFeature = targetFeatures.find(targetFeature => 
-                targetFeature.attributes.snowroutesegmentid === sourceFeature.attributes.segmentID);
+                targetFeature.attributes.snowroutesegmentid === sourceFeature.attributes.snowroutesegmentid);
 
               if (matchedTargetFeature) {
                 return {
                   attributes: {
                     OBJECTID: matchedTargetFeature.attributes.OBJECTID,
-                    Hrs21stPlow_2024_2: sourceFeature.attributes.hours
+                    Hrs21stPlow_2024_2: sourceFeature.attributes.Hrs21stPlow_2024_2
                   }
                 };
               }
               return null;
-            }).filter(update => update !== null);
+            }).filter(u => u !== null);
           }
 
         });
