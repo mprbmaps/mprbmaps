@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>ArcGIS JavaScript API OAuth Example with Data Update</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.23/esri/themes/light/main.css">
+    <style>
+        html, body, #viewDiv {
+            padding: 0;
+            margin: 0;
+            height: 100%;
+            width: 100%;
+        }
+        #updateButton {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 99;
+            background-color: white;
+            padding: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="updateButton">Update Plowing Hours</div>
+    <div id="viewDiv"></div>
+
+    <script src="https://js.arcgis.com/4.23/"></script>
+    <script>
+        require([
+          "esri/config",
+          "esri/Map",
+          "esri/views/MapView",
+          "esri/layers/FeatureLayer",
+          "esri/request",
+          "esri/identity/OAuthInfo",
+          "esri/identity/IdentityManager"
+        ], function(esriConfig, Map, MapView, FeatureLayer, esriRequest, OAuthInfo, esriId) {
+
+          const info = new OAuthInfo({
+            appId: "ti3fi1FqvHE2Hhyw",
+            popup: false
+          });
+          esriId.registerOAuthInfos([info]);
+
+          esriId.checkSignInStatus(info.portalUrl + "/sharing").then(
+            function() {
+              console.log("Signed in");
+              initApp();
+            }
+          ).catch(
+            function() {
+              esriId.getCredential(info.portalUrl + "/sharing");
+            }
+          );
+
+          function initApp() {
+            const map = new Map({
+              basemap: "arcgis-topographic"
+            });
+
+            const view = new MapView({
+              container: "viewDiv",
+              map: map,
+              zoom: 10,
+              center: [-100, 40]
+            });
+
+            const snowRoutesLayer = new FeatureLayer({
+              url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/SnowRoutes_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer"
+            });
+
+            map.add(snowRoutesLayer);
+
+            document.getElementById("updateButton").addEventListener("click", function() {
+              updateData();
+            });
+
+            function updateData() {
+              esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/segment_time_to_reach_snowroute/FeatureServer/0/query?where=1%3D1&outFields=segmentID,hours&f=json", {
+                responseType: "json"
+              }).then(function(response) {
+                const updates = response.data.features.map(feature => {
+                  return {
+                    attributes: {
+                      snowroutesegmentid: feature.attributes.segmentID,
+                      Hrs21stPlow_2024_2: feature.attributes.hours
+                    }
+                  };
+                });
+
+                snowRoutesLayer.applyEdits({
+                  updateFeatures: updates
+                }).then(function(results) {
+                  if (results.updateFeatureResults.length > 0) {
+                    console.log("Successfully updated", results.updateFeatureResults.length, "features.");
+                  }
+                }).catch(function(error) {
+                  console.error("Error updating features:", error);
+                });
+              }).catch(function(error) {
+                console.error("Error fetching data:", error);
+              });
+            }
+          }
+        });
+    </script>
+</body>
+</html>
