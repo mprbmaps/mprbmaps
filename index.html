@@ -142,9 +142,8 @@
             "esri/views/MapView",
             "esri/Graphic",
             "esri/layers/GraphicsLayer",
-            "esri/geometry/Point",
-            "esri/rest/locator" // Import Locator module from rest namespace
-        ], function(Map, MapView, Graphic, GraphicsLayer, Point, Locator) {
+            "esri/widgets/Locate" // Import the Locate widget
+        ], function(Map, MapView, Graphic, GraphicsLayer, Locate) {
             var map = new Map({
                 basemap: "streets-navigation-vector"
             });
@@ -190,42 +189,12 @@
                 graphicsLayer.add(pointGraphic); // Add the new graphic to the map
             });
 
-            // Add console logs to debug location issues
-            console.log("Attempting to locate user...");
-            view.when(function() {
-                view.locate().then(function(locateResult) {
-                    console.log("Location result:", locateResult);
-                    if (locateResult && locateResult.location) {
-                        console.log("User's location found. Zooming to location...");
-                        view.goTo({
-                            target: locateResult.location,
-                            zoom: 15
-                        });
-                    } else {
-                        console.log("Unable to locate user.");
-                    }
-                }).catch(function(error) {
-                    console.error("Error locating user:", error);
-                });
+            // Add the Locate widget to the view
+            var locateWidget = new Locate({
+                view: view
             });
-
-            // Add event listener to the Locate button
-            document.getElementById("locateBtn").addEventListener("click", function() {
-                console.log("Locate button clicked. Attempting to locate user...");
-                view.locate().then(function(locateResult) {
-                    console.log("Location result:", locateResult);
-                    if (locateResult && locateResult.location) {
-                        console.log("User's location found. Zooming to location...");
-                        view.goTo({
-                            target: locateResult.location,
-                            zoom: 15
-                        });
-                    } else {
-                        console.log("Unable to locate user.");
-                    }
-                }).catch(function(error) {
-                    console.error("Error locating user:", error);
-                });
+            view.ui.add(locateWidget, {
+                position: "top-left"
             });
 
             document.getElementById('reportForm').addEventListener('submit', function(e) {
