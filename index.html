@@ -124,6 +124,8 @@
         </form>
     </div>
     <script>
+        console.log("Script started.");
+
         require([
             "esri/Map",
             "esri/views/MapView",
@@ -131,9 +133,13 @@
             "esri/layers/GraphicsLayer",
             "esri/geometry/Point"
         ], function(Map, MapView, Graphic, GraphicsLayer, Point) {
+            console.log("ArcGIS modules loaded.");
+
             var initialMap = new Map({
                 basemap: "streets-navigation-vector"
             });
+
+            console.log("Initial map created.");
 
             var initialMapView = new MapView({
                 container: "initialMapScreen",
@@ -142,9 +148,13 @@
                 zoom: 12
             });
 
+            console.log("Initial map view created.");
+
             var formMap = new Map({
                 basemap: "streets-navigation-vector"
             });
+
+            console.log("Form map created.");
 
             var formMapView = new MapView({
                 container: "viewDiv",
@@ -154,29 +164,47 @@
                 display: "none"
             });
 
+            console.log("Form map view created.");
+
             var graphicsLayer = new GraphicsLayer();
             formMap.add(graphicsLayer);
 
+            console.log("Graphics layer created.");
+
             initialMapView.on("click", function(event) {
+                console.log("Map clicked.");
                 var lat = event.mapPoint.latitude;
                 var lon = event.mapPoint.longitude;
                 showForm(lat, lon);
             });
 
+            console.log("Event listener added for initial map click.");
+
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(function(position) {
+                    console.log("Geolocation available.");
                     showForm(position.coords.latitude, position.coords.longitude);
                 }, function(err) {
                     console.error("Error getting location: ", err);
                 });
+            } else {
+                console.error("Geolocation not available.");
             }
 
+            console.log("End of require block.");
+
             function showForm(lat, lon) {
+                console.log("Show form function called.");
                 document.getElementById("location").value = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+                console.log("Location updated.");
                 document.getElementById("initialMapScreen").style.display = "none";
+                console.log("Initial map screen hidden.");
                 document.getElementById("viewDiv").style.display = "block";
+                console.log("Form view displayed.");
                 document.querySelector(".form-container").style.display = "block";
+                console.log("Form container displayed.");
                 formMapView.center = [lon, lat];
+                console.log("Form map view centered.");
                 var pointGraphic = new Graphic({
                     geometry: {
                         type: "point",
@@ -192,7 +220,9 @@
                         }
                     }
                 });
+                console.log("Point graphic created.");
                 graphicsLayer.add(pointGraphic);
+                console.log("Point graphic added to graphics layer.");
             }
         });
     </script>
