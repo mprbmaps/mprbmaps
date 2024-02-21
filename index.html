@@ -99,7 +99,7 @@
         /* Blue Locate button styles */
         #locateBtn {
             position: absolute;
-            top: 150px; /* Adjusted position */
+            top: 50px; /* Adjusted position */
             left: 10px;
             z-index: 1000;
             background-color: #0079c1;
@@ -119,7 +119,6 @@
 </head>
 <body>
     <div id="viewDiv"></div>
-    <button id="locateBtn">Locate Me</button>
     <div class="form-container">
         <h2>Report an Issue</h2>
         <form id="reportForm">
@@ -189,19 +188,11 @@
                 graphicsLayer.add(pointGraphic); // Add the new graphic to the map
             });
 
-            // Add click event to the "Locate Me" button
-            document.getElementById("locateBtn").addEventListener("click", function() {
-                locateUser();
+            // Add the Locate widget to the view
+            var locateWidget = new Locate({
+                view: view
             });
-
-            // Function to locate the user
-            function locateUser() {
-                view.center = view.zoom = null; // Reset any existing view center and zoom
-                view.goTo({
-                    target: view.center,
-                    zoom: 12
-                });
-            }
+            view.ui.add(locateWidget, "top-left");
 
             document.getElementById('reportForm').addEventListener('submit', function(e) {
                 e.preventDefault(); // Prevent default form submission
