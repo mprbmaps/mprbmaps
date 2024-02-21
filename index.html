@@ -1,1 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Minneapolis Park & Rec Board - Citizen Report Tool</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.28/"></script>
+    <style>
+        body, html {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden; /* Prevent scrolling outside the map and form area */
+        }
+        
+        #viewDiv {
+            height: 100%; /* Map occupies full height */
+            width: 70%; /* Map occupies 70% of the screen width */
+            float: left;
+        }
+        
+        .form-container {
+            position: fixed;
+            background-color: #fff;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+            padding: 35px; /* Uniform padding */
+            overflow-y: auto; /* Allows scrolling within the form */
+            box-sizing: border-box; /* Ensure padding is included in the width calculation */
+            bottom: 180px; /* Move the form up a little more on mobile devices */
+            right: 0;
+            width: 30%; /* Form occupies 30% of the screen width */
+            height: 50%; /* Form occupies 50% of the screen height */
+        }
+        
+        /* Adjust the form elements */
+        .form-container input,
+        .form-container select,
+        .form-container button {
+            width: calc(100% - 20px); /* Adjust width to account for padding on both sides */
+            padding: 10px;
+            margin-top: 5px;
+            margin-bottom: 8px; /* Add some space at the bottom of each element */
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        
+        /* Adjust buttons */
+        .form-container button {
+            background-color: #0079c1;
+            color: white;
+            font-size: 1em;
+            letter-spacing: 1px;
+            border: none;
+            padding: 15px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        /* Adjust labels */
+        .form-container label {
+            margin: 15px 0 5px 0; /* 15px top margin, 5px bottom margin */
+            display: block;
+        }
+        
+        /* Adjust text input and select */
+        .form-container input[type="text"],
+        .form-container select {
+            width: calc(100% - 20px); /* Adjust width to account for padding on both sides */
+        }
+        
+        /* Media queries for mobile and desktop */
+        @media screen and (max-width: 768px) { /* For mobile devices */
+            #viewDiv {
+                width: 100%; /* Map occupies full width */
+                height: 50%; /* Map occupies 50% of the screen height */
+            }
+            
+            .form-container {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                width: 100%; /* Form occupies full width */
+                height: 50%; /* Form occupies 50% of the screen height */
+            }
+        }
+        
+        @media screen and (min-width: 769px) { /* For desktops */
+            .form-container {
+                position: fixed;
+                top: 0;
+                right: 0;
+                width: 30%; /* Form occupies 30% of the screen width */
+                height: 100%; /* Form occupies full height */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="viewDiv"></div>
+    <div class="form-container">
+        <h2>Report an Issue</h2>
+        <form id="reportForm">
+            <label for="issueType">Issue Type:</label>
+            <select id="issueType" name="issueType">
+                <option value="Pothole">Pothole</option>
+                <option value="Streetlight">Streetlight</option>
+                <!-- Additional issue types as needed -->
+            </select>
+            <label for="photoUpload">Photo (optional):</label>
+            <input type="file" id="photoUpload" name="photo">
+            <label for="location">Location (click on the map):</label>
+            <input type="text" id="location" name="location" readonly>
+            <button type="submit">Submit Report</button>
+        </form>
+    </div>
+    <script>
+        require([
+            "esri/Map",
+            "esri/views/MapView",
+            "esri/Graphic",
+            "esri/layers/GraphicsLayer"
+        ], function(Map, MapView, Graphic, GraphicsLayer) {
+            var map = new Map({
+                basemap: "streets-navigation-vector"
+            });
 
+            var view = new MapView({
+                container: "viewDiv",
+                map: map,
+                center: [-93.2650, 44.9778], // Coordinates for Minneapolis
+                zoom: 12,
+                constraints: {
+                    minZoom: 8,
+                    maxZoom: 20,
+                    rotationEnabled: false
+                }
+            });
+
+            var graphicsLayer = new GraphicsLayer();
+            map.add(graphicsLayer);
+
+            view.on("click", function(event) {
+                var lat = event.mapPoint.latitude;
+                var lon = event.mapPoint.longitude;
+                document.getElementById("location").value = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+
+                var point = {
+                    type: "point",
+                    longitude: lon,
+                    latitude: lat
+                };
+                var simpleMarkerSymbol = {
+                    type: "simple-marker",
+                    color: [226, 119, 40], // Orange
+                    outline: {
+                        color: [255, 255, 255], // White
+                        width: 1
+                    }
+                };
+                var pointGraphic = new Graphic({
+                    geometry: point,
+                    symbol: simpleMarkerSymbol
+                });
+                graphicsLayer.removeAll(); // Remove any previous graphics
+                graphicsLayer.add(pointGraphic); // Add the new graphic to the map
+            });
+
+            document.getElementById('reportForm').addEventListener('submit', function(e) {
+                e.preventDefault(); // Prevent default form submission
+                alert('Report submitted!'); // Placeholder feedback
+                // Here, you would typically implement the logic to actually submit the form data to a server.
+                // This could involve gathering the data from the form, possibly including handling the file upload for the photo,
+                // and then using fetch() or another AJAX method to send the data.
+            });
+        });
+    </script>
+</body>
+</html>
