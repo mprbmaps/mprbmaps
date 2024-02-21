@@ -25,19 +25,29 @@
       border-left: 1px solid #ccc;
       padding: 10px;
     }
+    .request-entry {
+      cursor: pointer;
+      padding: 5px;
+      border-bottom: 1px solid #eee;
+    }
+    .request-entry:hover {
+      background-color: #f9f9f9;
+    }
   </style>
 </head>
 <body>
   <div id="viewDiv"></div>
-  <div id="sidePanel">Click on a request on the map to view details here.</div>
+  <div id="sidePanel">
+    <!-- Requests will be listed here -->
+  </div>
 
   <script>
     require([
       "esri/Map",
       "esri/views/MapView",
       "esri/layers/FeatureLayer",
-      "esri/Graphic"
-    ], function(Map, MapView, FeatureLayer, Graphic) {
+      "esri/geometry/support/webMercatorUtils"
+    ], function(Map, MapView, FeatureLayer, webMercatorUtils) {
       var map = new Map({
         basemap: "streets-night-vector"
       });
@@ -50,40 +60,36 @@
       });
 
       var serviceRequestsLayer = new FeatureLayer({
-        url: "https://services.arcgis.com/KYvXadMcgf0K1EzK/ArcGIS/rest/services/311_Citizen_Request_for_Service___All_Requests/FeatureServer/0"
+        url: "https://services.arcgis.com/KYvXadMcgf0K1EzK/ArcGIS/rest/services/311_Citizen_Request_for_Service___All_Requests/FeatureServer/0",
+        outFields: ["*"]
       });
       map.add(serviceRequestsLayer);
 
-      // Graphic to highlight the selected feature
-      var highlightGraphic = new Graphic({
-        symbol: {
-          type: "simple-fill", // autocasts as new SimpleFillSymbol()
-          color: [255, 255, 0, 0.6],
-          outline: { // autocasts as new SimpleLineSymbol()
-            color: [255, 255, 255],
-            width: 1
-          }
-        }
-      });
-
-      view.on("click", function(event) {
-        view.hitTest(event).then(function(response) {
-          var result = response.results[0];
-          if (result && result.graphic && result.graphic.layer === serviceRequestsLayer) {
-            view.graphics.removeAll();
-            highlightGraphic.geometry = result.graphic.geometry;
-            view.graphics.add(highlightGraphic);
-
-            // Display attributes in the side panel
-            var attributes = result.graphic.attributes;
-            var sidePanelContent = "<h3>Request Details</h3>";
-            for (var key in attributes) {
-              sidePanelContent += "<b>" + key + ":</b> " + attributes[key] + "<br>";
-            }
-            document.getElementById("sidePanel").innerHTML = sidePanelContent;
-          }
+      // Modify the query to match an appropriate field and value in your dataset
+      serviceRequestsLayer.queryFeatures({
+        where: "DeptDiv = 'DOM - STREET MAINTENANCE'", // Adjust the query to fit your data's schema
+        outFields: ["*"],
+        returnGeometry: true
+      }).then(function(results) {
+        const features = results.features;
+        const sidePanel = document.getElementById('sidePanel');
+        sidePanel.innerHTML = '<h3>Street Maintenance Requests</h3>'; // Adjust title as needed
+        features.forEach(function(feature, index) {
+          const div = document.createElement('div');
+          div.className = 'request-entry';
+          div.innerHTML = `Request #${index + 1}`; // Adjust to include more specific details if needed
+          div.onclick = function() {
+            zoomToFeature(feature);
+          };
+          sidePanel.appendChild(div);
         });
       });
+
+      function zoomToFeature(feature) {
+        view.goTo({ target: feature.geometry, zoom: 15 }).then(function() {
+          // Highlight the feature or open a popup if desired
+        });
+      }
     });
   </script>
 </body>
