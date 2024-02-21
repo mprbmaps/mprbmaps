@@ -173,7 +173,11 @@
                 view: view
             });
             view.ui.add(locateWidget, "top-left");
-            locateWidget.locate(); // Automatically locate the user
+            locateWidget.locate().then(function() {
+                console.log('User located successfully.');
+            }).catch(function(error) {
+                console.error('Error locating user:', error);
+            });
 
             document.getElementById('reportForm').addEventListener('submit', function(e) {
                 e.preventDefault(); // Prevent default form submission
