@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>311 Service Requests Dashboard</title>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.23/esri/themes/light/main.css">
+  <script src="https://js.arcgis.com/4.23/"></script>
+
+  <style>
+    html, body, #viewDiv {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    #sidePanel {
+      width: 300px;
+      height: 100%;
+      overflow: auto;
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: #fff;
+      z-index: 10;
+      border-left: 1px solid #ccc;
+      padding: 10px;
+    }
+    .request-entry {
+      cursor: pointer;
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+    }
+    .request-entry:hover {
+      background-color: #f9f9f9;
+    }
+    #popupForm {
+      display: none;
+      position: absolute;
+      top: 20%;
+      left: 25%;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+  <div id="viewDiv"></div>
+  <div id="sidePanel">
+    <!-- Requests will be listed here -->
+  </div>
+  <!-- Popup Form (hidden initially) -->
+  <div id="popupForm">
+    <form id="responseForm">
+      <div>
+        <label for="response">Response:</label>
+        <textarea id="response" name="response" rows="4" cols="50"></textarea>
+      </div>
+      <div style="margin-top: 10px;">
+        <button type="button" onclick="submitResponse()">Submit</button>
+        <button type="button" onclick="closeForm()">Cancel</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/layers/FeatureLayer",
+      "esri/widgets/Legend",
+      "esri/widgets/Expand"
+    ], function(Map, MapView, FeatureLayer, Legend, Expand) {
+      var map = new Map({
+        basemap: "streets-night-vector"
+      });
+
+      var view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-98.5795, 39.8283], // United States geographic center
+        zoom: 4
+      });
+
+      // Example 311 service requests FeatureLayer
+      // Replace this URL with your actual 311 service feature service URL
+      var serviceRequestsLayer = new FeatureLayer({
+        url: "https://sampleserver6.arcgisonline.com/arcgis/rest/services/SF311/FeatureServer/0",
+        outFields: ["*"],
+        popupTemplate: {
+          title: "311 Request",
+          content: "This is where details about the 311 request would go."
+        }
+      });
+      map.add(serviceRequestsLayer);
+
+      function displayRequests() {
+        serviceRequestsLayer.queryFeatures({
+          where: "1=1",
+          outFields: ["request_type", "status", "requested_datetime"],
+          returnGeometry: false,
+          orderByFields: ["requested_datetime DESC"]
+        }).then(function(results) {
+          const sidePanel = document.getElementById('sidePanel');
+          sidePanel.innerHTML = '<h3>Service Requests</h3>'; // Clear existing entries and add header
+          results.features.forEach(function(feature) {
+            const div = document.createElement('div');
+            div.className = 'request-entry';
+            div.innerHTML = `${feature.attributes.request_type} - ${feature.attributes.status}`;
+            div.onclick = function() { showForm(feature); };
+            sidePanel.appendChild(div);
+          });
+        });
+      }
+
+      // Function to show the popup form
+      window.showForm = function(feature) {
+        const popupForm = document.getElementById('popupForm');
+        document.getElementById('response').value = ''; // Clear existing value
+        popupForm.style.display = 'block';
+        // Implement logic here to populate form with feature details if needed
+      };
+
+      // Function to submit the response
+      window.submitResponse = function() {
+        const response = document.getElementById('response').value;
+        // Implement submission logic here, possibly updating the feature layer
+        console.log("Response submitted:", response);
+        closeForm();
+      };
+
+      // Function to close the form
+      window.closeForm = function() {
+        document.getElementById('popupForm').style.display = 'none';
+      };
+
+      // Initial call to display requests
+      displayRequests();
+    });
+  </script>
+</body>
+</html>
