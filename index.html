@@ -122,9 +122,8 @@
             "esri/Graphic",
             "esri/layers/GraphicsLayer",
             "esri/geometry/Point",
-            "esri/tasks/Locator",
-            "esri/geometry/support/webMercatorUtils"
-        ], function(Map, MapView, Graphic, GraphicsLayer, Point, Locator, webMercatorUtils) {
+            "esri/rest/Locator" // Add Locator module here
+        ], function(Map, MapView, Graphic, GraphicsLayer, Point, Locator) {
             var map = new Map({
                 basemap: "streets-navigation-vector"
             });
@@ -167,6 +166,15 @@
                     }
                 });
                 graphicsLayer.add(graphic);
+
+                // Example usage of reverse geocoding with Locator
+                Locator.locationToAddress(point).then(function(response) {
+                    var address = response.address;
+                    console.log("Reverse geocoded address:", address);
+                    // Do something with the address, like displaying it to the user
+                }).catch(function(error) {
+                    console.error("Error performing reverse geocoding:", error);
+                });
             });
 
             view.on("click", function(event) {
