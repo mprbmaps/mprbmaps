@@ -96,10 +96,10 @@
             }
         }
         
-        /* Locate button styles */
+        /* Blue Locate button styles */
         #locateBtn {
             position: absolute;
-            top: 10px;
+            top: 150px; /* Adjusted position */
             left: 10px;
             z-index: 1000;
             background-color: #0079c1;
@@ -189,13 +189,19 @@
                 graphicsLayer.add(pointGraphic); // Add the new graphic to the map
             });
 
-            // Add the Locate widget to the view
-            var locateWidget = new Locate({
-                view: view
+            // Add click event to the "Locate Me" button
+            document.getElementById("locateBtn").addEventListener("click", function() {
+                locateUser();
             });
-            view.ui.add(locateWidget, {
-                position: "top-left"
-            });
+
+            // Function to locate the user
+            function locateUser() {
+                view.center = view.zoom = null; // Reset any existing view center and zoom
+                view.goTo({
+                    target: view.center,
+                    zoom: 12
+                });
+            }
 
             document.getElementById('reportForm').addEventListener('submit', function(e) {
                 e.preventDefault(); // Prevent default form submission
