@@ -5,31 +5,37 @@
   <title>311 Service Requests Dashboard</title>
   <link rel="stylesheet" href="https://js.arcgis.com/4.23/esri/themes/light/main.css">
   <script src="https://js.arcgis.com/4.23/"></script>
+
   <style>
-    html, body, #viewDiv {
+    html, body, #viewDiv, #sidePanel {
       height: 100%;
       width: 100%;
       margin: 0;
       padding: 0;
     }
+    #viewDiv {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      right: 350px; /* Adjust the width of the map view */
+    }
     #sidePanel {
       width: 350px;
-      height: 100%;
-      overflow: auto;
       position: absolute;
       top: 0;
       right: 0;
       background: #f3f4f5;
       z-index: 10;
-      border-left: 3px solid #0079c1;
       padding: 20px;
-      font-family: "Avenir Next", Arial, sans-serif;
       box-shadow: -5px 0 5px -5px #333;
+      overflow-y: auto;
+      font-family: "Avenir Next", Arial, sans-serif;
     }
     .request-entry {
       cursor: pointer;
       padding: 10px;
-      margin-bottom: 10px;
+      margin-bottom: 5px;
       background-color: #ffffff;
       border: 1px solid #ddd;
       border-radius: 4px;
@@ -38,15 +44,19 @@
     .request-entry:hover {
       background-color: #e1e1e1;
     }
-    h3 {
-      color: #0079c1;
-      font-size: 24px;
+    #departmentInfo {
+      margin-top: 20px;
+      padding: 10px;
+      background: #0079c1;
+      color: #fff;
+      border-radius: 4px;
     }
   </style>
 </head>
 <body>
   <div id="viewDiv"></div>
   <div id="sidePanel">
+    <div id="departmentInfo">Department Assignment</div>
     <!-- Requests will be listed here -->
   </div>
 
@@ -73,22 +83,27 @@
       });
       map.add(serviceRequestsLayer);
 
-      serviceRequestsLayer.queryFeatures({
-        where: "1=1", // Adjust based on actual field for filtering if needed
-        outFields: ["*"],
-        returnGeometry: true
-      }).then(function(results) {
-        const features = results.features;
-        const sidePanel = document.getElementById('sidePanel');
-        sidePanel.innerHTML = '<h3>Street Maintenance Requests</h3>'; // Adjust title as needed
-        features.forEach(function(feature, index) {
-          const div = document.createElement('div');
-          div.className = 'request-entry';
-          div.innerHTML = `Request #${index + 1}: ${feature.attributes.RequestType || 'N/A'}`; // Customize display
-          div.onclick = function() {
-            view.goTo({ target: feature.geometry, zoom: 15 });
-          };
-          sidePanel.appendChild(div);
+      // Define request types to department mapping
+      const requestTypeToDepartment = {
+        "Pothole": "Department of Transportation",
+        "Street Light Out": "Public Works - Street Lights",
+        "Graffiti": "Public Works - Sanitation",
+        // Add more mappings as needed
+      };
+
+      function assignDepartment(feature) {
+        const requestType = feature.attributes.RequestType; // Adjust field name as needed
+        const department = requestTypeToDepartment[requestType] || "Unassigned";
+
+        document.getElementById('departmentInfo').textContent = `Assigned Department: ${department}`;
+      }
+
+      view.on("click", function(event) {
+        view.hitTest(event).then(function(response) {
+          var result = response.results[0];
+          if (result && result.graphic && result.graphic.layer === serviceRequestsLayer) {
+            assignDepartment(result.graphic); // Automatically assign the department
+          }
         });
       });
     });
