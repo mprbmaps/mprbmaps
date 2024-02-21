@@ -4,84 +4,69 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minneapolis Park & Rec Board - Citizen Report Tool</title>
-    <link rel="stylesheet" href="https://js.arcgis.com/4.x/esri/themes/light/main.css">
-    <script src="https://js.arcgis.com/4.x/"></script>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.28/"></script>
     <style>
         body, html {
-            height: 100%;
+            font-family: 'Arial', sans-serif;
             margin: 0;
             padding: 0;
-            font-family: Arial, sans-serif;
-        }
-        #viewDiv, .form-container {
-            width: 100%;
+            height: 100%;
+            overflow: hidden; /* Prevent scrolling outside the map and form area */
         }
         #viewDiv {
-            height: 50%; /* Map takes the top half of the screen */
-            z-index: 1;
+            height: 50%; /* Map occupies the top half of the screen */
+            width: 100%;
         }
         .form-container {
             position: absolute;
             bottom: 0;
-            height: 50%; /* Form takes the bottom half of the screen */
-            background: #ffffff;
+            width: 100%;
+            height: 50%; /* Form occupies the bottom half of the screen */
+            background-color: #fff;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
             padding: 20px;
-            border-radius: 8px 8px 0 0;
-            box-shadow: 0 -4px 6px rgba(0,0,0,0.1);
-            overflow-y: auto; /* Allows scrolling if the form exceeds screen height */
-            box-sizing: border-box;
+            overflow-y: auto; /* Allows scrolling within the form on small screens */
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
         }
-        .branding img {
-            height: 40px; /* Adjust based on actual logo size */
-            margin-right: 10px;
-        }
-        .branding h2 {
-            margin: 0;
-            color: #00583C; /* MPRB branding color */
-            font-size: 18px;
+        .form-container h2 {
+            font-size: 1.5em;
+            color: #333;
+            margin-bottom: 20px;
         }
         label {
-            font-weight: bold;
-            margin-top: 10px;
+            display: block;
+            margin: 15px 0 5px;
         }
         input, select, button {
-            width: calc(100% - 16px); /* Adjust width for padding */
-            padding: 8px;
+            width: 100%;
+            padding: 10px;
             margin-top: 5px;
-            border-radius: 4px;
             border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box; /* Ensures padding does not affect overall width */
         }
         button {
-            background-color: #00583C; /* MPRB branding color */
+            background-color: #0079c1;
             color: white;
+            font-size: 1em;
+            letter-spacing: 1px;
             border: none;
-            cursor: pointer;
+            padding: 15px;
             margin-top: 20px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
         }
         button:hover {
-            background-color: #003D2B; /* Darker green for hover effect */
-        }
-        @media (max-width: 600px) {
-            .form-container {
-                height: 50%; /* Adjust form size for smaller devices */
-                padding: 10px;
-            }
-            .branding img {
-                height: 30px; /* Smaller logo on smaller screens */
-            }
-            .branding h2 {
-                font-size: 16px; /* Smaller font size for smaller screens */
-            }
+            background-color: #005b92;
         }
     </style>
 </head>
 <body>
     <div id="viewDiv"></div>
     <div class="form-container">
-        <div class="branding">
-            <img src="MPRB_logo_placeholder.png" alt="MPRB Logo"> <!-- Replace with actual logo path -->
-            <h2>Citizen Report</h2>
-        </div>
+        <h2>Report an Issue</h2>
         <form id="reportForm">
             <label for="issueType">Issue Type:</label>
             <select id="issueType" name="issueType">
@@ -89,7 +74,7 @@
                 <option value="Streetlight">Streetlight</option>
                 <!-- Add more issue types as needed -->
             </select>
-            <label for="photoUpload">Photo:</label>
+            <label for="photoUpload">Photo (optional):</label>
             <input type="file" id="photoUpload" name="photo">
             <label for="location">Location (click on the map):</label>
             <input type="text" id="location" name="location" readonly>
@@ -98,20 +83,23 @@
     </div>
     <script>
         require([
+            "esri/config",
             "esri/Map",
             "esri/views/MapView",
             "esri/Graphic",
             "esri/layers/GraphicsLayer"
-        ], function(Map, MapView, Graphic, GraphicsLayer) {
+        ], function(esriConfig, Map, MapView, Graphic, GraphicsLayer) {
+            esriConfig.apiKey = "YOUR_API_KEY_HERE"; // Replace with your actual API key
+
             var map = new Map({
-                basemap: "streets-navigation-vector"
+                basemap: "streets-navigation-vector" // Use a basemap suitable for your app's theme
             });
 
             var view = new MapView({
                 container: "viewDiv",
                 map: map,
-                center: [-93.2650, 44.9778], // Centered on Minneapolis
-                                zoom: 12,
+                center: [-93.2650, 44.9778], // Coordinates for Minneapolis
+                zoom: 12,
             });
 
             var graphicsLayer = new GraphicsLayer();
@@ -121,17 +109,16 @@
                 var lat = Math.round(event.mapPoint.latitude * 1000) / 1000;
                 var lon = Math.round(event.mapPoint.longitude * 1000) / 1000;
                 document.getElementById("location").value = `Lat: ${lat}, Lon: ${lon}`;
-
-                var point = {
+                                var point = {
                     type: "point",
                     longitude: lon,
                     latitude: lat
                 };
                 var simpleMarkerSymbol = {
                     type: "simple-marker",
-                    color: [226, 119, 40], // Orange, adjust as needed for branding
+                    color: [226, 119, 40], // Orange, can be adjusted for branding or visibility
                     outline: {
-                        color: [255, 255, 255], // White
+                        color: [255, 255, 255], // White for contrast
                         width: 1
                     }
                 };
@@ -139,17 +126,36 @@
                     geometry: point,
                     symbol: simpleMarkerSymbol
                 });
-                graphicsLayer.removeAll();
-                graphicsLayer.add(pointGraphic);
+                graphicsLayer.removeAll(); // Remove previous graphics to keep the map clean
+                graphicsLayer.add(pointGraphic); // Add the new graphic to the map
             });
 
             document.getElementById('reportForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                // Implement submission logic here. This may include:
-                // - Validation of the form fields
-                // - Preparation of data in the format required by your server or ArcGIS Online
-                // - An AJAX request to submit the form data to the server
-                alert('Report submitted! (This is a placeholder action. Implement backend logic for actual data submission.)');
+                e.preventDefault(); // Prevent the form from submitting in the traditional way
+
+                // Extract data from the form
+                var issueType = document.getElementById('issueType').value;
+                var location = document.getElementById('location').value;
+                // Additional data extraction and validation as needed
+
+                // Implement the logic to handle the form submission
+                // This could involve sending the data to a server, processing it further, etc.
+                console.log('Form data:', { issueType, location });
+                alert('Report submitted! Thank you for your contribution.'); // Placeholder feedback
+                
+                // Here, you would typically include AJAX/XHR fetch API call to submit the form data to a server
+                // Example (pseudo-code):
+                // fetch('YOUR_ENDPOINT', {
+                //   method: 'POST',
+                //   headers: {
+                //     'Content-Type': 'application/json',
+                //   },
+                //   body: JSON.stringify({ issueType, location, /* any other data */ }),
+                // }).then(response => response.json())
+                // .then(data => console.log(data))
+                // .catch(error => console.error('Error:', error));
+                
+                // Reset the form or provide further instructions to the user
             });
         });
     </script>
