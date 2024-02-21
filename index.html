@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Minneapolis Park & Rec Board - Citizen Report Tool</title>
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
     <script src="https://js.arcgis.com/4.28/"></script>
@@ -83,12 +83,13 @@
     </div>
     <script>
         require([
+            "esri/config",
             "esri/Map",
             "esri/views/MapView",
             "esri/Graphic",
             "esri/layers/GraphicsLayer"
-        ], function(Map, MapView, Graphic, GraphicsLayer) {
-            
+        ], function(esriConfig, Map, MapView, Graphic, GraphicsLayer) {
+            esriConfig.apiKey = "YOUR_API_KEY_HERE"; // Replace with your actual API key
 
             var map = new Map({
                 basemap: "streets-navigation-vector" // Use a basemap suitable for your app's theme
@@ -99,6 +100,11 @@
                 map: map,
                 center: [-93.2650, 44.9778], // Coordinates for Minneapolis
                 zoom: 12,
+                constraints: {
+                    minZoom: 10, // Minimum zoom level
+                    maxZoom: 16, // Maximum zoom level
+                    rotationEnabled: false // Disables map rotation
+                }
             });
 
             var graphicsLayer = new GraphicsLayer();
@@ -108,7 +114,8 @@
                 var lat = Math.round(event.mapPoint.latitude * 1000) / 1000;
                 var lon = Math.round(event.mapPoint.longitude * 1000) / 1000;
                 document.getElementById("location").value = `Lat: ${lat}, Lon: ${lon}`;
-                                var point = {
+
+                var point = {
                     type: "point",
                     longitude: lon,
                     latitude: lat
