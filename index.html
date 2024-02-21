@@ -1,112 +1,123 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>311 Service Requests Dashboard</title>
-  <link rel="stylesheet" href="https://js.arcgis.com/4.23/esri/themes/light/main.css">
-  <script src="https://js.arcgis.com/4.23/"></script>
-
-  <style>
-    html, body, #viewDiv, #sidePanel {
-      height: 100%;
-      width: 100%;
-      margin: 0;
-      padding: 0;
-    }
-    #viewDiv {
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      right: 350px; /* Adjust the width of the map view */
-    }
-    #sidePanel {
-      width: 350px;
-      position: absolute;
-      top: 0;
-      right: 0;
-      background: #f3f4f5;
-      z-index: 10;
-      padding: 20px;
-      box-shadow: -5px 0 5px -5px #333;
-      overflow-y: auto;
-      font-family: "Avenir Next", Arial, sans-serif;
-    }
-    .request-entry {
-      cursor: pointer;
-      padding: 10px;
-      margin-bottom: 5px;
-      background-color: #ffffff;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      transition: background-color 0.3s;
-    }
-    .request-entry:hover {
-      background-color: #e1e1e1;
-    }
-    #departmentInfo {
-      margin-top: 20px;
-      padding: 10px;
-      background: #0079c1;
-      color: #fff;
-      border-radius: 4px;
-    }
-  </style>
+    <title>Citizen Report Tool</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.x/esri/css/main.css">
+    <script src="https://js.arcgis.com/4.x/"></script>
+    <style>
+        body, html, #viewDiv {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        .form-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            margin-top: 10px;
+        }
+        input, select, button {
+            margin-top: 5px;
+        }
+        button {
+            margin-top: 20px;
+            background-color: #0079c1;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #005b92;
+        }
+    </style>
 </head>
 <body>
-  <div id="viewDiv"></div>
-  <div id="sidePanel">
-    <div id="departmentInfo">Department Assignment</div>
-    <!-- Requests will be listed here -->
-  </div>
+    <div id="viewDiv"></div>
+    <div class="form-container">
+        <h2>Report an Issue</h2>
+        <form id="reportForm">
+            <label for="issueType">Issue Type:</label>
+            <select id="issueType" name="issueType">
+                <option value="Pothole">Pothole</option>
+                <option value="Streetlight">Streetlight</option>
+                <!-- Add more issue types as needed -->
+            </select><br>
+            <label for="photoUpload">Photo:</label>
+            <input type="file" id="photoUpload" name="photo"><br>
+            <label for="location">Location (click on the map):</label>
+            <input type="text" id="location" name="location" readonly><br>
+            <button type="submit">Submit Report</button>
+        </form>
+    </div>
+    <script>
+        require([
+            "esri/Map",
+            "esri/views/MapView",
+            "esri/Graphic",
+            "esri/layers/GraphicsLayer"
+        ], function(Map, MapView, Graphic, GraphicsLayer) {
+            var map = new Map({
+                basemap: "streets-navigation-vector"
+            });
 
-  <script>
-    require([
-      "esri/Map",
-      "esri/views/MapView",
-      "esri/layers/FeatureLayer",
-    ], function(Map, MapView, FeatureLayer) {
-      var map = new Map({
-        basemap: "streets-night-vector"
-      });
+            var view = new MapView({
+                container: "viewDiv",
+                map: map,
+                center: [-98.5795, 39.8283], // Longitude, latitude
+                zoom: 4,
+            });
 
-      var view = new MapView({
-        container: "viewDiv",
-        map: map,
-        center: [-98.5795, 39.8283], // Adjust as necessary to focus on your data
-        zoom: 4
-      });
+            var graphicsLayer = new GraphicsLayer();
+            map.add(graphicsLayer);
 
-      var serviceRequestsLayer = new FeatureLayer({
-        url: "https://services.arcgis.com/KYvXadMcgf0K1EzK/ArcGIS/rest/services/311_Citizen_Request_for_Service___All_Requests/FeatureServer/0",
-        outFields: ["*"]
-      });
-      map.add(serviceRequestsLayer);
+            view.on("click", function(event) {
+                var lat = Math.round(event.mapPoint.latitude * 1000) / 1000;
+                var lon = Math.round(event.mapPoint.longitude * 1000) / 1000;
+                document.getElementById("location").value = `Lat: ${lat}, Lon: ${lon}`;
 
-      // Define request types to department mapping
-      const requestTypeToDepartment = {
-        "Pothole": "Department of Transportation",
-        "Street Light Out": "Public Works - Street Lights",
-        "Graffiti": "Public Works - Sanitation",
-        // Add more mappings as needed
-      };
+                // Add a marker on the map at the clicked location
+                var point = {
+                    type: "point",
+                    longitude: lon,
+                    latitude: lat
+                };
+                var simpleMarkerSymbol = {
+                    type: "simple-marker",
+                    color: [226, 119, 40], // Orange
+                    outline: {
+                        color: [255, 255, 255], // White
+                        width: 1
+                    }
+                };
+                var pointGraphic = new Graphic({
+                    geometry: point,
+                    symbol: simpleMarkerSymbol
+                });
+                graphicsLayer.removeAll();
+                graphicsLayer.add(pointGraphic);
+            });
 
-      function assignDepartment(feature) {
-        const requestType = feature.attributes.RequestType; // Adjust field name as needed
-        const department = requestTypeToDepartment[requestType] || "Unassigned";
-
-        document.getElementById('departmentInfo').textContent = `Assigned Department: ${department}`;
-      }
-
-      view.on("click", function(event) {
-        view.hitTest(event).then(function(response) {
-          var result = response.results[0];
-          if (result && result.graphic && result.graphic.layer === serviceRequestsLayer) {
-            assignDepartment(result.graphic); // Automatically assign the department
-          }
+            // Add event listener for form submission
+            document.getElementById('reportForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                // Form submission logic here
+                // This should include validation, reading the form data,
+                // and then sending the data to your server or directly to ArcGIS Online if configured to do so.
+                alert('Report submitted! (Dummy action, implement backend logic for actual submission)');
+            });
         });
-      });
-    });
-  </script>
+    </script>
 </body>
-</html>
+</
