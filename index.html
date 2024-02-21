@@ -19,19 +19,18 @@
             width: 100%;
         }
         .form-container {
-            position: fixed; /* Adjusted for consistent positioning across screen sizes */
+            position: fixed;
             left: 0;
             right: 0;
             bottom: 0;
             width: 100%;
-            max-height: 50%; /* Initial max-height to limit expansion */
+            max-height: 50%; /* Adjust as needed */
             background-color: #fff;
             box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
             padding: 20px;
             overflow-y: auto; /* Allows scrolling within the form */
-            border-top-left-radius: 20px;
-            border-top-right-radius: 20px;
-            transition: max-height 0.3s ease-out; /* Smooth transition for expanding */
+            /* Removed rounded corners */
+            transition: max-height 0.3s ease-out;
         }
         .form-container h2 {
             font-size: 1.5em;
@@ -47,8 +46,7 @@
             padding: 10px;
             margin-top: 5px;
             border: 1px solid #ccc;
-            border-radius: 5px;
-            box-sizing: border-box; /* Ensures padding does not affect overall width */
+            box-sizing: border-box;
         }
         button {
             background-color: #0079c1;
@@ -84,16 +82,14 @@
             <button type="submit">Submit Report</button>
         </form>
     </div>
+    <!-- Removed the JavaScript for expanding the form -->
     <script>
         require([
-            
             "esri/Map",
             "esri/views/MapView",
             "esri/Graphic",
             "esri/layers/GraphicsLayer"
         ], function(Map, MapView, Graphic, GraphicsLayer) {
-            
-
             var map = new Map({
                 basemap: "streets-navigation-vector"
             });
@@ -104,17 +100,16 @@
                 center: [-93.2650, 44.9778], // Coordinates for Minneapolis
                 zoom: 12,
                 constraints: {
-                    minZoom: 10,
-                    maxZoom: 20,
-                    rotationEnabled: false
-                }
+                    minZoom: 8,
+                    maxZoom: 22,
+                    rotationEnabled: false}
             });
 
             var graphicsLayer = new GraphicsLayer();
             map.add(graphicsLayer);
 
             view.on("click", function(event) {
-                var lat = Math.round(event.mapPoint.latitude * 1000)/ 1000;
+                var lat = Math.round(event.mapPoint.latitude * 1000) / 1000;
                 var lon = Math.round(event.mapPoint.longitude * 1000) / 1000;
                 document.getElementById("location").value = `Lat: ${lat}, Lon: ${lon}`;
 
@@ -138,39 +133,35 @@
                 graphicsLayer.removeAll(); // Remove any previous graphics
                 graphicsLayer.add(pointGraphic); // Add the new graphic to the map
             });
-        });
 
-        // Drag to expand functionality for the form container
-        document.addEventListener('DOMContentLoaded', function() {
-            var formContainer = document.querySelector('.form-container');
-            var startY, startHeight;
-
-            formContainer.addEventListener('touchstart', function(e) {
-                startY = e.touches[0].clientY;
-                startHeight = parseInt(window.getComputedStyle(formContainer).maxHeight, 10);
-                document.addEventListener('touchmove', onTouchMove);
-                document.addEventListener('touchend', stopTouch);
+            // Form submission logic
+            document.getElementById('reportForm').addEventListener('submit', function(e) {
+                e.preventDefault(); // Prevent default form submission
+                
+                // Here, you could implement an AJAX request to submit the form data to your server
+                // For demonstration, just show an alert
+                alert('Report submitted!'); // Placeholder feedback
+                
+                // Example AJAX request (commented out)
+                /*
+                fetch('YOUR_SUBMISSION_ENDPOINT', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        issueType: document.getElementById('issueType').value,
+                        photo: document.getElementById('photoUpload').files[0], // Needs handling for file upload
+                        location: document.getElementById('location').value
+                    }),
+                })
+                .then(response => response.json())
+                .then(data => console.log(data))
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+                */
             });
-
-            function onTouchMove(e) {
-                var touchY = e.touches[0].clientY;
-                var newHeight = startHeight + (startY - touchY);
-                if (newHeight > window.innerHeight * 0.5 && newHeight < window.innerHeight) { // Limit the expansion
-                    formContainer.style.maxHeight = newHeight + 'px';
-                }
-            }
-
-            function stopTouch() {
-                document.removeEventListener('touchmove', onTouchMove);
-                document.removeEventListener('touchend', stopTouch);
-            }
-        });
-
-        // Form submission logic (placeholder)
-        document.getElementById('reportForm').addEventListener('submit', function(e) {
-            e.preventDefault(); // Prevent default form submission
-            alert('Report submitted!'); // Placeholder feedback
-            // Here, implement the AJAX request to submit the form data to the server
         });
     </script>
 </body>
