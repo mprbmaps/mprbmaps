@@ -95,10 +95,31 @@
                 height: 100%; /* Form occupies full height */
             }
         }
+        
+        /* Locate button styles */
+        #locateBtn {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background-color: #0079c1;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s ease;
+        }
+        
+        #locateBtn:hover {
+            background-color: #00557f;
+        }
     </style>
 </head>
 <body>
     <div id="viewDiv"></div>
+    <button id="locateBtn">Locate Me</button>
     <div class="form-container">
         <h2>Report an Issue</h2>
         <form id="reportForm">
@@ -172,6 +193,25 @@
             // Add console logs to debug location issues
             console.log("Attempting to locate user...");
             view.when(function() {
+                view.locate().then(function(locateResult) {
+                    console.log("Location result:", locateResult);
+                    if (locateResult && locateResult.location) {
+                        console.log("User's location found. Zooming to location...");
+                        view.goTo({
+                            target: locateResult.location,
+                            zoom: 15
+                        });
+                    } else {
+                        console.log("Unable to locate user.");
+                    }
+                }).catch(function(error) {
+                    console.error("Error locating user:", error);
+                });
+            });
+
+            // Add event listener to the Locate button
+            document.getElementById("locateBtn").addEventListener("click", function() {
+                console.log("Locate button clicked. Attempting to locate user...");
                 view.locate().then(function(locateResult) {
                     console.log("Location result:", locateResult);
                     if (locateResult && locateResult.location) {
