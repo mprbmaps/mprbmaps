@@ -1,63 +1,90 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Citizen Report Tool</title>
-    <link rel="stylesheet" href="https://js.arcgis.com/4.x/esri/css/main.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minneapolis Park & Rec Board - Citizen Report Tool</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.x/esri/themes/light/main.css">
     <script src="https://js.arcgis.com/4.x/"></script>
     <style>
-        body, html, #viewDiv {
+        body, html {
             height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        #viewDiv {
+            height: 80%;
             margin: 0;
             padding: 0;
         }
         .form-container {
             position: absolute;
             top: 20px;
-            right: 20px;
-            background: white;
+            left: 20px;
+            background: #ffffff;
             padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            border-radius: 8px;
+            width: 300px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 10;
         }
-        form {
+        .branding {
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .branding img {
+            height: 50px; /* Placeholder, adjust based on actual logo size */
+            margin-right: 10px;
+        }
+        .branding h2 {
+            margin: 0;
+            color: #00583C; /* Dark green, adjust based on MPRB's branding */
+            font-size: 20px;
         }
         label {
+            font-weight: bold;
             margin-top: 10px;
         }
         input, select, button {
+            width: 100%;
+            padding: 8px;
             margin-top: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            box-sizing: border-box; /* Added for better box sizing */
         }
         button {
-            margin-top: 20px;
-            background-color: #0079c1;
+            background-color: #00583C; /* MPRB green */
             color: white;
             border: none;
-            padding: 10px;
             cursor: pointer;
-            border-radius: 5px;
+            margin-top: 20px;
         }
         button:hover {
-            background-color: #005b92;
+            background-color: #003D2B; /* Darker green */
         }
     </style>
 </head>
 <body>
     <div id="viewDiv"></div>
     <div class="form-container">
-        <h2>Report an Issue</h2>
+        <div class="branding">
+            <img src="MPRB_logo_placeholder.png" alt="MPRB Logo"> <!-- Replace with actual logo path -->
+            <h2>Citizen Report</h2>
+        </div>
         <form id="reportForm">
             <label for="issueType">Issue Type:</label>
             <select id="issueType" name="issueType">
                 <option value="Pothole">Pothole</option>
                 <option value="Streetlight">Streetlight</option>
                 <!-- Add more issue types as needed -->
-            </select><br>
+            </select>
             <label for="photoUpload">Photo:</label>
-            <input type="file" id="photoUpload" name="photo"><br>
+            <input type="file" id="photoUpload" name="photo">
             <label for="location">Location (click on the map):</label>
-            <input type="text" id="location" name="location" readonly><br>
+            <input type="text" id="location" name="location" readonly>
             <button type="submit">Submit Report</button>
         </form>
     </div>
@@ -69,14 +96,14 @@
             "esri/layers/GraphicsLayer"
         ], function(Map, MapView, Graphic, GraphicsLayer) {
             var map = new Map({
-                basemap: "streets-navigation-vector"
+                basemap: "streets-navigation-vector" // Ensure this basemap is correctly referenced
             });
 
             var view = new MapView({
                 container: "viewDiv",
                 map: map,
-                center: [-98.5795, 39.8283], // Longitude, latitude
-                zoom: 4,
+                center: [-93.2650, 44.9778], // Centered on Minneapolis
+                zoom: 12,
             });
 
             var graphicsLayer = new GraphicsLayer();
@@ -87,7 +114,6 @@
                 var lon = Math.round(event.mapPoint.longitude * 1000) / 1000;
                 document.getElementById("location").value = `Lat: ${lat}, Lon: ${lon}`;
 
-                // Add a marker on the map at the clicked location
                 var point = {
                     type: "point",
                     longitude: lon,
@@ -95,7 +121,7 @@
                 };
                 var simpleMarkerSymbol = {
                     type: "simple-marker",
-                    color: [226, 119, 40], // Orange
+                    color: [226, 119, 40], // Orange, adjust as needed for branding
                     outline: {
                         color: [255, 255, 255], // White
                         width: 1
@@ -109,15 +135,15 @@
                 graphicsLayer.add(pointGraphic);
             });
 
-            // Add event listener for form submission
             document.getElementById('reportForm').addEventListener('submit', function(e) {
                 e.preventDefault();
-                // Form submission logic here
-                // This should include validation, reading the form data,
-                // and then sending the data to your server or directly to ArcGIS Online if configured to do so.
-                alert('Report submitted! (Dummy action, implement backend logic for actual submission)');
+                // Implement submission logic here. This may include:
+                // - Validation of the form fields
+                // - Preparation of data in the format required by your server or ArcGIS Online
+                // - An AJAX request to submit the form data to the server
+                alert('Report submitted! (This is a placeholder action. Implement backend logic for actual data submission.)');
             });
         });
     </script>
 </body>
-</
+</html>
