@@ -120,8 +120,11 @@
             "esri/Map",
             "esri/views/MapView",
             "esri/Graphic",
-            "esri/layers/GraphicsLayer"
-        ], function(Map, MapView, Graphic, GraphicsLayer) {
+            "esri/layers/GraphicsLayer",
+            "esri/geometry/Point",
+            "esri/tasks/Locator",
+            "esri/geometry/support/webMercatorUtils"
+        ], function(Map, MapView, Graphic, GraphicsLayer, Point, Locator, webMercatorUtils) {
             var map = new Map({
                 basemap: "streets-navigation-vector"
             });
@@ -140,6 +143,31 @@
 
             var graphicsLayer = new GraphicsLayer();
             map.add(graphicsLayer);
+
+            // Get user's location
+            navigator.geolocation.getCurrentPosition(function(position) {
+                var lat = position.coords.latitude;
+                var lon = position.coords.longitude;
+                var point = new Point({
+                    longitude: lon,
+                    latitude: lat
+                });
+                view.center = point;
+                view.zoom = 15;
+
+                var graphic = new Graphic({
+                    geometry: point,
+                    symbol: {
+                        type: "simple-marker",
+                        color: [226, 119, 40], // Orange
+                        outline: {
+                            color: [255, 255, 255], // White
+                            width: 1
+                        }
+                    }
+                });
+                graphicsLayer.add(graphic);
+            });
 
             view.on("click", function(event) {
                 var lat = event.mapPoint.latitude;
