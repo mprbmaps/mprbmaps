@@ -123,7 +123,7 @@
             "esri/layers/GraphicsLayer",
             "esri/geometry/Point",
             "esri/rest/locator" // Import Locator module from rest namespace
-        ], function(Map, MapView, Graphic, GraphicsLayer, Point, locator) {
+        ], function(Map, MapView, Graphic, GraphicsLayer, Point, Locator) {
             var map = new Map({
                 basemap: "streets-navigation-vector"
             });
@@ -167,6 +167,25 @@
                 });
                 graphicsLayer.removeAll(); // Remove any previous graphics
                 graphicsLayer.add(pointGraphic); // Add the new graphic to the map
+            });
+
+            // Add console logs to debug location issues
+            console.log("Attempting to locate user...");
+            view.when(function() {
+                view.locate().then(function(locateResult) {
+                    console.log("Location result:", locateResult);
+                    if (locateResult && locateResult.location) {
+                        console.log("User's location found. Zooming to location...");
+                        view.goTo({
+                            target: locateResult.location,
+                            zoom: 15
+                        });
+                    } else {
+                        console.log("Unable to locate user.");
+                    }
+                }).catch(function(error) {
+                    console.error("Error locating user:", error);
+                });
             });
 
             document.getElementById('reportForm').addEventListener('submit', function(e) {
