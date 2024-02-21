@@ -134,6 +134,8 @@
             <input type="text" id="location" name="location" readonly>
             <button type="submit">Submit Report</button>
         </form>
+        <!-- Blue Locate Me button -->
+        <button id="locateBtn">Locate Me</button>
     </div>
     <script>
         require([
@@ -188,12 +190,17 @@
                 graphicsLayer.add(pointGraphic); // Add the new graphic to the map
             });
 
-            // Add the Locate widget to the view and locate the user automatically
+            // Add the Locate widget to the view and enable it
             var locateWidget = new Locate({
                 view: view
             });
             view.ui.add(locateWidget, "top-left");
-            locateWidget.locate();
+            locateWidget.enabled = true; // Enable the widget
+
+            // Add event listener for the blue Locate Me button
+            document.getElementById('locateBtn').addEventListener('click', function() {
+                locateWidget.locate();
+            });
 
             document.getElementById('reportForm').addEventListener('submit', function(e) {
                 e.preventDefault(); // Prevent default form submission
