@@ -15,20 +15,23 @@
             overflow: hidden; /* Prevent scrolling outside the map and form area */
         }
         #viewDiv {
-            height: 50%; /* Map occupies the top half of the screen */
+            height: 100%; /* Map occupies the full screen, under the form */
             width: 100%;
         }
         .form-container {
-            position: absolute;
+            position: fixed; /* Adjusted for consistent positioning across screen sizes */
+            left: 0;
+            right: 0;
             bottom: 0;
             width: 100%;
-            height: 50%; /* Form occupies the bottom half of the screen */
+            max-height: 50%; /* Initial max-height to limit expansion */
             background-color: #fff;
             box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
             padding: 20px;
-            overflow-y: auto; /* Allows scrolling within the form on small screens */
+            overflow-y: auto; /* Allows scrolling within the form */
             border-top-left-radius: 20px;
             border-top-right-radius: 20px;
+            transition: max-height 0.3s ease-out; /* Smooth transition for expanding */
         }
         .form-container h2 {
             font-size: 1.5em;
@@ -72,7 +75,7 @@
             <select id="issueType" name="issueType">
                 <option value="Pothole">Pothole</option>
                 <option value="Streetlight">Streetlight</option>
-                <!-- Add more issue types as needed -->
+                <!-- Additional issue types as needed -->
             </select>
             <label for="photoUpload">Photo (optional):</label>
             <input type="file" id="photoUpload" name="photo">
@@ -83,15 +86,16 @@
     </div>
     <script>
         require([
+            "esri/config",
             "esri/Map",
             "esri/views/MapView",
             "esri/Graphic",
             "esri/layers/GraphicsLayer"
-        ], function(Map, MapView, Graphic, GraphicsLayer) {
-            
+        ], function(esriConfig, Map, MapView, Graphic, GraphicsLayer) {
+            esriConfig.apiKey = "YOUR_API_KEY_HERE"; // Replace with your actual API key
 
             var map = new Map({
-                basemap: "streets-navigation-vector" // Use a basemap suitable for your app's theme
+                basemap: "streets-navigation-vector"
             });
 
             var view = new MapView({
@@ -100,9 +104,9 @@
                 center: [-93.2650, 44.9778], // Coordinates for Minneapolis
                 zoom: 12,
                 constraints: {
-                    minZoom: 10, // Minimum zoom level
-                    maxZoom: 16, // Maximum zoom level
-                    rotationEnabled: false // Disables map rotation
+                    minZoom: 10,
+                    maxZoom: 20,
+                    rotationEnabled: false
                 }
             });
 
@@ -110,7 +114,7 @@
             map.add(graphicsLayer);
 
             view.on("click", function(event) {
-                var lat = Math.round(event.mapPoint.latitude * 1000) / 1000;
+                var lat = Math.round(event.mapPoint.latitude * 1000)/ 1000;
                 var lon = Math.round(event.mapPoint.longitude * 1000) / 1000;
                 document.getElementById("location").value = `Lat: ${lat}, Lon: ${lon}`;
 
@@ -121,9 +125,9 @@
                 };
                 var simpleMarkerSymbol = {
                     type: "simple-marker",
-                    color: [226, 119, 40], // Orange, can be adjusted for branding or visibility
+                    color: [226, 119, 40], // Orange
                     outline: {
-                        color: [255, 255, 255], // White for contrast
+                        color: [255, 255, 255], // White
                         width: 1
                     }
                 };
@@ -131,37 +135,42 @@
                     geometry: point,
                     symbol: simpleMarkerSymbol
                 });
-                graphicsLayer.removeAll(); // Remove previous graphics to keep the map clean
+                graphicsLayer.removeAll(); // Remove any previous graphics
                 graphicsLayer.add(pointGraphic); // Add the new graphic to the map
             });
+        });
 
-            document.getElementById('reportForm').addEventListener('submit', function(e) {
-                e.preventDefault(); // Prevent the form from submitting in the traditional way
+        // Drag to expand functionality for the form container
+        document.addEventListener('DOMContentLoaded', function() {
+            var formContainer = document.querySelector('.form-container');
+            var startY, startHeight;
 
-                // Extract data from the form
-                var issueType = document.getElementById('issueType').value;
-                var location = document.getElementById('location').value;
-                // Additional data extraction and validation as needed
-
-                // Implement the logic to handle the form submission
-                // This could involve sending the data to a server, processing it further, etc.
-                console.log('Form data:', { issueType, location });
-                alert('Report submitted! Thank you for your contribution.'); // Placeholder feedback
-                
-                // Here, you would typically include AJAX/XHR fetch API call to submit the form data to a server
-                // Example (pseudo-code):
-                // fetch('YOUR_ENDPOINT', {
-                //   method: 'POST',
-                //   headers: {
-                //     'Content-Type': 'application/json',
-                //   },
-                //   body: JSON.stringify({ issueType, location, /* any other data */ }),
-                // }).then(response => response.json())
-                // .then(data => console.log(data))
-                // .catch(error => console.error('Error:', error));
-                
-                // Reset the form or provide further instructions to the user
+            formContainer.addEventListener('touchstart', function(e) {
+                startY = e.touches[0].clientY;
+                startHeight = parseInt(window.getComputedStyle(formContainer).maxHeight, 10);
+                document.addEventListener('touchmove', onTouchMove);
+                document.addEventListener('touchend', stopTouch);
             });
+
+            function onTouchMove(e) {
+                var touchY = e.touches[0].clientY;
+                var newHeight = startHeight + (startY - touchY);
+                if (newHeight > window.innerHeight * 0.5 && newHeight < window.innerHeight) { // Limit the expansion
+                    formContainer.style.maxHeight = newHeight + 'px';
+                }
+            }
+
+            function stopTouch() {
+                document.removeEventListener('touchmove', onTouchMove);
+                document.removeEventListener('touchend', stopTouch);
+            }
+        });
+
+        // Form submission logic (placeholder)
+        document.getElementById('reportForm').addEventListener('submit', function(e) {
+            e.preventDefault(); // Prevent default form submission
+            alert('Report submitted!'); // Placeholder feedback
+            // Here, implement the AJAX request to submit the form data to the server
         });
     </script>
 </body>
