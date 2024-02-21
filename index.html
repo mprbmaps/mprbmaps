@@ -13,17 +13,31 @@
       margin: 0;
       padding: 0;
     }
+    #sidePanel {
+      width: 300px;
+      height: 100%;
+      overflow: auto;
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: #fff;
+      z-index: 10;
+      border-left: 1px solid #ccc;
+      padding: 10px;
+    }
   </style>
 </head>
 <body>
   <div id="viewDiv"></div>
+  <div id="sidePanel">Click on a request on the map to view details here.</div>
 
   <script>
     require([
       "esri/Map",
       "esri/views/MapView",
-      "esri/layers/FeatureLayer"
-    ], function(Map, MapView, FeatureLayer) {
+      "esri/layers/FeatureLayer",
+      "esri/Graphic"
+    ], function(Map, MapView, FeatureLayer, Graphic) {
       var map = new Map({
         basemap: "streets-night-vector"
       });
@@ -35,11 +49,41 @@
         zoom: 4
       });
 
-      // Replace this URL with your actual 311 service feature service URL
       var serviceRequestsLayer = new FeatureLayer({
-        url: "https://services.arcgis.com/KYvXadMcgf0K1EzK/ArcGIS/rest/services/311_Citizen_Request_for_Service___All_Requests/FeatureServer/0"
+        url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_submit_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0"
       });
       map.add(serviceRequestsLayer);
+
+      // Graphic to highlight the selected feature
+      var highlightGraphic = new Graphic({
+        symbol: {
+          type: "simple-fill", // autocasts as new SimpleFillSymbol()
+          color: [255, 255, 0, 0.6],
+          outline: { // autocasts as new SimpleLineSymbol()
+            color: [255, 255, 255],
+            width: 1
+          }
+        }
+      });
+
+      view.on("click", function(event) {
+        view.hitTest(event).then(function(response) {
+          var result = response.results[0];
+          if (result && result.graphic && result.graphic.layer === serviceRequestsLayer) {
+            view.graphics.removeAll();
+            highlightGraphic.geometry = result.graphic.geometry;
+            view.graphics.add(highlightGraphic);
+
+            // Display attributes in the side panel
+            var attributes = result.graphic.attributes;
+            var sidePanelContent = "<h3>Request Details</h3>";
+            for (var key in attributes) {
+              sidePanelContent += "<b>" + key + ":</b> " + attributes[key] + "<br>";
+            }
+            document.getElementById("sidePanel").innerHTML = sidePanelContent;
+          }
+        });
+      });
     });
   </script>
 </body>
