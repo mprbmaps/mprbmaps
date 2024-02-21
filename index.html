@@ -12,51 +12,41 @@
             margin: 0;
             padding: 0;
             height: 100%;
-            overflow: hidden;
+            overflow: hidden; /* Prevent scrolling outside the map and form area */
         }
-
-        #initialMapScreen {
-            height: 100%;
-            width: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 10;
-            display: block; /* Initially visible */
-        }
-
+        
         #viewDiv {
-            height: 100%;
-            width: 70%;
+            height: 100%; /* Map occupies full height */
+            width: 70%; /* Map occupies 70% of the screen width */
             float: left;
-            display: none; /* Initially hidden */
         }
-
+        
         .form-container {
             position: fixed;
             background-color: #fff;
             box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
-            padding: 35px;
-            overflow-y: auto;
-            box-sizing: border-box;
-            bottom: 100px;
+            padding: 35px; /* Uniform padding */
+            overflow-y: auto; /* Allows scrolling within the form */
+            box-sizing: border-box; /* Ensure padding is included in the width calculation */
+            bottom: 100px; /* Adjusted bottom position for mobile devices */
             right: 0;
-            width: 30%;
-            height: 50%;
-            display: none; /* Initially hidden */
+            width: 30%; /* Form occupies 30% of the screen width */
+            height: 50%; /* Form occupies 50% of the screen height */
         }
-
+        
+        /* Adjust the form elements */
         .form-container input,
         .form-container select,
         .form-container button {
-            width: calc(100% - 20px);
+            width: calc(100% - 20px); /* Adjust width to account for padding on both sides */
             padding: 10px;
             margin-top: 5px;
-            margin-bottom: 8px;
+            margin-bottom: 8px; /* Add some space at the bottom of each element */
             border: 1px solid #ccc;
             border-radius: 5px;
         }
-
+        
+        /* Adjust buttons */
         .form-container button {
             background-color: #0079c1;
             color: white;
@@ -67,45 +57,47 @@
             cursor: pointer;
             transition: background-color 0.3s ease;
         }
-
+        
+        /* Adjust labels */
         .form-container label {
-            margin: 15px 0 5px 0;
+            margin: 15px 0 5px 0; /* 15px top margin, 5px bottom margin */
             display: block;
         }
-
+        
+        /* Adjust text input and select */
         .form-container input[type="text"],
         .form-container select {
-            width: calc(100% - 20px);
+            width: calc(100% - 20px); /* Adjust width to account for padding on both sides */
         }
-
-        @media screen and (max-width: 768px) {
-            #viewDiv, #initialMapScreen {
-                width: 100%;
-                height: 40%;
+        
+        /* Media queries for mobile and desktop */
+        @media screen and (max-width: 768px) { /* For mobile devices */
+            #viewDiv {
+                width: 100%; /* Map occupies full width */
+                height: 40%; /* Map occupies 40% of the screen height */
             }
-
+            
             .form-container {
                 position: fixed;
-                bottom: 0px;
+                bottom: 0px; /* Adjusted bottom position for mobile devices */
                 left: 0;
-                width: 100%;
-                height: 60%;
+                width: 100%; /* Form occupies full width */
+                height: 60%; /* Form occupies 60% of the screen height */
             }
         }
-
-        @media screen and (min-width: 769px) {
+        
+        @media screen and (min-width: 769px) { /* For desktops */
             .form-container {
                 position: fixed;
                 top: 0;
                 right: 0;
-                width: 30%;
-                height: 100%;
+                width: 30%; /* Form occupies 30% of the screen width */
+                height: 100%; /* Form occupies full height */
             }
         }
     </style>
 </head>
 <body>
-    <div id="initialMapScreen"></div>
     <div id="viewDiv"></div>
     <div class="form-container">
         <h2>Report an Issue</h2>
@@ -124,106 +116,64 @@
         </form>
     </div>
     <script>
-        console.log("Script started.");
-
         require([
             "esri/Map",
             "esri/views/MapView",
             "esri/Graphic",
-            "esri/layers/GraphicsLayer",
-            "esri/geometry/Point"
-        ], function(Map, MapView, Graphic, GraphicsLayer, Point) {
-            console.log("ArcGIS modules loaded.");
-
-            var initialMap = new Map({
+            "esri/layers/GraphicsLayer"
+        ], function(Map, MapView, Graphic, GraphicsLayer) {
+            var map = new Map({
                 basemap: "streets-navigation-vector"
             });
 
-            console.log("Initial map created.");
-
-            var initialMapView = new MapView({
-                container: "initialMapScreen",
-                map: initialMap,
-                center: [-93.2650, 44.9778],
-                zoom: 12
-            });
-
-            console.log("Initial map view created.");
-
-            var formMap = new Map({
-                basemap: "streets-navigation-vector"
-            });
-
-            console.log("Form map created.");
-
-            var formMapView = new MapView({
+            var view = new MapView({
                 container: "viewDiv",
-                map: formMap,
-                center: [-93.2650, 44.9778],
+                map: map,
+                center: [-93.2650, 44.9778], // Coordinates for Minneapolis
                 zoom: 12,
-                display: "none"
+                constraints: {
+                    minZoom: 8,
+                    maxZoom: 20,
+                    rotationEnabled: false
+                }
             });
-
-            console.log("Form map view created.");
 
             var graphicsLayer = new GraphicsLayer();
-            formMap.add(graphicsLayer);
+            map.add(graphicsLayer);
 
-            console.log("Graphics layer created.");
-
-            initialMapView.on("click", function(event) {
-                console.log("Map clicked.");
+            view.on("click", function(event) {
                 var lat = event.mapPoint.latitude;
                 var lon = event.mapPoint.longitude;
-                showForm(lat, lon);
+                document.getElementById("location").value = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+
+                var point = {
+                    type: "point",
+                    longitude: lon,
+                    latitude: lat
+                };
+                var simpleMarkerSymbol = {
+                    type: "simple-marker",
+                    color: [226, 119, 40], // Orange
+                    outline: {
+                        color: [255, 255, 255], // White
+                        width: 1
+                    }
+                };
+                var pointGraphic = new Graphic({
+                    geometry: point,
+                    symbol: simpleMarkerSymbol
+                });
+                graphicsLayer.removeAll(); // Remove any previous graphics
+                graphicsLayer.add(pointGraphic); // Add the new graphic to the map
             });
 
-            console.log("Event listener added for initial map click.");
-
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(function(position) {
-                    console.log("Geolocation available.");
-                    showForm(position.coords.latitude, position.coords.longitude);
-                }, function(err) {
-                    console.error("Error getting location: ", err);
-                });
-            } else {
-                console.error("Geolocation not available.");
-            }
-
-            console.log("End of require block.");
-
-            function showForm(lat, lon) {
-                console.log("Show form function called.");
-                document.getElementById("location").value = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
-                console.log("Location updated.");
-                document.getElementById("initialMapScreen").style.display = "none";
-                console.log("Initial map screen hidden.");
-                document.getElementById("viewDiv").style.display = "block";
-                console.log("Form view displayed.");
-                document.querySelector(".form-container").style.display = "block";
-                console.log("Form container displayed.");
-                formMapView.center = [lon, lat];
-                console.log("Form map view centered.");
-                var pointGraphic = new Graphic({
-                    geometry: {
-                        type: "point",
-                        longitude: lon,
-                        latitude: lat
-                    },
-                    symbol: {
-                        type: "simple-marker",
-                        color: [226, 119, 40],
-                        outline: {
-                            color: [255, 255, 255],
-                            width: 1
-                        }
-                    }
-                });
-                console.log("Point graphic created.");
-                graphicsLayer.add(pointGraphic);
-                console.log("Point graphic added to graphics layer.");
-            }
+            document.getElementById('reportForm').addEventListener('submit', function(e) {
+                e.preventDefault(); // Prevent default form submission
+                alert('Report submitted!'); // Placeholder feedback
+                // Here, you would typically implement the logic to actually submit the form data to a server.
+                // This could involve gathering the data from the form, possibly including handling the file upload for the photo,
+                // and then using fetch() or another AJAX method to send the data.
+            });
         });
     </script>
 </body>
