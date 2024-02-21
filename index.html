@@ -24,29 +24,27 @@
             right: 0;
             bottom: 0;
             width: 100%;
-            max-height: 60%; /* Adjust as needed */
+            max-height: 50%; /* Adjust as needed */
             background-color: #fff;
             box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
             padding: 20px;
             overflow-y: auto; /* Allows scrolling within the form */
-            /* Removed rounded corners */
-            transition: max-height 0.3s ease-out;
+            box-sizing: border-box; /* Ensure padding is included in the width calculation */
         }
-        .form-container h2 {
-            font-size: 1.5em;
-            color: #333;
-            margin-bottom: 20px;
+        .form-container *, .form-container *:before, .form-container *:after {
+            box-sizing: inherit; /* Inherit box-sizing from .form-container */
         }
         label {
             display: block;
             margin: 15px 0 5px;
         }
         input, select, button {
-            width: 100%;
+            width: calc(100% - 20px); /* Adjust width to account for padding */
             padding: 10px;
             margin-top: 5px;
+            margin-bottom: 10px; /* Add some space at the bottom of each element */
             border: 1px solid #ccc;
-            box-sizing: border-box;
+            border-radius: 5px;
         }
         button {
             background-color: #0079c1;
@@ -55,7 +53,6 @@
             letter-spacing: 1px;
             border: none;
             padding: 15px;
-            margin-top: 20px;
             cursor: pointer;
             transition: background-color 0.3s ease;
         }
@@ -82,7 +79,6 @@
             <button type="submit">Submit Report</button>
         </form>
     </div>
-    <!-- Removed the JavaScript for expanding the form -->
     <script>
         require([
             "esri/Map",
@@ -101,8 +97,9 @@
                 zoom: 12,
                 constraints: {
                     minZoom: 8,
-                    maxZoom: 22,
-                    rotationEnabled: false}
+                    maxZoom: 20,
+                    rotationEnabled: false
+                }
             });
 
             var graphicsLayer = new GraphicsLayer();
@@ -134,33 +131,10 @@
                 graphicsLayer.add(pointGraphic); // Add the new graphic to the map
             });
 
-            // Form submission logic
             document.getElementById('reportForm').addEventListener('submit', function(e) {
                 e.preventDefault(); // Prevent default form submission
-                
-                // Here, you could implement an AJAX request to submit the form data to your server
-                // For demonstration, just show an alert
                 alert('Report submitted!'); // Placeholder feedback
-                
-                // Example AJAX request (commented out)
-                /*
-                fetch('YOUR_SUBMISSION_ENDPOINT', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        issueType: document.getElementById('issueType').value,
-                        photo: document.getElementById('photoUpload').files[0], // Needs handling for file upload
-                        location: document.getElementById('location').value
-                    }),
-                })
-                .then(response => response.json())
-                .then(data => console.log(data))
-                .catch((error) => {
-                    console.error('Error:', error);
-                });
-                */
+                // Here, implement the AJAX request to submit the form data to your server
             });
         });
     </script>
