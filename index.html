@@ -95,26 +95,6 @@
                 height: 100%; /* Form occupies full height */
             }
         }
-        
-        /* Blue Locate button styles */
-        #locateBtn {
-            position: absolute;
-            top: 50px; /* Adjusted position */
-            left: 10px;
-            z-index: 1000;
-            background-color: #0079c1;
-            color: white;
-            padding: 10px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1em;
-            transition: background-color 0.3s ease;
-        }
-        
-        #locateBtn:hover {
-            background-color: #00557f;
-        }
     </style>
 </head>
 <body>
@@ -134,8 +114,6 @@
             <input type="text" id="location" name="location" readonly>
             <button type="submit">Submit Report</button>
         </form>
-        <!-- Blue Locate Me button -->
-        <button id="locateBtn">Locate Me</button>
     </div>
     <script>
         require([
@@ -190,17 +168,12 @@
                 graphicsLayer.add(pointGraphic); // Add the new graphic to the map
             });
 
-            // Add the Locate widget to the view and enable it
+            // Add the Locate widget to the view and locate the user automatically
             var locateWidget = new Locate({
                 view: view
             });
             view.ui.add(locateWidget, "top-left");
-            locateWidget.enabled = true; // Enable the widget
-
-            // Add event listener for the blue Locate Me button
-            document.getElementById('locateBtn').addEventListener('click', function() {
-                locateWidget.locate();
-            });
+            locateWidget.locate(); // Automatically locate the user
 
             document.getElementById('reportForm').addEventListener('submit', function(e) {
                 e.preventDefault(); // Prevent default form submission
