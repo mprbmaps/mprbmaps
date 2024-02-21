@@ -127,6 +127,8 @@
                 basemap: "streets-navigation-vector"
             });
 
+            console.log('Map created.');
+
             var view = new MapView({
                 container: "viewDiv",
                 map: map,
@@ -139,10 +141,12 @@
                 }
             });
 
-            console.log('Map and view created.');
+            console.log('View created.');
 
             var graphicsLayer = new GraphicsLayer();
             map.add(graphicsLayer);
+
+            console.log('Graphics layer added.');
 
             view.on("click", function(event) {
                 var lat = event.mapPoint.latitude;
@@ -170,9 +174,8 @@
                 graphicsLayer.add(pointGraphic); // Add the new graphic to the map
             });
 
-            console.log('Graphics layer added.');
+            console.log('Click event handler added.');
 
-            // Add the Locate widget to the view and enable it
             var locateWidget = new Locate({
                 view: view
             });
@@ -181,10 +184,12 @@
 
             console.log('Locate widget added.');
 
-            locateWidget.locate().then(function() {
-                console.log('User located successfully.');
-            }).catch(function(error) {
-                console.error('Error locating user:', error);
+            view.when(function() {
+                locateWidget.locate().then(function() {
+                    console.log('User located successfully.');
+                }).catch(function(error) {
+                    console.error('Error locating user:', error);
+                });
             });
 
             console.log('Locate method called.');
@@ -196,6 +201,8 @@
                 // This could involve gathering the data from the form, possibly including handling the file upload for the photo,
                 // and then using fetch() or another AJAX method to send the data.
             });
+
+            console.log('Form submission event listener added.');
         });
     </script>
 </body>
