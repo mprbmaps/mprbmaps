@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minneapolis Park & Rec Board - Citizen Report Tool</title>
-    <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
-    <script src="https://js.arcgis.com/4.28/"></script>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.x/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.x/"></script>
     <style>
         body, html {
             height: 100%;
@@ -13,57 +13,65 @@
             padding: 0;
             font-family: Arial, sans-serif;
         }
+        #viewDiv, .form-container {
+            width: 100%;
+        }
         #viewDiv {
-            height: 80%;
-            margin: 0;
-            padding: 0;
+            height: 50%; /* Map takes the top half of the screen */
+            z-index: 1;
         }
         .form-container {
             position: absolute;
-            top: 20px;
-            left: 20px;
+            bottom: 0;
+            height: 50%; /* Form takes the bottom half of the screen */
             background: #ffffff;
             padding: 20px;
-            border-radius: 8px;
-            width: 300px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            z-index: 10;
-        }
-        .branding {
-            display: flex;
-            align-items: center;
-            margin-bottom: 20px;
+            border-radius: 8px 8px 0 0;
+            box-shadow: 0 -4px 6px rgba(0,0,0,0.1);
+            overflow-y: auto; /* Allows scrolling if the form exceeds screen height */
+            box-sizing: border-box;
         }
         .branding img {
-            height: 50px; /* Placeholder, adjust based on actual logo size */
+            height: 40px; /* Adjust based on actual logo size */
             margin-right: 10px;
         }
         .branding h2 {
             margin: 0;
-            color: #00583C; /* Dark green, adjust based on MPRB's branding */
-            font-size: 20px;
+            color: #00583C; /* MPRB branding color */
+            font-size: 18px;
         }
         label {
             font-weight: bold;
             margin-top: 10px;
         }
         input, select, button {
-            width: 100%;
+            width: calc(100% - 16px); /* Adjust width for padding */
             padding: 8px;
             margin-top: 5px;
             border-radius: 4px;
             border: 1px solid #ccc;
-            box-sizing: border-box; /* Added for better box sizing */
         }
         button {
-            background-color: #00583C; /* MPRB green */
+            background-color: #00583C; /* MPRB branding color */
             color: white;
             border: none;
             cursor: pointer;
             margin-top: 20px;
         }
         button:hover {
-            background-color: #003D2B; /* Darker green */
+            background-color: #003D2B; /* Darker green for hover effect */
+        }
+        @media (max-width: 600px) {
+            .form-container {
+                height: 50%; /* Adjust form size for smaller devices */
+                padding: 10px;
+            }
+            .branding img {
+                height: 30px; /* Smaller logo on smaller screens */
+            }
+            .branding h2 {
+                font-size: 16px; /* Smaller font size for smaller screens */
+            }
         }
     </style>
 </head>
@@ -96,14 +104,14 @@
             "esri/layers/GraphicsLayer"
         ], function(Map, MapView, Graphic, GraphicsLayer) {
             var map = new Map({
-                basemap: "streets-navigation-vector" // Ensure this basemap is correctly referenced
+                basemap: "streets-navigation-vector"
             });
 
             var view = new MapView({
                 container: "viewDiv",
                 map: map,
                 center: [-93.2650, 44.9778], // Centered on Minneapolis
-                zoom: 12,
+                                zoom: 12,
             });
 
             var graphicsLayer = new GraphicsLayer();
