@@ -106,9 +106,9 @@
             "esri/layers/GraphicsLayer",
             "esri/widgets/Locate",
             "esri/rest/support/Query",
-            "esri/tasks/QueryTask", // Adjusted for querying
+            "esri/rest/query",
             "esri/geometry/Point"
-        ], function(Map, MapView, Graphic, GraphicsLayer, Locate, Query, QueryTask, Point) {
+        ], function(Map, MapView, Graphic, GraphicsLayer, Locate, Query, query, Point) {
             var map = new Map({
                 basemap: "streets-navigation-vector"
             });
@@ -152,12 +152,8 @@
                     query.returnGeometry = true;
 
                     var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0";
-                    var queryTask = new QueryTask({
-                        url: queryUrl
-                    });
-
-                    queryTask.execute(query).then(function(result) {
-                        console.log("Query result:", result);
+                    
+                    query.execute(queryUrl, query).then(function(result) {
                         if (result.features.length > 0) {
                             var pointGraphic = new Graphic({
                                 geometry: event.mapPoint,
