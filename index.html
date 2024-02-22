@@ -146,9 +146,9 @@
 
                 view.on("click", function(event) {
                     view.hitTest(event).then(function(response) {
-                        console.log("HitTest results:", response.results);
                         if (response.results.length) {
                             var graphic = response.results[0].graphic;
+                            console.log("HitTest results:", response.results);
                             var queryParams = new Query();
                             queryParams.geometry = graphic.geometry;
                             queryParams.spatialRelationship = "intersects";
@@ -165,7 +165,7 @@
 
                             query.executeQuery({
                                 url: queryUrl,
-                                geometry: queryParams.geometry.toJSON(),
+                                geometry: queryParams.geometry ? queryParams.geometry.toJSON() : null,
                                 spatialRelationship: queryParams.spatialRelationship,
                                 outFields: queryParams.outFields,
                                 returnGeometry: queryParams.returnGeometry
