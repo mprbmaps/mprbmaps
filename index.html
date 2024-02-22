@@ -1,81 +1,112 @@
-require([
-    "esri/Map",
-    "esri/views/MapView",
-    "esri/Graphic",
-    "esri/layers/GraphicsLayer",
-    "esri/widgets/Locate",
-    "esri/geometry/Point",
-    "esri/symbols/PictureMarkerSymbol",
-    "esri/layers/FeatureLayer",
-    "esri/rest/support/Query"
-], function(Map, MapView, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query) {
-    var map = new Map({
-        basemap: "streets-navigation-vector"
-    });
-
-    var view = new MapView({
-        container: "viewDiv",
-        map: map,
-        center: [-93.2650, 44.9778], // Center on Minneapolis
-        zoom: 12
-    });
-
-    var graphicsLayer = new GraphicsLayer();
-    map.add(graphicsLayer);
-
-    var locateWidget = new Locate({
-        view: view,
-        rotationEnabled: false // Correct property for disabling map rotation
-    });
-
-    view.ui.add(locateWidget, "top-left");
-
-    view.when().then(function() {
-        locateWidget.locate().catch(function(error) {
-            console.error("Locate widget error:", error.message);
-            // Optionally handle the error, e.g., display a message to the user
-        });
-        
-        // Define the FeatureLayer with the correct URL
-        var featureLayer = new FeatureLayer({
-            url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
-        });
-
-        view.on("click", function(event) {
-            // Display a graphic at the clicked location using a custom image
-            var pointGraphic = new Graphic({
-                geometry: event.mapPoint,
-                symbol: new PictureMarkerSymbol({
-                    url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
-                    width: "36px",
-                    height: "36px"
-                })
-            });
-            graphicsLayer.removeAll();
-            graphicsLayer.add(pointGraphic);
-
-            // Query the feature layer
-            var query = featureLayer.createQuery();
-            query.geometry = event.mapPoint; // Use the point directly
-            query.spatialRelationship = "intersects";
-            query.outFields = ["*"];
-            query.returnGeometry = true;
-
-            featureLayer.queryFeatures(query).then(function(result) {
-                console.log("Query results:", result);
-                if (result.features.length > 0) {
-                    enableCell('cell2'); // Enable cell 2 when location is selected
-                } else {
-                    alert("Location is not within MPRB's Responsibility");
-                }
-            }).catch(function(error) {
-                console.error("Error querying features:", error);
-            });
-            
-            enableCell('cell1'); // Enable cell 1 when location is selected
-        });
-    });
-    
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Minneapolis Park & Rec Board - Citizen Report Tool</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.28/"></script>
+    <style>
+        body, html {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+        #viewDiv {
+            height: 100%;
+            width: 70%;
+            float: left;
+        }
+        .form-container {
+            position: fixed;
+            background-color: #fff;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            box-sizing: border-box;
+            bottom: 100px;
+            right: 0;
+            width: 30%;
+            height: 50%;
+        }
+        .form-cell {
+            border: 1px solid #ddd; /* Light gray rectangular outline */
+            padding: 20px;
+            margin-bottom: -1px; /* Remove spacing between cells */
+            height: 100px; /* Set height to 100 pixels */
+            position: relative; /* Position for overlay text */
+            text-align: center; /* Center align header text */
+            background-color: #f9f9f9; /* Default background color */
+        }
+        .form-cell.disabled {
+            background-color: #f0f0f0; /* Greyed out background color */
+        }
+        .form-cell label {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #333; /* Darker text color */
+            font-size: 16px; /* Larger font size */
+            font-weight: bold; /* Bold font weight */
+        }
+        .form-cell select, .form-cell button, .form-cell input[type="file"] {
+            width: 80%; /* Take up 80% width of cell */
+            padding: 10px;
+            margin-top: 30px; /* Adjust for overlay text */
+            margin-bottom: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box; /* Include padding and border in width calculation */
+        }
+        @media screen and (max-width: 768px) {
+            #viewDiv {
+                width: 100%;
+                height: 40%;
+            }
+            .form-container {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                height: 60%;
+            }
+        }
+        @media screen and (min-width: 769px) {
+            .form-container {
+                width: 30%;
+                height: 100%;
+                position: fixed;
+                right: 0;
+                top: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="viewDiv"></div>
+    <div class="form-container">
+        <div class="form-cell" id="cell1">
+            <label>Location (click on the map):</label>
+        </div>
+        <div class="form-cell disabled" id="cell2">
+            <label>Select Issue Type</label>
+            <select id="issueType" name="issueType" onchange="enableCell('cell3')">
+                <option value="Pothole">Pothole</option>
+                <option value="Streetlight">Streetlight</option>
+                <option value="Vandalism">Vandalism</option>
+                <option value="Litter">Litter</option>
+            </select>
+        </div>
+        <div class="form-cell disabled" id="cell3">
+            <label>Photo (optional):</label>
+            <input type="file" id="photoUpload" name="photo">
+        </div>
+        <div class="form-cell disabled" id="cell4">
+            <button type="submit">Submit Report</button>
+        </div>
+    </div>
+    <script>
     var currentCellIndex = 1; // Variable to track the current active cell index
 
     function enableCell(cellIndex) {
@@ -109,7 +140,6 @@ require([
             }
         }
     }
-});
 </script>
 
     <script>
@@ -186,6 +216,8 @@ require([
             }).catch(function(error) {
                 console.error("Error querying features:", error);
             });
+            
+            enableCell('cell1'); // Enable cell 1 when location is selected
         });
     });
 });
