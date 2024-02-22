@@ -144,88 +144,140 @@
         }
 
         require([
-            "esri/Map",
-            "esri/views/MapView",
-            "esri/Graphic",
-            "esri/layers/GraphicsLayer",
-            "esri/widgets/Locate",
-            "esri/geometry/Point",
-            "esri/symbols/PictureMarkerSymbol",
-            "esri/layers/FeatureLayer",
-            "esri/rest/support/Query"
-        ], function(Map, MapView, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query) {
-            var map = new Map({
-                basemap: "streets-navigation-vector"
-            });
+    "esri/Map",
+    "esri/views/MapView",
+    "esri/Graphic",
+    "esri/layers/GraphicsLayer",
+    "esri/widgets/Locate",
+    "esri/geometry/Point",
+    "esri/symbols/PictureMarkerSymbol",
+    "esri/layers/FeatureLayer",
+    "esri/rest/support/Query"
+], function(Map, MapView, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query) {
+    var map = new Map({
+        basemap: "streets-navigation-vector"
+    });
 
-            var view = new MapView({
-                container: "viewDiv",
-                map: map,
-                center: [-93.2650, 44.9778], // Center on Minneapolis
-                zoom: 12
-            });
+    var view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-93.2650, 44.9778], // Center on Minneapolis
+        zoom: 12
+    });
 
-            var graphicsLayer = new GraphicsLayer();
-            map.add(graphicsLayer);
+    var graphicsLayer = new GraphicsLayer();
+    map.add(graphicsLayer);
 
-            var locateWidget = new Locate({
-                view: view,
-                rotationEnabled: false // Correct property for disabling map rotation
-            });
+    var locateWidget = new Locate({
+        view: view,
+        rotationEnabled: false // Correct property for disabling map rotation
+    });
 
-            view.ui.add(locateWidget, "top-left");
+    view.ui.add(locateWidget, "top-left");
 
-            view.when().then(function() {
-                locateWidget.locate().catch(function(error) {
-                    console.error("Locate widget error:", error.message);
-                    // Optionally handle the error, e.g., display a message to the user
-                });
+    view.when().then(function() {
+        locateWidget.locate().catch(function(error) {
+            console.error("Locate widget error:", error.message);
+            // Optionally handle the error, e.g., display a message to the user
+        });
 
-                // Define the FeatureLayer with the correct URL
-                var featureLayer = new FeatureLayer({
-                    url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
-                });
+        // Define the FeatureLayer with the correct URL
+        var featureLayer = new FeatureLayer({
+            url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
+        });
 
-                view.on("click", function(event) {
-                    // Query the feature layer
-                    var query = featureLayer.createQuery();
-                    query.geometry = event.mapPoint; // Use the point directly
-                    query.spatialRelationship = "intersects";
-                    query.outFields = ["*"];
-                    query.returnGeometry = true;
+        var pointGraphic; // Define pointGraphic variable outside to keep track of the graphic
 
-                    featureLayer.queryFeatures(query).then(function(result) {
-                        console.log("Query results:", result);
-                        if (result.features.length > 0) {
-                            disableCell('cell1'); // Disable cell 1 when location is selected
-                            enableCell('cell2'); // Enable cell 2 when location is selected
+        view.on("click", function(event) {
+            // Remove previous location graphic
+            if (pointGraphic) {
+                graphicsLayer.remove(pointGraphic);
+            }
 
-                            // Display a graphic at the clicked location using a custom image
-                            var pointGraphic = new Graphic({
-                                geometry: event.mapPoint,
-                                symbol: new PictureMarkerSymbol({
-                                    url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
-                                    width: "36px",
-                                    height: "36px"
-                                })
-                            });
-                            graphicsLayer.removeAll();
-                            graphicsLayer.add(pointGraphic);
-                        } else {
-                            // If no location is found, reset the cells
-                            enableCell('cell1'); // Enable cell 1 again
-                            disableCell('cell2'); // Disable cell 2
-                            disableCell('cell3'); // Disable cell 3
-                            disableCell('cell4'); // Disable cell 4
-                            var issueTypeDropdown = document.getElementById('issueType');
-                            issueTypeDropdown.disabled = true; // Disable the dropdown
-                            alert("Location is not within MPRB's Responsibility");
-                        }
-                    }).catch(function(error) {
-                        console.error("Error querying features:", error);
+            // Query the feature layer
+            var query = featureLayer.createQuery();
+            query.geometry = event.mapPoint; // Use the point directly
+            query.spatialRelationship = "intersects";
+            query.outFields = ["*"];
+            query.returnGeometry = true;
+
+            featureLayer.queryFeatures(query).then(function(result) {
+                console.log("Query results:", result);
+                if (result.features.length > 0) {
+                    disableCell('cell1'); // Disable cell 1 when location is selected
+                    enableCell('cell2'); // Enable cell 2 when location is selected
+
+                    // Display a graphic at the clicked location using a custom image
+                    pointGraphic = new Graphic({
+                        geometry: event.mapPoint,
+                        symbol: new PictureMarkerSymbol({
+                            url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
+                            width: "36px",
+                            height: "36px"
+                        })
                     });
-                });
+                    graphicsLayer.add(pointGraphic); // Add new location graphic
+                } else {
+                    // If no location is found, reset the cells
+                    enableCell('cell1'); // Enable cell 1 again
+                    disableCell('cell2'); // Disable cell 2
+                    disableCell('cell3'); // Disable cell 3
+                    disableCell('cell4'); // Disable cell 4
+                    var issueTypeDropdown = document.getElementById('issueType');
+                    issueTypeDropdown.disabled = true; // Disable the dropdown
+                    alert("Location is not within MPRB's Responsibility");
+                }
+            }).catch(function(error) {
+                console.error("Error querying features:", error);
+            });
+        });
 
+        // Function to enable a cell
+        function enableCell(cellId) {
+            var cell = document.getElementById(cellId);
+            cell.classList.remove('disabled');
+            cell.style.backgroundColor = '#fff'; // Set background color to white
+            var label = cell.querySelector('label');
+            if (label) {
+                label.style.color = '#333'; // Set heading text color to black
+            }
+            currentCellIndex++;
+
+            // Enable dropdown if cell 2 is enabled
+            if (cellId === 'cell2') {
+                var issueTypeDropdown = document.getElementById('issueType');
+                issueTypeDropdown.disabled = false;
+            }
+        }
+
+        // Function to disable a cell
+        function disableCell(cellId) {
+            var cell = document.getElementById(cellId);
+            cell.classList.add('disabled');
+            cell.style.backgroundColor = '#f0f0f0'; // Set background color to gray
+            var label = cell.querySelector('label');
+            if (label) {
+                label.style.color = '#999'; // Set heading text color to gray
+            }
+        }
+
+        // Function to check issue type and enable/disable cells accordingly
+        function checkIssueType() {
+            var issueType = document.getElementById('issueType').value;
+            if (issueType !== 'Pothole') {
+                disableCell('cell2');
+                enableCell('cell3');
+                enableCell('cell4');
+                document.getElementById('cell4').querySelector('button').style.backgroundColor = 'blue';
+            }
+        }
+
+        // Initial setup: disable cells 2, 3, and 4
+        disableCell('cell2');
+        disableCell('cell3');
+        disableCell('cell4');
+    });
+});
             });
         });
     </script>
