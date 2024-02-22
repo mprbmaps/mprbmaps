@@ -113,6 +113,7 @@
             <label for="location">Location (click on the map):</label>
             <input type="text" id="location" name="location" readonly>
             <button type="submit">Submit Report</button>
+            <button id="locateMeButton" style="position: absolute; bottom: 50px;">Locate Me</button>
         </form>
     </div>
     <script>
@@ -121,13 +122,14 @@
             "esri/views/MapView",
             "esri/Graphic",
             "esri/layers/GraphicsLayer",
-            "esri/widgets/Locate" // Import the Locate widget
-        ], function(Map, MapView, Graphic, GraphicsLayer, Locate) {
+            "esri/geometry/Point",
+            "esri/rest/locator",
+            "esri/rest/support/Query",
+            "esri/rest/QueryTask"
+        ], function(Map, MapView, Graphic, GraphicsLayer, Point, Locator, Query, QueryTask) {
             var map = new Map({
                 basemap: "streets-navigation-vector"
             });
-
-            console.log('Map created.');
 
             var view = new MapView({
                 container: "viewDiv",
@@ -141,68 +143,73 @@
                 }
             });
 
-            console.log('View created.');
-
             var graphicsLayer = new GraphicsLayer();
             map.add(graphicsLayer);
 
-            console.log('Graphics layer added.');
-
-            view.on("click", function(event) {
-                var lat = event.mapPoint.latitude;
-                var lon = event.mapPoint.longitude;
-                document.getElementById("location").value = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
-
-                var point = {
-                    type: "point",
-                    longitude: lon,
-                    latitude: lat
-                };
-                var simpleMarkerSymbol = {
-                    type: "simple-marker",
-                    color: [226, 119, 40], // Orange
-                    outline: {
-                        color: [255, 255, 255], // White
-                        width: 1
-                    }
-                };
-                var pointGraphic = new Graphic({
-                    geometry: point,
-                    symbol: simpleMarkerSymbol
-                });
-                graphicsLayer.removeAll(); // Remove any previous graphics
-                graphicsLayer.add(pointGraphic); // Add the new graphic to the map
-            });
-
-            console.log('Click event handler added.');
-
-            var locateWidget = new Locate({
-                view: view
-            });
-            view.ui.add(locateWidget, "top-left");
-            locateWidget.enabled = true;
-
-            console.log('Locate widget added.');
-
             view.when(function() {
-                locateWidget.locate().then(function() {
-                    console.log('User located successfully.');
+                view.on("click", function(event) {
+                    var lat = event.mapPoint.latitude;
+                    var lon = event.mapPoint.longitude;
+                    document.getElementById("location").value = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+
+                    // Create a point geometry for the clicked location
+                    var point = new Point({
+                        longitude: lon,
+                        latitude: lat
+                    });
+
+                    // Create a Query object to check intersection with the layer
+                    var query = new Query({
+                        geometry: point,
+                        spatialRelationship: "intersects", // Check if the point intersects with the layer
+                        returnGeometry: false,
+                        outFields: ["*"]
+                    });
+
+                    // Create a QueryTask for the layer
+                    var queryTask = new QueryTask({
+                        url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0"
+                    });
+
+                    // Execute the query
+                    queryTask.execute(query).then(function(result) {
+                        if (result.features.length > 0) {
+                            // Allow form submission if the location intersects with the layer
+                            document.getElementById('reportForm').addEventListener('submit', function(e) {
+                                console.log('Form submitted.');
+                                // Prevent default form submission
+                                e.preventDefault();
+                                // Placeholder feedback
+                                alert('Report submitted!'); 
+                                // Here, you would typically implement the logic to actually submit the form data to a server.
+                                // This could involve gathering the data from the form, possibly including handling the file upload for the photo,
+                                // and then using fetch() or another AJAX method to send the data.
+                            });
+                        } else {
+                            // Alert the user if the location is not within MPRB's Responsibility
+                            alert("Location is not within MPRB's Responsibility");
+                            // Disable form submission
+                            document.getElementById('reportForm').addEventListener('submit', function(e) {
+                                console.log('Form submission disabled.');
+                                e.preventDefault(); // Prevent default form submission
+                            });
+                        }
+                    }).catch(function(error) {
+                        console.error('Error querying the layer:', error);
+                    });
+                });
+
+                // Locate the user automatically when the page loads
+                view.goTo(view.center).then(function() {
+                    view.locate().then(function() {
+                        console.log('User located.');
+                    }).catch(function(error) {
+                        console.error('Error locating user:', error);
+                    });
                 }).catch(function(error) {
-                    console.error('Error locating user:', error);
+                    console.error('Error zooming to center:', error);
                 });
             });
-
-            console.log('Locate method called.');
-
-            document.getElementById('reportForm').addEventListener('submit', function(e) {
-                e.preventDefault(); // Prevent default form submission
-                alert('Report submitted!'); // Placeholder feedback
-                // Here, you would typically implement the logic to actually submit the form data to a server.
-                // This could involve gathering the data from the form, possibly including handling the file upload for the photo,
-                // and then using fetch() or another AJAX method to send the data.
-            });
-
-            console.log('Form submission event listener added.');
         });
     </script>
 </body>
