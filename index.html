@@ -68,6 +68,32 @@
         .form-container select {
             width: calc(100% - 20px); /* Adjust width to account for padding on both sides */
         }
+
+        /* Media queries for mobile and desktop */
+        @media screen and (max-width: 768px) { /* For mobile devices */
+            #viewDiv {
+                width: 100%; /* Map occupies full width */
+                height: 40%; /* Map occupies 40% of the screen height */
+            }
+            
+            .form-container {
+                position: fixed;
+                bottom: 0px; /* Adjusted bottom position for mobile devices */
+                left: 0;
+                width: 100%; /* Form occupies full width */
+                height: 60%; /* Form occupies 60% of the screen height */
+            }
+        }
+        
+        @media screen and (min-width: 769px) { /* For desktops */
+            .form-container {
+                position: fixed;
+                top: 0;
+                right: 0;
+                width: 30%; /* Form occupies 30% of the screen width */
+                height: 100%; /* Form occupies full height */
+            }
+        }
     </style>
 </head>
 <body>
@@ -104,8 +130,7 @@
             });
 
             var view = new MapView({
-                container: "viewDiv",
-                map: map,
+                container: "viewDiv",map: map,
                 center: [-93.2650, 44.9778], // Coordinates for Minneapolis
                 zoom: 12,
                 constraints: {
@@ -119,58 +144,78 @@
             map.add(graphicsLayer);
 
             view.when(function() {
-                // Locate the user automatically when the page loads
-                view.goTo(view.center).then(function() {
-                    view.locate().then(function() {
-                        console.log('User located.');
-                    }).catch(function(error) {
-                        console.error('Error locating user:', error);
+                // Locate the user's position when the view is ready
+                view.locate().then(function(location) {
+                    console.log('User location found:', location);
+                    var point = {
+                        type: "point",
+                        longitude: location.coords.longitude,
+                        latitude: location.coords.latitude
+                    };
+                    var simpleMarkerSymbol = {
+                        type: "simple-marker",
+                        color: [0, 0, 255], // Blue
+                        outline: {
+                            color: [255, 255, 255], // White
+                            width: 1
+                        }
+                    };
+                    var pointGraphic = new Graphic({
+                        geometry: point,
+                        symbol: simpleMarkerSymbol
+                    });
+                    graphicsLayer.add(pointGraphic);
+
+                    // Zoom to the user's location
+                    view.goTo({
+                        center: [location.coords.longitude, location.coords.latitude],
+                        zoom: 15
                     });
                 }).catch(function(error) {
-                    console.error('Error zooming to center:', error);
+                    console.error('Error locating user:', error);
+                });
+            });
+
+            // When the form is submitted
+            document.getElementById('reportForm').addEventListener('submit', function(e) {
+                e.preventDefault(); // Prevent default form submission
+
+                // Get the coordinates from the input field
+                var locationInput = document.getElementById('location').value;
+                var coordinates = locationInput.split(', ');
+                var lat = parseFloat(coordinates[0].split('Lat: ')[1]);
+                var lon = parseFloat(coordinates[1].split('Lon: ')[1]);
+
+                // Create a point geometry
+                var point = new Point({
+                    longitude: lon,
+                    latitude: lat
                 });
 
-                // When the form is submitted
-                document.getElementById('reportForm').addEventListener('submit', function(e) {
-                    e.preventDefault(); // Prevent default form submission
+                // Create a query to check if the point intersects with the MPRB layer
+                var query = new Query({
+                    geometry: point,
+                    spatialRelationship: 'intersects',
+                    returnGeometry: false
+                });
 
-                    // Get the coordinates from the input field
-                    var locationInput = document.getElementById('location').value;
-                    var coordinates = locationInput.split(', ');
-                    var lat = parseFloat(coordinates[0].split('Lat: ')[1]);
-                    var lon = parseFloat(coordinates[1].split('Lon: ')[1]);
-
-                    // Create a point geometry
-                    var point = new Point({
-                        longitude: lon,
-                        latitude: lat
-                    });
-
-                    // Create a query to check if the point intersects with the MPRB layer
-                    var query = new Query({
-                        geometry: point,
-                        spatialRelationship: 'intersects',
-                        returnGeometry: false
-                    });
-
-                    // Perform the query
-                    graphicsLayer.queryFeatures(query).then(function(result) {
-                        if (result.features.length > 0) {
-                            // If the point intersects with the MPRB layer, allow form submission
-                            console.log("Location is within MPRB's Responsibility");
-                            alert('Report submitted!'); // Placeholder feedback
-                            // Here, you would typically implement the logic to actually submit the form data to a server.
-                            // This could involve gathering the data from the form, possibly including handling the file upload for the photo,
-                            // and then using fetch() or another AJAX method to send the data.
-                        } else {
-                            // Alert the user if the location is not within MPRB's Responsibility
-                            alert("Location is not within MPRB's Responsibility");
-                            // Disable form submission
-                            console.log('Form submission disabled.');
-                        }
-                    }).catch(function(error) {
-                        console.error('Error querying the layer:', error);
-                    });
+                // Perform the query
+                graphicsLayer.queryFeatures(query).then(function(result) {
+                    if (result.features.length > 0) {
+                        // If the point intersects with the MPRB layer, allow form submission
+                        console.log("Location is within MPRB's Responsibility");
+                        alert('Report submitted!'); // Placeholder feedback
+                        // Here, you would typically implement the logic to actually submit the form data to a server.
+                        // This could involve gathering the data from the form, possibly including handling the file upload for the photo,
+                        // and then using fetch() or another AJAX method to send the data.
+                    } else {
+                        // Alert the user if the location is not within MPRB's Responsibility
+                        alert("Location is not within MPRB's Responsibility");
+                        // Disable form submission
+                        console.log('Form submission disabled.');
+                    }
+                }).catch(function(error) {
+                    console.error('Error querying the layer:', error);
                 });
             });
         });
