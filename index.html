@@ -103,13 +103,17 @@
     <script>
         require([
     "esri/Map",
+    "esri/views/Maprequire([
+    "esri/Map",
     "esri/views/MapView",
     "esri/Graphic",
     "esri/layers/GraphicsLayer",
     "esri/widgets/Locate",
     "esri/rest/support/Query",
     "esri/geometry/Point"
-], function(Map, MapView, Graphic, GraphicsLayer, Locate, query, Point) {
+], function(Map, MapView, Graphic, GraphicsLayer, Locate, Query, Point) {
+    console.log("Modules loaded successfully");
+
     var map = new Map({
         basemap: "streets-navigation-vector"
     });
@@ -126,19 +130,25 @@
         }
     });
 
+    console.log("MapView created");
+
     var graphicsLayer = new GraphicsLayer();
     map.add(graphicsLayer);
+    console.log("GraphicsLayer added to map");
 
     view.when(function() {
+        console.log("Map view is ready");
+
         var locateWidget = new Locate({
             view: view,
-            useHeadingEnabled: false,
+            rotationEnabled: true, // Corrected property
             goToOverride: function(view, options) {
                 options.target.scale = 1500; // Customize the scale for goTo operation
                 return view.goTo(options.target);
             }
         });
         view.ui.add(locateWidget, "top-left");
+        console.log("Locate widget added");
 
         locateWidget.locate().then(function() {
             console.log('User located successfully.');
@@ -149,10 +159,13 @@
         var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0";
 
         view.on("click", function(event) {
+            console.log("Map clicked", event.mapPoint);
+
             var lat = event.mapPoint.latitude;
             var lon = event.mapPoint.longitude;
+            console.log(`Clicked location - Latitude: ${lat}, Longitude: ${lon}`);
 
-            var queryPoint = new query.Query();
+            var queryPoint = new Query();
             queryPoint.geometry = new Point({
                 longitude: lon,
                 latitude: lat
@@ -160,9 +173,14 @@
             queryPoint.spatialRelationship = "intersects";
             queryPoint.returnGeometry = false;
             queryPoint.outFields = ["*"];
+            console.log("Query configured", queryPoint);
 
             query.executeQuery(queryUrl, queryPoint).then(function(result) {
+                console.log("Query executed", result);
+
                 if (result.features.length > 0) {
+                    console.log("Location is within MPRB's Responsibility");
+
                     document.getElementById("location").value = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
 
                     var point = new Point({
@@ -183,7 +201,9 @@
                     });
                     graphicsLayer.removeAll(); // Ensure only one point is displayed at a time
                     graphicsLayer.add(pointGraphic);
+                    console.log("Graphic added to map");
                 } else {
+                    console.log("Location is not within MPRB's Responsibility");
                     alert("Location is not within MPRB's Responsibility");
                 }
             }).catch(function(error) {
@@ -194,13 +214,18 @@
 
     document.getElementById('reportForm').addEventListener('submit', function(e) {
         e.preventDefault();
+        console.log("Form submitted");
+
         var locationValue = document.getElementById("location").value;
+        console.log("Location value:", locationValue);
+
         if (!locationValue) {
+            console.log("No location selected");
             alert("Please select a valid location on the map within MPRB's responsibility area.");
             return;
         }
+        console.log('Report submission logic goes here');
         alert('Report submitted!');
-        // Implement the actual submission logic here.
     });
 });
     </script>
