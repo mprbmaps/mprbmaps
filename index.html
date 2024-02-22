@@ -125,10 +125,10 @@
                 }
             });
 
-            var graphicsLayer = new GraphicsLayer();
-            map.add(graphicsLayer);
-
             view.when(function() {
+                var graphicsLayer = new GraphicsLayer();
+                map.add(graphicsLayer);
+
                 var locateWidget = new Locate({
                     view: view,
                     goToOverride: function(view, options) {
@@ -145,10 +145,8 @@
                 });
 
                 view.on("click", function(event) {
-                    console.log("Clicked on map at:", event.mapPoint.toJSON());
                     var queryParams = new Query();
-                    queryParams.geometry = event.mapPoint.clone(); // Clone the point to prevent modifying the original
-                    queryParams.geometry.spatialReference = { wkid: 103734 }; // Set the spatial reference to WKID 103734
+                    queryParams.geometry = event.mapPoint;
                     queryParams.spatialRelationship = "intersects";
                     queryParams.outFields = ["*"];
                     queryParams.returnGeometry = true;
@@ -190,17 +188,17 @@
                         console.error("Error performing query:", error);
                     });
                 });
-            });
 
-            document.getElementById('reportForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                var locationValue = document.getElementById("location").value;
-                if (!locationValue) {
-                    alert("Please select a valid location on the map within MPRB's responsibility area.");
-                    return;
-                }
-                alert('Report submitted!');
-                // Implement the actual submission logic here, such as sending the data to a server
+                document.getElementById('reportForm').addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    var locationValue = document.getElementById("location").value;
+                    if (!locationValue) {
+                        alert("Please select a valid location on the map within MPRB's responsibility area.");
+                        return;
+                    }
+                    alert('Report submitted!');
+                    // Implement the actual submission logic here, such as sending the data to a server
+                });
             });
         });
     </script>
