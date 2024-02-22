@@ -111,26 +111,25 @@
         var pointGraphic;
 
         function enableCell(cellId) {
-    var cell = document.getElementById(cellId);
-    cell.classList.remove('disabled');
-    cell.style.backgroundColor = '#fff'; // Set background color to white
-    cell.style.boxShadow = '0px 0px 10px 2px #888'; // Apply drop shadow effect
-    currentCellIndex++;
+            var cell = document.getElementById(cellId);
+            cell.classList.remove('disabled');
+            cell.style.backgroundColor = '#fff'; // Set background color to white
+            cell.style.transform = 'scale(1.1)'; // Apply 3D effect
+            currentCellIndex++;
 
-    // Enable dropdown if cell 2 is enabled
-    if (cellId === 'cell2') {
-        var issueTypeDropdown = document.getElementById('issueType');
-        issueTypeDropdown.disabled = false;
-    }
-}
+            // Enable dropdown if cell 2 is enabled
+            if (cellId === 'cell2') {
+                var issueTypeDropdown = document.getElementById('issueType');
+                issueTypeDropdown.disabled = false;
+            }
+        }
 
-function disableCell(cellId) {
-    var cell = document.getElementById(cellId);
-    cell.classList.add('disabled');
-    cell.style.backgroundColor = '#f0f0f0'; // Set background color to gray
-    cell.style.boxShadow = 'none'; // Remove drop shadow effect
-}
-
+        function disableCell(cellId) {
+            var cell = document.getElementById(cellId);
+            cell.classList.add('disabled');
+            cell.style.backgroundColor = '#f0f0f0'; // Set background color to gray
+            cell.style.transform = 'scale(1)'; // Remove 3D effect
+        }
 
         function checkIssueType() {
             var issueType = document.getElementById('issueType').value;
@@ -218,11 +217,13 @@ function disableCell(cellId) {
             disableCell('cell4'); // Disable cell 4
             var issueTypeDropdown = document.getElementById('issueType');
             issueTypeDropdown.disabled = true; // Disable the dropdown
+            alert("Location is not within MPRB's Responsibility");
         }
     }).catch(function(error) {
         console.error("Error querying features:", error);
     });
 });
+
             });
         });
     </script>
