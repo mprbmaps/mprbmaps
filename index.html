@@ -108,6 +108,7 @@
     </div>
     <script>
         var currentCellIndex = 1; // Variable to track the current active cell index
+        var pointGraphic;
 
         function enableCell(cellId) {
             var cell = document.getElementById(cellId);
@@ -178,6 +179,11 @@
                 });
 
                 view.on("click", function(event) {
+                    // Remove previous point graphic
+                    if (pointGraphic) {
+                        graphicsLayer.remove(pointGraphic);
+                    }
+
                     // Query the feature layer
                     var query = featureLayer.createQuery();
                     query.geometry = event.mapPoint; // Use the point directly
@@ -192,7 +198,7 @@
                             enableCell('cell2'); // Enable cell 2 when location is selected
 
                             // Display a graphic at the clicked location using a custom image
-                            var pointGraphic = new Graphic({
+                            pointGraphic = new Graphic({
                                 geometry: event.mapPoint,
                                 symbol: new PictureMarkerSymbol({
                                     url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
@@ -200,7 +206,6 @@
                                     height: "36px"
                                 })
                             });
-                            graphicsLayer.removeAll();
                             graphicsLayer.add(pointGraphic);
                         } else {
                             alert("Location is not within MPRB's Responsibility");
