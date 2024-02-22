@@ -107,14 +107,20 @@
         </div>
     </div>
     <script>
-        function enableCell(cellId) {
-            var currentCell = document.getElementById(cellId);
-            currentCell.classList.remove('disabled');
-            currentCell.style.backgroundColor = '#fff'; // Set background color to white
-            currentCell.style.border = '2px solid #333'; // Add darker border
-            currentCell.nextElementSibling.style.backgroundColor = '#f0f0f0'; // Grey out next cell
+    var currentHighlightedCell = null; // Variable to store the currently highlighted cell
+
+    function enableCell(cellId) {
+        var currentCell = document.getElementById(cellId);
+        currentCell.classList.remove('disabled');
+        currentCell.style.backgroundColor = '#f0f0f0'; // Set background color to gray
+        currentCell.style.border = '1px solid #ddd'; // Reset border to light gray
+        if (currentHighlightedCell !== null) {
+            currentHighlightedCell.style.border = '1px solid #ddd'; // Reset border of previously highlighted cell
         }
-    </script>
+        currentHighlightedCell = currentCell; // Update currently highlighted cell
+        currentCell.nextElementSibling.style.backgroundColor = '#f0f0f0'; // Grey out next cell
+    }
+</script>
     <script>
 require([
     "esri/Map",
