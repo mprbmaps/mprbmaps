@@ -61,11 +61,6 @@
             display: block;
         }
         
-        .form-container input[type="text"],
-        .form-container select {
-            width: calc(100% - 20px);
-        }
-        
         @media screen and (max-width: 768px) {
             #viewDiv {
                 width: 100%;
@@ -119,9 +114,8 @@
             "esri/layers/GraphicsLayer",
             "esri/widgets/Locate",
             "esri/rest/query",
-            "esri/rest/support/Query",
             "esri/geometry/Point"
-        ], function(Map, MapView, Graphic, GraphicsLayer, Locate, query, Query, Point) {
+        ], function(Map, MapView, Graphic, GraphicsLayer, Locate, query, Point) {
             var map = new Map({
                 basemap: "streets-navigation-vector"
             });
@@ -141,55 +135,70 @@
             var graphicsLayer = new GraphicsLayer();
             map.add(graphicsLayer);
 
-            view.on("click", function(event) {
-                var lat = event.mapPoint.latitude;
-                var lon = event.mapPoint.longitude;
-                var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0";
-
-                var queryPoint = new Query();
-                queryPoint.geometry = new Point({
-                    longitude: lon,
-                    latitude: lat
-                });
-                queryPoint.spatialRelationship = "intersects";
-                queryPoint.returnGeometry = false;
-                queryPoint.outFields = ["*"];
-
-                query.executeQuery(queryUrl, queryPoint).then(function(result) {
-                    if (result.features.length > 0) {
-                        document.getElementById("location").value = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
-
-                        var point = {
-                            type: "point",
-                            longitude: lon,
-                            latitude: lat
-                        };
-                        var simpleMarkerSymbol = {
-                            type: "simple-marker",
-                            color: [226, 119, 40],
-                            outline: {
-                                color: [255, 255, 255],
-                                width: 1
-                            }
-                        };
-                        var pointGraphic = new Graphic({
-                            geometry: point,
-                            symbol: simpleMarkerSymbol
-                        });
-                        graphicsLayer.removeAll();
-                        graphicsLayer.add(pointGraphic);
-                    } else {
-                        alert("Location is not within MPRB's Responsibility");
+            view.when(function() {
+                var locateWidget =new Locate({
+                    view: view,
+                    useHeadingEnabled: false,
+                    goToOverride: function(view, options) {
+                        options.target.scale = 1500;  // Customize the scale for goTo operation
+                        return view.goTo(options.target);
                     }
+                });
+                view.ui.add(locateWidget, "top-left");
+
+                // Automatically locate the user
+                locateWidget.locate().then(function() {
+                    console.log('User located successfully.');
                 }).catch(function(error) {
-                    console.error("Error performing query: ", error);
+                    console.error('Error locating user:', error);
+                });
+
+                var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0";
+                
+                view.on("click", function(event) {
+                    var lat = event.mapPoint.latitude;
+                    var lon = event.mapPoint.longitude;
+                    
+                    var queryPoint = new Query();
+                    queryPoint.geometry = new Point({
+                        longitude: lon,
+                        latitude: lat
+                    });
+                    queryPoint.spatialRelationship = "intersects";
+                    queryPoint.returnGeometry = false;
+                    queryPoint.outFields = ["*"];
+                    
+                    query.executeQuery(queryUrl, queryPoint).then(function(result) {
+                        if (result.features.length > 0) {
+                            document.getElementById("location").value = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+                            
+                            var point = {
+                                type: "point",
+                                longitude: lon,
+                                latitude: lat
+                            };
+                            var simpleMarkerSymbol = {
+                                type: "simple-marker",
+                                color: [226, 119, 40],
+                                outline: {
+                                    color: [255, 255, 255],
+                                    width: 1
+                                }
+                            };
+                            var pointGraphic = new Graphic({
+                                geometry: point,
+                                symbol: simpleMarkerSymbol
+                            });
+                            graphicsLayer.removeAll();
+                            graphicsLayer.add(pointGraphic);
+                        } else {
+                            alert("Location is not within MPRB's Responsibility");
+                        }
+                    }).catch(function(error) {
+                        console.error("Error performing query: ", error);
+                    });
                 });
             });
-
-            var locateWidget = new Locate({
-                view: view
-            });
-            view.ui.add(locateWidget, "top-left");
 
             document.getElementById('reportForm').addEventListener('submit', function(e) {
                 e.preventDefault();
