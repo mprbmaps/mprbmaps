@@ -31,7 +31,9 @@
             width: 30%;
             height: 50%;
         }
-        .form-container input, .form-container select, .form-container button {
+        .form-container input,
+        .form-container select,
+        .form-container button {
             width: calc(100% - 20px);
             padding: 10px;
             margin-top: 5px;
@@ -103,10 +105,10 @@
             "esri/Graphic",
             "esri/layers/GraphicsLayer",
             "esri/widgets/Locate",
-            "esri/rest/query",
             "esri/rest/support/Query",
+            "esri/tasks/QueryTask", // Adjusted for querying
             "esri/geometry/Point"
-        ], function(Map, MapView, Graphic, GraphicsLayer, Locate, query, Query, Point) {
+        ], function(Map, MapView, Graphic, GraphicsLayer, Locate, Query, QueryTask, Point) {
             var map = new Map({
                 basemap: "streets-navigation-vector"
             });
@@ -129,7 +131,7 @@
             view.when(function() {
                 var locateWidget = new Locate({
                     view: view,
-                    goToOverride(view, options) {
+                    goToOverride: function(view, options) {
                         options.target.scale = 1500; // Customize the scale for goTo operation
                         return view.goTo(options.target);
                     }
@@ -143,19 +145,20 @@
                 });
 
                 view.on("click", function(event) {
-                    var queryPoint = new Query({
-                        geometry: event.mapPoint,
-                        spatialRelationship: "intersects",
-                        returnGeometry: false,
-                        outFields: ["*"]
-                    });
+                    var query = new Query();
+                    query.geometry = event.mapPoint; // the point location of the pointer
+                    query.spatialRelationship = "intersects"; // this is the default
+                    query.outFields = ["*"]; // fetch all fields
+                    query.returnGeometry = true;
 
                     var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0";
+                    var queryTask = new QueryTask({
+                        url: queryUrl
+                    });
 
-                    query.executeQuery(queryUrl, queryPoint).then(function(result) {
+                    queryTask.execute(query).then(function(result) {
+                        console.log("Query result:", result);
                         if (result.features.length > 0) {
-                            document.getElementById("location").value = `Lat: ${event.mapPoint.latitude.toFixed(4)}, Lon: ${event.mapPoint.longitude.toFixed(4)}`;
-
                             var pointGraphic = new Graphic({
                                 geometry: event.mapPoint,
                                 symbol: {
@@ -186,7 +189,7 @@
                     return;
                 }
                 alert('Report submitted!');
-                // Implement the actual submission logic here.
+                // Here, you would typically handle the form submission.
             });
         });
     </script>
