@@ -187,6 +187,14 @@
             url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
         });
 
+        // Function to enable cell 1
+        function enableCell1() {
+            var cell1 = document.getElementById('cell1');
+            cell1.classList.remove('disabled');
+            cell1.style.backgroundColor = '#fff'; // Set background color to white
+            cell1.style.border = '1px solid #ddd'; // Reset border to light gray
+        }
+
         view.on("click", function(event) {
             // Display a graphic at the clicked location using a custom image
             var pointGraphic = new Graphic({
@@ -210,7 +218,7 @@
             featureLayer.queryFeatures(query).then(function(result) {
                 console.log("Query results:", result);
                 if (result.features.length > 0) {
-                    enableCell('cell1'); // Enable cell 1 when location is selected
+                    enableCell1(); // Enable cell 1 when location is selected
                     enableCell('cell2'); // Enable cell 2 when location is selected
                 } else {
                     alert("Location is not within MPRB's Responsibility");
@@ -221,7 +229,6 @@
         });
     });
 });
-
     </script>
 </body>
 </html>
