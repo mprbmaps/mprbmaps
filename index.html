@@ -158,10 +158,16 @@
             console.log("Query parameters:", queryParams);
             console.log("Query URL:", queryUrl);
 
-            // Correctly using query.executeQuery for spatial queries
+            var serializedGeometry = {
+                type: queryParams.geometry.type,
+                x: queryParams.geometry.x,
+                y: queryParams.geometry.y,
+                spatialReference: queryParams.geometry.spatialReference.toJSON()
+            };
+
             query.executeQuery({
                 url: queryUrl,
-                geometry: queryParams.geometry.toJSON(), // Ensure geometry is correctly serialized
+                geometry: serializedGeometry,
                 spatialRelationship: queryParams.spatialRelationship,
                 outFields: queryParams.outFields,
                 returnGeometry: queryParams.returnGeometry
