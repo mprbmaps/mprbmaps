@@ -99,80 +99,70 @@
         </form>
     </div>
     <script>
-        require([
-            "esri/Map",
-            "esri/views/MapView",
-            "esri/Graphic",
-            "esri/layers/GraphicsLayer",
-            "esri/widgets/Locate",
-            "esri/rest/support/Query",
-            "esri/geometry/geometryEngine",
-            "esri/geometry/Point"
-        ], function(Map, MapView, Graphic, GraphicsLayer, Locate, Query, geometryEngine, Point) {
-            var map = new Map({
-                basemap: "streets-navigation-vector"
+    require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/Graphic",
+        "esri/layers/GraphicsLayer",
+        "esri/widgets/Locate",
+        "esri/rest/query",
+        "esri/rest/support/Query",
+        "esri/geometry/Point"
+    ], function(Map, MapView, Graphic, GraphicsLayer, Locate, query, Query, Point) {
+        var map = new Map({
+            basemap: "streets-navigation-vector"
+        });
+
+        var view = new MapView({
+            container: "viewDiv",
+            map: map,
+            center: [-93.2650, 44.9778],
+            zoom: 12,
+            constraints: {
+                minZoom: 8,
+                maxZoom: 20,
+                rotationEnabled: false
+            }
+        });
+
+        var graphicsLayer = new GraphicsLayer();
+        map.add(graphicsLayer);
+
+        view.when(function() {
+            var locateWidget = new Locate({
+                view: view
             });
+            view.ui.add(locateWidget, "top-left");
 
-            var view = new MapView({
-                container: "viewDiv",
-                map: map,
-                center: [-93.2650, 44.9778], 
-                zoom: 12,
-                constraints: {
-                    minZoom: 8,
-                    maxZoom: 20,
-                    rotationEnabled: false
-                }
-            });
+            view.on("click", function(event) {
+                // Directly use the mapPoint from the event for the geometry
+                var point = event.mapPoint;
 
-            var graphicsLayer = new GraphicsLayer();
-            map.add(graphicsLayer);
+                if (point) {
+                    console.log("Clicked point:", point);
 
-            view.when(function() {
-                var locateWidget = new Locate({
-                    view: view,
-                    goToOverride: function(view, options) {
-                        options.target.scale = 1500; 
-                        return view.goTo(options.target);
-                    }
-                });
-                view.ui.add(locateWidget, "top-left");
-
-                locateWidget.locate().then(function() {
-                    console.log('User located successfully.');
-                }).catch(function(error) {
-                    console.error('Error locating user:', error);
-                });
-
-                view.on("click", function(event) {
-                    view.hitTest(event).then(function(response) {
-                        if (response.results.length) {
-                            var graphic = response.results[0].graphic;
-                            var geometry = graphic.geometry;
-                            console.log("Clicked geometry:", geometry);
-
-                            if (geometry) {
-                                var pointGraphic = new Graphic({
-                                    geometry: geometry,
-                                    symbol: {
-                                        type: "simple-marker",
-                                        color: [226, 119, 40],
-                                        outline: {
-                                            color: [255, 255, 255],
-                                            width: 1
-                                        }
-                                    }
-                                });
-                                graphicsLayer.removeAll();
-                                graphicsLayer.add(pointGraphic);
-                            } else {
-                                console.error("Geometry is null.");
+                    // Now directly creating and adding the graphic for the clicked location
+                    var pointGraphic = new Graphic({
+                        geometry: point,
+                        symbol: {
+                            type: "simple-marker",
+                            color: [226, 119, 40],
+                            outline: {
+                                color: [255, 255, 255],
+                                width: 1
                             }
                         }
                     });
-                });
+                    graphicsLayer.removeAll();
+                    graphicsLayer.add(pointGraphic);
+
+                    // Query logic here if needed, using the point for queries
+                } else {
+                    console.error("Point is null.");
+                }
             });
         });
-    </script>
+    });
+</script>
 </body>
 </html>
