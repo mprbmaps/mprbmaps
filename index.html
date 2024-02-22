@@ -148,50 +148,23 @@
                     view.hitTest(event).then(function(response) {
                         if (response.results.length) {
                             var graphic = response.results[0].graphic;
-                            var queryParams = new Query();
-                            queryParams.geometry = graphic.geometry;
-                            queryParams.spatialRelationship = "intersects";
-                            queryParams.outFields = ["*"];
-                            queryParams.returnGeometry = true;
+                            var geometry = graphic.geometry;
+                            console.log("Clicked geometry:", geometry);
 
-                            console.log("HitTest results:", response.results);
-                            console.log("Query parameters:", queryParams);
-
-                            if (queryParams.geometry) {
-                                console.log("Serialized geometry:", queryParams.geometry.toJSON());
-
-                                var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0/query?geometryType=esriGeometryPoint&spatialRel=esriSpatialRelIntersects&geometry=" + encodeURIComponent(JSON.stringify(queryParams.geometry.toJSON())) + "&outFields=*&returnGeometry=true&f=json&wkid=103734";
-                                console.log("Query URL:", queryUrl);
-
-                                query.executeQuery({
-                                    url: queryUrl,
-                                    geometry: queryParams.geometry.toJSON(),
-                                    spatialRelationship: queryParams.spatialRelationship,
-                                    outFields: queryParams.outFields,
-                                    returnGeometry: queryParams.returnGeometry
-                                }).then(function(result) {
-                                    console.log("Query result:", result);
-                                    if (result.features.length > 0) {
-                                        var pointGraphic = new Graphic({
-                                            geometry: event.mapPoint,
-                                            symbol: {
-                                                type: "simple-marker",
-                                                color: [226, 119, 40],
-                                                outline: {
-                                                    color: [255, 255, 255],
-                                                    width: 1
-                                                }
-                                            }
-                                        });
-                                        graphicsLayer.removeAll();
-                                        graphicsLayer.add(pointGraphic);
-                                    } else {
-                                        alert("Location is not within MPRB's Responsibility");
+                            if (geometry) {
+                                var pointGraphic = new Graphic({
+                                    geometry: geometry,
+                                    symbol: {
+                                        type: "simple-marker",
+                                        color: [226, 119, 40],
+                                        outline: {
+                                            color: [255, 255, 255],
+                                            width: 1
+                                        }
                                     }
-                                }).catch(function(error) {
-                                    console.error("Error performing query:", error);
                                 });
-
+                                graphicsLayer.removeAll();
+                                graphicsLayer.add(pointGraphic);
                             } else {
                                 console.error("Geometry is null.");
                             }
