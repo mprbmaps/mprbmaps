@@ -144,8 +144,6 @@
                 });
 
                 view.on("click", function(event) {
-                    console.log("Map clicked at", event.mapPoint);
-
                     var queryPoint = new Query({
                         geometry: event.mapPoint,
                         spatialRelationship: "intersects",
@@ -154,13 +152,9 @@
                     });
 
                     var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0";
-                    console.log("Querying layer", queryUrl);
 
                     query.executeQuery(queryUrl, queryPoint).then(function(result) {
-                        console.log("Query result:", result);
                         if (result.features.length > 0) {
-                            console.log("Location is within MPRB's Responsibility");
-
                             document.getElementById("location").value = `Lat: ${event.mapPoint.latitude.toFixed(4)}, Lon: ${event.mapPoint.longitude.toFixed(4)}`;
 
                             var pointGraphic = new Graphic({
@@ -192,14 +186,10 @@
                     alert("Please select a valid location on the map within MPRB's responsibility area.");
                     return;
                 }
-                console.log('Report submitted with location:', locationValue);
-                // Here, implement the actual submission logic, possibly using fetch or XMLHttpRequest.
                 alert('Report submitted!');
+                // Implement the actual submission logic here.
             });
         });
     </script>
-    <!-- Eruda Scripts -->
-    <script src="//cdn.jsdelivr.net/npm/eruda"></script>
-    <script>eruda.init();</script>
 </body>
 </html>
