@@ -12,12 +12,12 @@
             margin: 0;
             padding: 0;
             height: 100%;
-            overflow: hidden; /* Prevent scrolling outside the map and form area */
+            overflow: hidden;
         }
         
         #viewDiv {
-            height: 100%; /* Map occupies full height */
-            width: 70%; /* Map occupies 70% of the screen width */
+            height: 100%;
+            width: 70%;
             float: left;
         }
         
@@ -25,28 +25,26 @@
             position: fixed;
             background-color: #fff;
             box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
-            padding: 35px; /* Uniform padding */
-            overflow-y: auto; /* Allows scrolling within the form */
-            box-sizing: border-box; /* Ensure padding is included in the width calculation */
-            bottom: 100px; /* Adjusted bottom position for mobile devices */
+            padding: 35px;
+            overflow-y: auto;
+            box-sizing: border-box;
+            bottom: 100px;
             right: 0;
-            width: 30%; /* Form occupies 30% of the screen width */
-            height: 50%; /* Form occupies 50% of the screen height */
+            width: 30%;
+            height: 50%;
         }
         
-        /* Adjust the form elements */
         .form-container input,
         .form-container select,
         .form-container button {
-            width: calc(100% - 20px); /* Adjust width to account for padding on both sides */
+            width: calc(100% - 20px);
             padding: 10px;
             margin-top: 5px;
-            margin-bottom: 8px; /* Add some space at the bottom of each element */
+            margin-bottom: 8px;
             border: 1px solid #ccc;
             border-radius: 5px;
         }
         
-        /* Adjust buttons */
         .form-container button {
             background-color: #0079c1;
             color: white;
@@ -58,41 +56,38 @@
             transition: background-color 0.3s ease;
         }
         
-        /* Adjust labels */
         .form-container label {
-            margin: 15px 0 5px 0; /* 15px top margin, 5px bottom margin */
+            margin: 15px 0 5px 0;
             display: block;
         }
         
-        /* Adjust text input and select */
         .form-container input[type="text"],
         .form-container select {
-            width: calc(100% - 20px); /* Adjust width to account for padding on both sides */
+            width: calc(100% - 20px);
         }
         
-        /* Media queries for mobile and desktop */
-        @media screen and (max-width: 768px) { /* For mobile devices */
+        @media screen and (max-width: 768px) {
             #viewDiv {
-                width: 100%; /* Map occupies full width */
-                height: 40%; /* Map occupies 40% of the screen height */
+                width: 100%;
+                height: 40%;
             }
             
             .form-container {
                 position: fixed;
-                bottom: 50px; /* Adjusted bottom position for mobile devices */
+                bottom: 50px;
                 left: 0;
-                width: 100%; /* Form occupies full width */
-                height: 60%; /* Form occupies 60% of the screen height */
+                width: 100%;
+                height: 60%;
             }
         }
         
-        @media screen and (min-width: 769px) { /* For desktops */
+        @media screen and (min-width: 769px) {
             .form-container {
                 position: fixed;
                 top: 0;
                 right: 0;
-                width: 30%; /* Form occupies 30% of the screen width */
-                height: 100%; /* Form occupies full height */
+                width: 30%;
+                height: 100%;
             }
         }
     </style>
@@ -106,7 +101,8 @@
             <select id="issueType" name="issueType">
                 <option value="Pothole">Pothole</option>
                 <option value="Streetlight">Streetlight</option>
-                <!-- Additional issue types as needed -->
+                <option value="Vandalism">Vandalism</option>
+                <option value="Litter">Litter</option>
             </select>
             <label for="photoUpload">Photo (optional):</label>
             <input type="file" id="photoUpload" name="photo">
@@ -121,18 +117,19 @@
             "esri/views/MapView",
             "esri/Graphic",
             "esri/layers/GraphicsLayer",
-            "esri/widgets/Locate" // Import the Locate widget
-        ], function(Map, MapView, Graphic, GraphicsLayer, Locate) {
+            "esri/widgets/Locate",
+            "esri/rest/query",
+            "esri/rest/support/Query",
+            "esri/geometry/Point"
+        ], function(Map, MapView, Graphic, GraphicsLayer, Locate, query, Query, Point) {
             var map = new Map({
                 basemap: "streets-navigation-vector"
             });
 
-            console.log('Map created.');
-
             var view = new MapView({
                 container: "viewDiv",
                 map: map,
-                center: [-93.2650, 44.9778], // Coordinates for Minneapolis
+                center: [-93.2650, 44.9778],
                 zoom: 12,
                 constraints: {
                     minZoom: 8,
@@ -141,67 +138,69 @@
                 }
             });
 
-            console.log('View created.');
-
             var graphicsLayer = new GraphicsLayer();
             map.add(graphicsLayer);
-
-            console.log('Graphics layer added.');
 
             view.on("click", function(event) {
                 var lat = event.mapPoint.latitude;
                 var lon = event.mapPoint.longitude;
-                document.getElementById("location").value = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+                var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0";
 
-                var point = {
-                    type: "point",
+                var queryPoint = new Query();
+                queryPoint.geometry = new Point({
                     longitude: lon,
                     latitude: lat
-                };
-                var simpleMarkerSymbol = {
-                    type: "simple-marker",
-                    color: [226, 119, 40], // Orange
-                    outline: {
-                        color: [255, 255, 255], // White
-                        width: 1
-                    }
-                };
-                var pointGraphic = new Graphic({
-                    geometry: point,
-                    symbol: simpleMarkerSymbol
                 });
-                graphicsLayer.removeAll(); // Remove any previous graphics
-                graphicsLayer.add(pointGraphic); // Add the new graphic to the map
-            });
+                queryPoint.spatialRelationship = "intersects";
+                queryPoint.returnGeometry = false;
+                queryPoint.outFields = ["*"];
 
-            console.log('Click event handler added.');
+                query.executeQuery(queryUrl, queryPoint).then(function(result) {
+                    if (result.features.length > 0) {
+                        document.getElementById("location").value = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+
+                        var point = {
+                            type: "point",
+                            longitude: lon,
+                            latitude: lat
+                        };
+                        var simpleMarkerSymbol = {
+                            type: "simple-marker",
+                            color: [226, 119, 40],
+                            outline: {
+                                color: [255, 255, 255],
+                                width: 1
+                            }
+                        };
+                        var pointGraphic = new Graphic({
+                            geometry: point,
+                            symbol: simpleMarkerSymbol
+                        });
+                        graphicsLayer.removeAll();
+                        graphicsLayer.add(pointGraphic);
+                    } else {
+                        alert("Location is not within MPRB's Responsibility");
+                    }
+                }).catch(function(error) {
+                    console.error("Error performing query: ", error);
+                });
+            });
 
             var locateWidget = new Locate({
                 view: view
             });
             view.ui.add(locateWidget, "top-left");
-            locateWidget.enabled = true;
 
-            console.log('Locate widget added.');
-
-            view.when(function() {
-                locateWidget.locate().then(function() {
-                    console.log('User located successfully.');
-                }).catch(function(error) {
-                    console.error('Error locating user:', error);
-                });
+            document.getElementById('reportForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                var locationValue = document.getElementById("location").value;
+                if (!locationValue) {
+                    alert("Please select a valid location on the map within MPRB's responsibility area.");
+                    return;
+                }
+                // Form submission logic goes here
+                alert('Report submitted!');
             });
-
-            console.log('Locate method called.');
-
-            document.getElementById('reportForm').addEventListener('submit', function(e) e.preventDefault(); // Prevent default form submission
-                alert('Report submitted!'); // Placeholder feedback
-                // Here, you would typically implement the logic to actually submit the form data to a server.
-                // This could involve gathering the data from the form, possibly including handling the file upload for the photo,
-                // and then using fetch() or another AJAX method to send the data.
-            });
-
-            console.log('Form submission event listener added.');
         });
     </script>
 </body>
