@@ -34,9 +34,13 @@
             border: 1px solid #ddd; /* Light gray rectangular outline */
             padding: 20px;
             margin-bottom: -1px; /* Remove spacing between cells */
-            height: 100px; /* Set height to 150 pixels */
+            height: 100px; /* Set height to 100 pixels */
             position: relative; /* Position for overlay text */
             text-align: center; /* Center align header text */
+            background-color: #f9f9f9; /* Default background color */
+        }
+        .form-cell.disabled {
+            background-color: #f0f0f0; /* Greyed out background color */
         }
         .form-cell label {
             position: absolute;
@@ -82,26 +86,31 @@
 <body>
     <div id="viewDiv"></div>
     <div class="form-container">
-        <div class="form-cell">
+        <div class="form-cell" id="cell1">
             <label>Location (click on the map):</label>
         </div>
-        <div class="form-cell">
+        <div class="form-cell disabled" id="cell2">
             <label>Select Issue Type</label>
-            <select id="issueType" name="issueType">
+            <select id="issueType" name="issueType" onchange="enableCell('cell3')">
                 <option value="Pothole">Pothole</option>
                 <option value="Streetlight">Streetlight</option>
                 <option value="Vandalism">Vandalism</option>
                 <option value="Litter">Litter</option>
             </select>
         </div>
-        <div class="form-cell">
+        <div class="form-cell disabled" id="cell3">
             <label>Photo (optional):</label>
             <input type="file" id="photoUpload" name="photo">
         </div>
-        <div class="form-cell">
+        <div class="form-cell disabled" id="cell4">
             <button type="submit">Submit Report</button>
         </div>
     </div>
+    <script>
+        function enableCell(cellId) {
+            document.getElementById(cellId).classList.remove('disabled');
+        }
+    </script>
     <script>
 require([
     "esri/Map",
