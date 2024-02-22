@@ -148,63 +148,56 @@
                     view.hitTest(event).then(function(response) {
                         if (response.results.length) {
                             var graphic = response.results[0].graphic;
-                            console.log("HitTest results:", response.results);
                             var queryParams = new Query();
                             queryParams.geometry = graphic.geometry;
                             queryParams.spatialRelationship = "intersects";
                             queryParams.outFields = ["*"];
                             queryParams.returnGeometry = true;
 
+                            console.log("HitTest results:", response.results);
                             console.log("Query parameters:", queryParams);
 
-                            var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0/query?geometryType=esriGeometryPoint&spatialRel=esriSpatialRelIntersects&geometry=" + encodeURIComponent(JSON.stringify(queryParams.geometry.toJSON())) + "&outFields=*&returnGeometry=true&f=json&wkid=103734";
+                            if (queryParams.geometry) {
+                                console.log("Serialized geometry:", queryParams.geometry.toJSON());
 
-                            console.log("Query URL:", queryUrl);
+                                var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0/query?geometryType=esriGeometryPoint&spatialRel=esriSpatialRelIntersects&geometry=" + encodeURIComponent(JSON.stringify(queryParams.geometry.toJSON())) + "&outFields=*&returnGeometry=true&f=json&wkid=103734";
+                                console.log("Query URL:", queryUrl);
 
-                            console.log("Serialized geometry:", queryParams.geometry.toJSON());
-
-                            query.executeQuery({
-                                url: queryUrl,
-                                geometry: queryParams.geometry ? queryParams.geometry.toJSON() : null,
-                                spatialRelationship: queryParams.spatialRelationship,
-                                outFields: queryParams.outFields,
-                                returnGeometry: queryParams.returnGeometry
-                            }).then(function(result) {
-                                console.log("Query result:", result);
-                                if (result.features.length > 0) {
-                                    var pointGraphic = new Graphic({
-                                        geometry: event.mapPoint,
-                                        symbol: {
-                                            type: "simple-marker",
-                                            color: [226, 119, 40],
-                                            outline: {
-                                                color: [255, 255, 255],
-                                                width: 1
+                                query.executeQuery({
+                                    url: queryUrl,
+                                    geometry: queryParams.geometry.toJSON(),
+                                    spatialRelationship: queryParams.spatialRelationship,
+                                    outFields: queryParams.outFields,
+                                    returnGeometry: queryParams.returnGeometry
+                                }).then(function(result) {
+                                    console.log("Query result:", result);
+                                    if (result.features.length > 0) {
+                                        var pointGraphic = new Graphic({
+                                            geometry: event.mapPoint,
+                                            symbol: {
+                                                type: "simple-marker",
+                                                color: [226, 119, 40],
+                                                outline: {
+                                                    color: [255, 255, 255],
+                                                    width: 1
+                                                }
                                             }
-                                        }
-                                    });
-                                    graphicsLayer.removeAll();
-                                    graphicsLayer.add(pointGraphic);
-                                } else {
-                                    alert("Location is not within MPRB's Responsibility");
-                                }
-                            }).catch(function(error) {
-                                console.error("Error performing query:", error);
-                            });
+                                        });
+                                        graphicsLayer.removeAll();
+                                        graphicsLayer.add(pointGraphic);
+                                    } else {
+                                        alert("Location is not within MPRB's Responsibility");
+                                    }
+                                }).catch(function(error) {
+                                    console.error("Error performing query:", error);
+                                });
+
+                            } else {
+                                console.error("Geometry is null.");
+                            }
                         }
                     });
                 });
-            });
-
-            document.getElementById('reportForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                var locationValue = document.getElementById("location").value;
-                if (!locationValue) {
-                    alert("Please select a valid location on the map within MPRB's responsibility area.");
-                    return;
-                }
-                alert('Report submitted!');
-                // Implement the actual submission logic here, such as sending the data to a server
             });
         });
     </script>
