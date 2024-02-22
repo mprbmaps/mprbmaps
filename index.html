@@ -250,20 +250,26 @@
         // Add event listener for cell 2 dropdown change
         var issueTypeDropdown = document.getElementById('issueType');
         issueTypeDropdown.addEventListener('change', function() {
-            if (!issueTypeDropdown.disabled) {
-                var selectedValue = this.value;
-                if (selectedValue !== 'Pothole') {
-                    disableCell('cell2'); // Disable cell 2 when a value other than 'Pothole' is selected
-                    enableCell('cell3'); // Enable cell 3 when a value other than 'Pothole' is selected
-                    enableCell('cell4'); // Enable cell 4 when a value other than 'Pothole' is selected
-                }
+            var selectedValue = this.value;
+            if (selectedValue !== 'Pothole') {
+                disableCell('cell2'); // Disable cell 2 when a value other than 'Pothole' is selected
+                enableCell('cell3'); // Enable cell 3 when a value other than 'Pothole' is selected
+                enableCell('cell4'); // Enable cell 4 when a value other than 'Pothole' is selected
             }
         });
 
-        // Disable dropdown if cell 2 is disabled
-        issueTypeDropdown.disabled = document.getElementById('cell2').classList.contains('disabled');
+        // Enable dropdown if cell 2 is enabled
+        var cell2 = document.getElementById('cell2');
+        issueTypeDropdown.disabled = cell2.classList.contains('disabled');
+        if (!issueTypeDropdown.disabled) {
+            issueTypeDropdown.addEventListener('change', function() {
+                // Enable cell 2 when dropdown value changes
+                enableCell('cell2');
+            });
+        }
     });
 });
+
 
 
     </script>
