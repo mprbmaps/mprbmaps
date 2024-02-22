@@ -31,7 +31,7 @@
             width: 30%;
             height: 50%;
         }
-        .form-container select, .form-container button {
+        .form-container select, .form-container button, .form-container input[type="file"] {
             width: calc(100% - 20px);
             padding: 10px;
             margin-top: 5px;
@@ -52,6 +52,44 @@
         .form-container label {
             display: block;
             margin: 15px 0 5px;
+            position: relative;
+            padding-left: 25px;
+        }
+        .form-container label::before {
+            content: attr(data-step);
+            border-radius: 50%;
+            border: 2px solid #0079c1;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: absolute;
+            left: 0;
+            top: -3px;
+            font-size: 14px;
+            color: #0079c1;
+        }
+        .step-submit {
+            display: inline-block;
+            margin-top: 5px;
+            position: relative;
+            padding-left: 25px;
+        }
+        .step-submit::before {
+            content: '3';
+            border-radius: 50%;
+            border: 2px solid #0079c1;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: absolute;
+            left: -25px;
+            top: 10px;
+            font-size: 14px;
+            color: #0079c1;
         }
         @media screen and (max-width: 768px) {
             #viewDiv {
@@ -82,16 +120,18 @@
     <div class="form-container">
         <h2>Report an Issue</h2>
         <form id="reportForm">
-            <label>Location (click on the map):</label> <!-- Label kept, input field removed -->
+            <label data-step="1">Location (click on the map):</label>
             <select id="issueType" name="issueType">
                 <option value="Pothole">Pothole</option>
                 <option value="Streetlight">Streetlight</option>
                 <option value="Vandalism">Vandalism</option>
                 <option value="Litter">Litter</option>
             </select>
-            <label for="photoUpload">Photo (optional):</label>
+            <label for="photoUpload" data-step="2">Photo (optional):</label>
             <input type="file" id="photoUpload" name="photo">
-            <button type="submit">Submit Report</button>
+            <div class="step-submit">
+                <button type="submit">Submit Report</button>
+            </div>
         </form>
     </div>
     <script>
