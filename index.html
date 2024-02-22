@@ -114,7 +114,7 @@
             if (cellIndex <= currentCellIndex) {
                 // Get the current cell and the clicked cell
                 var currentCell = document.getElementById('cell' + currentCellIndex);
-                var clickedCell = document.getElementById(cellIndex);
+                var clickedCell = document.getElementById('cell' + cellIndex);
 
                 // Disable the dropdown if trying to select cell two without selecting location
                 if (cellIndex === 2 && currentCellIndex !== 1) {
@@ -123,10 +123,12 @@
 
                 // Enable the clicked cell and update the current cell index
                 clickedCell.classList.remove('disabled');
-                clickedCell.style.backgroundColor = '#fff'; // Set background color to white
+                clickedCell.style.backgroundColor = '#f0f0f0'; // Set background color to gray
+                clickedCell.style.border = '1px solid #ddd'; // Reset border to light gray
 
                 // Reset styles of previously highlighted cell
-                currentCell.style.backgroundColor = '#f0f0f0'; // Set background color to gray
+                currentCell.style.border = '1px solid #ddd';
+                currentCell.style.backgroundColor = '#fff';
 
                 // Update the current cell index
                 currentCellIndex = cellIndex;
@@ -135,7 +137,8 @@
                 if (currentCellIndex < 4) {
                     var nextCell = document.getElementById('cell' + (currentCellIndex + 1));
                     nextCell.classList.remove('disabled');
-                    nextCell.style.backgroundColor = '#fff'; // Set background color to white
+                    nextCell.style.backgroundColor = '#fff';
+                    nextCell.style.border = '2px solid #333';
                 }
             }
         }
@@ -178,7 +181,7 @@
                     console.error("Locate widget error:", error.message);
                     // Optionally handle the error, e.g., display a message to the user
                 });
-
+                
                 // Define the FeatureLayer with the correct URL
                 var featureLayer = new FeatureLayer({
                     url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
@@ -205,9 +208,13 @@
                     query.returnGeometry = true;
 
                     featureLayer.queryFeatures(query).then(function(result) {
-                        console.log("Current Cell Index:", currentCellIndex);
                         console.log("Query results:", result);
-                        enableCell('cell2'); // Enable cell 2 when location is selected
+                        if (result.features.length > 0) {
+                            enableCell('cell1'); // Enable cell 1 when location is selected
+                            enableCell('cell2'); // Enable cell 2 when location is selected
+                        } else {
+                            alert("Location is not within MPRB's Responsibility");
+                        }
                     }).catch(function(error) {
                         console.error("Error querying features:", error);
                     });
