@@ -145,51 +145,51 @@
                 });
 
                 view.on("click", function(event) {
-    console.log("Clicked on map at:", event.mapPoint.toJSON());
-    var queryParams = new Query();
-    queryParams.geometry = event.mapPoint.clone(); // Clone the point to prevent modifying the original
-    queryParams.geometry.spatialReference = { wkid: 103734 }; // Set the spatial reference to WKID 103734
-    queryParams.spatialRelationship = "intersects";
-    queryParams.outFields = ["*"];
-    queryParams.returnGeometry = true;
+                    console.log("Clicked on map at:", event.mapPoint.toJSON());
+                    var queryParams = new Query();
+                    queryParams.geometry = event.mapPoint.clone(); // Clone the point to prevent modifying the original
+                    queryParams.geometry.spatialReference = { wkid: 103734 }; // Set the spatial reference to WKID 103734
+                    queryParams.spatialRelationship = "intersects";
+                    queryParams.outFields = ["*"];
+                    queryParams.returnGeometry = true;
 
-    var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0/query?geometryType=esriGeometryPoint&spatialRel=esriSpatialRelIntersects&geometry=" + encodeURIComponent(JSON.stringify(queryParams.geometry.toJSON())) + "&outFields=*&returnGeometry=true&f=json&wkid=103734";
+                    var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0/query?geometryType=esriGeometryPoint&spatialRel=esriSpatialRelIntersects&geometry=" + encodeURIComponent(JSON.stringify(queryParams.geometry.toJSON())) + "&outFields=*&returnGeometry=true&f=json&wkid=103734";
 
-    console.log("Query parameters:", queryParams);
-    console.log("Query URL:", queryUrl);
+                    console.log("Query parameters:", queryParams);
+                    console.log("Query URL:", queryUrl);
 
-    console.log("Serialized geometry:", queryParams.geometry.toJSON());
+                    console.log("Serialized geometry:", queryParams.geometry.toJSON());
 
-    query.executeQuery({
-        url: queryUrl,
-        geometry: queryParams.geometry.toJSON(),
-        spatialRelationship: queryParams.spatialRelationship,
-        outFields: queryParams.outFields,
-        returnGeometry: queryParams.returnGeometry
-    }).then(function(result) {
-        console.log("Query result:", result);
-        if (result.features.length > 0) {
-            var pointGraphic = new Graphic({
-                geometry: event.mapPoint,
-                symbol: {
-                    type: "simple-marker",
-                    color: [226, 119, 40],
-                    outline: {
-                        color: [255, 255, 255],
-                        width: 1
-                    }
-                }
+                    query.executeQuery({
+                        url: queryUrl,
+                        geometry: queryParams.geometry.toJSON(),
+                        spatialRelationship: queryParams.spatialRelationship,
+                        outFields: queryParams.outFields,
+                        returnGeometry: queryParams.returnGeometry
+                    }).then(function(result) {
+                        console.log("Query result:", result);
+                        if (result.features.length > 0) {
+                            var pointGraphic = new Graphic({
+                                geometry: event.mapPoint,
+                                symbol: {
+                                    type: "simple-marker",
+                                    color: [226, 119, 40],
+                                    outline: {
+                                        color: [255, 255, 255],
+                                        width: 1
+                                    }
+                                }
+                            });
+                            graphicsLayer.removeAll();
+                            graphicsLayer.add(pointGraphic);
+                        } else {
+                            alert("Location is not within MPRB's Responsibility");
+                        }
+                    }).catch(function(error) {
+                        console.error("Error performing query:", error);
+                    });
+                });
             });
-            graphicsLayer.removeAll();
-            graphicsLayer.add(pointGraphic);
-        } else {
-            alert("Location is not within MPRB's Responsibility");
-        }
-    }).catch(function(error) {
-        console.error("Error performing query:", error);
-    });
-});
-
 
             document.getElementById('reportForm').addEventListener('submit', function(e) {
                 e.preventDefault();
