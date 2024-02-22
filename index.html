@@ -146,6 +146,7 @@
         });
 
         view.on("click", function(event) {
+            console.log("Clicked on map at:", event.mapPoint.toJSON());
             var queryParams = new Query();
             queryParams.geometry = event.mapPoint; // The point location of the pointer
             queryParams.spatialRelationship = "intersects";
@@ -153,6 +154,9 @@
             queryParams.returnGeometry = true;
 
             var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0";
+
+            console.log("Query parameters:", queryParams);
+            console.log("Query URL:", queryUrl);
 
             // Correctly using query.executeQuery for spatial queries
             query.executeQuery({
@@ -162,6 +166,7 @@
                 outFields: queryParams.outFields,
                 returnGeometry: queryParams.returnGeometry
             }).then(function(result) {
+                console.log("Query result:", result);
                 if (result.features.length > 0) {
                     var pointGraphic = new Graphic({
                         geometry: event.mapPoint,
