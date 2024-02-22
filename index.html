@@ -107,20 +107,43 @@
         </div>
     </div>
     <script>
-    var currentHighlightedCell = null; // Variable to store the currently highlighted cell
+    var currentCellIndex = 1; // Variable to track the current active cell index
 
-    function enableCell(cellId) {
-        var currentCell = document.getElementById(cellId);
-        currentCell.classList.remove('disabled');
-        currentCell.style.backgroundColor = '#f0f0f0'; // Set background color to gray
-        currentCell.style.border = '1px solid #ddd'; // Reset border to light gray
-        if (currentHighlightedCell !== null) {
-            currentHighlightedCell.style.border = '1px solid #ddd'; // Reset border of previously highlighted cell
+    function enableCell(cellIndex) {
+        // Check if the current cell index is less than or equal to the clicked cell index
+        if (cellIndex <= currentCellIndex) {
+            // Get the current cell and the clicked cell
+            var currentCell = document.getElementById('cell' + currentCellIndex);
+            var clickedCell = document.getElementById('cell' + cellIndex);
+
+            // Disable the dropdown if trying to select cell two without selecting location
+            if (cellIndex === 2 && currentCellIndex !== 1) {
+                return;
+            }
+
+            // Enable the clicked cell and update the current cell index
+            clickedCell.classList.remove('disabled');
+            clickedCell.style.backgroundColor = '#f0f0f0'; // Set background color to gray
+            clickedCell.style.border = '1px solid #ddd'; // Reset border to light gray
+
+            // Reset styles of previously highlighted cell
+            currentCell.style.border = '1px solid #ddd';
+            currentCell.style.backgroundColor = '#fff';
+
+            // Update the current cell index
+            currentCellIndex = cellIndex;
+
+            // Enable next cell
+            if (currentCellIndex < 4) {
+                var nextCell = document.getElementById('cell' + (currentCellIndex + 1));
+                nextCell.classList.remove('disabled');
+                nextCell.style.backgroundColor = '#fff';
+                nextCell.style.border = '2px solid #333';
+            }
         }
-        currentHighlightedCell = currentCell; // Update currently highlighted cell
-        currentCell.nextElementSibling.style.backgroundColor = '#f0f0f0'; // Grey out next cell
     }
 </script>
+
     <script>
 require([
     "esri/Map",
