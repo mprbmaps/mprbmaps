@@ -98,8 +98,7 @@
             <button type="submit">Submit Report</button>
         </form>
     </div>
-    <script>
-        require([
+    require([
     "esri/config",
     "esri/Map",
     "esri/views/MapView",
@@ -109,6 +108,9 @@
     "esri/rest/support/Query",
     "esri/rest/query",
     "esri/geometry/Point",
+    "esri/geometry/SpatialReference",
+    "esri/geometry/projection",
+    "esri/geometry/geometryEngine",
     "esri/rest/geometryService",
     "esri/rest/support/ProjectParameters"
 ], function(
@@ -121,7 +123,10 @@
     Query, 
     query, 
     Point, 
-    geometryService, 
+    SpatialReference, 
+    projection,
+    geometryEngine, 
+    GeometryService, 
     ProjectParameters
 ) {
     esriConfig.geometryServiceUrl = "https://utility.arcgisonline.com/ArcGIS/rest/services/Geometry/GeometryServer";
@@ -162,51 +167,53 @@
         });
 
         view.on("click", function(event) {
-            var projectParams = new ProjectParameters({
-                geometries: [event.mapPoint],
-                outSpatialReference: { wkid: 103734 } // Use the correct WKID for your layer
-            });
+            projection.load().then(function() {
+                var outSpatialReference = new SpatialReference({ wkid: 103734 });
+                if (!projection.isSupported()) {
+                    console.error("Projection is not supported");
+                    return;
+                }
 
-            geometryService.project(esriConfig.geometryServiceUrl, projectParams).then(function(projectedPoints) {
-                var projectedPoint = projectedPoints[0];
-                var queryParams = new Query({
-                    geometry: projectedPoint,
-                    spatialRelationship: "intersects",
-                    outFields: ["*"],
-                    returnGeometry: true
-                });
+                var projectedPoint = projection.project(event.mapPoint, outSpatialReference);
+                if (projectedPoint) {
+                    console.log("Projection succeeded:", projectedPoint);
 
-                var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0";
+                    var queryParams = new Query({
+                        geometry: projectedPoint,
+                        spatialRelationship: "intersects",
+                        outFields: ["*"],
+                        returnGeometry: true
+                    });
 
-                query.executeQuery({
-                    url: queryUrl,
-                    geometry: queryParams.geometry,
-                    spatialRelationship: queryParams.spatialRelationship,
-                    outFields: queryParams.outFields,
-                    returnGeometry: queryParams.returnGeometry
-                }).then(function(result) {
-                    if (result.features.length > 0) {
-                        var pointGraphic = new Graphic({
-                            geometry: event.mapPoint, // Use original point for display
-                            symbol: {
-                                type: "simple-marker",
-                                color: [226, 119, 40], // Orange
-                                outline: {
-                                    color: [255, 255, 255], // White
-                                    width: 1
+                    var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0";
+
+                    query.executeQuery({
+                        url: queryUrl,
+                        query: queryParams
+                    }).then(function(result) {
+                        if (result.features.length > 0) {
+                            var pointGraphic = new Graphic({
+                                geometry: event.mapPoint, // Use the original point for display
+                                symbol: {
+                                    type: "simple-marker",
+                                    color: [226, 119, 40],
+                                    outline: {
+                                        color: [255, 255, 255],
+                                        width: 1
+                                    }
                                 }
-                            }
-                        });
-                        graphicsLayer.removeAll();
-                        graphicsLayer.add(pointGraphic);
-                    } else {
-                        alert("Location is not within MPRB's Responsibility");
-                    }
-                }).catch(function(error) {
-                    console.error("Error performing query:", error);
-                });
-            }).catch(function(error) {
-                console.error("Error projecting point:", error);
+                            });
+                            graphicsLayer.removeAll();
+                            graphicsLayer.add(pointGraphic);
+                        } else {
+                            alert("Location is not within MPRB's Responsibility");
+                        }
+                    }).catch(function(error) {
+                        console.error("Error performing query:", error);
+                    });
+                } else {
+                    console.error("Projection failed");
+                }
             });
         });
     });
@@ -219,10 +226,8 @@
             return;
         }
         alert('Report submitted!');
-        // Here, you would typically handle the form submission.
     });
 });
-
 
     </script>
 </body>
