@@ -100,6 +100,7 @@
     </div>
     <script>
         require([
+    "esri/config",
     "esri/Map",
     "esri/views/MapView",
     "esri/Graphic",
@@ -108,10 +109,25 @@
     "esri/rest/support/Query",
     "esri/rest/query",
     "esri/geometry/Point",
-    "esri/config",
+    "esri/geometry/SpatialReference",
+    "esri/geometry/geometryEngine",
     "esri/rest/geometryService",
     "esri/rest/support/ProjectParameters"
-], function(Map, MapView, Graphic, GraphicsLayer, Locate, Query, query, Point, esriConfig, geometryService, ProjectParameters) {
+], function(
+    esriConfig, 
+    Map, 
+    MapView, 
+    Graphic, 
+    GraphicsLayer, 
+    Locate, 
+    Query, 
+    query, 
+    Point, 
+    SpatialReference, 
+    geometryEngine, 
+    GeometryService, 
+    ProjectParameters
+) {
     esriConfig.geometryServiceUrl = "https://utility.arcgisonline.com/ArcGIS/rest/services/Geometry/GeometryServer";
 
     var map = new Map({
@@ -121,7 +137,7 @@
     var view = new MapView({
         container: "viewDiv",
         map: map,
-        center: [-93.2650, 44.9778],
+        center: [-93.2650, 44.9778], // Center on Minneapolis
         zoom: 12,
         constraints: {
             minZoom: 8,
@@ -132,6 +148,8 @@
 
     var graphicsLayer = new GraphicsLayer();
     map.add(graphicsLayer);
+
+    var geometryService = new GeometryService(esriConfig.geometryServiceUrl);
 
     view.when(function() {
         var locateWidget = new Locate({
@@ -152,7 +170,7 @@
         view.on("click", function(event) {
             var projectParams = new ProjectParameters({
                 geometries: [event.mapPoint],
-                outSpatialReference: { wkid: 103734 }
+                outSpatialReference: new SpatialReference({ wkid: 103734 }) // Adjusted to a valid WKID for the feature layer
             });
 
             geometryService.project(projectParams).then(function(projectedPoints) {
@@ -168,19 +186,19 @@
 
                 query.executeQuery({
                     url: queryUrl,
-                    geometry: queryParams.geometry.toJSON(),
+                    geometry: queryParams.geometry,
                     spatialRelationship: queryParams.spatialRelationship,
                     outFields: queryParams.outFields,
                     returnGeometry: queryParams.returnGeometry
                 }).then(function(result) {
                     if (result.features.length > 0) {
                         var pointGraphic = new Graphic({
-                            geometry: event.mapPoint, // Use original point for display
+                            geometry: event.mapPoint, // Use original point for display to avoid projection distortion
                             symbol: {
                                 type: "simple-marker",
-                                color: [226, 119, 40],
+                                color: [226, 119, 40], // Orange
                                 outline: {
-                                    color: [255, 255, 255],
+                                    color: [255, 255, 255], // White
                                     width: 1
                                 }
                             }
@@ -207,6 +225,7 @@
             return;
         }
         alert('Report submitted!');
+        // Here, the actual form submission logic would be implemented.
     });
 });
 
