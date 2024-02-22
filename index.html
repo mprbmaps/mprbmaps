@@ -31,13 +31,13 @@
             height: 50%;
         }
         .form-cell {
+            position: relative; /* Relative position for icon placement */
             border: 1px solid #ddd; /* Light gray rectangular outline */
             padding: 20px;
             margin-bottom: -1px; /* Remove spacing between cells */
             height: 75px; /* Set height to 75 pixels */
-            position: relative; /* Position for overlay text */
             text-align: center; /* Center align header text */
-            background-color: #ffffff; /* Default background color */
+            background-color: #f9f9f9; /* Default background color */
         }
         .form-cell.disabled {
             background-color: #f0f0f0; /* Greyed out background color */
@@ -58,6 +58,19 @@
             border: 1px solid #ccc;
             border-radius: 5px;
             box-sizing: border-box; /* Include padding and border in width calculation */
+        }
+        .step-icon {
+            position: absolute;
+            top: -10px; /* Adjust position to place it in the upper right corner */
+            right: -10px; /* Adjust position to place it in the upper right corner */
+            width: 30px;
+            height: 30px;
+            background-color: #ccc; /* Default background color */
+            border-radius: 50%; /* Make it a circle */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
         }
         @media screen and (max-width: 768px) {
             #viewDiv {
@@ -87,9 +100,11 @@
     <div id="viewDiv"></div>
     <div class="form-container">
         <div class="form-cell" id="cell1">
+            <div class="step-icon">1</div>
             <label>Location (click on the map):</label>
         </div>
         <div class="form-cell disabled" id="cell2">
+            <div class="step-icon">2</div>
             <label>Select Issue Type</label>
             <select id="issueType" name="issueType" onchange="checkIssueType()" disabled>
                 <option value="Pothole">Pothole</option>
@@ -99,10 +114,13 @@
             </select>
         </div>
         <div class="form-cell disabled" id="cell3">
+            <div class="step-icon">3</div>
             <label>Photo (optional):</label>
             <input type="file" id="photoUpload" name="photo" disabled>
         </div>
         <div class="form-cell disabled" id="cell4">
+            <div class="step-icon">4</div>
+            <label>Submit Report</label>
             <button type="submit" id="submitReport" disabled>Submit Report</button>
         </div>
     </div>
@@ -117,6 +135,10 @@
             if (label) {
                 label.style.color = '#333'; // Set heading text color to black
             }
+            var stepIcon = cell.querySelector('.step-icon');
+            if (stepIcon) {
+                stepIcon.style.backgroundColor = '#ccc'; // Brighten the icon
+            }
             currentCellIndex++;
 
             // Enable dropdown if cell 2 is enabled
@@ -129,8 +151,6 @@
             } else if (cellId === 'cell4') {
                 var submitButton = document.getElementById('submitReport');
                 submitButton.disabled = false; // Enable submit button
-                submitButton.style.color = 'white'; // Set text color to white
-                submitButton.style.fontWeight = 'bold'; // Set font weight to bold
             }
         }
 
@@ -143,6 +163,10 @@
                 if (label) {
                     label.style.color = '#999'; // Set heading text color to gray
                 }
+                var stepIcon = cell.querySelector('.step-icon');
+                if (stepIcon) {
+                    stepIcon.style.backgroundColor = '#ddd'; // Dim the icon
+                }
             }
         }
 
@@ -152,7 +176,6 @@
                 disableCell('cell2');
                 enableCell('cell3');
                 enableCell('cell4');
-                document.getElementById('cell4').querySelector('button').style.backgroundColor = 'blue';
             }
         }
 
