@@ -30,14 +30,31 @@
             right: 0;
             width: 30%;
             height: 50%;
+            display: table;
         }
-        .form-container select, .form-container button, .form-container input[type="file"] {
-            width: calc(100% - 20px);
+        .form-cell {
+            display: table-row;
+        }
+        .form-cell label, .form-cell select, .form-cell input[type="file"], .form-cell button {
+            display: table-cell;
             padding: 10px;
-            margin-top: 5px;
-            margin-bottom: 8px;
             border: 1px solid #ccc;
             border-radius: 5px;
+        }
+        .form-cell label {
+            font-weight: bold;
+        }
+        .form-cell label::before {
+            content: attr(data-step);
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #0079c1;
+            text-align: center;
+            line-height: 20px;
+            margin-right: 10px;
+            color: #0079c1;
         }
         .form-container button {
             background-color: #0079c1;
@@ -48,42 +65,10 @@
             padding: 15px;
             cursor: pointer;
             transition: background-color 0.3s ease;
-            display: inline-block; /* Make sure the button aligns with the step number */
+            display: table-cell;
             width: auto; /* Adjust width as necessary */
             min-width: 150px; /* Ensures the button is long enough for text */
-        }
-        .form-container label {
-            display: block;
-            margin: 15px 0 5px;
-            position: relative;
-            padding-left: 40px;
-        }
-        .form-container label::before, .form-container button::before {
-            content: attr(data-step);
-            border-radius: 50%;
-            border: 2px solid #0079c1;
-            width: 20px;
-            height: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            position: absolute;
-            left: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 14px;
-            color: #0079c1;
-        }
-        .form-container button::before {
-            content: '4'; /* Step number for the button */
-            top: 10px; /* Adjust vertical position to align with button text */
-            left: -15px; /* Position the step number correctly relative to the button */
-        }
-        .form-container label:nth-child(2)::before {
-            content: '2'; /* Step number for the dropdown */
-        }
-        .form-container label:nth-child(4)::before {
-            content: '3'; /* Step number for the file input */
+            border-radius: 5px;
         }
         @media screen and (max-width: 768px) {
             #viewDiv {
@@ -112,19 +97,25 @@
 <body>
     <div id="viewDiv"></div>
     <div class="form-container">
-        <h2>Report an Issue</h2>
         <form id="reportForm">
-            <label data-step="1">Location (click on the map):</label>
-            <select id="issueType" name="issueType">
-                <option value="Pothole">Pothole</option>
-                <option value="Streetlight">Streetlight</option>
-                <option value="Vandalism">Vandalism</option>
-                <option value="Litter">Litter</option>
-            </select>
-            <label for="photoUpload" data-step="2">Photo (optional):</label>
-            <input type="file" id="photoUpload" name="photo">
-            <div class="step-submit">
-                <button type="submit">Submit Report</button>
+            <div class="form-cell">
+                <label data-step="1">Location (click on the map):</label>
+            </div>
+            <div class="form-cell">
+                <label data-step="2">Issue Type:</label>
+                <select id="issueType" name="issueType">
+                    <option value="Pothole">Pothole</option>
+                    <option value="Streetlight">Streetlight</option>
+                    <option value="Vandalism">Vandalism</option>
+                    <option value="Litter">Litter</option>
+                </select>
+            </div>
+            <div class="form-cell">
+                <label data-step="3">Photo (optional):</label>
+                <input type="file" id="photoUpload" name="photo">
+            </div>
+            <div class="form-cell">
+                <button type="submit" data-step="4">Submit Report</button>
             </div>
         </form>
     </div>
