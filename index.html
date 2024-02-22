@@ -112,33 +112,31 @@
 function enableCell(cellIndex) {
     // Check if the current cell index is less than or equal to the clicked cell index
     if (cellIndex <= currentCellIndex) {
-        // Get the current cell and the clicked cell
-        var currentCell = document.getElementById('cell' + currentCellIndex);
+        // Get the clicked cell
         var clickedCell = document.getElementById('cell' + cellIndex);
 
-        // Disable the dropdown if trying to select cell two without selecting location
-        if (cellIndex === 2 && currentCellIndex !== 1) {
-            return;
-        }
+        // Check if the previous cell is completed
+        var prevCell = document.getElementById('cell' + (cellIndex - 1));
+        if (!prevCell.classList.contains('disabled')) {
+            // Enable the clicked cell
+            clickedCell.classList.remove('disabled');
+            clickedCell.style.backgroundColor = '#f0f0f0'; // Set background color to gray
+            clickedCell.style.border = '1px solid #ddd'; // Reset border to light gray
 
-        // Enable the clicked cell and update the current cell index
-        clickedCell.classList.remove('disabled');
-        clickedCell.style.backgroundColor = '#f0f0f0'; // Set background color to gray
-        clickedCell.style.border = '1px solid #ddd'; // Reset border to light gray
+            // Disable the previous cell
+            prevCell.style.backgroundColor = '#f0f0f0'; // Set background color to gray
+            prevCell.style.border = '1px solid #ddd'; // Reset border to light gray
 
-        // Reset styles of previously highlighted cell
-        currentCell.style.border = '1px solid #ddd';
-        currentCell.style.backgroundColor = '#fff';
+            // Update the current cell index
+            currentCellIndex = cellIndex;
 
-        // Update the current cell index
-        currentCellIndex = cellIndex;
-
-        // Enable next cell
-        if (currentCellIndex < 4) {
-            var nextCell = document.getElementById('cell' + (currentCellIndex + 1));
-            nextCell.classList.remove('disabled');
-            nextCell.style.backgroundColor = '#fff';
-            nextCell.style.border = '1px solid #333';
+            // Enable next cell
+            if (currentCellIndex < 4) {
+                var nextCell = document.getElementById('cell' + (currentCellIndex + 1));
+                nextCell.classList.remove('disabled');
+                nextCell.style.backgroundColor = '#fff';
+                nextCell.style.border = '1px solid #333';
+            }
         }
     }
 }
