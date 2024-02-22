@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Minneapolis Park & Rec Board - Citizen Report Tool</title>
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
-    <script src="https://js.arcgis.com/4.28/"></script>
     <style>
         body, html {
             font-family: 'Arial', sans-serif;
@@ -69,32 +68,6 @@
         .form-container select {
             width: calc(100% - 20px); /* Adjust width to account for padding on both sides */
         }
-        
-        /* Media queries for mobile and desktop */
-        @media screen and (max-width: 768px) { /* For mobile devices */
-            #viewDiv {
-                width: 100%; /* Map occupies full width */
-                height: 40%; /* Map occupies 40% of the screen height */
-            }
-            
-            .form-container {
-                position: fixed;
-                bottom: 0px; /* Adjusted bottom position for mobile devices */
-                left: 0;
-                width: 100%; /* Form occupies full width */
-                height: 60%; /* Form occupies 60% of the screen height */
-            }
-        }
-        
-        @media screen and (min-width: 769px) { /* For desktops */
-            .form-container {
-                position: fixed;
-                top: 0;
-                right: 0;
-                width: 30%; /* Form occupies 30% of the screen width */
-                height: 100%; /* Form occupies full height */
-            }
-        }
     </style>
 </head>
 <body>
@@ -113,9 +86,9 @@
             <label for="location">Location (click on the map):</label>
             <input type="text" id="location" name="location" readonly>
             <button type="submit">Submit Report</button>
-            <button id="locateMeButton" style="position: absolute; bottom: 50px;">Locate Me</button>
         </form>
     </div>
+    <script src="https://js.arcgis.com/4.28/"></script>
     <script>
         require([
             "esri/Map",
@@ -124,9 +97,8 @@
             "esri/layers/GraphicsLayer",
             "esri/geometry/Point",
             "esri/rest/locator",
-            "esri/rest/support/Query",
-            "esri/rest/QueryTask"
-        ], function(Map, MapView, Graphic, GraphicsLayer, Point, Locator, Query, QueryTask) {
+            "esri/rest/Query"
+        ], function(Map, MapView, Graphic, GraphicsLayer, Point, Locator, Query) {
             var map = new Map({
                 basemap: "streets-navigation-vector"
             });
@@ -147,58 +119,6 @@
             map.add(graphicsLayer);
 
             view.when(function() {
-                view.on("click", function(event) {
-                    var lat = event.mapPoint.latitude;
-                    var lon = event.mapPoint.longitude;
-                    document.getElementById("location").value = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
-
-                    // Create a point geometry for the clicked location
-                    var point = new Point({
-                        longitude: lon,
-                        latitude: lat
-                    });
-
-                    // Create a Query object to check intersection with the layer
-                    var query = new Query({
-                        geometry: point,
-                        spatialRelationship: "intersects", // Check if the point intersects with the layer
-                        returnGeometry: false,
-                        outFields: ["*"]
-                    });
-
-                    // Create a QueryTask for the layer
-                    var queryTask = new QueryTask({
-                        url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0"
-                    });
-
-                    // Execute the query
-                    queryTask.execute(query).then(function(result) {
-                        if (result.features.length > 0) {
-                            // Allow form submission if the location intersects with the layer
-                            document.getElementById('reportForm').addEventListener('submit', function(e) {
-                                console.log('Form submitted.');
-                                // Prevent default form submission
-                                e.preventDefault();
-                                // Placeholder feedback
-                                alert('Report submitted!'); 
-                                // Here, you would typically implement the logic to actually submit the form data to a server.
-                                // This could involve gathering the data from the form, possibly including handling the file upload for the photo,
-                                // and then using fetch() or another AJAX method to send the data.
-                            });
-                        } else {
-                            // Alert the user if the location is not within MPRB's Responsibility
-                            alert("Location is not within MPRB's Responsibility");
-                            // Disable form submission
-                            document.getElementById('reportForm').addEventListener('submit', function(e) {
-                                console.log('Form submission disabled.');
-                                e.preventDefault(); // Prevent default form submission
-                            });
-                        }
-                    }).catch(function(error) {
-                        console.error('Error querying the layer:', error);
-                    });
-                });
-
                 // Locate the user automatically when the page loads
                 view.goTo(view.center).then(function() {
                     view.locate().then(function() {
@@ -208,6 +128,49 @@
                     });
                 }).catch(function(error) {
                     console.error('Error zooming to center:', error);
+                });
+
+                // When the form is submitted
+                document.getElementById('reportForm').addEventListener('submit', function(e) {
+                    e.preventDefault(); // Prevent default form submission
+
+                    // Get the coordinates from the input field
+                    var locationInput = document.getElementById('location').value;
+                    var coordinates = locationInput.split(', ');
+                    var lat = parseFloat(coordinates[0].split('Lat: ')[1]);
+                    var lon = parseFloat(coordinates[1].split('Lon: ')[1]);
+
+                    // Create a point geometry
+                    var point = new Point({
+                        longitude: lon,
+                        latitude: lat
+                    });
+
+                    // Create a query to check if the point intersects with the MPRB layer
+                    var query = new Query({
+                        geometry: point,
+                        spatialRelationship: 'intersects',
+                        returnGeometry: false
+                    });
+
+                    // Perform the query
+                    graphicsLayer.queryFeatures(query).then(function(result) {
+                        if (result.features.length > 0) {
+                            // If the point intersects with the MPRB layer, allow form submission
+                            console.log("Location is within MPRB's Responsibility");
+                            alert('Report submitted!'); // Placeholder feedback
+                            // Here, you would typically implement the logic to actually submit the form data to a server.
+                            // This could involve gathering the data from the form, possibly including handling the file upload for the photo,
+                            // and then using fetch() or another AJAX method to send the data.
+                        } else {
+                            // Alert the user if the location is not within MPRB's Responsibility
+                            alert("Location is not within MPRB's Responsibility");
+                            // Disable form submission
+                            console.log('Form submission disabled.');
+                        }
+                    }).catch(function(error) {
+                        console.error('Error querying the layer:', error);
+                    });
                 });
             });
         });
