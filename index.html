@@ -31,9 +31,7 @@
             width: 30%;
             height: 50%;
         }
-        .form-container input,
-        .form-container select,
-        .form-container button {
+        .form-container select, .form-container button {
             width: calc(100% - 20px);
             padding: 10px;
             margin-top: 5px;
@@ -52,8 +50,8 @@
             transition: background-color 0.3s ease;
         }
         .form-container label {
-            margin: 15px 0 5px 0;
             display: block;
+            margin: 15px 0 5px;
         }
         @media screen and (max-width: 768px) {
             #viewDiv {
@@ -62,7 +60,7 @@
             }
             .form-container {
                 position: fixed;
-                bottom: 0px;
+                bottom: 0;
                 left: 0;
                 width: 100%;
                 height: 60%;
@@ -70,11 +68,11 @@
         }
         @media screen and (min-width: 769px) {
             .form-container {
-                position: fixed;
-                top: 0;
-                right: 0;
                 width: 30%;
                 height: 100%;
+                position: fixed;
+                right: 0;
+                top: 0;
             }
         }
     </style>
@@ -84,7 +82,7 @@
     <div class="form-container">
         <h2>Report an Issue</h2>
         <form id="reportForm">
-            <label for="issueType">Issue Type:</label>
+            <label>Location (click on the map):</label> <!-- Label kept, input field removed -->
             <select id="issueType" name="issueType">
                 <option value="Pothole">Pothole</option>
                 <option value="Streetlight">Streetlight</option>
@@ -93,93 +91,86 @@
             </select>
             <label for="photoUpload">Photo (optional):</label>
             <input type="file" id="photoUpload" name="photo">
-            <label for="location">Location (click on the map):</label>
-            <input type="text" id="location" name="location" readonly>
             <button type="submit">Submit Report</button>
         </form>
     </div>
     <script>
         require([
-    "esri/Map",
-    "esri/views/MapView",
-    "esri/Graphic",
-    "esri/layers/GraphicsLayer",
-    "esri/widgets/Locate",
-    "esri/layers/FeatureLayer",
-    "esri/rest/support/Query",
-    "esri/geometry/Point"
-], function(Map, MapView, Graphic, GraphicsLayer, Locate, FeatureLayer, Query, Point) {
-    var map = new Map({
-        basemap: "streets-navigation-vector"
-    });
+            "esri/Map",
+            "esri/views/MapView",
+            "esri/Graphic",
+            "esri/layers/GraphicsLayer",
+            "esri/widgets/Locate",
+            "esri/geometry/Point",
+            "esri/symbols/PictureMarkerSymbol",
+            "esri/layers/FeatureLayer",
+            "esri/rest/support/Query"
+        ], function(Map, MapView, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query) {
+            var map = new Map({
+                basemap: "streets-navigation-vector"
+            });
 
-    var view = new MapView({
-        container: "viewDiv",
-        map: map,
-        center: [-93.2650, 44.9778], 
-        zoom: 12,
-        constraints: {
-            minZoom: 8,
-            maxZoom: 20,
-            rotationEnabled: false
-        }
-    });
+            var view = new MapView({
+                container: "viewDiv",
+                map: map
+            });
 
-    var graphicsLayer = new GraphicsLayer();
-    map.add(graphicsLayer);
+            var graphicsLayer = new GraphicsLayer();
+            map.add(graphicsLayer);
 
-    // Define the FeatureLayer with the correct URL
-    var featureLayer = new FeatureLayer({
-        url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
-    });
+            var featureLayer = new FeatureLayer({
+                url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
+            });
 
-    view.when(function() {
-        var locateWidget = new Locate({
-            view: view
-        });
-        view.ui.add(locateWidget, "top-left");
+            var locateWidget = new Locate({
+                view: view,
+                useHeadingEnabled: false
+            });
 
-        view.on("click", function(event) {
-            // Display a graphic at the clicked location
-            var pointGraphic = new Graphic({
-                geometry: event.mapPoint,
-                symbol: {
-                    type: "simple-marker",
-                    color: [226, 119, 40],
-                    outline: {
-                        color: [255, 255, 255],
-                        width: 1
+            view.ui.add(locateWidget, "top-left");
+
+            locateWidget.on("locate", function(evt) {
+                view.goTo({
+                    center: [evt.position.coords.longitude, evt.position.coords.latitude],
+                    zoom: 18
+                });
+            });
+
+            locateWidget.locate();
+
+            view.on("click", function(event) {
+                var pointGraphic = new Graphic({
+                    geometry: event.mapPoint,
+                    symbol: new PictureMarkerSymbol({
+                        url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
+                        width: "24px",
+                        height: "24px"
+                    })
+                });
+                graphicsLayer.removeAll();
+                graphicsLayer.add(pointGraphic);
+
+                // No need to update form fields if the input field is removed
+                // document.getElementById("location").value = JSON.stringify(event.mapPoint.toJSON());
+
+                var query = featureLayer.createQuery();
+                query.geometry = event.mapPoint;
+                query.spatialRelationship = "intersects";
+                query.outFields = ["*"];
+                query.returnGeometry = true;
+
+                featureLayer.queryFeatures(query).then(function(result) {
+                    console.log("Query results:", result);
+                    if (result.features.length > 0) {
+                        // Handle valid query results
+                    } else {
+                        alert("Location is not within MPRB's Responsibility");
                     }
-                }
-            });
-            graphicsLayer.removeAll();
-            graphicsLayer.add(pointGraphic);
-
-            // Update form fields if necessary
-            document.getElementById("location").value = JSON.stringify(event.mapPoint.toJSON());
-
-            // Query the feature layer
-            var query = featureLayer.createQuery();
-            query.geometry = event.mapPoint; // Use the point directly
-            query.spatialRelationship = "intersects";
-            query.outFields = ["*"];
-            query.returnGeometry = true;
-
-            featureLayer.queryFeatures(query).then(function(result) {
-                console.log("Query results:", result);
-                if (result.features.length > 0) {
-                    // Additional logic to handle query results, if necessary
-                    // This is where you would handle valid query results
-                } else {
-                    alert("Location is not within MPRB's Responsibility");
-                }
-            }).catch(function(error) {
-                console.error("Error querying features:", error);
+                }).catch(function(error) {
+                    console.error("Error querying features:", error);
+                });
             });
         });
-    });
-});
-
     </script>
 </body>
 </html>
