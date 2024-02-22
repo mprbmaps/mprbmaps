@@ -100,107 +100,107 @@
     </div>
     <script>
         require([
-            "esri/Map",
-            "esri/views/MapView",
-            "esri/Graphic",
-            "esri/layers/GraphicsLayer",
-            "esri/widgets/Locate",
-            "esri/rest/query", // Adjusted path for Query
-            "esri/geometry/Point"
-        ], function(Map, MapView, Graphic, GraphicsLayer, Locate, query, Point) {
-            var map = new Map({
-                basemap: "streets-navigation-vector"
+    "esri/Map",
+    "esri/views/MapView",
+    "esri/Graphic",
+    "esri/layers/GraphicsLayer",
+    "esri/widgets/Locate",
+    "esri/rest/query",
+    "esri/geometry/Point"
+], function(Map, MapView, Graphic, GraphicsLayer, Locate, query, Point) {
+    var map = new Map({
+        basemap: "streets-navigation-vector"
+    });
+
+    var view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-93.2650, 44.9778],
+        zoom: 12,
+        constraints: {
+            minZoom: 8,
+            maxZoom: 20,
+            rotationEnabled: false
+        }
+    });
+
+    var graphicsLayer = new GraphicsLayer();
+    map.add(graphicsLayer);
+
+    view.when(function() {
+        var locateWidget = new Locate({
+            view: view,
+            useHeadingEnabled: false,
+            goToOverride: function(view, options) {
+                options.target.scale = 1500; // Customize the scale for goTo operation
+                return view.goTo(options.target);
+            }
+        });
+        view.ui.add(locateWidget, "top-left");
+
+        locateWidget.locate().then(function() {
+            console.log('User located successfully.');
+        }).catch(function(error) {
+            console.error('Error locating user:', error);
+        });
+
+        var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0";
+
+        view.on("click", function(event) {
+            var lat = event.mapPoint.latitude;
+            var lon = event.mapPoint.longitude;
+
+            var queryPoint = new query.Query();
+            queryPoint.geometry = new Point({
+                longitude: lon,
+                latitude: lat
             });
+            queryPoint.spatialRelationship = "intersects";
+            queryPoint.returnGeometry = false;
+            queryPoint.outFields = ["*"];
 
-            var view = new MapView({
-                container: "viewDiv",
-                map: map,
-                center: [-93.2650, 44.9778],
-                zoom: 12,
-                constraints: {
-                    minZoom: 8,
-                    maxZoom: 20,
-                    rotationEnabled: false
-                    }
-            });
+            query.executeQuery(queryUrl, queryPoint).then(function(result) {
+                if (result.features.length > 0) {
+                    document.getElementById("location").value = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
 
-            var graphicsLayer = new GraphicsLayer();
-            map.add(graphicsLayer);
-
-            view.when(function() {
-                var locateWidget = new Locate({
-                    view: view,
-                    useHeadingEnabled: false,
-                    goToOverride: function(view, options) {
-                        options.target.scale = 1500; // Customize the scale for goTo operation
-                        return view.goTo(options.target);
-                    }
-                });
-                view.ui.add(locateWidget, "top-left");
-
-                locateWidget.locate().then(function() {
-                    console.log('User located successfully.');
-                }).catch(function(error) {
-                    console.error('Error locating user:', error);
-                });
-
-                var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0";
-
-                view.on("click", function(event) {
-                    var lat = event.mapPoint.latitude;
-                    var lon = event.mapPoint.longitude;
-
-                    var queryPoint = new query.Query();
-                    queryPoint.geometry = new Point({
+                    var point = new Point({
                         longitude: lon,
                         latitude: lat
                     });
-                    queryPoint.spatialRelationship = "intersects";
-                    queryPoint.returnGeometry = false;
-                    queryPoint.outFields = ["*"];
-
-                    query.executeQuery(queryUrl, queryPoint).then(function(result) {
-                        if (result.features.length > 0) {
-                            document.getElementById("location").value = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
-
-                            var point = new Point({
-                                longitude: lon,
-                                latitude: lat
-                            });
-                            var simpleMarkerSymbol = {
-                                type: "simple-marker",
-                                color: [226, 119, 40], // Orange
-                                outline: {
-                                    color: [255, 255, 255], // White
-                                    width: 1
-                                }
-                            };
-                            var pointGraphic = new Graphic({
-                                geometry: point,
-                                symbol: simpleMarkerSymbol
-                            });
-                            graphicsLayer.removeAll(); // Ensure only one point is displayed at a time
-                            graphicsLayer.add(pointGraphic);
-                        } else {
-                            alert("Location is not within MPRB's Responsibility");
+                    var simpleMarkerSymbol = {
+                        type: "simple-marker",
+                        color: [226, 119, 40], // Orange
+                        outline: {
+                            color: [255, 255, 255], // White
+                            width: 1
                         }
-                    }).catch(function(error) {
-                        console.error("Error performing query: ", error);
+                    };
+                    var pointGraphic = new Graphic({
+                        geometry: point,
+                        symbol: simpleMarkerSymbol
                     });
-                });
-            });
-
-            document.getElementById('reportForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                var locationValue = document.getElementById("location").value;
-                if (!locationValue) {
-                    alert("Please select a valid location on the map within MPRB's responsibility area.");
-                    return;
+                    graphicsLayer.removeAll(); // Ensure only one point is displayed at a time
+                    graphicsLayer.add(pointGraphic);
+                } else {
+                    alert("Location is not within MPRB's Responsibility");
                 }
-                alert('Report submitted!');
-                // Here, implement the actual submission logic, possibly using fetch or XMLHttpRequest.
+            }).catch(function(error) {
+                console.error("Error performing query: ", error);
             });
         });
+    });
+
+    document.getElementById('reportForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var locationValue = document.getElementById("location").value;
+        if (!locationValue) {
+            alert("Please select a valid location on the map within MPRB's responsibility area.");
+            return;
+        }
+        alert('Report submitted!');
+        // Implement the actual submission logic here.
+    });
+});
     </script>
 </body>
 </html>
