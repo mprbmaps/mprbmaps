@@ -116,7 +116,7 @@
             var view = new MapView({
                 container: "viewDiv",
                 map: map,
-                center: [-93.2650, 44.9778], 
+                center: [-93.2650, 44.9778],
                 zoom: 12,
                 constraints: {
                     minZoom: 8,
@@ -132,7 +132,7 @@
                 var locateWidget = new Locate({
                     view: view,
                     goToOverride: function(view, options) {
-                        options.target.scale = 1500; 
+                        options.target.scale = 1500;
                         return view.goTo(options.target);
                     }
                 });
@@ -148,53 +148,45 @@
                     view.hitTest(event).then(function(response) {
                         if (response.results.length) {
                             var graphic = response.results[0].graphic;
-                            if (graphic && graphic.geometry) {
-                                var queryParams = new Query();
-                                queryParams.geometry = graphic.geometry;
-                                queryParams.spatialRelationship = "intersects";
-                                queryParams.outFields = ["*"];
-                                queryParams.returnGeometry = true;
+                            var queryParams = new Query();
+                            queryParams.geometry = graphic.geometry;
+                            queryParams.spatialRelationship = "intersects";
+                            queryParams.outFields = ["*"];
+                            queryParams.returnGeometry = true;
 
-                                console.log("Query parameters:", queryParams);
+                            console.log("Query parameters:", queryParams);
 
-                                var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0/query?geometryType=esriGeometryPoint&spatialRel=esriSpatialRelIntersects&geometry=" + encodeURIComponent(JSON.stringify(queryParams.geometry.toJSON())) + "&outFields=*&returnGeometry=true&f=json&wkid=103734";
+                            var queryTask = new QueryTask({
+                                url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0"
+                            });
 
-                                console.log("Query URL:", queryUrl);
-
-                                console.log("Serialized geometry:", queryParams.geometry.toJSON());
-
-                                query.executeQuery({
-                                    url: queryUrl,
-                                    geometry: queryParams.geometry.toJSON(),
-                                    spatialRelationship: queryParams.spatialRelationship,
-                                    outFields: queryParams.outFields,
-                                    returnGeometry: queryParams.returnGeometry
-                                }).then(function(result) {
-                                    console.log("Query result:", result);
-                                    if (result.features.length > 0) {
-                                        var pointGraphic = new Graphic({
-                                            geometry: event.mapPoint,
-                                            symbol: {
-                                                type: "simple-marker",
-                                                color: [226, 119, 40],
-                                                outline: {
-                                                    color: [255, 255, 255],
-                                                    width: 1
-                                                }
+                            queryTask.execute(queryParams).then(function(result) {
+                                console.log("Query result:", result);
+                                if (result.features.length > 0) {
+                                    var pointGraphic = new Graphic({
+                                        geometry: event.mapPoint,
+                                        symbol: {
+                                            type: "simple-marker",
+                                            color: [226, 119, 40],
+                                            outline: {
+                                                color: [255, 255, 255],
+                                                width: 1
                                             }
-                                        });
-                                        graphicsLayer.removeAll();
-                                        graphicsLayer.add(pointGraphic);
-                                    } else {
-                                        alert("Location is not within MPRB's Responsibility");
-                                    }
-                                }).catch(function(error) {
-                                    console.error("Error performing query:", error);
-                                });
-                            } else {
-                                console.error("Clicked graphic or its geometry is null.");
-                            }
+                                        }
+                                    });
+                                    graphicsLayer.removeAll();
+                                    graphicsLayer.add(pointGraphic);
+                                } else {
+                                    alert("Location is not within MPRB's Responsibility");
+                                }
+                            }).catch(function(error) {
+                                console.error("Error performing query:", error);
+                            });
+                        } else {
+                            console.warn("No graphic found at clicked location.");
                         }
+                    }).catch(function(error) {
+                        console.error("Error during hit test:", error);
                     });
                 });
             });
