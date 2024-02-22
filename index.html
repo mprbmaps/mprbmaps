@@ -186,41 +186,43 @@ function disableCell(cellId) {
                 });
 
                 view.on("click", function(event) {
-                    // Remove previous point graphic
-                    if (pointGraphic) {
-                        graphicsLayer.remove(pointGraphic);
-                    }
+    // Query the feature layer
+    var query = featureLayer.createQuery();
+    query.geometry = event.mapPoint; // Use the point directly
+    query.spatialRelationship = "intersects";
+    query.outFields = ["*"];
+    query.returnGeometry = true;
 
-                    // Query the feature layer
-                    var query = featureLayer.createQuery();
-                    query.geometry = event.mapPoint; // Use the point directly
-                    query.spatialRelationship = "intersects";
-                    query.outFields = ["*"];
-                    query.returnGeometry = true;
+    featureLayer.queryFeatures(query).then(function(result) {
+        console.log("Query results:", result);
+        if (result.features.length > 0) {
+            disableCell('cell1'); // Disable cell 1 when location is selected
+            enableCell('cell2'); // Enable cell 2 when location is selected
 
-                    featureLayer.queryFeatures(query).then(function(result) {
-                        console.log("Query results:", result);
-                        if (result.features.length > 0) {
-                            disableCell('cell1'); // Disable cell 1 when location is selected
-                            enableCell('cell2'); // Enable cell 2 when location is selected
-
-                            // Display a graphic at the clicked location using a custom image
-                            pointGraphic = new Graphic({
-                                geometry: event.mapPoint,
-                                symbol: new PictureMarkerSymbol({
-                                    url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
-                                    width: "36px",
-                                    height: "36px"
-                                })
-                            });
-                            graphicsLayer.add(pointGraphic);
-                        } else {
-                            alert("Location is not within MPRB's Responsibility");
-                        }
-                    }).catch(function(error) {
-                        console.error("Error querying features:", error);
-                    });
-                });
+            // Display a graphic at the clicked location using a custom image
+            var pointGraphic = new Graphic({
+                geometry: event.mapPoint,
+                symbol: new PictureMarkerSymbol({
+                    url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
+                    width: "36px",
+                    height: "36px"
+                })
+            });
+            graphicsLayer.removeAll();
+            graphicsLayer.add(pointGraphic);
+        } else {
+            // If no location is found, reset the cells
+            enableCell('cell1'); // Enable cell 1 again
+            disableCell('cell2'); // Disable cell 2
+            disableCell('cell3'); // Disable cell 3
+            disableCell('cell4'); // Disable cell 4
+            var issueTypeDropdown = document.getElementById('issueType');
+            issueTypeDropdown.disabled = true; // Disable the dropdown
+        }
+    }).catch(function(error) {
+        console.error("Error querying features:", error);
+    });
+});
             });
         });
     </script>
