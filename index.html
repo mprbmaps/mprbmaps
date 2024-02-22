@@ -100,99 +100,86 @@
     </div>
     <script>
         require([
-            "esri/Map",
-            "esri/views/MapView",
-            "esri/Graphic",
-            "esri/layers/GraphicsLayer",
-            "esri/widgets/Locate",
-            "esri/rest/support/Query",
-            "esri/geometry/Point"
-        ], function(Map, MapView, Graphic, GraphicsLayer, Locate, Query, Point) {
-            var map = new Map({
-                basemap: "streets-navigation-vector"
-            });
+    "esri/Map",
+    "esri/views/MapView",
+    "esri/Graphic",
+    "esri/layers/GraphicsLayer",
+    "esri/widgets/Locate",
+    "esri/layers/FeatureLayer",
+    "esri/rest/support/Query",
+    "esri/geometry/Point"
+], function(Map, MapView, Graphic, GraphicsLayer, Locate, FeatureLayer, Query, Point) {
+    var map = new Map({
+        basemap: "streets-navigation-vector"
+    });
 
-            var view = new MapView({
-                container: "viewDiv",
-                map: map,
-                center: [-93.2650, 44.9778], 
-                zoom: 12,
-                constraints: {
-                    minZoom: 8,
-                    maxZoom: 20,
-                    rotationEnabled: false
+    var view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-93.2650, 44.9778], 
+        zoom: 12,
+        constraints: {
+            minZoom: 8,
+            maxZoom: 20,
+            rotationEnabled: false
+        }
+    });
+
+    var graphicsLayer = new GraphicsLayer();
+    map.add(graphicsLayer);
+
+    // Define the FeatureLayer you want to query
+    var featureLayer = new FeatureLayer({
+        url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0"
+    });
+
+    view.when(function() {
+        var locateWidget = new Locate({
+            view: view
+        });
+        view.ui.add(locateWidget, "top-left");
+
+        view.on("click", function(event) {
+            // Display a graphic at the clicked location
+            var pointGraphic = new Graphic({
+                geometry: event.mapPoint,
+                symbol: {
+                    type: "simple-marker",
+                    color: [226, 119, 40],
+                    outline: {
+                        color: [255, 255, 255],
+                        width: 1
+                    }
                 }
             });
+            graphicsLayer.removeAll();
+            graphicsLayer.add(pointGraphic);
 
-            var graphicsLayer = new GraphicsLayer();
-            map.add(graphicsLayer);
+            // Update form fields if necessary
+            document.getElementById("location").value = JSON.stringify(event.mapPoint.toJSON());
 
-            view.when(function() {
-                var locateWidget = new Locate({
-                    view: view,
-                    goToOverride: function(view, options) {
-                        options.target.scale = 1500; 
-                        return view.goTo(options.target);
-                    }
-                });
-                view.ui.add(locateWidget, "top-left");
+            // Query the feature layer
+            var query = featureLayer.createQuery();
+            query.geometry = event.mapPoint; // Use the point directly
+            query.spatialRelationship = "intersects";
+            query.outFields = ["*"];
+            query.returnGeometry = true;
 
-                locateWidget.locate().then(function() {
-                    console.log('User located successfully.');
-                }).catch(function(error) {
-                    console.error('Error locating user:', error);
-                });
-
-                view.on("click", function(event) {
-                    var point = event.mapPoint; // Direct use of mapPoint from the event
-
-                    if (point) {
-                        console.log("Clicked point:", point);
-
-                        var queryParams = new Query();
-                        queryParams.geometry = point; // Use the point directly
-                        queryParams.spatialRelationship = "intersects";
-                        queryParams.outFields = ["*"];
-                        queryParams.returnGeometry = true;
-
-                        // Assuming this query URL is correct and accessible
-                        var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0/query";
-                        queryParams.where = "1=1"; // Example where clause, adjust as needed
-
-                        view.whenLayerView(graphicsLayer).then(function(layerView) {
-                            layerView.queryFeatures(queryParams).then(function(results) {
-                                console.log("Query results:", results);
-
-                                if (results.features.length > 0) {
-                                    var graphic = new Graphic({
-                                        geometry: point,
-                                        symbol: {
-                                            type: "simple-marker",
-                                            color: [226, 119, 40],
-                                            outline: {
-                                                color: [255, 255, 255],
-                                                width: 1
-                                            }
-                                        }
-                                    });
-                                    graphicsLayer.removeAll();
-                                    graphicsLayer.add(graphic);
-
-                                    // Update form fields if necessary
-                                    document.getElementById("location").value = point.toJSON();
-                                } else {
-                                    alert("Location is not within MPRB's Responsibility");
-                                }
-                            }).catch(function(error) {
-                                console.error("Error querying features:", error);
-                            });
-                        });
-                    } else {
-                        console.error("Point is null.");
-                    }
-                });
+            featureLayer.queryFeatures(query).then(function(result) {
+                console.log("Query results:", result);
+                if (result.features.length > 0) {
+                    // Additional logic to handle query results, if necessary
+                    // This is where you would handle valid query results
+                } else {
+                    alert("Location is not within MPRB's Responsibility");
+                }
+            }).catch(function(error) {
+                console.error("Error querying features:", error);
             });
         });
+    });
+});
+
     </script>
 </body>
 </html>
