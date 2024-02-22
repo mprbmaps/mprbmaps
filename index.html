@@ -42,9 +42,6 @@
         .form-cell.disabled {
             background-color: #f0f0f0; /* Greyed out background color */
         }
-        .form-cell.enabled {
-            background-color: #fff; /* Pure white background color */
-        }
         .form-cell label {
             position: absolute;
             top: 10px;
@@ -116,7 +113,6 @@
         function enableCell(cellId) {
             var cell = document.getElementById(cellId);
             cell.classList.remove('disabled');
-            cell.classList.add('enabled'); // Add 'enabled' class to enable pure white background
             var label = cell.querySelector('label');
             if (label) {
                 label.style.color = '#333'; // Set heading text color to black
@@ -132,9 +128,14 @@
 
         function disableCell(cellId) {
             var cell = document.getElementById(cellId);
-            cell.classList.remove('enabled'); // Remove 'enabled' class to revert to default background color
-            cell.classList.add('disabled');
-            cell.querySelector('label').style.color = '#999'; // Set heading text color to gray
+            if (cell) {
+                cell.classList.remove('enabled'); // Remove 'enabled' class to revert to default background color
+                cell.classList.add('disabled');
+                var label = cell.querySelector('label');
+                if (label) {
+                    label.style.color = '#999'; // Set heading text color to gray
+                }
+            }
         }
 
         function checkIssueType() {
@@ -241,6 +242,14 @@
                 disableCell('cell3');
                 disableCell('cell4');
             });
+        });
+
+        // Call disableCell after document has fully loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initial setup: disable cells 2, 3, and 4
+            disableCell('cell2');
+            disableCell('cell3');
+            disableCell('cell4');
         });
     </script>
 </body>
