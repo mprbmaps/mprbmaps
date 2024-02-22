@@ -98,8 +98,8 @@
             <button type="submit">Submit Report</button>
         </form>
     </div>
-    require([
-    "esri/config",
+    <script>
+        require([
     "esri/Map",
     "esri/views/MapView",
     "esri/Graphic",
@@ -107,38 +107,16 @@
     "esri/widgets/Locate",
     "esri/rest/support/Query",
     "esri/rest/query",
-    "esri/geometry/Point",
-    "esri/geometry/SpatialReference",
-    "esri/geometry/projection",
-    "esri/geometry/geometryEngine",
-    "esri/rest/geometryService",
-    "esri/rest/support/ProjectParameters"
-], function(
-    esriConfig, 
-    Map, 
-    MapView, 
-    Graphic, 
-    GraphicsLayer, 
-    Locate, 
-    Query, 
-    query, 
-    Point, 
-    SpatialReference, 
-    projection,
-    geometryEngine, 
-    GeometryService, 
-    ProjectParameters
-) {
-    esriConfig.geometryServiceUrl = "https://utility.arcgisonline.com/ArcGIS/rest/services/Geometry/GeometryServer";
-
+    "esri/geometry/Point"
+], function(Map, MapView, Graphic, GraphicsLayer, Locate, Query, query, Point) {
     var map = new Map({
         basemap: "streets-navigation-vector"
     });
 
     var view = new MapView({
-        container: "viewDiv",
+        container: "viewDiv", // This should be the id of the div where the map will be rendered
         map: map,
-        center: [-93.2650, 44.9778],
+        center: [-93.2650, 44.9778], // Center on Minneapolis
         zoom: 12,
         constraints: {
             minZoom: 8,
@@ -153,8 +131,9 @@
     view.when(function() {
         var locateWidget = new Locate({
             view: view,
+            // Removed deprecated useHeadingEnabled, if rotationEnabled needed, set it here
             goToOverride: function(view, options) {
-                options.target.scale = 1500;
+                options.target.scale = 1500; // Customize the scale for goTo operation
                 return view.goTo(options.target);
             }
         });
@@ -167,53 +146,41 @@
         });
 
         view.on("click", function(event) {
-            projection.load().then(function() {
-                var outSpatialReference = new SpatialReference({ wkid: 103734 });
-                if (!projection.isSupported()) {
-                    console.error("Projection is not supported");
-                    return;
-                }
+            var queryParams = new Query();
+            queryParams.geometry = event.mapPoint; // The point location of the pointer
+            queryParams.spatialRelationship = "intersects";
+            queryParams.outFields = ["*"]; // Fetch all fields
+            queryParams.returnGeometry = true;
 
-                var projectedPoint = projection.project(event.mapPoint, outSpatialReference);
-                if (projectedPoint) {
-                    console.log("Projection succeeded:", projectedPoint);
+            var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0";
 
-                    var queryParams = new Query({
-                        geometry: projectedPoint,
-                        spatialRelationship: "intersects",
-                        outFields: ["*"],
-                        returnGeometry: true
-                    });
-
-                    var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0";
-
-                    query.executeQuery({
-                        url: queryUrl,
-                        query: queryParams
-                    }).then(function(result) {
-                        if (result.features.length > 0) {
-                            var pointGraphic = new Graphic({
-                                geometry: event.mapPoint, // Use the original point for display
-                                symbol: {
-                                    type: "simple-marker",
-                                    color: [226, 119, 40],
-                                    outline: {
-                                        color: [255, 255, 255],
-                                        width: 1
-                                    }
-                                }
-                            });
-                            graphicsLayer.removeAll();
-                            graphicsLayer.add(pointGraphic);
-                        } else {
-                            alert("Location is not within MPRB's Responsibility");
+            // Correctly using query.executeQuery for spatial queries
+            query.executeQuery({
+                url: queryUrl,
+                geometry: queryParams.geometry.toJSON(), // Ensure geometry is correctly serialized
+                spatialRelationship: queryParams.spatialRelationship,
+                outFields: queryParams.outFields,
+                returnGeometry: queryParams.returnGeometry
+            }).then(function(result) {
+                if (result.features.length > 0) {
+                    var pointGraphic = new Graphic({
+                        geometry: event.mapPoint,
+                        symbol: {
+                            type: "simple-marker",
+                            color: [226, 119, 40], // Orange
+                            outline: {
+                                color: [255, 255, 255], // White
+                                width: 1
+                            }
                         }
-                    }).catch(function(error) {
-                        console.error("Error performing query:", error);
                     });
+                    graphicsLayer.removeAll(); // Ensure only one point is displayed at a time
+                    graphicsLayer.add(pointGraphic);
                 } else {
-                    console.error("Projection failed");
+                    alert("Location is not within MPRB's Responsibility");
                 }
+            }).catch(function(error) {
+                console.error("Error performing query:", error);
             });
         });
     });
@@ -226,9 +193,9 @@
             return;
         }
         alert('Report submitted!');
+        // Implement the actual submission logic here, such as sending the data to a server
     });
 });
-
     </script>
 </body>
 </html>
