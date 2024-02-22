@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Minneapolis Park & Rec Board - Citizen Report Tool</title>
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.28/"></script>
     <style>
         body, html {
             font-family: 'Arial', sans-serif;
@@ -68,7 +69,7 @@
         .form-container select {
             width: calc(100% - 20px); /* Adjust width to account for padding on both sides */
         }
-
+        
         /* Media queries for mobile and desktop */
         @media screen and (max-width: 768px) { /* For mobile devices */
             #viewDiv {
@@ -114,23 +115,23 @@
             <button type="submit">Submit Report</button>
         </form>
     </div>
-    <script src="https://js.arcgis.com/4.28/"></script>
     <script>
         require([
             "esri/Map",
             "esri/views/MapView",
             "esri/Graphic",
             "esri/layers/GraphicsLayer",
-            "esri/geometry/Point",
-            "esri/rest/locator",
-            "esri/rest/Query"
-        ], function(Map, MapView, Graphic, GraphicsLayer, Point, Locator, Query) {
+            "esri/widgets/Locate" // Import the Locate widget
+        ], function(Map, MapView, Graphic, GraphicsLayer, Locate) {
             var map = new Map({
                 basemap: "streets-navigation-vector"
             });
 
+            console.log('Map created.');
+
             var view = new MapView({
-                container: "viewDiv",map: map,
+                container: "viewDiv",
+                map: map,
                 center: [-93.2650, 44.9778], // Coordinates for Minneapolis
                 zoom: 12,
                 constraints: {
@@ -140,84 +141,68 @@
                 }
             });
 
+            console.log('View created.');
+
             var graphicsLayer = new GraphicsLayer();
             map.add(graphicsLayer);
 
-            view.when(function() {
-                // Locate the user's position when the view is ready
-                view.locate().then(function(location) {
-                    console.log('User location found:', location);
-                    var point = {
-                        type: "point",
-                        longitude: location.coords.longitude,
-                        latitude: location.coords.latitude
-                    };
-                    var simpleMarkerSymbol = {
-                        type: "simple-marker",
-                        color: [0, 0, 255], // Blue
-                        outline: {
-                            color: [255, 255, 255], // White
-                            width: 1
-                        }
-                    };
-                    var pointGraphic = new Graphic({
-                        geometry: point,
-                        symbol: simpleMarkerSymbol
-                    });
-                    graphicsLayer.add(pointGraphic);
+            console.log('Graphics layer added.');
 
-                    // Zoom to the user's location
-                    view.goTo({
-                        center: [location.coords.longitude, location.coords.latitude],
-                        zoom: 15
-                    });
+            view.on("click", function(event) {
+                var lat = event.mapPoint.latitude;
+                var lon = event.mapPoint.longitude;
+                document.getElementById("location").value = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+
+                var point = {
+                    type: "point",
+                    longitude: lon,
+                    latitude: lat
+                };
+                var simpleMarkerSymbol = {
+                    type: "simple-marker",
+                    color: [226, 119, 40], // Orange
+                    outline: {
+                        color: [255, 255, 255], // White
+                        width: 1
+                    }
+                };
+                var pointGraphic = new Graphic({
+                    geometry: point,
+                    symbol: simpleMarkerSymbol
+                });
+                graphicsLayer.removeAll(); // Remove any previous graphics
+                graphicsLayer.add(pointGraphic); // Add the new graphic to the map
+            });
+
+            console.log('Click event handler added.');
+
+            var locateWidget = new Locate({
+                view: view
+            });
+            view.ui.add(locateWidget, "top-left");
+            locateWidget.enabled = true;
+
+            console.log('Locate widget added.');
+
+            view.when(function() {
+                locateWidget.locate().then(function() {
+                    console.log('User located successfully.');
                 }).catch(function(error) {
                     console.error('Error locating user:', error);
                 });
             });
 
-            // When the form is submitted
+            console.log('Locate method called.');
+
             document.getElementById('reportForm').addEventListener('submit', function(e) {
                 e.preventDefault(); // Prevent default form submission
-
-                // Get the coordinates from the input field
-                var locationInput = document.getElementById('location').value;
-                var coordinates = locationInput.split(', ');
-                var lat = parseFloat(coordinates[0].split('Lat: ')[1]);
-                var lon = parseFloat(coordinates[1].split('Lon: ')[1]);
-
-                // Create a point geometry
-                var point = new Point({
-                    longitude: lon,
-                    latitude: lat
-                });
-
-                // Create a query to check if the point intersects with the MPRB layer
-                var query = new Query({
-                    geometry: point,
-                    spatialRelationship: 'intersects',
-                    returnGeometry: false
-                });
-
-                // Perform the query
-                graphicsLayer.queryFeatures(query).then(function(result) {
-                    if (result.features.length > 0) {
-                        // If the point intersects with the MPRB layer, allow form submission
-                        console.log("Location is within MPRB's Responsibility");
-                        alert('Report submitted!'); // Placeholder feedback
-                        // Here, you would typically implement the logic to actually submit the form data to a server.
-                        // This could involve gathering the data from the form, possibly including handling the file upload for the photo,
-                        // and then using fetch() or another AJAX method to send the data.
-                    } else {
-                        // Alert the user if the location is not within MPRB's Responsibility
-                        alert("Location is not within MPRB's Responsibility");
-                        // Disable form submission
-                        console.log('Form submission disabled.');
-                    }
-                }).catch(function(error) {
-                    console.error('Error querying the layer:', error);
-                });
+                alert('Report submitted!'); // Placeholder feedback
+                // Here, you would typically implement the logic to actually submit the form data to a server.
+                // This could involve gathering the data from the form, possibly including handling the file upload for the photo,
+                // and then using fetch() or another AJAX method to send the data.
             });
+
+            console.log('Form submission event listener added.');
         });
     </script>
 </body>
