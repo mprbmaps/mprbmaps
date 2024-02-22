@@ -14,13 +14,11 @@
             height: 100%;
             overflow: hidden;
         }
-        
         #viewDiv {
             height: 100%;
             width: 70%;
             float: left;
         }
-        
         .form-container {
             position: fixed;
             background-color: #fff;
@@ -33,7 +31,6 @@
             width: 30%;
             height: 50%;
         }
-        
         .form-container input,
         .form-container select,
         .form-container button {
@@ -44,7 +41,6 @@
             border: 1px solid #ccc;
             border-radius: 5px;
         }
-        
         .form-container button {
             background-color: #0079c1;
             color: white;
@@ -55,18 +51,15 @@
             cursor: pointer;
             transition: background-color 0.3s ease;
         }
-        
         .form-container label {
             margin: 15px 0 5px 0;
             display: block;
         }
-        
         @media screen and (max-width: 768px) {
             #viewDiv {
                 width: 100%;
                 height: 40%;
             }
-            
             .form-container {
                 position: fixed;
                 bottom: 50px;
@@ -75,7 +68,6 @@
                 height: 60%;
             }
         }
-        
         @media screen and (min-width: 769px) {
             .form-container {
                 position: fixed;
@@ -113,7 +105,7 @@
             "esri/Graphic",
             "esri/layers/GraphicsLayer",
             "esri/widgets/Locate",
-            "esri/rest/query",
+            "esri/rest/query", // Adjusted path for Query
             "esri/geometry/Point"
         ], function(Map, MapView, Graphic, GraphicsLayer, Locate, query, Point) {
             var map = new Map({
@@ -129,24 +121,23 @@
                     minZoom: 8,
                     maxZoom: 20,
                     rotationEnabled: false
-                }
+                    }
             });
 
             var graphicsLayer = new GraphicsLayer();
             map.add(graphicsLayer);
 
             view.when(function() {
-                var locateWidget =new Locate({
+                var locateWidget = new Locate({
                     view: view,
                     useHeadingEnabled: false,
                     goToOverride: function(view, options) {
-                        options.target.scale = 1500;  // Customize the scale for goTo operation
+                        options.target.scale = 1500; // Customize the scale for goTo operation
                         return view.goTo(options.target);
                     }
                 });
                 view.ui.add(locateWidget, "top-left");
 
-                // Automatically locate the user
                 locateWidget.locate().then(function() {
                     console.log('User located successfully.');
                 }).catch(function(error) {
@@ -154,12 +145,12 @@
                 });
 
                 var queryUrl = "https://gis.minneapolisparks.org/arcgisprod/rest/services/LocationsMPRB/MapServer/0";
-                
+
                 view.on("click", function(event) {
                     var lat = event.mapPoint.latitude;
                     var lon = event.mapPoint.longitude;
-                    
-                    var queryPoint = new Query();
+
+                    var queryPoint = new query.Query();
                     queryPoint.geometry = new Point({
                         longitude: lon,
                         latitude: lat
@@ -167,21 +158,20 @@
                     queryPoint.spatialRelationship = "intersects";
                     queryPoint.returnGeometry = false;
                     queryPoint.outFields = ["*"];
-                    
+
                     query.executeQuery(queryUrl, queryPoint).then(function(result) {
                         if (result.features.length > 0) {
                             document.getElementById("location").value = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
-                            
-                            var point = {
-                                type: "point",
+
+                            var point = new Point({
                                 longitude: lon,
                                 latitude: lat
-                            };
+                            });
                             var simpleMarkerSymbol = {
                                 type: "simple-marker",
-                                color: [226, 119, 40],
+                                color: [226, 119, 40], // Orange
                                 outline: {
-                                    color: [255, 255, 255],
+                                    color: [255, 255, 255], // White
                                     width: 1
                                 }
                             };
@@ -189,7 +179,7 @@
                                 geometry: point,
                                 symbol: simpleMarkerSymbol
                             });
-                            graphicsLayer.removeAll();
+                            graphicsLayer.removeAll(); // Ensure only one point is displayed at a time
                             graphicsLayer.add(pointGraphic);
                         } else {
                             alert("Location is not within MPRB's Responsibility");
@@ -207,8 +197,8 @@
                     alert("Please select a valid location on the map within MPRB's responsibility area.");
                     return;
                 }
-                // Form submission logic goes here
                 alert('Report submitted!');
+                // Here, implement the actual submission logic, possibly using fetch or XMLHttpRequest.
             });
         });
     </script>
