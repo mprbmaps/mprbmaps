@@ -59,13 +59,11 @@
             border-radius: 5px;
             box-sizing: border-box;
         }
-        .form-cell button {
-            background-color: #2A7EB4; /* Default button color */
-            color: #fff; /* Button text color */
-            font-weight: bold; /* Button text weight */
+        .form-cell:not(.disabled) #submitReport {
+            background-color: #2A7EB4; /* Default button color when cell4 is active */
         }
-        .form-cell button:hover {
-            background-color: #1A5E89; /* Button hover color */
+        .form-cell:not(.disabled) #submitReport:hover {
+            background-color: #1A5E89; /* Button hover color when cell4 is active */
         }
         .step-icon {
             position: absolute;
@@ -135,7 +133,6 @@
     </div>
     <script>
         var currentCellIndex = 1; // Variable to track the current active cell index
-        var pointGraphic;
 
         function enableCell(cellId) {
             var cell = document.getElementById(cellId);
@@ -160,7 +157,7 @@
             } else if (cellId === 'cell4') {
                 var submitButton = document.getElementById('submitReport');
                 submitButton.disabled = false; // Enable submit button
-                // Changes to button styles are now handled in CSS
+                // Button styles are now directly applied in CSS based on the cell's state
                 // Add event listener to submit button
                 submitButton.addEventListener('click', submitReport);
             }
@@ -232,7 +229,7 @@
 
             var locateWidget = new Locate({
                 view: view,
-                useHeadingEnabled: false // Correct property for disabling map rotation
+                rotationEnabled: false // Use rotationEnabled instead of useHeadingEnabled
             });
 
             view.ui.add(locateWidget, "top-left");
@@ -261,18 +258,9 @@
                         if (result.features.length > 0) {
                             disableCell('cell1');
                             enableCell('cell2');
-
-                            pointGraphic = new Graphic({
-                                geometry: event.mapPoint,
-                                symbol: new PictureMarkerSymbol({
-                                    url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
-                                    width: "36px",
-                                    height: "36px"
-                                })
-                            });
-                            graphicsLayer.add(pointGraphic);
                         } else {
                             alert("Location is not within MPRB's Responsibility");
+                            // Reset cells to initial state
                             disableCell('cell2');
                             disableCell('cell3');
                             disableCell('cell4');
@@ -282,6 +270,7 @@
                     });
                 });
 
+                // Initial setup: disable cells 2, 3, and 4
                 disableCell('cell2');
                 disableCell('cell3');
                 disableCell('cell4');
