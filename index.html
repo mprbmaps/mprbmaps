@@ -348,15 +348,13 @@
 
     // Wait for the search widget to be fully loaded
     searchWidget.when(function() {
-        // Get the default source
-        var defaultSource = searchWidget.sources.find(function(source) {
-            return source.name === "Esri World Geocoder";
-        });
+        // Access the search widget's viewModel to update the placeholder text
+        searchWidget.viewModel.placeholder = "Search Park Name";
+    });
 
-        // Check if the default source exists and update the placeholder text
-        if (defaultSource) {
-            defaultSource.placeholder = "Search Park Name";
-        }
+    view.ui.add(searchWidget, {
+        position: "top-left", // Position the search widget next to the zoom controls
+        index: view.ui.find("zoom").index + 1
     });
 
     var pointGraphic;
