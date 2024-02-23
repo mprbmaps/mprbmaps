@@ -24,7 +24,7 @@
         top: 0;
         left: 0;
         right: 0;
-        z-index: 1000; /* Ensure header is above the map */
+        z-index: 1000;
     }
 
     .header img {
@@ -40,12 +40,17 @@
         margin-left: 10px;
     }
 
+    #mapContainer {
+        position: absolute;
+        top: 50px; /* Adjust based on header height */
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 0;
+    }
+
     #viewDiv {
-        height: calc(100% - 50px);
-        width: 70%;
-        float: left;
-        position: relative;
-        z-index: 0; /* Ensure map is behind the header */
+        height: 100%;
     }
 
     .form-container {
@@ -58,7 +63,7 @@
         right: 0;
         width: 30%;
         height: 100%;
-        z-index: 1000; /* Ensure form container is above the map */
+        z-index: 1000;
     }
 
     .form-cell {
@@ -127,10 +132,10 @@
     }
 
     @media screen and (max-width: 768px) {
-    #viewDiv {
-        width: 100%;
-        height: 40%;
+    #mapContainer {
+        top: 100px; /* Adjust based on header height */
     }
+
     .form-container {
         position: fixed;
         bottom: 0;
@@ -207,16 +212,18 @@
         <img src="logo.png" alt="Logo">
         <h1>Report a Park Issue</h1>
     </div>
-    <div id="viewDiv"></div>
-    <!-- Legend Markup -->
-    <div class="legend">
-        <div class="legend-item">
-            <img src="https://i.ibb.co/d66qjXx/esri-locate-me-blue-dot2.png" alt="Current Location Icon" class="legend-icon">
-            <span>Current Location</span>
-        </div>
-        <div class="legend-item">
-            <img src="https://i.ibb.co/j6ZWfnW/map-location-marker.png" alt="Issue Location Icon" class="legend-icon">
-            <span>Issue Location</span>
+    <div id="mapContainer">
+        <div id="viewDiv"></div>
+        <!-- Legend Markup -->
+        <div class="legend">
+            <div class="legend-item">
+                <img src="https://i.ibb.co/d66qjXx/esri-locate-me-blue-dot2.png" alt="Current Location Icon" class="legend-icon">
+                <span>Current Location</span>
+            </div>
+            <div class="legend-item">
+                <img src="https://i.ibb.co/j6ZWfnW/map-location-marker.png" alt="Issue Location Icon" class="legend-icon">
+                <span>Issue Location</span>
+            </div>
         </div>
     </div>
     <div class="form-container">
@@ -247,7 +254,7 @@
         </div>
     </div>
     <script>
-    var currentCellIndex = 1; // Initial active cell index
+    var currentCellIndex = 1;
 
     function enableCell(cellId) {
         var cell = document.getElementById(cellId);
