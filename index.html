@@ -140,6 +140,10 @@
     function enableCell(cellId) {
         var cell = document.getElementById(cellId);
         cell.classList.remove('disabled');
+        var inputs = cell.querySelectorAll('select, input[type="file"], button');
+        inputs.forEach(function(input) {
+            input.disabled = false;
+        });
         var label = cell.querySelector('label');
         if (label) {
             label.style.color = '#333'; // Set heading text color to black
@@ -148,19 +152,10 @@
         if (stepIcon) {
             stepIcon.style.backgroundColor = '#24811B'; // Set green color when enabled
         }
-        currentCellIndex++;
-
-        // Enable dropdown if cell 2 is enabled
-        if (cellId === 'cell2') {
-            var issueTypeDropdown = document.getElementById('issueType');
-            issueTypeDropdown.disabled = false;
-        } else if (cellId === 'cell3') {
-            var fileUpload = document.getElementById('photoUpload');
-            fileUpload.disabled = false; // Enable file input
-        } else if (cellId === 'cell4') {
-            var submitButton = document.getElementById('submitReport');
-            submitButton.disabled = false; // Enable submit button
-            submitButton.addEventListener('click', submitReport);
+        if (cellId === 'cell1') {
+            currentCellIndex = 1;
+        } else {
+            currentCellIndex++;
         }
     }
 
@@ -168,6 +163,10 @@
         var cell = document.getElementById(cellId);
         if (cell) {
             cell.classList.add('disabled');
+            var inputs = cell.querySelectorAll('select, input[type="file"], button');
+            inputs.forEach(function(input) {
+                input.disabled = true;
+            });
             var label = cell.querySelector('label');
             if (label) {
                 label.style.color = '#999'; // Set heading text color to gray
@@ -176,19 +175,17 @@
             if (stepIcon) {
                 stepIcon.style.backgroundColor = '#ddd'; // Default gray color when disabled
             }
-            if(cellId === 'cell4') {
-                var submitButton = document.getElementById('submitReport');
-                submitButton.disabled = true; // Ensure button is disabled
-            }
         }
     }
 
     function checkIssueType() {
         var issueType = document.getElementById('issueType').value;
         if (issueType !== 'Pothole') {
-            disableCell('cell2');
             enableCell('cell3');
             enableCell('cell4');
+        } else {
+            // If 'Pothole' is selected, or this function needs to be adapted based on your logic
+            // You might need to adjust this part depending on your exact requirements
         }
     }
 
@@ -196,11 +193,10 @@
         console.log('Report submitted!');
         alert('Report submitted. Thank you!');
         // Reset cells after report submission
-        disableCell('cell1');
-        disableCell('cell2');
+        enableCell('cell1'); // Enable cell1 for a new report
+        disableCell('cell2'); // Disable subsequent cells
         disableCell('cell3');
         disableCell('cell4');
-        currentCellIndex = 1; // Reset cell index
     }
 
     require([
@@ -230,7 +226,7 @@
 
         var locateWidget = new Locate({
             view: view,
-            rotationEnabled: false // Use rotationEnabled instead of useHeadingEnabled
+            rotationEnabled: false
         });
 
         view.ui.add(locateWidget, "top-left");
@@ -247,10 +243,6 @@
             });
 
             view.on("click", function(event) {
-                if (pointGraphic) {
-                    graphicsLayer.remove(pointGraphic);
-                }
-
                 var query = featureLayer.createQuery();
                 query.geometry = event.mapPoint;
                 query.spatialRelationship = "intersects";
@@ -259,9 +251,9 @@
 
                 featureLayer.queryFeatures(query).then(function(result) {
                     if (result.features.length > 0) {
-                        disableCell('cell1');
-                        enableCell('cell2');
-
+                        if (pointGraphic) {
+                            graphicsLayer.remove(pointGraphic);
+                        }
                         pointGraphic = new Graphic({
                             geometry: event.mapPoint,
                             symbol: new PictureMarkerSymbol({
@@ -270,20 +262,24 @@
                                 height: "36px"
                             })
                         });
-                        graphicsLayer.add(pointGraphic); // Add new location graphic
+                        graphicsLayer.add(pointGraphic);
+                        disableCell('cell1');
+                        enableCell('cell2');
                     } else {
                         alert("Location is not within MPRB's Responsibility");
-                        // Reset cells to initial state
+                        enableCell('cell1');
                         disableCell('cell2');
                         disableCell('cell3');
                         disableCell('cell4');
+                        if (pointGraphic) {
+                            graphicsLayer.remove(pointGraphic);
+                        }
                     }
                 }).catch(function(error) {
                     console.error("Error querying features:", error);
                 });
             });
 
-            // Initial setup: disable cells 2, 3, and 4
             disableCell('cell2');
             disableCell('cell3');
             disableCell('cell4');
