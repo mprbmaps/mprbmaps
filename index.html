@@ -174,8 +174,10 @@
 
     /* Adjusted position for search widget */
     .esri-search {
-        left: calc(50% - 200px); /* Adjust as needed */
+        position: absolute;
         top: 10px;
+        right: 100px; /* Adjust as needed */
+        z-index: 50; /* Ensure it's above the map controls */
     }
     </style>
 </head>
@@ -221,176 +223,168 @@
         </div>
     </div>
     <script>
-var currentCellIndex = 1; // Initial active cell index
-var featureLayer; // Define featureLayer variable
+    var currentCellIndex = 1; // Initial active cell index
 
-function enableCell(cellId) {
-    var cell = document.getElementById(cellId);
-    cell.classList.remove('disabled');
-    var inputs = cell.querySelectorAll('select, input[type="file"], button');
-    inputs.forEach(input => input.disabled = false);
+    function enableCell(cellId) {
+        var cell = document.getElementById(cellId);
+        cell.classList.remove('disabled');
+        var inputs = cell.querySelectorAll('select, input[type="file"], button');
+        inputs.forEach(input => input.disabled = false);
 
-    if (cellId === 'cell1') {
-        currentCellIndex = 1;
-    } else {
-        currentCellIndex++;
-    }
-}
-
-function disableCell(cellId) {
-    var cell = document.getElementById(cellId);
-    cell.classList.add('disabled');
-    var inputs = cell.querySelectorAll('select, input[type="file"], button');
-    inputs.forEach(input => input.disabled = true);
-}
-
-function checkIssueType() {
-    var issueType = document.getElementById('issueType').value;
-    if (issueType !== 'Pothole') {
-        enableCell('cell3');
-        enableCell('cell4');
-    } else {
-        disableCell('cell3');
-        disableCell('cell4');
-    }
-}
-
-function submitReport() {
-    console.log('Report submitted!');
-    alert('Report submitted. Thank you!');
-    enableCell('cell1');
-    disableCell('cell2');
-    disableCell('cell3');
-    disableCell('cell4');
-}
-
-require([
-    "esri/Map",
-    "esri/views/MapView",
-    "esri/Graphic",
-    "esri/layers/GraphicsLayer",
-    "esri/widgets/Locate",
-    "esri/geometry/Point",
-    "esri/symbols/PictureMarkerSymbol",
-    "esri/layers/FeatureLayer",
-    "esri/rest/support/Query",
-    "esri/widgets/Search",
-    "esri/WebMap"
-], function(Map, MapView, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query, Search, WebMap) {
-    const webmap = new WebMap({
-        portalItem: { // autocasts as new PortalItem()
-            id: "32aa25434f284e48a88fc9ff499b0fd8"
+        if (cellId === 'cell1') {
+            currentCellIndex = 1;
+        } else {
+            currentCellIndex++;
         }
-    });
+    }
 
-    var view = new MapView({
-        container: "viewDiv",
-        map: webmap,
-        center: [-93.2650, 44.9778], // Center on Minneapolis
-        zoom: 12
-    });
+    function disableCell(cellId) {
+        var cell = document.getElementById(cellId);
+        cell.classList.add('disabled');
+        var inputs = cell.querySelectorAll('select, input[type="file"], button');
+        inputs.forEach(input => input.disabled = true);
+    }
 
-    var graphicsLayer = new GraphicsLayer();
-    view.map.add(graphicsLayer);
+    function checkIssueType() {
+        var issueType = document.getElementById('issueType').value;
+        if (issueType !== 'Pothole') {
+            enableCell('cell3');
+            enableCell('cell4');
+        } else {
+            disableCell('cell3');
+            disableCell('cell4');
+        }
+    }
 
-    var locateWidget = new Locate({
-        view: view,
-        rotationEnabled: false
-    });
-    
-    // Add locate widget to view
-    view.ui.add(locateWidget, "top-left");
-
-    // Initialize featureLayer
-    featureLayer = new FeatureLayer({
-        url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
-    });
-
-    var searchWidget = new Search({
-        view: view,
-        includeDefaultSources: false, // Remove Esri World Geocoder
-        sources: [
-            {
-                locator: {
-                    url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Locators/MPRBParksBuildings_Locator/GeocodeServer",
-                },
-                singleLineFieldName: "SingleLine",
-                name: "MPRB Parks & Buildings Locator",
-                placeholder: "Search MPRB Parks & Buildings",
-            },
-            {
-                layer: featureLayer, // Specify the feature layer to search within
-                searchFields: ["Name_Primary"], // Specify the fields to search within
-                displayField: "Name_Primary", // Specify the field to display in the search results
-                exactMatch: false, // Allow partial matching
-                outFields: ["Name_Primary"], // Return all fields in the search results
-                name: "MPRB Locations",
-                placeholder: "Search Park Name"
-            }
-        ]
-    });
-
-    // Hide popups for search results and map click
-    searchWidget.popupEnabled = false;
-    view.popup.autoOpenEnabled = false;
-
-    // Add search widget to view with adjusted position
-    view.ui.add(searchWidget, {
-        position: "top-right",
-        index: 2
-    });
-
-    var pointGraphic;
-
-    view.when().then(function() {
-        locateWidget.locate().catch(function(error) {
-            console.error("Locate widget error:", error.message);
-        });
-
-        view.on("click", function(event) {
-            var query = featureLayer.createQuery();
-            query.geometry = event.mapPoint;
-            query.spatialRelationship = "intersects";
-            query.outFields = ["*"];
-            query.returnGeometry = true;
-
-            featureLayer.queryFeatures(query).then(function(result) {
-                if (result.features.length > 0) {
-                    if (pointGraphic) {
-                        graphicsLayer.remove(pointGraphic);
-                    }
-                    pointGraphic = new Graphic({
-                        geometry: event.mapPoint,
-                        symbol: new PictureMarkerSymbol({
-                            url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
-                            width: "36px",
-                            height: "36px"
-                        })
-                    });
-                    graphicsLayer.add(pointGraphic);
-                    disableCell('cell1');
-                    enableCell('cell2');
-                    checkIssueType();
-                } else {
-                    alert("Location is not within MPRB's Responsibility");
-                    enableCell('cell1');
-                    disableCell('cell2');
-                    disableCell('cell3');
-                    disableCell('cell4');
-                    if (pointGraphic) {
-                        graphicsLayer.remove(pointGraphic);
-                    }
-                }
-            }).catch(function(error) {
-                console.error("Error querying features:", error);
-            });
-        });
-
+    function submitReport() {
+        console.log('Report submitted!');
+        alert('Report submitted. Thank you!');
+        enableCell('cell1');
         disableCell('cell2');
         disableCell('cell3');
         disableCell('cell4');
+    }
+
+    require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/Graphic",
+        "esri/layers/GraphicsLayer",
+        "esri/widgets/Locate",
+        "esri/geometry/Point",
+        "esri/symbols/PictureMarkerSymbol",
+        "esri/layers/FeatureLayer",
+        "esri/rest/support/Query",
+        "esri/widgets/Search",
+        "esri/WebMap"
+    ], function(Map, MapView, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query, Search, WebMap) {
+        const webmap = new WebMap({
+            portalItem: { // autocasts as new PortalItem()
+                id: "32aa25434f284e48a88fc9ff499b0fd8"
+            }
+        });
+
+        var view = new MapView({
+            container: "viewDiv",
+            map: webmap,
+            center: [-93.2650, 44.9778], // Center on Minneapolis
+            zoom: 12
+        });
+
+        var graphicsLayer = new GraphicsLayer();
+        view.map.add(graphicsLayer);
+
+        var locateWidget = new Locate({
+            view: view,
+            rotationEnabled: false
+        });
+
+        var searchWidget = new Search({
+            view: view,
+            includeDefaultSources: false, // Remove Esri World Geocoder
+            sources: [
+                {
+                    locator: {
+                        url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Locators/MPRBParksBuildings_Locator/GeocodeServer",
+                    },
+                    singleLineFieldName: "SingleLine",
+                    name: "MPRB Parks & Buildings Locator",
+                    placeholder: "Search MPRB Parks & Buildings",
+                },
+                {
+                    layer: featureLayer, // Specify the feature layer to search within
+                    searchFields: ["Name_Primary"], // Specify the fields to search within
+                    displayField: "Name_Primary", // Specify the field to display in the search results
+                    exactMatch: false, // Allow partial matching
+                    outFields: ["Name_Primary"], // Return all fields in the search results
+                    name: "MPRB Locations",
+                    placeholder: "Search Park Name"
+                }
+            ]
+        });
+
+        view.ui.add(locateWidget, "top-left");
+        view.ui.add(searchWidget, {
+            position: "manual",
+            element: document.getElementsByClassName("esri-zoom esri-widget")[0],
+            index: 0
+        });
+
+        var pointGraphic;
+
+        view.when().then(function() {
+            locateWidget.locate().catch(function(error) {
+                console.error("Locate widget error:", error.message);
+            });
+
+            var featureLayer = new FeatureLayer({
+                url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
+            });
+
+            view.on("click", function(event) {
+                var query = featureLayer.createQuery();
+                query.geometry = event.mapPoint;
+                query.spatialRelationship = "intersects";
+                query.outFields = ["*"];
+                query.returnGeometry = true;
+
+                featureLayer.queryFeatures(query).then(function(result) {
+                    if (result.features.length > 0) {
+                        if (pointGraphic) {
+                            graphicsLayer.remove(pointGraphic);
+                        }
+                        pointGraphic = new Graphic({
+                            geometry: event.mapPoint,
+                            symbol: new PictureMarkerSymbol({
+                                url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
+                                width: "36px",
+                                height: "36px"
+                            })
+                        });
+                        graphicsLayer.add(pointGraphic);
+                        disableCell('cell1');
+                        enableCell('cell2');
+                        checkIssueType();
+                    } else {
+                        alert("Location is not within MPRB's Responsibility");
+                        enableCell('cell1');
+                        disableCell('cell2');
+                        disableCell('cell3');
+                        disableCell('cell4');
+                        if (pointGraphic) {
+                            graphicsLayer.remove(pointGraphic);
+                        }
+                    }
+                }).catch(function(error) {
+                    console.error("Error querying features:", error);
+                });
+            });
+
+            disableCell('cell2');
+            disableCell('cell3');
+            disableCell('cell4');
+        });
     });
-});
-</script>
+    </script>
 </body>
 </html>
