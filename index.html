@@ -112,17 +112,20 @@
             top: 0;
         }
     }
-        #submitReport {
-    background-color: #4e8cff; /* Blue color */
-    color: #fff; /* White text color */
-    cursor: pointer; /* Change cursor to pointer on hover */
-    transition: background-color 0.3s; /* Smooth transition for background color change */
-}
+    #submitReport {
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
 
-        #submitReport:enabled:hover {
-    background-color: #3666b8; /* Darker blue color on hover */
-}
-</style>
+    #submitReport:enabled {
+        background-color: #4e8cff; /* Blue color */
+        color: #fff; /* White text color */
+    }
+
+    #submitReport:enabled:hover {
+        background-color: #3666b8; /* Darker blue color on hover */
+    }
+    </style>
 </head>
 <body>
     <div id="viewDiv"></div>
@@ -177,115 +180,112 @@
     }
 
     function checkIssueType() {
-    var issueType = document.getElementById('issueType').value;
-    if (issueType !== 'Pothole') {
-        enableCell('cell3');
-        enableCell('cell4');
-    } else {
-        // If 'Pothole' is selected, or this function needs to be adapted based on your logic
-        // You might need to adjust this part depending on your exact requirements
-        disableCell('cell3');
-        disableCell('cell4');
+        var issueType = document.getElementById('issueType').value;
+        if (issueType !== 'Pothole') {
+            enableCell('cell3');
+            enableCell('cell4');
+        } else {
+            disableCell('cell3');
+            disableCell('cell4');
+        }
     }
-}
 
     function submitReport() {
         console.log('Report submitted!');
         alert('Report submitted. Thank you!');
-        // Reset cells after report submission
-        enableCell('cell1'); // Enable cell1 for a new report
-        disableCell('cell2'); // Disable subsequent cells
+        enableCell('cell1');
+        disableCell('cell2');
         disableCell('cell3');
         disableCell('cell4');
     }
-        require([
-            "esri/Map",
-            "esri/views/MapView",
-            "esri/Graphic",
-            "esri/layers/GraphicsLayer",
-            "esri/widgets/Locate",
-            "esri/geometry/Point",
-            "esri/symbols/PictureMarkerSymbol",
-            "esri/layers/FeatureLayer",
-            "esri/rest/support/Query"
-        ], function(Map, MapView, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query) {
-            var map = new Map({
-                basemap: "streets-navigation-vector"
+
+    require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/Graphic",
+        "esri/layers/GraphicsLayer",
+        "esri/widgets/Locate",
+        "esri/geometry/Point",
+        "esri/symbols/PictureMarkerSymbol",
+        "esri/layers/FeatureLayer",
+        "esri/rest/support/Query"
+    ], function(Map, MapView, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query) {
+        var map = new Map({
+            basemap: "streets-navigation-vector"
+        });
+
+        var view = new MapView({
+            container: "viewDiv",
+            map: map,
+            center: [-93.2650, 44.9778], // Center on Minneapolis
+            zoom: 12
+        });
+
+        var graphicsLayer = new GraphicsLayer();
+        map.add(graphicsLayer);
+
+        var locateWidget = new Locate({
+            view: view,
+            rotationEnabled: false
+        });
+
+        view.ui.add(locateWidget, "top-left");
+
+        var pointGraphic;
+
+        view.when().then(function() {
+            locateWidget.locate().catch(function(error) {
+                console.error("Locate widget error:", error.message);
             });
 
-            var view = new MapView({
-                container: "viewDiv",
-                map: map,
-                center: [-93.2650, 44.9778], // Center on Minneapolis
-                zoom: 12
+            var featureLayer = new FeatureLayer({
+                url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
             });
 
-            var graphicsLayer = new GraphicsLayer();
-            map.add(graphicsLayer);
+            view.on("click", function(event) {
+                var query = featureLayer.createQuery();
+                query.geometry = event.mapPoint;
+                query.spatialRelationship = "intersects";
+                query.outFields = ["*"];
+                query.returnGeometry = true;
 
-            var locateWidget = new Locate({
-                view: view,
-                rotationEnabled: false
-            });
-
-            view.ui.add(locateWidget, "top-left");
-
-            var pointGraphic; // Declare pointGraphic here to ensure it is accessible within the scope of this function
-
-            view.when().then(function() {
-                locateWidget.locate().catch(function(error) {
-                    console.error("Locate widget error:", error.message);
+                featureLayer.queryFeatures(query).then(function(result) {
+                    if (result.features.length > 0) {
+                        if (pointGraphic) {
+                            graphicsLayer.remove(pointGraphic);
+                        }
+                        pointGraphic = new Graphic({
+                            geometry: event.mapPoint,
+                            symbol: new PictureMarkerSymbol({
+                                url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
+                                width: "36px",
+                                height: "36px"
+                            })
+                        });
+                        graphicsLayer.add(pointGraphic);
+                        disableCell('cell1');
+                        enableCell('cell2');
+                        checkIssueType();
+                    } else {
+                        alert("Location is not within MPRB's Responsibility");
+                        enableCell('cell1');
+                        disableCell('cell2');
+                        disableCell('cell3');
+                        disableCell('cell4');
+                        if (pointGraphic) {
+                            graphicsLayer.remove(pointGraphic);
+                        }
+                    }
+                }).catch(function(error) {
+                    console.error("Error querying features:", error);
                 });
-
-                var featureLayer = new FeatureLayer({
-                    url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
-                });
-
-                view.on("click", function(event) {
-    var query = featureLayer.createQuery();
-    query.geometry = event.mapPoint;
-    query.spatialRelationship = "intersects";
-    query.outFields = ["*"];
-    query.returnGeometry = true;
-
-    featureLayer.queryFeatures(query).then(function(result) {
-        if (result.features.length > 0) {
-            if (pointGraphic) {
-                graphicsLayer.remove(pointGraphic);
-            }
-            pointGraphic = new Graphic({
-                geometry: event.mapPoint,
-                symbol: new PictureMarkerSymbol({
-                    url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
-                    width: "36px",
-                    height: "36px"
-                })
             });
-            graphicsLayer.add(pointGraphic);
-            disableCell('cell1');
-            enableCell('cell2');
-            // Check issue type here and enable cell 3 and cell 4 accordingly
-            checkIssueType(); // Added this line to check issue type after cell 2 is enabled
-        } else {
-            alert("Location is not within MPRB's Responsibility");
-            enableCell('cell1');
+
             disableCell('cell2');
             disableCell('cell3');
             disableCell('cell4');
-            if (pointGraphic) {
-                graphicsLayer.remove(pointGraphic);
-            }
-        }
-    }).catch(function(error) {
-        console.error("Error querying features:", error);
-    });
-});
-
-                disableCell('cell2');
-                disableCell('cell3');
-                disableCell('cell4');
-            });
         });
+    });
     </script>
 </body>
 </html>
