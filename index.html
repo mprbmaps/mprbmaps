@@ -8,230 +8,222 @@
     <script src="https://js.arcgis.com/4.28/"></script>
     <style>
     body, html {
-    font-family: 'Arial', sans-serif;
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    overflow: hidden;
-}
-
-#viewDiv {
-    height: 100%;
-    width: 70%;
-    float: left;
-    position: relative; /* Ensure relative positioning */
-}
-
-.form-container {
-    position: fixed;
-    background-color: #fff;
-    box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
-    overflow-y: auto;
-    box-sizing: border-box;
-    bottom: 0;
-    right: 0;
-    width: 30%;
-    height: 100%;
-}
-
-.form-cell {
-    position: relative;
-    border: 1px solid #ddd;
-    padding: 20px;
-    margin-bottom: -1px;
-    text-align: center;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    min-height: 75px; /* Ensures cells have at least this height but can grow */
-}
-
-.form-cell.disabled {
-    background-color: #f0f0f0;
-}
-
-.form-cell label {
-    position: absolute;
-    top: 10px;
-    left: 50px; /* Adjusted for step icon */
-    color: #333;
-    font-size: 16px;
-    font-weight: bold;
-}
-
-.form-cell select, .form-cell button, .form-cell input[type="file"] {
-    width: 80%;
-    padding: 10px;
-    margin-top: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    box-sizing: border-box;
-}
-
-.step-icon {
-    position: absolute;
-    top: 5px;
-    left: 5px;
-    width: 35px;
-    height: 35px;
-    background-color: #24811B;
-    border-radius: 0px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-weight: bold;
-    color: #fff;
-    font-size: 24px; /* Adjust the font size as needed */
-}
-
-.form-cell.disabled .step-icon {
-    background-color: #cccccc; /* Grey color for disabled state */
-}
-
-#cell1Image {
-    width: 30px;
-    height: 30px;
-    margin-top: 15px; /* Added to move the image down */
-    margin-bottom: 10px; /* Existing space between image and label, adjust if needed */
-}
-
-.form-cell.disabled #cell1Image {
-    filter: grayscale(100%);
-}
-
-@media screen and (max-width: 768px) {
-    #viewDiv {
-        width: 100%;
-        height: 50%;
+        font-family: 'Arial', sans-serif;
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden;
     }
+
+    #viewDiv {
+        height: 100%;
+        width: 70%;
+        float: left;
+        position: relative;
+    }
+
     .form-container {
         position: fixed;
+        background-color: #fff;
+        box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+        overflow-y: auto;
+        box-sizing: border-box;
         bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 50%;
-    }
-    .form-cell {
-        min-height: 60px; /* Adjusts height for smaller screens */
-    }
-    .form-cell.disabled #uploadButton {
-        position: relative; /* Reset position for smaller screens */
-        top: 0;
-        left: 0;
-        margin-top: 10px; /* Add margin-top for spacing */
-    }
-}
-
-@media screen and (min-width: 769px) {
-    .form-container {
+        right: 0;
         width: 30%;
         height: 100%;
-        position: fixed;
-        right: 0;
-        top: 0;
     }
-}
 
-@media screen and (max-width: 500px) and (orientation: portrait) {
+    .form-cell {
+        position: relative;
+        border: 1px solid #ddd;
+        padding: 20px;
+        margin-bottom: -1px;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        min-height: 75px;
+    }
+
+    .form-cell.disabled {
+        background-color: #f0f0f0;
+    }
+
+    .form-cell label {
+        position: absolute;
+        top: 10px;
+        left: 50px;
+        color: #333;
+        font-size: 16px;
+        font-weight: bold;
+    }
+
+    .form-cell select, .form-cell button, .form-cell input[type="file"] {
+        width: 80%;
+        padding: 10px;
+        margin-top: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-sizing: border-box;
+    }
+
+    .step-icon {
+        position: absolute;
+        top: 5px;
+        left: 5px;
+        width: 35px;
+        height: 35px;
+        background-color: #24811B;
+        border-radius: 0px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-weight: bold;
+        color: #fff;
+        font-size: 24px;
+    }
+
+    .form-cell.disabled .step-icon {
+        background-color: #cccccc;
+    }
+
+    #cell1Image {
+        width: 30px;
+        height: 30px;
+        margin-top: 15px;
+        margin-bottom: 10px;
+    }
+
+    .form-cell.disabled #cell1Image {
+        filter: grayscale(100%);
+    }
+
+    @media screen and (max-width: 768px) {
+        #viewDiv {
+            width: 100%;
+            height: 50%;
+        }
+        .form-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 50%;
+        }
+        .form-cell {
+            min-height: 60px;
+        }
+    }
+
+    @media screen and (min-width: 769px) {
+        .form-container {
+            width: 30%;
+            height: 100%;
+            position: fixed;
+            right: 0;
+            top: 0;
+        }
+    }
+
+    @media screen and (max-width: 500px) and (orientation: portrait) {
+        .legend {
+            bottom: 5px !important;
+            right: 5px !important;
+            top: unset !important;
+            left: unset !important;
+        }
+    }
+
+    #submitReport, .custom-file-upload {
+        cursor: pointer;
+        transition: background-color 0.3s;
+        padding: 10px 20px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-sizing: border-box;
+        width: 80%;
+        background-color: #2B88C2;
+        color: #fff;
+    }
+
+    #submitReport:enabled:hover, .custom-file-upload:hover {
+        background-color: #1A5E89;
+    }
+
     .legend {
-        bottom: 5px !important;
-        right: 5px !important;
-        top: unset !important;
-        left: unset !important;
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background-color: rgba(255, 255, 255, 1);
+        padding: 10px;
+        border-radius: 0px;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+        z-index: 1000;
     }
-}
 
-#submitReport, .custom-file-upload {
-    cursor: pointer;
-    transition: background-color 0.3s;
-    padding: 10px 20px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    box-sizing: border-box;
-    width: 80%; /* Adjust based on your design */
-    background-color: #2B88C2; /* Blue color */
-    color: #fff; /* White text color */
-}
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+    }
 
-#submitReport:enabled:hover, .custom-file-upload:hover {
-    background-color: #1A5E89; /* Darker blue color on hover */
-}
+    .legend-icon {
+        width: 20px;
+        height: 20px;
+        margin-right: 5px;
+    }
 
-.legend {
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    background-color: rgba(255, 255, 255, 1);
-    padding: 10px;
-    border-radius: 0px;
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
-    z-index: 1000;
-}
+    .esri-search {
+        position: absolute;
+        top: 0px;
+        left: calc(100% + 10px);
+        z-index: 50;
+    }
 
-.legend-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 5px;
-}
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgb(0,0,0);
+        background-color: rgba(0,0,0,0.4);
+    }
 
-.legend-icon {
-    width: 20px;
-    height: 20px;
-    margin-right: 5px;
-}
+    .modal-content {
+        background-color: #fefefe;
+        margin: 15% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 80%;
+    }
 
-.esri-search {
-    position: absolute;
-    top: 0px;
-    left: calc(100% + 10px); /* Adjusted position */
-    z-index: 50; /* Ensure it's above the map controls */
-}
+    .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+    }
 
-.modal {
-    display: none; /* Hidden by default */
-    position: fixed; /* Stay in place */
-    z-index: 1000; /* Sit on top */
-    left: 0;
-    top: 0;
-    width: 100%; /* Full width */
-    height: 100%; /* Full height */
-    overflow: auto; /* Enable scroll if needed */
-    background-color: rgb(0,0,0); /* Fallback color */
-    background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
-}
+    .close:hover,
+    .close:focus {
+        color: black;
+        text-decoration: none;
+        cursor: pointer;
+    }
 
-.modal-content {
-    background-color: #fefefe;
-    margin: 15% auto; /* 15% from the top and centered */
-    padding: 20px;
-    border: 1px solid #888;
-    width: 80%; /* Could be more or less, depending on screen size */
-}
-
-.close {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-}
-
-.close:hover,
-.close:focus {
-    color: black;
-    text-decoration: none;
-    cursor: pointer;
-}
-
-.custom-file-input {
-    display: none; /* Hide the default file input */
-}
-      
+    .custom-file-input {
+        display: none;
+    }
     </style>
 </head>
 <body>
     <div id="viewDiv">
-        <!-- Legend Markup -->
         <div class="legend">
             <div class="legend-item">
                 <img src="https://i.ibb.co/d66qjXx/esri-locate-me-blue-dot2.png" alt="Current Location Icon" class="legend-icon">
@@ -260,31 +252,27 @@
                 <option value="Litter">Litter</option>
             </select>
         </div>
-       <div class="form-cell disabled" id="cell3">
-    <label style="top: 10px; left: 50px;">Photo (optional)</label> <!-- Label for the photo -->
-    <div class="file-upload-container">
-        <!-- Button for uploading photos -->
-    </div>
-    <div style="margin-top: 10px;"> <!-- Adjust margin-top as needed -->
-        <label for="photoUpload" class="custom-file-upload" id="uploadButton">Upload Photo(s)</label>
-    </div>
-    <div class="step-icon">3</div> <!-- Step icon -->
-</div>
+        <div class="form-cell disabled" id="cell3">
+            <div style="position: relative; padding-bottom: 20px;">
+                <label style="top: 10px; left: 50px;">Photo (optional)</label>
+            </div>
+            <div style="margin-top: 20px;">
+                <label for="photoUpload" class="custom-file-upload" id="uploadButton">Upload Photo(s)</label>
+            </div>
+            <div class="step-icon">3</div>
+        </div>
         <div class="form-cell disabled" id="cell4">
             <label>Submit Report</label>
             <div class="step-icon">4</div>
             <button type="submit" id="submitReport" disabled>Submit Report</button>
         </div>
     </div>
-    <!-- Modal for successful report submission -->
     <div id="successModal" class="modal">
       <div class="modal-content">
         <span class="close">&times;</span>
         <p>Report submitted. Thank you!</p>
       </div>
     </div>
-
-    <!-- Modal for location not within MPRB's Responsibility -->
     <div id="locationErrorModal" class="modal">
       <div class="modal-content">
         <span class="close">&times;</span>
@@ -315,26 +303,19 @@
     }
 
     function checkIssueType() {
-    console.log("Checking issue type...");
-    var issueType = document.getElementById('issueType').value;
-    console.log("Selected issue type:", issueType);
-    if (issueType !== 'Select an Issue') {
-        console.log("Issue type is not 'Select an Issue'. Enabling cells...");
-        enableCell('cell3');
-        enableCell('cell4');
-    } else {
-        console.log("Issue type is 'Select an Issue'. Disabling cells...");
-        disableCell('cell3');
-        disableCell('cell4');
+        var issueType = document.getElementById('issueType').value;
+        if (issueType !== 'Select an Issue') {
+            enableCell('cell3');
+            enableCell('cell4');
+        } else {
+            disableCell('cell3');
+            disableCell('cell4');
+        }
     }
-}
 
     function submitReport() {
-        console.log('Report submitted!');
-        // Show success modal
         var successModal = document.getElementById("successModal");
         successModal.style.display = "block";
-        // Hide success modal after 3 seconds
         setTimeout(function(){
             successModal.style.display = "none";
         }, 3000);
@@ -346,156 +327,147 @@
     }
 
     require([
-    "esri/Map",
-    "esri/views/MapView",
-    "esri/Graphic",
-    "esri/layers/GraphicsLayer",
-    "esri/widgets/Locate",
-    "esri/geometry/Point",
-    "esri/symbols/PictureMarkerSymbol",
-    "esri/layers/FeatureLayer",
-    "esri/rest/support/Query",
-    "esri/widgets/Search",
-    "esri/WebMap"
-], function(Map, MapView, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query, Search, WebMap) {
-    const webmap = new WebMap({
-        portalItem: { // autocasts as new PortalItem()
-            id: "32aa25434f284e48a88fc9ff499b0fd8"
-        }
-    });
-
-    var featureLayer = new FeatureLayer({
-        url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
-    });
-
-    var view = new MapView({
-        container: "viewDiv",
-        map: webmap,
-        center: [-93.2650, 44.9778], // Center on Minneapolis
-        zoom: 12,
-        popup: null // Disable popups
-    });
-
-    var graphicsLayer = new GraphicsLayer();
-    view.map.add(graphicsLayer);
-
-    var locateWidget = new Locate({
-        view: view,
-        rotationEnabled: false
-    });
-
-    var searchWidget = new Search({
-        view: view,
-        resultGraphicEnabled: false, // Set to false to disable the graphic on the map
-        includeDefaultSources: false, // Remove Esri World Geocoder
-        sources: [
-            {
-                locator: {
-                    url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Locators/MPRBParksBuildings_Locator/GeocodeServer",
-                },
-                singleLineFieldName: "SingleLine",
-                name: "MPRB Parks & Buildings Locator",
-                placeholder: "Search Park Name",
-            },
-            {
-                layer: featureLayer, // Specify the feature layer to search within
-                searchFields: ["Name_Primary"], // Specify the fields to search within
-                displayField: "Name_Primary", // Specify the field to display in the search results
-                exactMatch: false, // Allow partial matching
-                outFields: ["Name_Primary"], // Return all fields in the search results
-                name: "MPRB Locations",
-                placeholder: "Search Park Name"
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/Graphic",
+        "esri/layers/GraphicsLayer",
+        "esri/widgets/Locate",
+        "esri/geometry/Point",
+        "esri/symbols/PictureMarkerSymbol",
+        "esri/layers/FeatureLayer",
+        "esri/rest/support/Query",
+        "esri/widgets/Search",
+        "esri/WebMap"
+    ], function(Map, MapView, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query, Search, WebMap) {
+        const webmap = new WebMap({
+            portalItem: {
+                id: "32aa25434f284e48a88fc9ff499b0fd8"
             }
-        ]
-    });
-        
-         
-    view.ui.add(locateWidget, "top-left");
-    view.ui.add(searchWidget, {
-        position: "top-left", // Position the search widget next to the zoom controls
-        index: view.ui.find("zoom").index + 1
-    });
-
-    // Wait for the search widget to be fully loaded
-    searchWidget.when(function() {
-        // Access the input node of the search widget and update its placeholder attribute
-        var searchInput = searchWidget.container.querySelector(".esri-search__input");
-        searchInput.placeholder = "Search Park Name";
-    });
-
-    view.ui.add(searchWidget, {
-        position: "top-left", // Position the search widget next to the zoom controls
-        index: view.ui.find("zoom").index + 1
-    });
-
-    var pointGraphic;
-
-    view.when().then(function() {
-        locateWidget.locate().catch(function(error) {
-            console.error("Locate widget error:", error.message);
         });
 
-        view.on("click", function(event) {
-            var query = featureLayer.createQuery();
-            query.geometry = event.mapPoint;
-            query.spatialRelationship = "intersects";
-            query.outFields = ["*"];
-            query.returnGeometry = true;
+        var featureLayer = new FeatureLayer({
+            url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
+        });
 
-            featureLayer.queryFeatures(query).then(function(result) {
-                if (result.features.length > 0) {
-                    if (pointGraphic) {
-                        graphicsLayer.remove(pointGraphic);
-                    }
-                    pointGraphic = new Graphic({
-                        geometry: event.mapPoint,
-                        symbol: new PictureMarkerSymbol({
-                            url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
-                            width: "36px",
-                            height: "36px"
-                        })
-                    });
-                    graphicsLayer.add(pointGraphic);
-                    disableCell('cell1');
-                    enableCell('cell2');
-                    checkIssueType();
-                } else {
-                    // Show error modal
-                    var locationErrorModal = document.getElementById("locationErrorModal");
-                    locationErrorModal.style.display = "block";
-                    // Hide error modal after 3 seconds
-                    setTimeout(function(){
-                        locationErrorModal.style.display = "none";
-                    }, 3000);
-                    enableCell('cell1');
-                    disableCell('cell2');
-                    disableCell('cell3');
-                    disableCell('cell4');
-                    if (pointGraphic) {
-                        graphicsLayer.remove(pointGraphic);
-                    }
+        var view = new MapView({
+            container: "viewDiv",
+            map: webmap,
+            center: [-93.2650, 44.9778],
+            zoom: 12,
+            popup: null
+        });
+
+        var graphicsLayer = new GraphicsLayer();
+        view.map.add(graphicsLayer);
+
+        var locateWidget = new Locate({
+            view: view,
+            rotationEnabled: false
+        });
+
+        var searchWidget = new Search({
+            view: view,
+            resultGraphicEnabled: false,
+            includeDefaultSources: false,
+            sources: [
+                {
+                    locator: {
+                        url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Locators/MPRBParksBuildings_Locator/GeocodeServer",
+                    },
+                    singleLineFieldName: "SingleLine",
+                    name: "MPRB Parks & Buildings Locator",
+                    placeholder: "Search Park Name",
+                },
+                {
+                    layer: featureLayer,
+                    searchFields: ["Name_Primary"],
+                    displayField: "Name_Primary",
+                    exactMatch: false,
+                    outFields: ["Name_Primary"],
+                    name: "MPRB Locations",
+                    placeholder: "Search Park Name"
                 }
-            }).catch(function(error) {
-                console.error("Error querying features:", error);
-            });
+            ]
         });
 
-        disableCell('cell2');
-        disableCell('cell3');
-        disableCell('cell4');
+        view.ui.add(locateWidget, "top-left");
+        view.ui.add(searchWidget, {
+            position: "top-left",
+            index: view.ui.find("zoom").index + 1
+        });
+
+        searchWidget.when(function() {
+            var searchInput = searchWidget.container.querySelector(".esri-search__input");
+            searchInput.placeholder = "Search Park Name";
+        });
+
+        view.ui.add(searchWidget, {
+            position: "top-left",
+            index: view.ui.find("zoom").index + 1
+        });
+
+        var pointGraphic;
+
+        view.when().then(function() {
+            locateWidget.locate().catch(function(error) {
+                console.error("Locate widget error:", error.message);
+            });
+
+            view.on("click", function(event) {
+                var query = featureLayer.createQuery();
+                query.geometry = event.mapPoint;
+                query.spatialRelationship = "intersects";
+                query.outFields = ["*"];
+                query.returnGeometry = true;
+
+                featureLayer.queryFeatures(query).then(function(result) {
+                    if (result.features.length > 0) {
+                        if (pointGraphic) {
+                            graphicsLayer.remove(pointGraphic);
+                        }
+                        pointGraphic = new Graphic({
+                            geometry: event.mapPoint,
+                            symbol: new PictureMarkerSymbol({
+                                url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
+                                width: "36px",
+                                height: "36px"
+                            })
+                        });
+                        graphicsLayer.add(pointGraphic);
+                        disableCell('cell1');
+                        enableCell('cell2');
+                        checkIssueType();
+                    } else {
+                        var locationErrorModal = document.getElementById("locationErrorModal");
+                        locationErrorModal.style.display = "block";
+                        setTimeout(function(){
+                            locationErrorModal.style.display = "none";
+                        }, 3000);
+                        enableCell('cell1');
+                        disableCell('cell2');
+                        disableCell('cell3');
+                        disableCell('cell4');
+                        if (pointGraphic) {
+                            graphicsLayer.remove(pointGraphic);
+                        }
+                    }
+                }).catch(function(error) {
+                    console.error("Error querying features:", error);
+                });
+            });
+
+            disableCell('cell2');
+            disableCell('cell3');
+            disableCell('cell4');
+        });
     });
-});
-    </script>
-    <script>
-    // Get the modals
+
     var successModal = document.getElementById("successModal");
     var locationErrorModal = document.getElementById("locationErrorModal");
 
-    // Get the <span> element that closes the modal
     var successSpan = document.getElementsByClassName("close")[0];
     var locationErrorSpan = document.getElementsByClassName("close")[1];
 
-    // When the user clicks on <span> (x), close the modal
     successSpan.onclick = function() {
         successModal.style.display = "none";
     }
@@ -504,7 +476,6 @@
         locationErrorModal.style.display = "none";
     }
 
-    // When the user clicks anywhere outside of the modal, close it
     window.onclick = function(event) {
         if (event.target == successModal) {
             successModal.style.display = "none";
