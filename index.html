@@ -8,168 +8,167 @@
     <script src="https://js.arcgis.com/4.28/"></script>
     <style>
     body, html {
-    font-family: 'Arial', sans-serif;
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    overflow: hidden;
-}
-
-#viewDiv {
-    height: 100%;
-    width: 70%;
-    float: left;
-}
-
-.form-container {
-    position: fixed;
-    background-color: #fff;
-    box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
-    overflow-y: auto;
-    box-sizing: border-box;
-    bottom: 0;
-    right: 0;
-    width: 30%;
-    height: 100%;
-}
-
-.form-cell {
-    position: relative;
-    border: 1px solid #ddd;
-    padding: 20px;
-    margin-bottom: -1px;
-    text-align: center;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    min-height: 75px; /* Ensures cells have at least this height but can grow */
-}
-
-.form-cell.disabled {
-    background-color: #f0f0f0;
-}
-
-.form-cell label {
-    position: absolute;
-    top: 10px;
-    left: 50px; /* Adjusted for step icon */
-    color: #333;
-    font-size: 16px;
-    font-weight: bold;
-}
-
-.form-cell select, .form-cell button, .form-cell input[type="file"] {
-    width: 80%;
-    padding: 10px;
-    margin-top: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    box-sizing: border-box;
-}
-
-.step-icon {
-    position: absolute;
-    top: 5px;
-    left: 5px;
-    width: 35px;
-    height: 35px;
-    background-color: #24811B;
-    border-radius: 0px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-weight: bold;
-    color: #fff;
-}
-
-.form-cell.disabled .step-icon {
-    background-color: #cccccc; /* Grey color for disabled state */
-}
-
-#cell1Image {
-    width: 30px;
-    height: 30px;
-    margin-top: 15px; /* Added to move the image down */
-    margin-bottom: 10px; /* Existing space between image and label, adjust if needed */
-}
-
-.form-cell.disabled #cell1Image {
-    filter: grayscale(100%);
-}
-
-@media screen and (max-width: 768px) {
-    #viewDiv {
-        width: 100%;
-        height: 40%;
+        font-family: 'Arial', sans-serif;
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden;
     }
+
+    #viewDiv {
+        height: 100%;
+        width: 70%;
+        float: left;
+    }
+
     .form-container {
         position: fixed;
+        background-color: #fff;
+        box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+        overflow-y: auto;
+        box-sizing: border-box;
         bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 60%;
-    }
-    .form-cell {
-        min-height: 75px; /* Adjusts height for smaller screens */
-    }
-
-    /* Legend placement on smaller screens */
-    .legend {
-        bottom: unset;
-        top: calc(100% - 130px); /* Adjust top value as needed */
-        left: 10px;
-    }
-}
-
-@media screen and (min-width: 769px) {
-    .form-container {
+        right: 0;
         width: 30%;
         height: 100%;
-        position: fixed;
-        right: 0;
-        top: 0;
     }
-}
 
-#submitReport {
-    cursor: pointer;
-    transition: background-color 0.3s;
-}
+    .form-cell {
+        position: relative;
+        border: 1px solid #ddd;
+        padding: 20px;
+        margin-bottom: -1px;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        min-height: 75px; /* Ensures cells have at least this height but can grow */
+    }
 
-#submitReport:enabled {
-    background-color: #4e8cff; /* Blue color */
-    color: #fff; /* White text color */
-}
+    .form-cell.disabled {
+        background-color: #f0f0f0;
+    }
 
-#submitReport:enabled:hover {
-    background-color: #3666b8; /* Darker blue color on hover */
-}
+    .form-cell label {
+        position: absolute;
+        top: 10px;
+        left: 50px; /* Adjusted for step icon */
+        color: #333;
+        font-size: 16px;
+        font-weight: bold;
+    }
 
-/* Styles for Legend */
-.legend {
-    position: absolute;
-    bottom: 10px;
-    left: 10px;
-    background-color: rgba(255, 255, 255, 0.8);
-    padding: 10px;
-    border-radius: 5px;
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
-    z-index: 1000;
-}
+    .form-cell select, .form-cell button, .form-cell input[type="file"] {
+        width: 80%;
+        padding: 10px;
+        margin-top: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-sizing: border-box;
+    }
 
-.legend-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 5px;
-}
+    .step-icon {
+        position: absolute;
+        top: 5px;
+        left: 5px;
+        width: 35px;
+        height: 35px;
+        background-color: #24811B;
+        border-radius: 0px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-weight: bold;
+        color: #fff;
+    }
 
-.legend-icon {
-    width: 20px;
-    height: 20px;
-    margin-right: 5px;
-}
+    .form-cell.disabled .step-icon {
+        background-color: #cccccc; /* Grey color for disabled state */
+    }
 
+    #cell1Image {
+        width: 30px;
+        height: 30px;
+        margin-top: 15px; /* Added to move the image down */
+        margin-bottom: 10px; /* Existing space between image and label, adjust if needed */
+    }
+
+    .form-cell.disabled #cell1Image {
+        filter: grayscale(100%);
+    }
+
+    @media screen and (max-width: 768px) {
+        #viewDiv {
+            width: 100%;
+            height: 40%;
+        }
+        .form-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60%;
+        }
+        .form-cell {
+            min-height: 75px; /* Adjusts height for smaller screens */
+        }
+
+        /* Legend placement on smaller screens */
+        .legend {
+            bottom: unset;
+            top: calc(100% - 130px); /* Adjust top value as needed */
+            left: 10px;
+        }
+    }
+
+    @media screen and (min-width: 769px) {
+        .form-container {
+            width: 30%;
+            height: 100%;
+            position: fixed;
+            right: 0;
+            top: 0;
+        }
+    }
+
+    #submitReport {
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    #submitReport:enabled {
+        background-color: #4e8cff; /* Blue color */
+        color: #fff; /* White text color */
+    }
+
+    #submitReport:enabled:hover {
+        background-color: #3666b8; /* Darker blue color on hover */
+    }
+
+    /* Styles for Legend */
+    .legend {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        background-color: rgba(255, 255, 255, 0.8);
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+        z-index: 1000;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+
+    .legend-icon {
+        width: 20px;
+        height: 20px;
+        margin-right: 5px;
+    }
     </style>
 </head>
 <body>
