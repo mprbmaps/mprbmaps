@@ -171,6 +171,12 @@
         height: 20px;
         margin-right: 5px;
     }
+
+    /* Adjusted position for search widget */
+    .esri-search {
+        left: calc(50% - 200px); /* Adjust as needed */
+        top: 10px;
+    }
     </style>
 </head>
 <body>
@@ -283,16 +289,15 @@
             zoom: 12
         });
 
+        // Disable map popup
+        view.popup.defaultPopupTemplateEnabled = false;
+
         var graphicsLayer = new GraphicsLayer();
         view.map.add(graphicsLayer);
 
         var locateWidget = new Locate({
             view: view,
             rotationEnabled: false
-        });
-
-        var featureLayer = new FeatureLayer({
-            url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
         });
 
         var searchWidget = new Search({
@@ -319,6 +324,9 @@
             ]
         });
 
+        // Move search widget 75 pixels to the left
+        document.querySelector('.esri-search').style.left = 'calc(50% - 275px)';
+
         view.ui.add(locateWidget, "top-left");
         view.ui.add(searchWidget, {
             position: "top-right",
@@ -330,6 +338,10 @@
         view.when().then(function() {
             locateWidget.locate().catch(function(error) {
                 console.error("Locate widget error:", error.message);
+            });
+
+            var featureLayer = new FeatureLayer({
+                url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
             });
 
             view.on("click", function(event) {
