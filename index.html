@@ -348,9 +348,14 @@
 
     // Wait for the search widget to be fully loaded
     searchWidget.when(function() {
-    // Check if mainSearch property exists before setting the placeholder
-    if (searchWidget.viewModel.mainSearch) {
-    searchWidget.viewModel.mainSearch.widgetPlaceholder = "Search Park Name";
+        // Get the default source
+        var defaultSource = searchWidget.sources.find(function(source) {
+            return source.name === "Esri World Geocoder";
+        });
+
+        // Check if the default source exists and update the placeholder text
+        if (defaultSource) {
+            defaultSource.placeholder = "Search Park Name";
         }
     });
 
