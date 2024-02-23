@@ -126,32 +126,48 @@
         </div>
     </div>
     <script>
-        var currentCellIndex = 1; // Initial active cell index
+    var currentCellIndex = 1; // Initial active cell index
 
-        function enableCell(cellId) {
-            var cell = document.getElementById(cellId);
-            cell.classList.remove('disabled');
-            var inputs = cell.querySelectorAll('select, input, button');
-            inputs.forEach(input => input.disabled = false);
+    function enableCell(cellId) {
+        var cell = document.getElementById(cellId);
+        cell.classList.remove('disabled');
+        var inputs = cell.querySelectorAll('select, input[type="file"], button');
+        inputs.forEach(input => input.disabled = false);
 
-            if (cellId === 'cell1') {
-                currentCellIndex = 1;
-            } else {
-                currentCellIndex++;
-            }
+        if (cellId === 'cell1') {
+            currentCellIndex = 1;
+        } else {
+            currentCellIndex++;
         }
+    }
 
-        function disableCell(cellId) {
-            var cell = document.getElementById(cellId);
-            cell.classList.add('disabled');
-            var inputs = cell.querySelectorAll('select, input, button');
-            inputs.forEach(input => input.disabled = true);
+    function disableCell(cellId) {
+        var cell = document.getElementById(cellId);
+        cell.classList.add('disabled');
+        var inputs = cell.querySelectorAll('select, input[type="file"], button');
+        inputs.forEach(input => input.disabled = true);
+    }
+
+    function checkIssueType() {
+        var issueType = document.getElementById('issueType').value;
+        if (issueType !== 'Pothole') {
+            enableCell('cell3');
+            enableCell('cell4');
+        } else {
+            // If 'Pothole' is selected, or this function needs to be adapted based on your logic
+            // You might need to adjust this part depending on your exact requirements
         }
+    }
 
-        function checkIssueType() {
-            // Logic to enable/disable cells based on issue type selection
-        }
-
+    function submitReport() {
+        console.log('Report submitted!');
+        alert('Report submitted. Thank you!');
+        // Reset cells after report submission
+        enableCell('cell1'); // Enable cell1 for a new report
+        disableCell('cell2'); // Disable subsequent cells
+        disableCell('cell3');
+        disableCell('cell4');
+    }
         require([
             "esri/Map",
             "esri/views/MapView",
