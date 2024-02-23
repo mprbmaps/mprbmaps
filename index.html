@@ -13,16 +13,13 @@
         padding: 0;
         height: 100%;
         overflow: hidden;
-        position: relative; /* Add this to ensure positioning works properly */
     }
 
     #viewDiv {
-        height: calc(100% - 60px); /* Adjusted to occupy the remaining height */
-        width: 70%; /* Adjusted to occupy 70% of the width */
-        position: fixed; /* Fixed positioning to align with form container */
-        bottom: 0;
-        left: 0;
-        top: 60px; /* Adjusted to move the map below the form */
+        height: 100%;
+        width: 70%;
+        float: left;
+        position: relative; /* Ensure relative positioning */
     }
 
     .form-container {
@@ -34,8 +31,7 @@
         bottom: 0;
         right: 0;
         width: 30%;
-        height: 60px; /* Adjusted to desired height */
-        z-index: 1001; /* Ensure the form is above the map */
+        height: 100%;
     }
 
     .form-cell {
@@ -104,22 +100,29 @@
     }
 
     @media screen and (max-width: 768px) {
-        #viewDiv {
-            height: calc(100% - 40px); /* Adjusted to occupy the remaining height */
-            width: 100%; /* Full width on smaller screens */
-            top: 40px; /* Adjusted to move the map below the form */
-        }
-        .form-container {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 40px; /* Adjusted to desired height */
-        }
-        .form-cell {
-            min-height: 75px; /* Adjusts height for smaller screens */
-        }
+    #viewDiv {
+        width: 100%;
+        height: 40%;
     }
+    .form-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 60%;
+    }
+    .form-cell {
+        min-height: 75px; /* Adjusts height for smaller screens */
+    }
+
+    /* Legend placement on smaller screens */
+    .legend {
+        top: 10px;
+        right: 10px;
+        bottom: unset;
+        left: unset;
+    }
+}
 
     @media screen and (min-width: 769px) {
         .form-container {
@@ -137,24 +140,24 @@
     }
 
     #submitReport:enabled {
-        background-color: #4e8cff; /* Blue color */
+        background-color: #2B88C2; /* Blue color */
         color: #fff; /* White text color */
     }
 
     #submitReport:enabled:hover {
-        background-color: #3666b8; /* Darker blue color on hover */
+        background-color: #1A5E89; /* Darker blue color on hover */
     }
 
     /* Styles for Legend */
     .legend {
-        position: fixed;
-        top: 70px; /* Adjusted to position below the form */
+        position: absolute;
+        top: 10px;
         right: 10px;
         background-color: rgba(255, 255, 255, 0.8);
         padding: 10px;
         border-radius: 5px;
         box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
-        z-index: 1000; /* Ensure the legend is above other elements */
+        z-index: 1000;
     }
 
     .legend-item {
@@ -171,22 +174,23 @@
     </style>
 </head>
 <body>
-    <div id="viewDiv"></div>
-    <!-- Legend Markup -->
-    <div class="legend">
-        <div class="legend-item">
-            <img src="https://i.ibb.co/d66qjXx/esri-locate-me-blue-dot2.png" alt="Current Location Icon" class="legend-icon">
-            <span>Current Location</span>
-        </div>
-        <div class="legend-item">
-            <img src="https://i.ibb.co/j6ZWfnW/map-location-marker.png" alt="Issue Location Icon" class="legend-icon">
-            <span>Issue Location</span>
+    <div id="viewDiv">
+        <!-- Legend Markup -->
+        <div class="legend">
+            <div class="legend-item">
+                <img src="https://i.ibb.co/d66qjXx/esri-locate-me-blue-dot2.png" alt="Current Location Icon" class="legend-icon">
+                <span>Current Location</span>
+            </div>
+            <div class="legend-item">
+                <img src="https://i.ibb.co/j6ZWfnW/map-location-marker.png" alt="Issue Location Icon" class="legend-icon">
+                <span>Issue Location</span>
+            </div>
         </div>
     </div>
     <div class="form-container">
         <div class="form-cell" id="cell1">
             <img src="https://i.ibb.co/j6ZWfnW/map-location-marker.png" alt="Map Marker" id="cell1Image">
-            <label>Location (click on the map):</label>
+            <label>Issue Location (click on the map)</label>
             <div class="step-icon">1</div>
         </div>
         <div class="form-cell disabled" id="cell2">
@@ -200,7 +204,7 @@
             </select>
         </div>
         <div class="form-cell disabled" id="cell3">
-            <label>Photo (optional):</label>
+            <label>Photo (optional)</label>
             <div class="step-icon">3</div>
             <input type="file" id="photoUpload" name="photo" disabled>
         </div>
@@ -264,13 +268,9 @@
         "esri/layers/FeatureLayer",
         "esri/rest/support/Query"
     ], function(Map, MapView, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query) {
-        const map = new Map({
-        basemap: {
-          portalItem: {
-            id: "a11d663a981947b99aac7ff05437758f"
-          }
-        }
-      });
+        var map = new Map({
+            basemap: "streets-navigation-vector"
+        });
 
         var view = new MapView({
             container: "viewDiv",
