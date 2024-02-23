@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Minneapolis Park & Rec Board - Citizen Report Tool</title>
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
-    <script src="https://js.arcgis.com/4.28/"></script>
     <style>
     body, html {
         font-family: 'Arial', sans-serif;
@@ -188,6 +187,44 @@
         left: calc(100% + 10px); /* Adjusted position */
         z-index: 50; /* Ensure it's above the map controls */
     }
+
+    /* CSS for modal */
+    .modal {
+        display: none; /* Hidden by default */
+        position: fixed; /* Stay in place */
+        z-index: 1000; /* Sit on top */
+        left: 0;
+        top: 0;
+        width: 100%; /* Full width */
+        height: 100%; /* Full height */
+        overflow: auto; /* Enable scroll if needed */
+        background-color: rgb(0,0,0); /* Fallback color */
+        background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+    }
+
+    /* Modal content */
+    .modal-content {
+        background-color: #fefefe;
+        margin: 15% auto; /* 15% from the top and centered */
+        padding: 20px;
+        border: 1px solid #888;
+        width: 80%; /* Could be more or less, depending on screen size */
+    }
+
+    /* Close button */
+    .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+    }
+
+    .close:hover,
+    .close:focus {
+        color: black;
+        text-decoration: none;
+        cursor: pointer;
+    }
     </style>
 </head>
 <body>
@@ -232,6 +269,21 @@
             <button type="submit" id="submitReport" disabled>Submit Report</button>
         </div>
     </div>
+    <!-- Modal for successful report submission -->
+    <div id="successModal" class="modal">
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <p>Report submitted. Thank you!</p>
+      </div>
+    </div>
+
+    <!-- Modal for location not within MPRB's Responsibility -->
+    <div id="locationErrorModal" class="modal">
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <p>Location is not within MPRB's Responsibility</p>
+      </div>
+    </div>
     <script>
     var currentCellIndex = 1; // Initial active cell index
 
@@ -268,7 +320,14 @@
 
     function submitReport() {
         console.log('Report submitted!');
-        alert('Report submitted. Thank you!');
+        // Show success modal
+        var successModal = document.getElementById("successModal");
+        successModal.style.display = "block";
+        // Hide success modal after 3 seconds
+        setTimeout(function(){
+            successModal.style.display = "none";
+        }, 3000);
+        
         enableCell('cell1');
         disableCell('cell2');
         disableCell('cell3');
@@ -388,7 +447,13 @@
                     enableCell('cell2');
                     checkIssueType();
                 } else {
-                    alert("Location is not within MPRB's Responsibility");
+                    // Show error modal
+                    var locationErrorModal = document.getElementById("locationErrorModal");
+                    locationErrorModal.style.display = "block";
+                    // Hide error modal after 3 seconds
+                    setTimeout(function(){
+                        locationErrorModal.style.display = "none";
+                    }, 3000);
                     enableCell('cell1');
                     disableCell('cell2');
                     disableCell('cell3');
@@ -407,6 +472,34 @@
         disableCell('cell4');
     });
 });
+    </script>
+    <script>
+    // Get the modals
+    var successModal = document.getElementById("successModal");
+    var locationErrorModal = document.getElementById("locationErrorModal");
+
+    // Get the <span> element that closes the modal
+    var successSpan = document.getElementsByClassName("close")[0];
+    var locationErrorSpan = document.getElementsByClassName("close")[1];
+
+    // When the user clicks on <span> (x), close the modal
+    successSpan.onclick = function() {
+        successModal.style.display = "none";
+    }
+
+    locationErrorSpan.onclick = function() {
+        locationErrorModal.style.display = "none";
+    }
+
+    // When the user clicks anywhere outside of the modal, close it
+    window.onclick = function(event) {
+        if (event.target == successModal) {
+            successModal.style.display = "none";
+        }
+        if (event.target == locationErrorModal) {
+            locationErrorModal.style.display = "none";
+        }
+    }
     </script>
 </body>
 </html>
