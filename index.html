@@ -190,15 +190,6 @@
         }
     }
 
-    function submitReport() {
-        console.log('Report submitted!');
-        alert('Report submitted. Thank you!');
-        enableCell('cell1');
-        disableCell('cell2');
-        disableCell('cell3');
-        disableCell('cell4');
-    }
-
     require([
         "esri/Map",
         "esri/views/MapView",
@@ -208,8 +199,10 @@
         "esri/geometry/Point",
         "esri/symbols/PictureMarkerSymbol",
         "esri/layers/FeatureLayer",
-        "esri/rest/support/Query"
-    ], function(Map, MapView, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query) {
+        "esri/rest/support/Query",
+        "esri/symbols/TextSymbol",
+        "esri/symbols/Font"
+    ], function(Map, MapView, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query, TextSymbol, Font) {
         var map = new Map({
             basemap: "streets-navigation-vector"
         });
@@ -262,7 +255,28 @@
                                 height: "36px"
                             })
                         });
+                        var textSymbol = new TextSymbol({
+                            text: "Issue location",
+                            font: {
+                                size: 12,
+                                weight: "bold"
+                            },
+                            color: "#000",
+                            haloColor: "#fff",
+                            haloSize: "1px",
+                            xoffset: 5,
+                            yoffset: -20,
+                            horizontalAlignment: "left"
+                        });
+                        pointGraphic.symbol = pointGraphic.symbol.clone();
+                        pointGraphic.symbol.xoffset = 20;
+                        pointGraphic.symbol.yoffset = 20;
                         graphicsLayer.add(pointGraphic);
+                        var textGraphic = new Graphic({
+                            geometry: event.mapPoint,
+                            symbol: textSymbol
+                        });
+                        graphicsLayer.add(textGraphic);
                         disableCell('cell1');
                         enableCell('cell2');
                         checkIssueType();
