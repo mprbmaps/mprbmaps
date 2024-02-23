@@ -19,7 +19,7 @@
         height: 100%;
         width: 70%;
         float: left;
-        position: relative;
+        position: relative; /* Ensure relative positioning */
     }
 
     .form-container {
@@ -44,7 +44,7 @@
         align-items: center;
         justify-content: center;
         flex-direction: column;
-        min-height: 75px;
+        min-height: 75px; /* Ensures cells have at least this height but can grow */
     }
 
     .form-cell.disabled {
@@ -52,22 +52,13 @@
     }
 
     .form-cell label {
-    position: absolute; /* Use absolute positioning */
-    top: 50%; /* Center vertically relative to the parent */
-    left: 50px; /* Give enough space for the step icon */
-    transform: translateY(-50%); /* Adjust vertical positioning */
-    color: #333;
-    font-size: 16px;
-    font-weight: bold;
-    margin-top: 0;
-    margin-bottom: 0;
-}
-
-    #cell1 .form-cell label {
-    top: 10px; /* Position it slightly lower than the very top of the cell */
-    left: 50px; /* Maintain consistent positioning with other labels */
-    transform: translateY(0); /* No vertical shift needed as we're not centering it */
-}
+        position: absolute;
+        top: 10px;
+        left: 50px; /* Adjusted for step icon */
+        color: #333;
+        font-size: 16px;
+        font-weight: bold;
+    }
 
     .form-cell select, .form-cell button, .form-cell input[type="file"] {
         width: 80%;
@@ -80,7 +71,7 @@
 
     .step-icon {
         position: absolute;
-        top: 50%;
+        top: 5px;
         left: 5px;
         width: 35px;
         height: 35px;
@@ -91,19 +82,17 @@
         align-items: center;
         font-weight: bold;
         color: #fff;
-        font-size: 24px;
-        transform: translateY(-50%);
     }
 
     .form-cell.disabled .step-icon {
-        background-color: #cccccc;
+        background-color: #cccccc; /* Grey color for disabled state */
     }
 
     #cell1Image {
         width: 30px;
         height: 30px;
-        margin-top: 15px;
-        margin-bottom: 10px;
+        margin-top: 15px; /* Added to move the image down */
+        margin-bottom: 10px; /* Existing space between image and label, adjust if needed */
     }
 
     .form-cell.disabled #cell1Image {
@@ -111,21 +100,29 @@
     }
 
     @media screen and (max-width: 768px) {
-        #viewDiv {
-            width: 100%;
-            height: 50%;
-        }
-        .form-container {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 50%;
-        }
-        .form-cell {
-            min-height: 60px;
-        }
+    #viewDiv {
+        width: 100%;
+        height: 50%;
     }
+    .form-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 50%;
+    }
+    .form-cell {
+        min-height: 60px; /* Adjusts height for smaller screens */
+    }
+
+    /* Legend placement on smaller screens */
+    .legend {
+        top: 10px;
+        right: 10px;
+        bottom: unset;
+        left: unset;
+    }
+}
 
     @media screen and (min-width: 769px) {
         .form-container {
@@ -138,33 +135,29 @@
     }
 
     @media screen and (max-width: 500px) and (orientation: portrait) {
-        .legend {
-            bottom: 5px !important;
-            right: 5px !important;
-            top: unset !important;
-            left: unset !important;
-        }
+    .legend {
+        bottom: 5px !important;
+        right: 5px !important;
+        top: unset !important;
+        left: unset !important;
     }
-
-    #submitReport, .custom-file-upload {
-    cursor: pointer;
-    transition: background-color 0.3s;
-    padding: 10px 20px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    box-sizing: border-box;
-    width: 80%; /* Adjust based on your design */
-    background-color: #2B88C2; /* Blue color */
-    color: #fff; /* White text color */
-    text-align: center; /* Center the text in the button */
-    display: block; /* Make the button a block element to ensure it takes its own space */
-    margin: 10px auto; /* Center the button and add margin on top and bottom */
 }
-
-    #submitReport:enabled:hover, .custom-file-upload:hover {
-        background-color: #1A5E89;
+        
+    #submitReport {
+        cursor: pointer;
+        transition: background-color 0.3s;
     }
 
+    #submitReport:enabled {
+        background-color: #2B88C2; /* Blue color */
+        color: #fff; /* White text color */
+    }
+
+    #submitReport:enabled:hover {
+        background-color: #1A5E89; /* Darker blue color on hover */
+    }
+
+    /* Styles for Legend */
     .legend {
         position: absolute;
         top: 15px;
@@ -188,34 +181,38 @@
         margin-right: 5px;
     }
 
+    /* Adjusted position for search widget */
     .esri-search {
         position: absolute;
         top: 0px;
-        left: calc(100% + 10px);
-        z-index: 50;
+        left: calc(100% + 10px); /* Adjusted position */
+        z-index: 50; /* Ensure it's above the map controls */
     }
 
+    /* CSS for modal */
     .modal {
-        display: none;
-        position: fixed;
-        z-index: 1000;
+        display: none; /* Hidden by default */
+        position: fixed; /* Stay in place */
+        z-index: 1000; /* Sit on top */
         left: 0;
         top: 0;
-        width: 100%;
-        height: 100%;
-        overflow: auto;
-        background-color: rgb(0,0,0);
-        background-color: rgba(0,0,0,0.4);
+        width: 100%; /* Full width */
+        height: 100%; /* Full height */
+        overflow: auto; /* Enable scroll if needed */
+        background-color: rgb(0,0,0); /* Fallback color */
+        background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
     }
 
+    /* Modal content */
     .modal-content {
         background-color: #fefefe;
-        margin: 15% auto;
+        margin: 15% auto; /* 15% from the top and centered */
         padding: 20px;
         border: 1px solid #888;
-        width: 80%;
+        width: 80%; /* Could be more or less, depending on screen size */
     }
 
+    /* Close button */
     .close {
         color: #aaa;
         float: right;
@@ -229,17 +226,11 @@
         text-decoration: none;
         cursor: pointer;
     }
-
-    .custom-file-input {
-        display: none;
-    }
-
-    
-        
     </style>
 </head>
 <body>
     <div id="viewDiv">
+        <!-- Legend Markup -->
         <div class="legend">
             <div class="legend-item">
                 <img src="https://i.ibb.co/d66qjXx/esri-locate-me-blue-dot2.png" alt="Current Location Icon" class="legend-icon">
@@ -269,23 +260,25 @@
             </select>
         </div>
         <div class="form-cell disabled" id="cell3">
-    <label for="photoUpload" class="form-label">Photo (optional)</label>
-    <label for="photoUpload" class="custom-file-upload" id="uploadButton">Upload Photo(s)</label>
-    <div class="step-icon">3</div>
-</div>
-
+            <label>Photo (optional)</label>
+            <div class="step-icon">3</div>
+            <input type="file" id="photoUpload" name="photo" disabled>
+        </div>
         <div class="form-cell disabled" id="cell4">
             <label>Submit Report</label>
             <div class="step-icon">4</div>
             <button type="submit" id="submitReport" disabled>Submit Report</button>
         </div>
     </div>
+    <!-- Modal for successful report submission -->
     <div id="successModal" class="modal">
       <div class="modal-content">
         <span class="close">&times;</span>
         <p>Report submitted. Thank you!</p>
       </div>
     </div>
+
+    <!-- Modal for location not within MPRB's Responsibility -->
     <div id="locationErrorModal" class="modal">
       <div class="modal-content">
         <span class="close">&times;</span>
@@ -316,19 +309,26 @@
     }
 
     function checkIssueType() {
-        var issueType = document.getElementById('issueType').value;
-        if (issueType !== 'Select an Issue') {
-            enableCell('cell3');
-            enableCell('cell4');
-        } else {
-            disableCell('cell3');
-            disableCell('cell4');
-        }
+    console.log("Checking issue type...");
+    var issueType = document.getElementById('issueType').value;
+    console.log("Selected issue type:", issueType);
+    if (issueType !== 'Select an Issue') {
+        console.log("Issue type is not 'Select an Issue'. Enabling cells...");
+        enableCell('cell3');
+        enableCell('cell4');
+    } else {
+        console.log("Issue type is 'Select an Issue'. Disabling cells...");
+        disableCell('cell3');
+        disableCell('cell4');
     }
+}
 
     function submitReport() {
+        console.log('Report submitted!');
+        // Show success modal
         var successModal = document.getElementById("successModal");
         successModal.style.display = "block";
+        // Hide success modal after 3 seconds
         setTimeout(function(){
             successModal.style.display = "none";
         }, 3000);
@@ -340,147 +340,155 @@
     }
 
     require([
-        "esri/Map",
-        "esri/views/MapView",
-        "esri/Graphic",
-        "esri/layers/GraphicsLayer",
-        "esri/widgets/Locate",
-        "esri/geometry/Point",
-        "esri/symbols/PictureMarkerSymbol",
-        "esri/layers/FeatureLayer",
-        "esri/rest/support/Query",
-        "esri/widgets/Search",
-        "esri/WebMap"
-    ], function(Map, MapView, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query, Search, WebMap) {
-        const webmap = new WebMap({
-            portalItem: {
-                id: "32aa25434f284e48a88fc9ff499b0fd8"
-            }
-        });
-
-        var featureLayer = new FeatureLayer({
-            url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
-        });
-
-        var view = new MapView({
-            container: "viewDiv",
-            map: webmap,
-            center: [-93.2650, 44.9778],
-            zoom: 12,
-            popup: null
-        });
-
-        var graphicsLayer = new GraphicsLayer();
-        view.map.add(graphicsLayer);
-
-        var locateWidget = new Locate({
-            view: view,
-            rotationEnabled: false
-        });
-
-        var searchWidget = new Search({
-            view: view,
-            resultGraphicEnabled: false,
-            includeDefaultSources: false,
-            sources: [
-                {
-                    locator: {
-                        url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Locators/MPRBParksBuildings_Locator/GeocodeServer",
-                    },
-                    singleLineFieldName: "SingleLine",
-                    name: "MPRB Parks & Buildings Locator",
-                    placeholder: "Search Park Name",
-                },
-                {
-                    layer: featureLayer,
-                    searchFields: ["Name_Primary"],
-                    displayField: "Name_Primary",
-                    exactMatch: false,
-                    outFields: ["Name_Primary"],
-                    name: "MPRB Locations",
-                    placeholder: "Search Park Name"
-                }
-            ]
-        });
-
-        view.ui.add(locateWidget, "top-left");
-        view.ui.add(searchWidget, {
-            position: "top-left",
-            index: view.ui.find("zoom").index + 1
-        });
-
-        searchWidget.when(function() {
-            var searchInput = searchWidget.container.querySelector(".esri-search__input");
-            searchInput.placeholder = "Search Park Name";
-        });
-
-        view.ui.add(searchWidget, {
-            position: "top-left",
-            index: view.ui.find("zoom").index + 1
-        });
-
-        var pointGraphic;
-
-        view.when().then(function() {
-            locateWidget.locate().catch(function(error) {
-                console.error("Locate widget error:", error.message);
-            });
-
-            view.on("click", function(event) {
-                var query = featureLayer.createQuery();
-                query.geometry = event.mapPoint;
-                query.spatialRelationship = "intersects";
-                query.outFields = ["*"];
-                query.returnGeometry = true;
-
-                featureLayer.queryFeatures(query).then(function(result) {
-                    if (result.features.length > 0) {
-                        if (pointGraphic) {
-                            graphicsLayer.remove(pointGraphic);
-                        }
-                        pointGraphic = new Graphic({
-                            geometry: event.mapPoint,
-                            symbol: new PictureMarkerSymbol({
-                                url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
-                                width: "36px",
-                                height: "36px"
-                            })
-                        });
-                        graphicsLayer.add(pointGraphic);
-                        disableCell('cell1');
-                        enableCell('cell2');
-                        checkIssueType();
-                    } else {
-                        var locationErrorModal = document.getElementById("locationErrorModal");
-                        locationErrorModal.style.display = "block";
-                        setTimeout(function(){
-                            locationErrorModal.style.display = "none";
-                        }, 3000);
-                        enableCell('cell1');
-                        disableCell('cell2');
-                        disableCell('cell3');
-                        disableCell('cell4');
-                        if (pointGraphic) {
-                            graphicsLayer.remove(pointGraphic);
-                        }
-                    }
-                }).catch(function(error) {
-                    console.error("Error querying features:", error);
-                });
-            });
-
-            disableCell('cell2');
-            disableCell('cell3');
-            disableCell('cell4');
-        });
+    "esri/Map",
+    "esri/views/MapView",
+    "esri/Graphic",
+    "esri/layers/GraphicsLayer",
+    "esri/widgets/Locate",
+    "esri/geometry/Point",
+    "esri/symbols/PictureMarkerSymbol",
+    "esri/layers/FeatureLayer",
+    "esri/rest/support/Query",
+    "esri/widgets/Search",
+    "esri/WebMap"
+], function(Map, MapView, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query, Search, WebMap) {
+    const webmap = new WebMap({
+        portalItem: { // autocasts as new PortalItem()
+            id: "32aa25434f284e48a88fc9ff499b0fd8"
+        }
     });
 
+    var featureLayer = new FeatureLayer({
+        url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
+    });
+
+    var view = new MapView({
+        container: "viewDiv",
+        map: webmap,
+        center: [-93.2650, 44.9778], // Center on Minneapolis
+        zoom: 12,
+        popup: null // Disable popups
+    });
+
+    var graphicsLayer = new GraphicsLayer();
+    view.map.add(graphicsLayer);
+
+    var locateWidget = new Locate({
+        view: view,
+        rotationEnabled: false
+    });
+
+    var searchWidget = new Search({
+        view: view,
+        includeDefaultSources: false, // Remove Esri World Geocoder
+        sources: [
+            {
+                locator: {
+                    url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Locators/MPRBParksBuildings_Locator/GeocodeServer",
+                },
+                singleLineFieldName: "SingleLine",
+                name: "MPRB Parks & Buildings Locator",
+                placeholder: "Search Park Name",
+            },
+            {
+                layer: featureLayer, // Specify the feature layer to search within
+                searchFields: ["Name_Primary"], // Specify the fields to search within
+                displayField: "Name_Primary", // Specify the field to display in the search results
+                exactMatch: false, // Allow partial matching
+                outFields: ["Name_Primary"], // Return all fields in the search results
+                name: "MPRB Locations",
+                placeholder: "Search Park Name"
+            }
+        ]
+    });
+        
+         
+    view.ui.add(locateWidget, "top-left");
+    view.ui.add(searchWidget, {
+        position: "top-left", // Position the search widget next to the zoom controls
+        index: view.ui.find("zoom").index + 1
+    });
+
+    // Wait for the search widget to be fully loaded
+    searchWidget.when(function() {
+        // Access the input node of the search widget and update its placeholder attribute
+        var searchInput = searchWidget.container.querySelector(".esri-search__input");
+        searchInput.placeholder = "Search Park Name";
+    });
+
+    view.ui.add(searchWidget, {
+        position: "top-left", // Position the search widget next to the zoom controls
+        index: view.ui.find("zoom").index + 1
+    });
+
+    var pointGraphic;
+
+    view.when().then(function() {
+        locateWidget.locate().catch(function(error) {
+            console.error("Locate widget error:", error.message);
+        });
+
+        view.on("click", function(event) {
+            var query = featureLayer.createQuery();
+            query.geometry = event.mapPoint;
+            query.spatialRelationship = "intersects";
+            query.outFields = ["*"];
+            query.returnGeometry = true;
+
+            featureLayer.queryFeatures(query).then(function(result) {
+                if (result.features.length > 0) {
+                    if (pointGraphic) {
+                        graphicsLayer.remove(pointGraphic);
+                    }
+                    pointGraphic = new Graphic({
+                        geometry: event.mapPoint,
+                        symbol: new PictureMarkerSymbol({
+                            url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
+                            width: "36px",
+                            height: "36px"
+                        })
+                    });
+                    graphicsLayer.add(pointGraphic);
+                    disableCell('cell1');
+                    enableCell('cell2');
+                    checkIssueType();
+                } else {
+                    // Show error modal
+                    var locationErrorModal = document.getElementById("locationErrorModal");
+                    locationErrorModal.style.display = "block";
+                    // Hide error modal after 3 seconds
+                    setTimeout(function(){
+                        locationErrorModal.style.display = "none";
+                    }, 3000);
+                    enableCell('cell1');
+                    disableCell('cell2');
+                    disableCell('cell3');
+                    disableCell('cell4');
+                    if (pointGraphic) {
+                        graphicsLayer.remove(pointGraphic);
+                    }
+                }
+            }).catch(function(error) {
+                console.error("Error querying features:", error);
+            });
+        });
+
+        disableCell('cell2');
+        disableCell('cell3');
+        disableCell('cell4');
+    });
+});
+    </script>
+    <script>
+    // Get the modals
     var successModal = document.getElementById("successModal");
     var locationErrorModal = document.getElementById("locationErrorModal");
 
+    // Get the <span> element that closes the modal
     var successSpan = document.getElementsByClassName("close")[0];
     var locationErrorSpan = document.getElementsByClassName("close")[1];
 
+    // When the user clicks on <span> (x), close the modal
     successSpan.onclick = function() {
         successModal.style.display = "none";
     }
@@ -489,6 +497,7 @@
         locationErrorModal.style.display = "none";
     }
 
+    // When the user clicks anywhere outside of the modal, close it
     window.onclick = function(event) {
         if (event.target == successModal) {
             successModal.style.display = "none";
