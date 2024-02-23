@@ -19,7 +19,7 @@
         height: 100%;
         width: 70%;
         float: left;
-        position: relative; /* Ensure relative positioning */
+        position: relative;
     }
 
     .form-container {
@@ -44,7 +44,7 @@
         align-items: center;
         justify-content: center;
         flex-direction: column;
-        min-height: 75px; /* Ensures cells have at least this height but can grow */
+        min-height: 75px;
     }
 
     .form-cell.disabled {
@@ -54,7 +54,7 @@
     .form-cell label {
         position: absolute;
         top: 10px;
-        left: 50px; /* Adjusted for step icon */
+        left: 50px;
         color: #333;
         font-size: 16px;
         font-weight: bold;
@@ -85,14 +85,14 @@
     }
 
     .form-cell.disabled .step-icon {
-        background-color: #cccccc; /* Grey color for disabled state */
+        background-color: #cccccc;
     }
 
     #cell1Image {
         width: 30px;
         height: 30px;
-        margin-top: 15px; /* Added to move the image down */
-        margin-bottom: 10px; /* Existing space between image and label, adjust if needed */
+        margin-top: 15px;
+        margin-bottom: 10px;
     }
 
     .form-cell.disabled #cell1Image {
@@ -100,29 +100,27 @@
     }
 
     @media screen and (max-width: 768px) {
-    #viewDiv {
-        width: 100%;
-        height: 40%;
+        #viewDiv {
+            width: 100%;
+            height: 40%;
+        }
+        .form-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60%;
+        }
+        .form-cell {
+            min-height: 75px;
+        }
+        .legend {
+            top: 10px;
+            right: 10px;
+            bottom: unset;
+            left: unset;
+        }
     }
-    .form-container {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 60%;
-    }
-    .form-cell {
-        min-height: 75px; /* Adjusts height for smaller screens */
-    }
-
-    /* Legend placement on smaller screens */
-    .legend {
-        top: 10px;
-        right: 10px;
-        bottom: unset;
-        left: unset;
-    }
-}
 
     @media screen and (min-width: 769px) {
         .form-container {
@@ -135,13 +133,13 @@
     }
 
     @media screen and (min-width: 1400px) {
-    #viewDiv {
-        width: 80%;
+        #viewDiv {
+            width: 80%;
+        }
+        .form-container {
+            width: 20%;
+        }
     }
-    .form-container {
-        width: 20%;
-    }
-}
 
     #submitReport {
         cursor: pointer;
@@ -149,15 +147,14 @@
     }
 
     #submitReport:enabled {
-        background-color: #2B88C2; /* Blue color */
-        color: #fff; /* White text color */
+        background-color: #2B88C2;
+        color: #fff;
     }
 
     #submitReport:enabled:hover {
-        background-color: #1A5E89; /* Darker blue color on hover */
+        background-color: #1A5E89;
     }
 
-    /* Styles for Legend */
     .legend {
         position: absolute;
         top: 10px;
@@ -179,6 +176,14 @@
         width: 20px;
         height: 20px;
         margin-right: 5px;
+    }
+
+    /* Additional CSS for search widget placement */
+    #searchWidget {
+        position: absolute;
+        top: 15px;
+        left: 20px; /* Adjust this value based on actual UI layout */
+        z-index: 100; /* Ensure search widget is above other map elements */
     }
     </style>
 </head>
@@ -224,164 +229,121 @@
         </div>
     </div>
     <script>
-    var currentCellIndex = 1; // Initial active cell index
-
-    function enableCell(cellId) {
-        var cell = document.getElementById(cellId);
-        cell.classList.remove('disabled');
-        var inputs = cell.querySelectorAll('select, input[type="file"], button');
-        inputs.forEach(input => input.disabled = false);
-
-        if (cellId === 'cell1') {
-            currentCellIndex = 1;
-        } else {
-            currentCellIndex++;
-        }
-    }
-
-    function disableCell(cellId) {
-        var cell = document.getElementById(cellId);
-        cell.classList.add('disabled');
-        var inputs = cell.querySelectorAll('select, input[type="file"], button');
-        inputs.forEach(input => input.disabled = true);
-    }
-
-    function checkIssueType() {
-        var issueType = document.getElementById('issueType').value;
-        if (issueType !== 'Pothole') {
-            enableCell('cell3');
-            enableCell('cell4');
-        } else {
-            disableCell('cell3');
-            disableCell('cell4');
-        }
-    }
-
-    function submitReport() {
-        console.log('Report submitted!');
-        alert('Report submitted. Thank you!');
-        enableCell('cell1');
-        disableCell('cell2');
-        disableCell('cell3');
-        disableCell('cell4');
-    }
-
     require([
-    "esri/Map",
-    "esri/views/MapView",
-    "esri/widgets/Search",
-    "esri/Graphic",
-    "esri/layers/GraphicsLayer",
-    "esri/widgets/Locate",
-    "esri/geometry/Point",
-    "esri/symbols/PictureMarkerSymbol",
-    "esri/layers/FeatureLayer",
-    "esri/rest/support/Query",
-    "esri/WebMap",
-    "esri/rest/Locator"
-  ], function(Map, MapView, Search, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query, WebMap, Locator) {
-    const webmap = new WebMap({
-      portalItem: { // autocasts as new PortalItem()
-        id: "32aa25434f284e48a88fc9ff499b0fd8"
-      }
-    });
-
-    var view = new MapView({
-      container: "viewDiv",
-      map: webmap,
-      center: [-93.2650, 44.9778], // Center on Minneapolis
-      zoom: 12
-    });
-
-    var graphicsLayer = new GraphicsLayer();
-    view.map.add(graphicsLayer);
-
-    var locateWidget = new Locate({
-      view: view,
-      rotationEnabled: false
-    });
-
-    view.ui.add(locateWidget, "top-left");
-
-    var searchWidget = new Search({
-      view: view,
-      sources: [{
-        locator: new Locator("https://gis.minneapolisparks.org/arcgisprod/rest/services/Locators/MPRBParksBuildings_Locator/GeocodeServer"),
-        singleLineFieldName: "SingleLine",
-        name: "Minneapolis Parks and Buildings",
-        placeholder: "Search for a park or building",
-        maxResults: 3,
-        maxSuggestions: 6,
-        suggestionsEnabled: true,
-        minSuggestCharacters: 0
-      }],
-      includeDefaultSources: false
-    });
-
-    // Add the search widget to the top right corner of the view
-    view.ui.add(searchWidget, {
-      position: "top-right",
-      index: 0 // Ensures the widget is added as the first UI element
-    });
-
-    // Expand the Search widget by default by simulating a blank search
-    searchWidget.searchTerm = " ";
-
-    var pointGraphic;
-
-    view.when().then(function() {
-      locateWidget.locate().catch(function(error) {
-        console.error("Locate widget error:", error.message);
-      });
-
-      var featureLayer = new FeatureLayer({
-        url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
-      });
-
-      view.on("click", function(event) {
-        var query = featureLayer.createQuery();
-        query.geometry = event.mapPoint;
-        query.spatialRelationship = "intersects";
-        query.outFields = ["*"];
-        query.returnGeometry = true;
-
-        featureLayer.queryFeatures(query).then(function(result) {
-          if (result.features.length > 0) {
-            if (pointGraphic) {
-              graphicsLayer.remove(pointGraphic);
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/widgets/Search",
+        "esri/Graphic",
+        "esri/layers/GraphicsLayer",
+        "esri/widgets/Locate",
+        "esri/geometry/Point",
+        "esri/symbols/PictureMarkerSymbol",
+        "esri/layers/FeatureLayer",
+        "esri/rest/support/Query",
+        "esri/WebMap"
+    ], function(Map, MapView, Search, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query, WebMap) {
+        const webmap = new WebMap({
+            portalItem: {
+                id: "32aa25434f284e48a88fc9ff499b0fd8"
             }
-            pointGraphic = new Graphic({
-              geometry: event.mapPoint,
-              symbol: new PictureMarkerSymbol({
-                url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
-                width: "36px",
-                height: "36px"
-              })
+        });
+
+        var view = new MapView({
+            container: "viewDiv",
+            map: webmap,
+            center: [-93.2650, 44.9778],
+            zoom: 12
+        });
+
+        var graphicsLayer = new GraphicsLayer();
+        view.map.add(graphicsLayer);
+
+        var locateWidget = new Locate({
+            view: view,
+            useHeadingEnabled: false
+        });
+
+        view.ui.add(locateWidget, "top-left");
+
+        var searchWidget = new Search({
+            view: view,
+            container: "searchWidget",
+            sources: [{
+                locator: new esri.rest.Locator("https://gis.minneapolisparks.org/arcgisprod/rest/services/Locators/MPRBParksBuildings_Locator/GeocodeServer"),
+                singleLineFieldName: "SingleLine",
+                name: "Minneapolis Parks and Buildings",
+                placeholder: "Search for a park or building",
+                maxResults: 3,
+                maxSuggestions: 6,
+                suggestionsEnabled: true,
+                minSuggestCharacters: 0
+            }],
+            includeDefaultSources: false
+        });
+
+        // Position the search widget on the UI
+        view.ui.add(searchWidget, {
+            position: "top-left",
+            index: 1
+        });
+
+        var pointGraphic;
+
+        view.when().then(function() {
+            locateWidget.locate().then(function(){
+                console.log("Location has been found.");
+            }).catch(function(error) {
+                console.error("Locate widget error:", error);
             });
-            graphicsLayer.add(pointGraphic);
-            disableCell('cell1');
-            enableCell('cell2');
-            checkIssueType();
-          } else {
-            alert("Location is not within MPRB's Responsibility");
-            enableCell('cell1');
+
+            var featureLayer = new FeatureLayer({
+                url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
+            });
+
+            view.on("click", function(event) {
+                var query = featureLayer.createQuery();
+                query.geometry = event.mapPoint;
+                query.spatialRelationship = "intersects";
+                query.outFields = ["*"];
+                query.returnGeometry = true;
+
+                featureLayer.queryFeatures(query).then(function(result) {
+                    if (result.features.length > 0) {
+                        if (pointGraphic) {
+                            graphicsLayer.remove(pointGraphic);
+                        }
+                        pointGraphic = new Graphic({
+                            geometry: event.mapPoint,
+                            symbol: new PictureMarkerSymbol({
+                                url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
+                                width: "36px",
+                                height: "36px"
+                            })
+                        });
+                        graphicsLayer.add(pointGraphic);
+                        disableCell('cell1');
+                        enableCell('cell2');
+                        checkIssueType();
+                    } else {
+                        alert("Location is not within MPRB's Responsibility");
+                        enableCell('cell1');
+                        disableCell('cell2');
+                        disableCell('cell3');
+                        disableCell('cell4');
+                        if (pointGraphic) {
+                            graphicsLayer.remove(pointGraphic);
+                        }
+                    }
+                }).catch(function(error) {
+                    console.error("Error querying features:", error);
+                });
+            });
+
             disableCell('cell2');
             disableCell('cell3');
             disableCell('cell4');
-            if (pointGraphic) {
-              graphicsLayer.remove(pointGraphic);
-            }
-          }
-        }).catch(function(error) {
-          console.error("Error querying features:", error);
         });
-      });
-
-      disableCell('cell2');
-      disableCell('cell3');
-      disableCell('cell4');
     });
-  });
     </script>
 </body>
 </html>
