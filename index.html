@@ -13,46 +13,12 @@
         padding: 0;
         height: 100%;
         overflow: hidden;
-        position: relative;
-    }
-
-    .header {
-        background-color: #ffffff;
-        text-align: center;
-        padding: 10px;
-        position: relative;
-        top: 0;
-        width: 70%;
-        left: 0;
-        right: 0;
-        margin: 0 auto;
-        z-index: 1000;
-    }
-
-    .header img {
-        width: 50px;
-        height: auto;
-        vertical-align: middle;
-    }
-
-    .header h1 {
-        display: inline-block;
-        margin: 0;
-        vertical-align: middle;
-        margin-left: 10px;
-    }
-
-    #mapContainer {
-        position: absolute;
-        top: 50px; /* Adjust based on header height */
-        left: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 0;
+        position: relative; /* Add this to ensure positioning works properly */
     }
 
     #viewDiv {
-        height: 100%;
+        height: 100%; /* Adjusted to occupy the full height */
+        width: 100%; /* Adjusted to occupy the full width */
     }
 
     .form-container {
@@ -65,7 +31,6 @@
         right: 0;
         width: 30%;
         height: 100%;
-        z-index: 1000;
     }
 
     .form-cell {
@@ -78,7 +43,7 @@
         align-items: center;
         justify-content: center;
         flex-direction: column;
-        min-height: 75px;
+        min-height: 75px; /* Ensures cells have at least this height but can grow */
     }
 
     .form-cell.disabled {
@@ -88,7 +53,7 @@
     .form-cell label {
         position: absolute;
         top: 10px;
-        left: 50px;
+        left: 50px; /* Adjusted for step icon */
         color: #333;
         font-size: 16px;
         font-weight: bold;
@@ -119,14 +84,14 @@
     }
 
     .form-cell.disabled .step-icon {
-        background-color: #cccccc;
+        background-color: #cccccc; /* Grey color for disabled state */
     }
 
     #cell1Image {
         width: 30px;
         height: 30px;
-        margin-top: 15px;
-        margin-bottom: 10px;
+        margin-top: 15px; /* Added to move the image down */
+        margin-bottom: 10px; /* Existing space between image and label, adjust if needed */
     }
 
     .form-cell.disabled #cell1Image {
@@ -134,21 +99,21 @@
     }
 
     @media screen and (max-width: 768px) {
-    #mapContainer {
-        top: 100px; /* Adjust based on header height */
+        #viewDiv {
+            width: 100%;
+            height: 40%;
+        }
+        .form-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60%;
+        }
+        .form-cell {
+            min-height: 75px; /* Adjusts height for smaller screens */
+        }
     }
-
-    .form-container {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 60%;
-    }
-    .form-cell {
-        min-height: 75px;
-    }
-}
 
     @media screen and (min-width: 769px) {
         .form-container {
@@ -158,16 +123,6 @@
             right: 0;
             top: 0;
         }
-        .legend {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background-color: rgba(255, 255, 255, 0.8);
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
-        }
     }
 
     #submitReport {
@@ -176,12 +131,12 @@
     }
 
     #submitReport:enabled {
-        background-color: #4e8cff;
-        color: #fff;
+        background-color: #4e8cff; /* Blue color */
+        color: #fff; /* White text color */
     }
 
     #submitReport:enabled:hover {
-        background-color: #3666b8;
+        background-color: #3666b8; /* Darker blue color on hover */
     }
 
     /* Styles for Legend */
@@ -193,8 +148,7 @@
         padding: 10px;
         border-radius: 5px;
         box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
-        z-index: 1000;
-        display: block;
+        z-index: 1000; /* Ensure the legend is above other elements */
     }
 
     .legend-item {
@@ -211,22 +165,16 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <img src="logo.png" alt="Logo">
-        <h1>Report a Park Issue</h1>
-    </div>
-    <div id="mapContainer">
-        <div id="viewDiv"></div>
-        <!-- Legend Markup -->
-        <div class="legend">
-            <div class="legend-item">
-                <img src="https://i.ibb.co/d66qjXx/esri-locate-me-blue-dot2.png" alt="Current Location Icon" class="legend-icon">
-                <span>Current Location</span>
-            </div>
-            <div class="legend-item">
-                <img src="https://i.ibb.co/j6ZWfnW/map-location-marker.png" alt="Issue Location Icon" class="legend-icon">
-                <span>Issue Location</span>
-            </div>
+    <div id="viewDiv"></div>
+    <!-- Legend Markup -->
+    <div class="legend">
+        <div class="legend-item">
+            <img src="https://i.ibb.co/d66qjXx/esri-locate-me-blue-dot2.png" alt="Current Location Icon" class="legend-icon">
+            <span>Current Location</span>
+        </div>
+        <div class="legend-item">
+            <img src="https://i.ibb.co/j6ZWfnW/map-location-marker.png" alt="Issue Location Icon" class="legend-icon">
+            <span>Issue Location</span>
         </div>
     </div>
     <div class="form-container">
@@ -257,7 +205,7 @@
         </div>
     </div>
     <script>
-    var currentCellIndex = 1;
+    var currentCellIndex = 1; // Initial active cell index
 
     function enableCell(cellId) {
         var cell = document.getElementById(cellId);
@@ -317,7 +265,7 @@
         var view = new MapView({
             container: "viewDiv",
             map: map,
-            center: [-93.2650, 44.9778],
+            center: [-93.2650, 44.9778], // Center on Minneapolis
             zoom: 12
         });
 
