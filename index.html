@@ -31,33 +31,47 @@
             height: 50%;
         }
         .form-cell {
-            border: 1px solid #ddd; /* Light gray rectangular outline */
+            position: relative;
+            border: 1px solid #ddd;
             padding: 20px;
-            margin-bottom: -1px; /* Remove spacing between cells */
-            height: 75px; /* Set height to 75 pixels */
-            position: relative; /* Position for overlay text */
-            text-align: center; /* Center align header text */
-            background-color: #f9f9f9; /* Default background color */
+            margin-bottom: -1px;
+            height: 75px;
+            text-align: center;
+            background-color: #ffffff;
         }
         .form-cell.disabled {
-            background-color: #f0f0f0; /* Greyed out background color */
+            background-color: #f0f0f0;
         }
         .form-cell label {
             position: absolute;
             top: 10px;
             left: 10px;
-            color: #333; /* Darker text color */
-            font-size: 16px; /* Larger font size */
-            font-weight: bold; /* Bold font weight */
+            color: #333;
+            font-size: 16px;
+            font-weight: bold;
         }
         .form-cell select, .form-cell button, .form-cell input[type="file"] {
-            width: 80%; /* Take up 80% width of cell */
+            width: 80%;
             padding: 10px;
-            margin-top: 30px; /* Adjust for overlay text */
+            margin-top: 30px;
             margin-bottom: 8px;
             border: 1px solid #ccc;
             border-radius: 5px;
-            box-sizing: border-box; /* Include padding and border in width calculation */
+            box-sizing: border-box;
+        }
+        .step-icon {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 25px;
+            height: 25px;
+            background-color: #24811B; /* Green color for enabled cell 1 */
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: #fff; /* White text color */
         }
         @media screen and (max-width: 768px) {
             #viewDiv {
@@ -81,31 +95,18 @@
                 top: 0;
             }
         }
-        .step-icon {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            width: 25px;
-            height: 25px;
-            background-color: #ccc;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-weight: bold;
-        }
     </style>
 </head>
 <body>
     <div id="viewDiv"></div>
     <div class="form-container">
         <div class="form-cell" id="cell1">
-            <div class="step-icon" style="background-color: #24811B;">1</div>
             <label>Location (click on the map):</label>
+            <div class="step-icon">1</div>
         </div>
         <div class="form-cell disabled" id="cell2">
-            <div class="step-icon">2</div>
             <label>Select Issue Type</label>
+            <div class="step-icon">2</div>
             <select id="issueType" name="issueType" onchange="checkIssueType()" disabled>
                 <option value="Pothole">Pothole</option>
                 <option value="Streetlight">Streetlight</option>
@@ -114,13 +115,13 @@
             </select>
         </div>
         <div class="form-cell disabled" id="cell3">
-            <div class="step-icon">3</div>
             <label>Photo (optional):</label>
+            <div class="step-icon">3</div>
             <input type="file" id="photoUpload" name="photo" disabled>
         </div>
         <div class="form-cell disabled" id="cell4">
+            <label>Submit Report</label>
             <div class="step-icon">4</div>
-            <label>Submit Report:</label>
             <button type="submit" id="submitReport" disabled>Submit Report</button>
         </div>
     </div>
@@ -137,11 +138,7 @@
             }
             var stepIcon = cell.querySelector('.step-icon');
             if (stepIcon) {
-                if (cellId === 'cell1') {
-                    stepIcon.style.backgroundColor = '#24811B'; // Set green color when cell1 is enabled
-                } else {
-                    stepIcon.style.backgroundColor = '#fff'; // Set background color to white when other cells are enabled
-                }
+                stepIcon.style.backgroundColor = '#24811B'; // Set green color when enabled
             }
             currentCellIndex++;
 
@@ -163,13 +160,31 @@
             }
         }
 
+        // Function to submit the report
+        function submitReport() {
+            // Add your code to submit the report here
+            console.log('Report submitted!');
+            alert('Report submitted. Thank you!');
+            // Reset cells after report submission
+            enableCell('cell1');
+            disableCell('cell2');
+            disableCell('cell3');
+            disableCell('cell4');
+        }
+
         function disableCell(cellId) {
             var cell = document.getElementById(cellId);
-            cell.classList.add('disabled');
-            cell.querySelector('label').style.color = '#999'; // Set heading text color to gray
-            var stepIcon = cell.querySelector('.step-icon');
-            if (stepIcon) {
-                stepIcon.style.backgroundColor = '#ccc'; // Set background color to gray
+            if (cell) {
+                cell.classList.remove('enabled'); // Remove 'enabled' class to revert to default background color
+                cell.classList.add('disabled');
+                var label = cell.querySelector('label');
+                if (label) {
+                    label.style.color = '#999'; // Set heading text color to gray
+                }
+                var stepIcon = cell.querySelector('.step-icon');
+                if (stepIcon) {
+                    stepIcon.style.backgroundColor = '#ddd'; // Default gray color when disabled
+                }
             }
         }
 
@@ -180,27 +195,6 @@
                 enableCell('cell3');
                 enableCell('cell4');
             }
-        }
-
-        function submitReport() {
-            // Add your code to submit the report here
-
-            // Show message
-            alert('Report submitted. Thank you!');
-
-            // Reset cells
-            resetCells();
-        }
-
-        function resetCells() {
-            // Enable cell1 and disable other cells
-            enableCell('cell1');
-            disableCell('cell2');
-            disableCell('cell3');
-            disableCell('cell4');
-
-            // Clear file input value
-            document.getElementById('photoUpload').value = '';
         }
 
         require([
