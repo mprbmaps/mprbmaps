@@ -132,150 +132,160 @@
         </div>
     </div>
     <script>
-        var currentCellIndex = 1; // Variable to track the current active cell index
+    var currentCellIndex = 1; // Variable to track the current active cell index
 
-        function enableCell(cellId) {
-            var cell = document.getElementById(cellId);
-            cell.classList.remove('disabled');
+    function enableCell(cellId) {
+        var cell = document.getElementById(cellId);
+        cell.classList.remove('disabled');
+        var label = cell.querySelector('label');
+        if (label) {
+            label.style.color = '#333'; // Set heading text color to black
+        }
+        var stepIcon = cell.querySelector('.step-icon');
+        if (stepIcon) {
+            stepIcon.style.backgroundColor = '#24811B'; // Set green color when enabled
+        }
+        currentCellIndex++;
+
+        // Enable dropdown if cell 2 is enabled
+        if (cellId === 'cell2') {
+            var issueTypeDropdown = document.getElementById('issueType');
+            issueTypeDropdown.disabled = false;
+        } else if (cellId === 'cell3') {
+            var fileUpload = document.getElementById('photoUpload');
+            fileUpload.disabled = false; // Enable file input
+        } else if (cellId === 'cell4') {
+            var submitButton = document.getElementById('submitReport');
+            submitButton.disabled = false; // Enable submit button
+            submitButton.addEventListener('click', submitReport);
+        }
+    }
+
+    function disableCell(cellId) {
+        var cell = document.getElementById(cellId);
+        if (cell) {
+            cell.classList.add('disabled');
             var label = cell.querySelector('label');
             if (label) {
-                label.style.color = '#333'; // Set heading text color to black
+                label.style.color = '#999'; // Set heading text color to gray
             }
             var stepIcon = cell.querySelector('.step-icon');
             if (stepIcon) {
-                stepIcon.style.backgroundColor = '#24811B'; // Set green color when enabled
+                stepIcon.style.backgroundColor = '#ddd'; // Default gray color when disabled
             }
-            currentCellIndex++;
-
-            // Enable dropdown if cell 2 is enabled
-            if (cellId === 'cell2') {
-                var issueTypeDropdown = document.getElementById('issueType');
-                issueTypeDropdown.disabled = false;
-            } else if (cellId === 'cell3') {
-                var fileUpload = document.getElementById('photoUpload');
-                fileUpload.disabled = false; // Enable file input
-            } else if (cellId === 'cell4') {
+            if(cellId === 'cell4') {
                 var submitButton = document.getElementById('submitReport');
-                submitButton.disabled = false; // Enable submit button
-                // Button styles are now directly applied in CSS based on the cell's state
-                // Add event listener to submit button
-                submitButton.addEventListener('click', submitReport);
+                submitButton.disabled = true; // Ensure button is disabled
             }
         }
+    }
 
-        function disableCell(cellId) {
-            var cell = document.getElementById(cellId);
-            if (cell) {
-                cell.classList.add('disabled');
-                var label = cell.querySelector('label');
-                if (label) {
-                    label.style.color = '#999'; // Set heading text color to gray
-                }
-                var stepIcon = cell.querySelector('.step-icon');
-                if (stepIcon) {
-                    stepIcon.style.backgroundColor = '#ddd'; // Default gray color when disabled
-                }
-                if(cellId === 'cell4') {
-                    var submitButton = document.getElementById('submitReport');
-                    submitButton.disabled = true; // Ensure button is disabled
-                }
-            }
+    function checkIssueType() {
+        var issueType = document.getElementById('issueType').value;
+        if (issueType !== 'Pothole') {
+            disableCell('cell2');
+            enableCell('cell3');
+            enableCell('cell4');
         }
+    }
 
-        function checkIssueType() {
-            var issueType = document.getElementById('issueType').value;
-            if (issueType !== 'Pothole') {
-                disableCell('cell2');
-                enableCell('cell3');
-                enableCell('cell4');
-            }
-        }
+    function submitReport() {
+        console.log('Report submitted!');
+        alert('Report submitted. Thank you!');
+        // Reset cells after report submission
+        disableCell('cell1');
+        disableCell('cell2');
+        disableCell('cell3');
+        disableCell('cell4');
+        currentCellIndex = 1; // Reset cell index
+    }
 
-        function submitReport() {
-            console.log('Report submitted!');
-            alert('Report submitted. Thank you!');
-            // Reset cells after report submission
-            disableCell('cell1');
+    require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/Graphic",
+        "esri/layers/GraphicsLayer",
+        "esri/widgets/Locate",
+        "esri/geometry/Point",
+        "esri/symbols/PictureMarkerSymbol",
+        "esri/layers/FeatureLayer",
+        "esri/rest/support/Query"
+    ], function(Map, MapView, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query) {
+        var map = new Map({
+            basemap: "streets-navigation-vector"
+        });
+
+        var view = new MapView({
+            container: "viewDiv",
+            map: map,
+            center: [-93.2650, 44.9778], // Center on Minneapolis
+            zoom: 12
+        });
+
+        var graphicsLayer = new GraphicsLayer();
+        map.add(graphicsLayer);
+
+        var locateWidget = new Locate({
+            view: view,
+            rotationEnabled: false // Use rotationEnabled instead of useHeadingEnabled
+        });
+
+        view.ui.add(locateWidget, "top-left");
+
+        var pointGraphic; // Declare pointGraphic here to ensure it is accessible within the scope of this function
+
+        view.when().then(function() {
+            locateWidget.locate().catch(function(error) {
+                console.error("Locate widget error:", error.message);
+            });
+
+            var featureLayer = new FeatureLayer({
+                url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
+            });
+
+            view.on("click", function(event) {
+                if (pointGraphic) {
+                    graphicsLayer.remove(pointGraphic);
+                }
+
+                var query = featureLayer.createQuery();
+                query.geometry = event.mapPoint;
+                query.spatialRelationship = "intersects";
+                query.outFields = ["*"];
+                query.returnGeometry = true;
+
+                featureLayer.queryFeatures(query).then(function(result) {
+                    if (result.features.length > 0) {
+                        disableCell('cell1');
+                        enableCell('cell2');
+
+                        pointGraphic = new Graphic({
+                            geometry: event.mapPoint,
+                            symbol: new PictureMarkerSymbol({
+                                url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
+                                width: "36px",
+                                height: "36px"
+                            })
+                        });
+                        graphicsLayer.add(pointGraphic); // Add new location graphic
+                    } else {
+                        alert("Location is not within MPRB's Responsibility");
+                        // Reset cells to initial state
+                        disableCell('cell2');
+                        disableCell('cell3');
+                        disableCell('cell4');
+                    }
+                }).catch(function(error) {
+                    console.error("Error querying features:", error);
+                });
+            });
+
+            // Initial setup: disable cells 2, 3, and 4
             disableCell('cell2');
             disableCell('cell3');
             disableCell('cell4');
-            currentCellIndex = 1; // Reset cell index
-        }
-
-        require([
-            "esri/Map",
-            "esri/views/MapView",
-            "esri/Graphic",
-            "esri/layers/GraphicsLayer",
-            "esri/widgets/Locate",
-            "esri/geometry/Point",
-            "esri/symbols/PictureMarkerSymbol",
-            "esri/layers/FeatureLayer",
-            "esri/rest/support/Query"
-        ], function(Map, MapView, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query) {
-            var map = new Map({
-                basemap: "streets-navigation-vector"
-            });
-
-            var view = new MapView({
-                container: "viewDiv",
-                map: map,
-                center: [-93.2650, 44.9778], // Center on Minneapolis
-                zoom: 12
-            });
-
-            var graphicsLayer = new GraphicsLayer();
-            map.add(graphicsLayer);
-
-            var locateWidget = new Locate({
-                view: view,
-                rotationEnabled: false // Use rotationEnabled instead of useHeadingEnabled
-            });
-
-            view.ui.add(locateWidget, "top-left");
-
-            view.when().then(function() {
-                locateWidget.locate().catch(function(error) {
-                    console.error("Locate widget error:", error.message);
-                });
-
-                var featureLayer = new FeatureLayer({
-                    url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
-                });
-
-                view.on("click", function(event) {
-                    if (pointGraphic) {
-                        graphicsLayer.remove(pointGraphic);
-                    }
-
-                    var query = featureLayer.createQuery();
-                    query.geometry = event.mapPoint;
-                    query.spatialRelationship = "intersects";
-                    query.outFields = ["*"];
-                    query.returnGeometry = true;
-
-                    featureLayer.queryFeatures(query).then(function(result) {
-                        if (result.features.length > 0) {
-                            disableCell('cell1');
-                            enableCell('cell2');
-                        } else {
-                            alert("Location is not within MPRB's Responsibility");
-                            // Reset cells to initial state
-                            disableCell('cell2');
-                            disableCell('cell3');
-                            disableCell('cell4');
-                        }
-                    }).catch(function(error) {
-                        console.error("Error querying features:", error);
-                    });
-                });
-
-                // Initial setup: disable cells 2, 3, and 4
-                disableCell('cell2');
-                disableCell('cell3');
-                disableCell('cell4');
-            });
         });
-    </script>
+    });
+</script>
 </body>
 </html>
