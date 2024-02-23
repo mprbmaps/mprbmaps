@@ -13,22 +13,23 @@
         padding: 0;
         height: 100%;
         overflow: hidden;
-        position: relative; /* Add this to ensure positioning works properly */
+        position: relative;
     }
 
     .header {
         background-color: #ffffff;
         text-align: center;
         padding: 10px;
-        position: absolute;
+        position: fixed;
         top: 0;
         left: 0;
         right: 0;
+        z-index: 1000; /* Ensure header is above the map */
     }
 
     .header img {
-        width: 50px; /* Adjust the width of the logo as needed */
-        height: auto; /* Maintain aspect ratio */
+        width: 50px;
+        height: auto;
         vertical-align: middle;
     }
 
@@ -36,14 +37,15 @@
         display: inline-block;
         margin: 0;
         vertical-align: middle;
-        margin-left: 10px; /* Adjust spacing between logo and text */
+        margin-left: 10px;
     }
 
     #viewDiv {
-        height: calc(100% - 50px); /* Adjust for header height */
+        height: calc(100% - 50px);
         width: 70%;
         float: left;
-        position: relative; /* Ensure position is relative */
+        position: relative;
+        z-index: 0; /* Ensure map is behind the header */
     }
 
     .form-container {
@@ -56,6 +58,7 @@
         right: 0;
         width: 30%;
         height: 100%;
+        z-index: 1000; /* Ensure form container is above the map */
     }
 
     .form-cell {
@@ -68,7 +71,7 @@
         align-items: center;
         justify-content: center;
         flex-direction: column;
-        min-height: 75px; /* Ensures cells have at least this height but can grow */
+        min-height: 75px;
     }
 
     .form-cell.disabled {
@@ -78,7 +81,7 @@
     .form-cell label {
         position: absolute;
         top: 10px;
-        left: 50px; /* Adjusted for step icon */
+        left: 50px;
         color: #333;
         font-size: 16px;
         font-weight: bold;
@@ -109,14 +112,14 @@
     }
 
     .form-cell.disabled .step-icon {
-        background-color: #cccccc; /* Grey color for disabled state */
+        background-color: #cccccc;
     }
 
     #cell1Image {
         width: 30px;
         height: 30px;
-        margin-top: 15px; /* Added to move the image down */
-        margin-bottom: 10px; /* Existing space between image and label, adjust if needed */
+        margin-top: 15px;
+        margin-bottom: 10px;
     }
 
     .form-cell.disabled #cell1Image {
@@ -136,15 +139,7 @@
         height: 60%;
     }
     .form-cell {
-        min-height: 75px; /* Adjusts height for smaller screens */
-    }
-
-    /* Legend placement on smaller screens */
-    .legend {
-        top: 10px;
-        right: 10px;
-        bottom: unset;
-        left: unset;
+        min-height: 75px;
     }
 }
 
@@ -174,15 +169,26 @@
     }
 
     #submitReport:enabled {
-        background-color: #4e8cff; /* Blue color */
-        color: #fff; /* White text color */
+        background-color: #4e8cff;
+        color: #fff;
     }
 
     #submitReport:enabled:hover {
-        background-color: #3666b8; /* Darker blue color on hover */
+        background-color: #3666b8;
     }
 
     /* Styles for Legend */
+    .legend {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background-color: rgba(255, 255, 255, 0.8);
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+        z-index: 1000;
+    }
+
     .legend-item {
         display: flex;
         align-items: center;
@@ -301,7 +307,7 @@
         var view = new MapView({
             container: "viewDiv",
             map: map,
-            center: [-93.2650, 44.9778], // Center on Minneapolis
+            center: [-93.2650, 44.9778],
             zoom: 12
         });
 
