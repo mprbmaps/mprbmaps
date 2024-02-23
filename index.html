@@ -291,29 +291,33 @@
             rotationEnabled: false
         });
 
+        var featureLayer = new FeatureLayer({
+            url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
+        });
+
         var searchWidget = new Search({
-    view: view,
-    includeDefaultSources: false, // Remove Esri World Geocoder
-    sources: [
-        {
-            locator: {
-                url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Locators/MPRBParksBuildings_Locator/GeocodeServer",
-            },
-            singleLineFieldName: "SingleLine",
-            name: "MPRB Parks & Buildings Locator",
-            placeholder: "Search MPRB Parks & Buildings",
-        },
-        {
-            layer: featureLayer, // Specify the feature layer to search within
-            searchFields: ["Name_Primary"], // Specify the fields to search within
-            displayField: "Name_Primary", // Specify the field to display in the search results
-            exactMatch: false, // Allow partial matching
-            outFields: ["Name_Primary"], // Return all fields in the search results
-            name: "MPRB Locations",
-            placeholder: "Search Park Name"
-        }
-    ]
-});
+            view: view,
+            includeDefaultSources: false, // Remove Esri World Geocoder
+            sources: [
+                {
+                    locator: {
+                        url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Locators/MPRBParksBuildings_Locator/GeocodeServer",
+                    },
+                    singleLineFieldName: "SingleLine",
+                    name: "MPRB Parks & Buildings Locator",
+                    placeholder: "Search MPRB Parks & Buildings",
+                },
+                {
+                    layer: featureLayer, // Specify the feature layer to search within
+                    searchFields: ["Name_Primary"], // Specify the fields to search within
+                    displayField: "Name_Primary", // Specify the field to display in the search results
+                    exactMatch: false, // Allow partial matching
+                    outFields: ["Name_Primary"], // Return all fields in the search results
+                    name: "MPRB Locations",
+                    placeholder: "Search Park Name"
+                }
+            ]
+        });
 
         view.ui.add(locateWidget, "top-left");
         view.ui.add(searchWidget, {
@@ -326,10 +330,6 @@
         view.when().then(function() {
             locateWidget.locate().catch(function(error) {
                 console.error("Locate widget error:", error.message);
-            });
-
-            var featureLayer = new FeatureLayer({
-                url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
             });
 
             view.on("click", function(event) {
