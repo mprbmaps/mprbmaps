@@ -19,7 +19,7 @@
         height: 100%;
         width: 70%;
         float: left;
-        position: relative;
+        position: relative; /* Ensure relative positioning */
     }
 
     .form-container {
@@ -44,7 +44,7 @@
         align-items: center;
         justify-content: center;
         flex-direction: column;
-        min-height: 75px;
+        min-height: 75px; /* Ensures cells have at least this height but can grow */
     }
 
     .form-cell.disabled {
@@ -54,7 +54,7 @@
     .form-cell label {
         position: absolute;
         top: 10px;
-        left: 50px;
+        left: 50px; /* Adjusted for step icon */
         color: #333;
         font-size: 16px;
         font-weight: bold;
@@ -85,14 +85,14 @@
     }
 
     .form-cell.disabled .step-icon {
-        background-color: #cccccc;
+        background-color: #cccccc; /* Grey color for disabled state */
     }
 
     #cell1Image {
         width: 30px;
         height: 30px;
-        margin-top: 15px;
-        margin-bottom: 10px;
+        margin-top: 15px; /* Added to move the image down */
+        margin-bottom: 10px; /* Existing space between image and label, adjust if needed */
     }
 
     .form-cell.disabled #cell1Image {
@@ -100,27 +100,29 @@
     }
 
     @media screen and (max-width: 768px) {
-        #viewDiv {
-            width: 100%;
-            height: 40%;
-        }
-        .form-container {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 60%;
-        }
-        .form-cell {
-            min-height: 75px;
-        }
-        .legend {
-            top: 10px;
-            right: 10px;
-            bottom: unset;
-            left: unset;
-        }
+    #viewDiv {
+        width: 100%;
+        height: 40%;
     }
+    .form-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 60%;
+    }
+    .form-cell {
+        min-height: 75px; /* Adjusts height for smaller screens */
+    }
+
+    /* Legend placement on smaller screens */
+    .legend {
+        top: 10px;
+        right: 10px;
+        bottom: unset;
+        left: unset;
+    }
+}
 
     @media screen and (min-width: 769px) {
         .form-container {
@@ -132,29 +134,21 @@
         }
     }
 
-    @media screen and (min-width: 1400px) {
-        #viewDiv {
-            width: 80%;
-        }
-        .form-container {
-            width: 20%;
-        }
-    }
-
     #submitReport {
         cursor: pointer;
         transition: background-color 0.3s;
     }
 
     #submitReport:enabled {
-        background-color: #2B88C2;
-        color: #fff;
+        background-color: #2B88C2; /* Blue color */
+        color: #fff; /* White text color */
     }
 
     #submitReport:enabled:hover {
-        background-color: #1A5E89;
+        background-color: #1A5E89; /* Darker blue color on hover */
     }
 
+    /* Styles for Legend */
     .legend {
         position: absolute;
         top: 10px;
@@ -176,14 +170,6 @@
         width: 20px;
         height: 20px;
         margin-right: 5px;
-    }
-
-    /* Additional CSS for search widget placement */
-    #searchWidget {
-        position: absolute;
-        top: 15px;
-        left: 20px; /* Adjust this value based on actual UI layout */
-        z-index: 100; /* Ensure search widget is above other map elements */
     }
     </style>
 </head>
@@ -229,10 +215,51 @@
         </div>
     </div>
     <script>
+    var currentCellIndex = 1; // Initial active cell index
+
+    function enableCell(cellId) {
+        var cell = document.getElementById(cellId);
+        cell.classList.remove('disabled');
+        var inputs = cell.querySelectorAll('select, input[type="file"], button');
+        inputs.forEach(input => input.disabled = false);
+
+        if (cellId === 'cell1') {
+            currentCellIndex = 1;
+        } else {
+            currentCellIndex++;
+        }
+    }
+
+    function disableCell(cellId) {
+        var cell = document.getElementById(cellId);
+        cell.classList.add('disabled');
+        var inputs = cell.querySelectorAll('select, input[type="file"], button');
+        inputs.forEach(input => input.disabled = true);
+    }
+
+    function checkIssueType() {
+        var issueType = document.getElementById('issueType').value;
+        if (issueType !== 'Pothole') {
+            enableCell('cell3');
+            enableCell('cell4');
+        } else {
+            disableCell('cell3');
+            disableCell('cell4');
+        }
+    }
+
+    function submitReport() {
+        console.log('Report submitted!');
+        alert('Report submitted. Thank you!');
+        enableCell('cell1');
+        disableCell('cell2');
+        disableCell('cell3');
+        disableCell('cell4');
+    }
+
     require([
         "esri/Map",
         "esri/views/MapView",
-        "esri/widgets/Search",
         "esri/Graphic",
         "esri/layers/GraphicsLayer",
         "esri/widgets/Locate",
@@ -240,10 +267,11 @@
         "esri/symbols/PictureMarkerSymbol",
         "esri/layers/FeatureLayer",
         "esri/rest/support/Query",
+        "esri/widgets/Search",
         "esri/WebMap"
-    ], function(Map, MapView, Search, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query, WebMap) {
+    ], function(Map, MapView, Graphic, GraphicsLayer, Locate, Point, PictureMarkerSymbol, FeatureLayer, Query, Search, WebMap) {
         const webmap = new WebMap({
-            portalItem: {
+            portalItem: { // autocasts as new PortalItem()
                 id: "32aa25434f284e48a88fc9ff499b0fd8"
             }
         });
@@ -251,7 +279,7 @@
         var view = new MapView({
             container: "viewDiv",
             map: webmap,
-            center: [-93.2650, 44.9778],
+            center: [-93.2650, 44.9778], // Center on Minneapolis
             zoom: 12
         });
 
@@ -260,40 +288,34 @@
 
         var locateWidget = new Locate({
             view: view,
-            useHeadingEnabled: false
+            rotationEnabled: false
         });
-
-        view.ui.add(locateWidget, "top-left");
 
         var searchWidget = new Search({
             view: view,
-            container: "searchWidget",
-            sources: [{
-                locator: new esri.rest.Locator("https://gis.minneapolisparks.org/arcgisprod/rest/services/Locators/MPRBParksBuildings_Locator/GeocodeServer"),
-                singleLineFieldName: "SingleLine",
-                name: "Minneapolis Parks and Buildings",
-                placeholder: "Search for a park or building",
-                maxResults: 3,
-                maxSuggestions: 6,
-                suggestionsEnabled: true,
-                minSuggestCharacters: 0
-            }],
-            includeDefaultSources: false
+            sources: [
+                {
+                    locator: {
+                        url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Locators/MPRBParksBuildings_Locator/GeocodeServer",
+                    },
+                    singleLineFieldName: "SingleLine",
+                    name: "MPRB Parks & Buildings Locator",
+                    placeholder: "Search MPRB Parks & Buildings",
+                }
+            ]
         });
 
-        // Position the search widget on the UI
+        view.ui.add(locateWidget, "top-left");
         view.ui.add(searchWidget, {
-            position: "top-left",
-            index: 1
+            position: "top-right",
+            index: 2
         });
 
         var pointGraphic;
 
         view.when().then(function() {
-            locateWidget.locate().then(function(){
-                console.log("Location has been found.");
-            }).catch(function(error) {
-                console.error("Locate widget error:", error);
+            locateWidget.locate().catch(function(error) {
+                console.error("Locate widget error:", error.message);
             });
 
             var featureLayer = new FeatureLayer({
