@@ -232,42 +232,44 @@
                 });
 
                 view.on("click", function(event) {
-                    var query = featureLayer.createQuery();
-                    query.geometry = event.mapPoint;
-                    query.spatialRelationship = "intersects";
-                    query.outFields = ["*"];
-                    query.returnGeometry = true;
+    var query = featureLayer.createQuery();
+    query.geometry = event.mapPoint;
+    query.spatialRelationship = "intersects";
+    query.outFields = ["*"];
+    query.returnGeometry = true;
 
-                    featureLayer.queryFeatures(query).then(function(result) {
-                        if (result.features.length > 0) {
-                            if (pointGraphic) {
-                                graphicsLayer.remove(pointGraphic);
-                            }
-                            pointGraphic = new Graphic({
-                                geometry: event.mapPoint,
-                                symbol: new PictureMarkerSymbol({
-                                    url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
-                                    width: "36px",
-                                    height: "36px"
-                                })
-                            });
-                            graphicsLayer.add(pointGraphic);
-                            disableCell('cell1');
-                            enableCell('cell2');
-                        } else {
-                            alert("Location is not within MPRB's Responsibility");
-                            enableCell('cell1');
-                            disableCell('cell2');
-                            disableCell('cell3');
-                            disableCell('cell4');
-                            if (pointGraphic) {
-                                graphicsLayer.remove(pointGraphic);
-                            }
-                        }
-                    }).catch(function(error) {
-                        console.error("Error querying features:", error);
-                    });
-                });
+    featureLayer.queryFeatures(query).then(function(result) {
+        if (result.features.length > 0) {
+            if (pointGraphic) {
+                graphicsLayer.remove(pointGraphic);
+            }
+            pointGraphic = new Graphic({
+                geometry: event.mapPoint,
+                symbol: new PictureMarkerSymbol({
+                    url: "https://i.ibb.co/j6ZWfnW/map-location-marker.png",
+                    width: "36px",
+                    height: "36px"
+                })
+            });
+            graphicsLayer.add(pointGraphic);
+            disableCell('cell1');
+            enableCell('cell2');
+            // Check issue type here and enable cell 3 and cell 4 accordingly
+            checkIssueType(); // Added this line to check issue type after cell 2 is enabled
+        } else {
+            alert("Location is not within MPRB's Responsibility");
+            enableCell('cell1');
+            disableCell('cell2');
+            disableCell('cell3');
+            disableCell('cell4');
+            if (pointGraphic) {
+                graphicsLayer.remove(pointGraphic);
+            }
+        }
+    }).catch(function(error) {
+        console.error("Error querying features:", error);
+    });
+});
 
                 disableCell('cell2');
                 disableCell('cell3');
