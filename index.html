@@ -59,13 +59,21 @@
             border-radius: 5px;
             box-sizing: border-box;
         }
+        .form-cell button {
+            background-color: #2A7EB4; /* Default button color */
+            color: #fff; /* Button text color */
+            font-weight: bold; /* Button text weight */
+        }
+        .form-cell button:hover {
+            background-color: #1A5E89; /* Button hover color */
+        }
         .step-icon {
             position: absolute;
             top: 5px;
             right: 5px;
             width: 25px;
             height: 25px;
-            background-color: #24811B; /* Green color for enabled cell 1 */
+            background-color: #24811B; /* Green color for enabled cell */
             border-radius: 5px;
             display: flex;
             justify-content: center;
@@ -152,30 +160,15 @@
             } else if (cellId === 'cell4') {
                 var submitButton = document.getElementById('submitReport');
                 submitButton.disabled = false; // Enable submit button
-                submitButton.style.backgroundColor = 'blue'; // Set button background color to blue
-                submitButton.style.color = '#fff'; // Set button text color to white
-                submitButton.style.fontWeight = 'bold'; // Set button text to bold
+                // Changes to button styles are now handled in CSS
                 // Add event listener to submit button
                 submitButton.addEventListener('click', submitReport);
             }
         }
 
-        // Function to submit the report
-        function submitReport() {
-            // Add your code to submit the report here
-            console.log('Report submitted!');
-            alert('Report submitted. Thank you!');
-            // Reset cells after report submission
-            enableCell('cell1');
-            disableCell('cell2');
-            disableCell('cell3');
-            disableCell('cell4');
-        }
-
         function disableCell(cellId) {
             var cell = document.getElementById(cellId);
             if (cell) {
-                cell.classList.remove('enabled'); // Remove 'enabled' class to revert to default background color
                 cell.classList.add('disabled');
                 var label = cell.querySelector('label');
                 if (label) {
@@ -184,6 +177,10 @@
                 var stepIcon = cell.querySelector('.step-icon');
                 if (stepIcon) {
                     stepIcon.style.backgroundColor = '#ddd'; // Default gray color when disabled
+                }
+                if(cellId === 'cell4') {
+                    var submitButton = document.getElementById('submitReport');
+                    submitButton.disabled = true; // Ensure button is disabled
                 }
             }
         }
@@ -195,6 +192,17 @@
                 enableCell('cell3');
                 enableCell('cell4');
             }
+        }
+
+        function submitReport() {
+            console.log('Report submitted!');
+            alert('Report submitted. Thank you!');
+            // Reset cells after report submission
+            disableCell('cell1');
+            disableCell('cell2');
+            disableCell('cell3');
+            disableCell('cell4');
+            currentCellIndex = 1; // Reset cell index
         }
 
         require([
@@ -224,7 +232,7 @@
 
             var locateWidget = new Locate({
                 view: view,
-                rotationEnabled: false // Correct property for disabling map rotation
+                useHeadingEnabled: false // Correct property for disabling map rotation
             });
 
             view.ui.add(locateWidget, "top-left");
@@ -232,36 +240,28 @@
             view.when().then(function() {
                 locateWidget.locate().catch(function(error) {
                     console.error("Locate widget error:", error.message);
-                    // Optionally handle the error, e.g., display a message to the user
                 });
 
-                // Define the FeatureLayer with the correct URL
                 var featureLayer = new FeatureLayer({
                     url: "https://gis.minneapolisparks.org/arcgisprod/rest/services/Services/MPRB_PublicLayers/MapServer/0"
                 });
 
-                var pointGraphic; // Define pointGraphic variable outside to keep track of the graphic
-
                 view.on("click", function(event) {
-                    // Remove previous location graphic
                     if (pointGraphic) {
                         graphicsLayer.remove(pointGraphic);
                     }
 
-                    // Query the feature layer
                     var query = featureLayer.createQuery();
-                    query.geometry = event.mapPoint; // Use the point directly
+                    query.geometry = event.mapPoint;
                     query.spatialRelationship = "intersects";
                     query.outFields = ["*"];
                     query.returnGeometry = true;
 
                     featureLayer.queryFeatures(query).then(function(result) {
-                        console.log("Query results:", result);
                         if (result.features.length > 0) {
-                            disableCell('cell1'); // Disable cell 1 when location is selected
-                            enableCell('cell2'); // Enable cell 2 when location is selected
+                            disableCell('cell1');
+                            enableCell('cell2');
 
-                            // Display a graphic at the clicked location using a custom image
                             pointGraphic = new Graphic({
                                 geometry: event.mapPoint,
                                 symbol: new PictureMarkerSymbol({
@@ -270,23 +270,18 @@
                                     height: "36px"
                                 })
                             });
-                            graphicsLayer.add(pointGraphic); // Add new location graphic
+                            graphicsLayer.add(pointGraphic);
                         } else {
-                            // If no location is found, reset the cells
-                            enableCell('cell1'); // Enable cell 1 again
-                            disableCell('cell2'); // Disable cell 2
-                            disableCell('cell3'); // Disable cell 3
-                            disableCell('cell4'); // Disable cell 4
-                            var issueTypeDropdown = document.getElementById('issueType');
-                            issueTypeDropdown.disabled = true; // Disable the dropdown
                             alert("Location is not within MPRB's Responsibility");
+                            disableCell('cell2');
+                            disableCell('cell3');
+                            disableCell('cell4');
                         }
                     }).catch(function(error) {
                         console.error("Error querying features:", error);
                     });
                 });
 
-                // Initial setup: disable cells 2, 3, and 4
                 disableCell('cell2');
                 disableCell('cell3');
                 disableCell('cell4');
