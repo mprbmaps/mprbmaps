@@ -113,7 +113,7 @@ require([
     function populateUI(serviceAreasMap) {
     const serviceAreaContainer = document.getElementById('serviceAreaContainer');
     const peopleContainer = document.getElementById('peopleContainer');
-    
+
     // Clear previous content
     serviceAreaContainer.innerHTML = '';
     peopleContainer.innerHTML = '';
@@ -124,8 +124,11 @@ require([
     sortedServiceAreas.forEach(([areaName, details]) => {
         let areaDiv = document.createElement('div');
         areaDiv.className = 'service-area';
-        areaDiv.textContent = areaName;
         serviceAreaContainer.appendChild(areaDiv);
+
+        let areaTitle = document.createElement('div');
+        areaTitle.textContent = areaName;
+        areaDiv.appendChild(areaTitle);
 
         // Corrected: Convert parks object to an array of park names
         let parkNames = Object.keys(details.parks);
@@ -140,24 +143,14 @@ require([
             // Find crew leaders responsible for this park
             let leaders = details.crewLeaders.filter(leader => leader.park === parkName);
             leaders.forEach(leader => {
-                let leaderDiv = document.createElement('div');
-                leaderDiv.textContent = `Crew Leader: ${leader.name}`;
-                parkDiv.appendChild(leaderDiv);
+                let leaderTile = document.createElement('div');
+                leaderTile.className = 'tile';
+                leaderTile.textContent = leader.name; // Display only the name
+                leaderTile.setAttribute('draggable', 'true');
+                leaderTile.setAttribute('data-info', JSON.stringify(leader));
+                parkDiv.appendChild(leaderTile);
             });
         });
-    });
-
-    // Collect all crew leaders, sort them alphabetically, and then create tiles
-    let sortedCrewLeaders = Object.values(serviceAreasMap).flatMap(area => area.crewLeaders)
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-    sortedCrewLeaders.forEach(leader => {
-        let leaderTile = document.createElement('div');
-        leaderTile.className = 'tile';
-        leaderTile.textContent = leader.name; // Display only the name
-        leaderTile.setAttribute('draggable', 'true');
-        leaderTile.setAttribute('data-info', JSON.stringify(leader));
-        peopleContainer.appendChild(leaderTile);
     });
 
     setupDragAndDropListeners();
