@@ -122,23 +122,25 @@ require([
     const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
 
     sortedServiceAreas.forEach(([areaName, details]) => {
-        let areaDiv = document.createElement('div');
-        areaDiv.className = 'service-area';
-        areaDiv.textContent = areaName;
-        serviceAreaContainer.appendChild(areaDiv);
+    let areaDiv = document.createElement('div');
+    areaDiv.className = 'service-area';
+    areaDiv.textContent = areaName;
+    serviceAreaContainer.appendChild(areaDiv);
 
-        // Sort parks within each service area alphabetically
-        let sortedParks = Array.from(details.parks).sort((a, b) => a.localeCompare(b));
-        let parkList = document.createElement('ul');
-        parkList.className = 'park-list';
-        sortedParks.forEach(parkName => {
-            let parkItem = document.createElement('li');
-            parkItem.className = 'park';
-            parkItem.textContent = parkName;
-            parkList.appendChild(parkItem);
-        });
-        areaDiv.appendChild(parkList);
+    // Corrected: Convert parks object to an array of park names
+    let parkNames = Object.keys(details.parks);
+    // Sort parks within each service area alphabetically
+    let sortedParks = parkNames.sort((a, b) => a.localeCompare(b));
+    let parkList = document.createElement('ul');
+    parkList.className = 'park-list';
+    sortedParks.forEach(parkName => {
+        let parkItem = document.createElement('li');
+        parkItem.className = 'park';
+        parkItem.textContent = parkName; // Use the parkName directly
+        parkList.appendChild(parkItem);
     });
+    areaDiv.appendChild(parkList);
+});
 
     // Collect all crew leaders, sort them alphabetically, and then create tiles
     let sortedCrewLeaders = Object.values(serviceAreasMap).flatMap(area => area.crewLeaders)
