@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Areas and Parks</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.28/"></script>
+    <style>
+    .container { display: flex; flex-wrap: wrap; justify-content: space-around; padding: 20px; }
+    .service-area {
+    border: 2px solid #0079c1;
+    margin: 10px;
+    padding: 10px;
+    width: 400px; /* Sets a specific width for each service area */
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+    .park-list { list-style-type: none; padding: 0; }
+    .park { background-color: #f0f0f0; margin-top: 5px; padding: 5px; }
+    .tile { background-color: #add8e6; border: 1px solid #000; margin: 5px; padding: 5px; cursor: grab; }
+    .tile.dragging { opacity: 0.4; }
+    .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+    .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; }
+    .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+    .close:hover, .close:focus { color: black; text-decoration: none; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="container">
+    <div id="peopleContainer" class="people-container">
+        <!-- People tiles will be dynamically added here -->
+    </div>
+    <div id="serviceAreaContainer" class="service-area-container">
+        <!-- Service areas and parks will be dynamically added here -->
+    </div>
+</div>
+
+<!-- The Modal -->
+<div id="myModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <p id="modalText">Some text in the Modal..</p>
+    </div>
+</div>
+<script>
+require([
+    "esri/identity/OAuthInfo",
+    "esri/identity/IdentityManager",
+    "esri/layers/FeatureLayer",
+    "esri/rest/support/Query"
+], function(OAuthInfo, esriId, FeatureLayer, Query) {
+    var info = new OAuthInfo({
+        appId: "ti3fi1FqvHE2Hhyw",
+        popup: true
+    });
+    esriId.registerOAuthInfos([info]);
+
+    esriId.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+        console.log("Signed in");
+        loadLayerAndPopulateUI();
+    }).catch(function() {
+        console.error("Not signed in");
+        esriId.getCredential(info.portalUrl + "/sharing");
+    });
+
+    var queryLayer = new FeatureLayer({
+        url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0"
+    });
+
+    var writeLayer = new FeatureLayer({
+        url: "https://utility.arcgis.com/usrsvcs/servers/9e2987cdb16646348e9398b53fcaf42c/rest/services/MPRB_Locations/MapServer/0"
+    });
+
+    function loadLayerAndPopulateUI() {
+        var query = queryLayer.createQuery();
+        query.where = "1=1";
+        query.outFields = ["Name_Primary", "ASMCrewLeader", "ASMCrewLeaderPhone", "ASMCrewLeaderEmail", "Maintenance_SA"];
+        query.returnGeometry = false;
+
+        queryLayer.queryFeatures(query).then(function(results) {
+            processFeatures(results.features);
+        }).catch(function(error) {
+            console.error("Error querying features: ", error);
+        });
+    }
+
+    function processFeatures(features) {
+        const serviceAreasMap = features.reduce((acc, {attributes}) => {
+            const { Maintenance_SA, Name_Primary, ASMCrewLeader, ASMCrewLeaderPhone, ASMCrewLeaderEmail } = attributes;
+            if (!acc[Maintenance_SA]) {
+                acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
+            }
+            // Add park if not already present
+            if (!acc[Maintenance_SA].parks[Name_Primary]) {
+                acc[Maintenance_SA].parks[Name_Primary] = { name: Name_Primary };
+            }
+            // Add crew leader to the area's list
+            acc[Maintenance_SA].crewLeaders.push({
+                name: ASMCrewLeader,
+                phone: ASMCrewLeaderPhone,
+                email: ASMCrewLeaderEmail,
+                park: Name_Primary
+            });
+            return acc;
+        }, {});
+
+        populateUI(serviceAreasMap);
+    }
+
+    function populateUI(serviceAreasMap) {
+    const serviceAreaContainer = document.getElementById('serviceAreaContainer');
+    const peopleContainer = document.getElementById('peopleContainer');
+    // Clear previous content
+    serviceAreaContainer.innerHTML = '';
+    peopleContainer.innerHTML = '';
+
+    // Sort service areas alphabetically
+    const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
+
+    sortedServiceAreas.forEach(([areaName, details]) => {
+    let areaDiv = document.createElement('div');
+    areaDiv.className = 'service-area';
+    areaDiv.textContent = areaName;
+    serviceAreaContainer.appendChild(areaDiv);
+
+    // Corrected: Convert parks object to an array of park names
+    let parkNames = Object.keys(details.parks);
+    // Sort parks within each service area alphabetically
+    let sortedParks = parkNames.sort((a, b) => a.localeCompare(b));
+    let parkList = document.createElement('ul');
+    parkList.className = 'park-list';
+    sortedParks.forEach(parkName => {
+        let parkItem = document.createElement('li');i
+        parkItem.className = 'park';
+        parkItem.textContent = parkName; // Use the parkName directly
+        parkList.appendChild(parkItem);
+    });
+    areaDiv.appendChild(parkList);
+});
+
+    // Collect all crew leaders, sort them alphabetically, and then create tiles
+    let sortedCrewLeaders = Object.values(serviceAreasMap).flatMap(area => area.crewLeaders)
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+    sortedCrewLeaders.forEach(leader => {
+        let leaderTile = document.createElement('div');
+        leaderTile.className =  'tile';
+        leaderTile.textContent = leader.name; // Display only the name
+        leaderTile.setAttribute('draggable', 'true');
+        leaderTile.setAttribute('data-info', JSON.stringify(leader));
+        peopleContainer.appendChild(leaderTile);
+    });
+
+    setupDragAndDropListeners();
+}
+
+    function setupDragAndDropListeners() {
+        document.querySelectorAll('.tile').forEach(tile => {
+            tile.addEventListener('dragstart', e => {
+                e.dataTransfer.setData('application/json', tile.getAttribute('data-info'));
+            });
+        });
+
+        document.querySelectorAll('.service-area').forEach(area => {
+            area.addEventListener('dragover', e => e.preventDefault());
+            area.addEventListener('drop', function(e) {
+                e.preventDefault();
+                const leaderInfo = JSON.parse(e.dataTransfer.getData('application/json'));
+                const newServiceArea = this.textContent;
+                // If the park has changed, update the leader's assignment
+                if (leaderInfo.park !== newServiceArea) {
+                    updateFeatureInWriteLayer(leaderInfo, newServiceArea);
+                }
+            });
+        });
+    }
+
+    function updateFeatureInWriteLayer(leaderInfo, newServiceAreaName) {
+        var query = writeLayer.createQuery();
+        query.where = `Name_Primary = '${newServiceAreaName}'`;
+        query.returnGeometry = false;
+        query.outFields = ["*"];
+
+        writeLayer.queryFeatures(query).then(function(results) {
+            if (results.features.length > 0) {
+                var featureToUpdate = results.features[0];
+                featureToUpdate.attributes['ASMCrewLeader'] = leaderInfo.name;
+                featureToUpdate.attributes['ASMCrewLeaderPhone'] = leaderInfo.phone;
+                featureToUpdate.attributes['ASMCrewLeaderEmail'] = leaderInfo.email;
+
+                writeLayer.applyEdits({
+                    updateFeatures: [featureToUpdate]
+                }).then(function(response) {
+                    if (response.updateFeatureResults.length > 0) {
+                        console.log('Feature updated successfully in the write layer.');
+                    }
+                }).catch(console.error);
+            }
+        }).catch(console.error);
+    }
+
+    // Modal close functionality
+    document.querySelector('.close').onclick = function() {
+        document.getElementById('myModal').style.display = "none";
+    };
+    window.onclick = function(event) {
+        if (event.target == document.getElementById('myModal')) {
+            document.getElementById('myModal').style.display = "none";
+        }
+    };
+});
+</script>
+</body>
+</html>
