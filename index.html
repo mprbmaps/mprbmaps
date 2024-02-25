@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Areas and Parks</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.28/"></script>
+    <style>
+        .container { display: flex; flex-wrap: wrap; justify-content: space-around; padding: 20px; }
+        .service-area, .people-container { border: 2px dashed #0079c1; margin: 10px; padding: 10px; width: calc(50% - 20px); }
+        .tile { background-color: #add8e6; border: 1px solid #000; margin: 5px; padding: 5px; cursor: grab; }
+        .tile.dragging { opacity: 0.4; }
+        .park { background-color: #f0f0f0; margin-top: 5px; padding: 5px; }
+
+        /* Modal Styles */
+        .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; }
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+        .close:hover, .close:focus { color: black; text-decoration: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="peopleContainer" class="people-container">
+        <!-- Name tiles will be dynamically added here -->
+    </div>
+    <div id="serviceAreaContainer" class="service-area-container">
+        <!-- Service areas will be dynamically added here -->
+    </div>
+</div>
+
+<!-- The Modal -->
+<div id="myModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <p id="modalText">Some text in the Modal..</p>
+    </div>
+</div>
+
+<script>
+require([
+    "esri/identity/OAuthInfo",
+    "esri/identity/IdentityManager",
+    "esri/layers/FeatureLayer"
+], function(OAuthInfo, esriId, FeatureLayer) {
+    var info = new OAuthInfo({
+        appId: "ti3fi1FqvHE2Hhyw", // Your AppID
+        popup: true
+    });
+    esriId.registerOAuthInfos([info]);
+
+    esriId.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+        console.log("Signed in");
+        // Load your feature layer or other secured resources here
+    }).catch(function() {
+        // Prompt for login
+        esriId.getCredential(info.portalUrl + "/sharing");
+    });
+
+    // Example feature layer
+    var featureLayer = new FeatureLayer({
+        url: "YOUR_FEATURE_LAYER_URL" // Replace with your feature layer URL
+    });
+
+    // Function to handle the drag start event
+    function handleDragStart(e) {
+        e.dataTransfer.setData('text/plain', e.target.id); // Use the tile's ID or another identifier
+    }
+
+    // Add event listeners for drag and drop (simplified example)
+    document.querySelectorAll('.service-area, .people-container').forEach(container => {
+        container.addEventListener('dragover', e => e.preventDefault());
+
+        container.addEventListener('drop', function(e) {
+            e.preventDefault();
+            const data = e.dataTransfer.getData('text/plain');
+            const tile = document.querySelector(`#${data}`);
+            if (tile && this !== tile.parentElement) {
+                this.appendChild(tile); // Move the tile to the new container
+                // Here, you would also handle updating the feature layer to reflect the change
+                console.log(`Tile ${data} moved`);
+            }
+        });
+    });
+
+    // Close the modal functionality
+    document.querySelector('.close').onclick =     function() {
+        document.getElementById('myModal').style.display = "none";
+    };
+
+    window.onclick = function(event) {
+        if (event.target == document.getElementById('myModal')) {
+            document.getElementById('myModal').style.display = "none";
+        }
+    };
+
+    // Example of populating peopleContainer with draggable name tiles
+    const people = [{id: 'johnDoe', name: 'John Doe'}, {id: 'janeDoe', name: 'Jane Doe'}];
+    const peopleContainer = document.getElementById('peopleContainer');
+
+    people.forEach(person => {
+        let tile = document.createElement('div');
+        tile.className = 'tile';
+        tile.id = person.id;
+        tile.textContent = person.name;
+        tile.draggable = true;
+        tile.addEventListener('dragstart', handleDragStart);
+        peopleContainer.appendChild(tile);
+    });
+
+    // Modal interaction example
+    // Open the modal to display a message
+    function openModal(message) {
+        document.getElementById('modalText').textContent = message;
+        document.getElementById('myModal').style.display = "block";
+    }
+
+    // Example of adding a service area (Static for demonstration)
+    // In practice, these would be dynamically generated based on your data
+    const serviceAreas = ['North Park', 'South Park'];
+    const serviceAreaContainer = document.getElementById('serviceAreaContainer');
+
+    serviceAreas.forEach(area => {
+        let areaDiv = document.createElement('div');
+        areaDiv.className = 'service-area';
+        areaDiv.textContent = area;
+        serviceAreaContainer.appendChild(areaDiv);
+    });
+});
+</script>
+
+</body>
+</html>
