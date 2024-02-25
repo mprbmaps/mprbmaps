@@ -131,26 +131,26 @@ require([
         areaDiv.appendChild(areaTitle);
 
         // Corrected: Convert parks object to an array of park names
-        let parkNames = Object.keys(details.parks);
-        // Sort parks within each service area alphabetically
-        let sortedParks = parkNames.sort((a, b) => a.localeCompare(b));
-        sortedParks.forEach(parkName => {
-            let parkDiv = document.createElement('div');
-            parkDiv.className = 'park';
-            parkDiv.textContent = parkName; // Use the parkName directly
-            areaDiv.appendChild(parkDiv);
-
-            // Find crew leaders responsible for this park
-            let leaders = details.crewLeaders.filter(leader => leader.park === parkName);
-            leaders.forEach(leader => {
-                let leaderTile = document.createElement('div');
-                leaderTile.className = 'tile';
-                leaderTile.textContent = leader.name; // Display only the name
-                leaderTile.setAttribute('draggable', 'true');
-                leaderTile.setAttribute('data-info', JSON.stringify(leader));
-                parkDiv.appendChild(leaderTile);
-            });
-        });
+let parkNames = Object.keys(details.parks);
+// Sort parks within each service area alphabetically
+let sortedParks = parkNames.sort((a, b) => a.localeCompare(b));
+sortedParks.forEach(parkName => {
+    let parkDiv = document.createElement('div'); // Change this line
+    parkDiv.className = 'park';
+    parkDiv.textContent = parkName; // Use the parkName directly
+    areaDiv.appendChild(parkDiv);
+    
+    // Find crew leaders responsible for this park
+    let leaders = details.crewLeaders.filter(leader => leader.park === parkName);
+    leaders.forEach(leader => {
+        let leaderTile = document.createElement('div');
+        leaderTile.className = 'tile';
+        leaderTile.textContent = leader.name; // Display only the name
+        leaderTile.setAttribute('draggable', 'true');
+        leaderTile.setAttribute('data-info', JSON.stringify(leader));
+        parkDiv.appendChild(leaderTile);
+    });
+});
     });
 
     setupDragAndDropListeners();
