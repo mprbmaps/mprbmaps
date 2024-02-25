@@ -8,13 +8,11 @@
     <script src="https://js.arcgis.com/4.28/"></script>
     <style>
         .container { display: flex; flex-wrap: wrap; justify-content: space-around; padding: 20px; }
-        .service-area { border: 2px dashed #0079c1; margin: 10px; padding: 10px; width: calc(50% - 20px); }
+        .service-area { border: 2px dashed #0079c1; margin: 10px; padding: 10px; width: calc(50% - 20px); min-height: 50px; }
         .park-list { list-style-type: none; padding: 0; }
         .park { background-color: #f0f0f0; margin-top: 5px; padding: 5px; }
         .tile { background-color: #add8e6; border: 1px solid #000; margin: 5px; padding: 5px; cursor: grab; }
         .tile.dragging { opacity: 0.4; }
-
-        /* Modal Styles */
         .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
         .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; }
         .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
@@ -22,7 +20,6 @@
     </style>
 </head>
 <body>
-
 <div class="container">
     <div id="peopleContainer" class="people-container">
         <!-- People tiles will be dynamically added here -->
@@ -65,8 +62,12 @@ require([
         url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0"
     });
 
+    var writeLayer = new FeatureLayer({
+        url: "https://utility.arcgis.com/usrsvcs/servers/9e2987cdb16646348e9398b53fcaf42c/rest/services/MPRB_Locations/MapServer/0"
+    });
+
     function loadLayerAndPopulateUI() {
-        var query = new Query();
+        var query = queryLayer.createQuery();
         query.where = "1=1";
         query.outFields = ["Name_Primary", "ASMCrewLeader", "ASMCrewLeaderPhone", "ASMCrewLeaderEmail", "Maintenance_SA"];
         query.returnGeometry = false;
@@ -79,31 +80,36 @@ require([
     }
 
     function processFeatures(features) {
+        const serviceAreasMap = features.reduce((acc, {attributes}) => {
+            const { Maintenance_SA, Name_Primary, ASMCrewLeader, ASMCrewLeaderPhone, ASMCrewLeaderEmail } = attributes;
+            if (!acc[Maintenance_SA]) {
+                acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
+            }
+            // Add park if not already present
+            if (!acc[Maintenance_SA].parks[Name_Primary]) {
+                acc[Maintenance_SA].parks[Name_Primary] = { name: Name_Primary };
+            }
+            // Add crew leader to the area's list
+            acc[Maintenance_SA].crewLeaders.push({
+                name: ASMCrewLeader,
+                phone: ASMCrewLeaderPhone,
+                email: ASMCrewLeaderEmail,
+                park: Name_Primary
+            });
+            return acc;
+        }, {});
+
+        populateUI(serviceAreasMap);
+    }
+
+    function populateUI(serviceAreasMap) {
         const serviceAreaContainer = document.getElementById('serviceAreaContainer');
         const peopleContainer = document.getElementById('peopleContainer');
-        const serviceAreas = {};
-        
-        // Process features to group by service area
-        features.forEach(feature => {
-            const attr = feature.attributes;
-            const serviceArea = attr.Maintenance_SA;
-            if (!serviceAreas[serviceArea]) {
-                serviceAreas[serviceArea] = {
-                    parks: new Set(),
-                    crewLeaders: []
-                };
-            }
-            serviceAreas[serviceArea].parks.add(attr.Name_Primary);
-            serviceAreas[serviceArea].crewLeaders.push({
-                name: attr.ASMCrewLeader,
-                phone: attr.ASMCrewLeaderPhone,
-                email: attr.ASMCrewLeaderEmail,
-                park: attr.Name_Primary
-            });
-        });
+        // Clear previous content
+        serviceAreaContainer.innerHTML = '';
+        peopleContainer.innerHTML = '';
 
-        // Create UI elements for service areas and parks
-        Object.entries(serviceAreas).forEach(([area, details]) => {
+        Object.entries(serviceAreasMap).forEach(([area, {parks, crewLeaders}]) => {
             let areaDiv = document.createElement('div');
             areaDiv.className = 'service-area';
             areaDiv.textContent = area;
@@ -111,23 +117,21 @@ require([
 
             let parkList = document.createElement('ul');
             parkList.className = 'park-list';
-            details.parks.forEach(parkName => {
+            Object.values(parks).forEach(park => {
                 let parkItem = document.createElement('li');
                 parkItem.className = 'park';
-                parkItem.textContent = parkName;
+                parkItem.textContent = park.name;
                 parkList.appendChild(parkItem);
             });
             areaDiv.appendChild(parkList);
-        });
 
-        // Create UI elements for crew leaders (people tiles)
-        Object.values(serviceAreas).forEach(area => {
-            area.crewLeaders.forEach(leader => {
+            crewLeaders.forEach(leader => {
                 let leaderTile = document.createElement('div');
                 leaderTile.className = 'tile';
                 leaderTile.textContent = `${leader.name}, ${leader.phone}, ${leader.email}`;
-                leaderTile.draggable = true;
-                leaderTile.setAttribute('data-park', leader.park);
+                leaderTile.setAttribute('draggable', 'true');
+                leaderTile.setAttribute('data-info', JSON.stringify(leader));
+                // Initially, add all crew leader tiles to the people container
                 peopleContainer.appendChild(leaderTile);
             });
         });
@@ -136,43 +140,61 @@ require([
     }
 
     function setupDragAndDropListeners() {
-        // Drag start for crew leader tiles
         document.querySelectorAll('.tile').forEach(tile => {
-            tile.addEventListener('dragstart', function(e) {
-                e.dataTransfer.setData('text/plain', this.textContent);
+            tile.addEventListener('dragstart', e => {
+                e.dataTransfer.setData('application/json', tile.getAttribute('data-info'));
             });
         });
 
-        // Drag over for service areas - allow drop
         document.querySelectorAll('.service-area').forEach(area => {
-            area.addEventListener('dragover', function(e) {
-                e.preventDefault(); // Necessary to allow dropping
-            });
-
+            area.addEventListener('dragover', e => e.preventDefault());
             area.addEventListener('drop', function(e) {
                 e.preventDefault();
-                const data = e.dataTransfer.getData('text/plain');
-                // Handle drop logic here, potentially updating crew leader assignment
-                console.log(`Dropped data: ${data} into ${this.textContent}`);
-                // Update logic or modal display can be triggered here
+                const leaderInfo = JSON.parse(e.dataTransfer.getData('application/json'));
+                const newServiceArea = this.textContent;
+                // If the park has changed, update the leader's assignment
+                if (leaderInfo.park !== newServiceArea) {
+                    updateFeatureInWriteLayer(leaderInfo, newServiceArea);
+                }
             });
         });
     }
 
-    // Close the modal functionality
+    function updateFeatureInWriteLayer(leaderInfo, newServiceAreaName) {
+        var query = writeLayer.createQuery();
+        query.where = `Name_Primary = '${newServiceAreaName}'`;
+        query.returnGeometry = false;
+        query.outFields = ["*"];
+
+        writeLayer.queryFeatures(query).then(function(results) {
+            if (results.features.length > 0) {
+                var featureToUpdate = results.features[0];
+                featureToUpdate.attributes['ASMCrewLeader'] = leaderInfo.name;
+                featureToUpdate.attributes['ASMCrewLeaderPhone'] = leaderInfo.phone;
+                featureToUpdate.attributes['ASMCrewLeaderEmail'] = leaderInfo.email;
+
+                writeLayer.applyEdits({
+                    updateFeatures: [featureToUpdate]
+                }).then(function(response) {
+                    if (response.updateFeatureResults.length > 0) {
+                        console.log('Feature updated successfully in the write layer.');
+                    }
+                }).catch(console.error);
+            }
+        }).catch(console.error);
+    }
+
+    // Modal close functionality
     document.querySelector('.close').onclick = function() {
         document.getElementById('myModal').style.display = "none";
     };
-
     window.onclick = function(event) {
         if (event.target == document.getElementById('myModal')) {
-        document.getElementById('myModal').style.display = "none";
-    }
-};
-
-// Initial call to load data and populate UI
-loadLayerAndPopulateUI();
+            document.getElementById('myModal').style.display = "none";
+        }
+    };
 });
 </script>
+
 </body>
 </html>
