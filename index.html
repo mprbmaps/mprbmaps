@@ -113,35 +113,39 @@ require([
     function populateUI(serviceAreasMap) {
     const serviceAreaContainer = document.getElementById('serviceAreaContainer');
     const peopleContainer = document.getElementById('peopleContainer');
+    
     // Clear previous content
     serviceAreaContainer.innerHTML = '';
     peopleContainer.innerHTML = '';
 
+    // Sort service areas alphabetically
+    const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
+
     sortedServiceAreas.forEach(([areaName, details]) => {
-    let areaDiv = document.createElement('div');
-    areaDiv.className = 'service-area';
-    areaDiv.textContent = areaName;
-    serviceAreaContainer.appendChild(areaDiv);
+        let areaDiv = document.createElement('div');
+        areaDiv.className = 'service-area';
+        areaDiv.textContent = areaName;
+        serviceAreaContainer.appendChild(areaDiv);
 
-    // Corrected: Convert parks object to an array of park names
-    let parkNames = Object.keys(details.parks);
-    // Sort parks within each service area alphabetically
-    let sortedParks = parkNames.sort((a, b) => a.localeCompare(b));
-    sortedParks.forEach(parkName => {
-        let parkDiv = document.createElement('div');
-        parkDiv.className = 'park';
-        parkDiv.textContent = parkName; // Use the parkName directly
-        areaDiv.appendChild(parkDiv);
+        // Corrected: Convert parks object to an array of park names
+        let parkNames = Object.keys(details.parks);
+        // Sort parks within each service area alphabetically
+        let sortedParks = parkNames.sort((a, b) => a.localeCompare(b));
+        sortedParks.forEach(parkName => {
+            let parkDiv = document.createElement('div');
+            parkDiv.className = 'park';
+            parkDiv.textContent = parkName; // Use the parkName directly
+            areaDiv.appendChild(parkDiv);
 
-        // Find crew leaders responsible for this park
-        let leaders = details.crewLeaders.filter(leader => leader.park === parkName);
-        leaders.forEach(leader => {
-            let leaderDiv = document.createElement('div');
-            leaderDiv.textContent = `Crew Leader: ${leader.name}`;
-            parkDiv.appendChild(leaderDiv);
+            // Find crew leaders responsible for this park
+            let leaders = details.crewLeaders.filter(leader => leader.park === parkName);
+            leaders.forEach(leader => {
+                let leaderDiv = document.createElement('div');
+                leaderDiv.textContent = `Crew Leader: ${leader.name}`;
+                parkDiv.appendChild(leaderDiv);
+            });
         });
     });
-});
 
     // Collect all crew leaders, sort them alphabetically, and then create tiles
     let sortedCrewLeaders = Object.values(serviceAreasMap).flatMap(area => area.crewLeaders)
@@ -149,7 +153,7 @@ require([
 
     sortedCrewLeaders.forEach(leader => {
         let leaderTile = document.createElement('div');
-        leaderTile.className =  'tile';
+        leaderTile.className = 'tile';
         leaderTile.textContent = leader.name; // Display only the name
         leaderTile.setAttribute('draggable', 'true');
         leaderTile.setAttribute('data-info', JSON.stringify(leader));
