@@ -134,19 +134,25 @@ sortedServiceAreas.forEach(([areaName, details]) => {
     // Sort parks within each service area alphabetically
     let sortedParks = parkNames.sort((a, b) => a.localeCompare(b));
     sortedParks.forEach(parkName => {
-        let parkDiv = document.createElement('div');
-        parkDiv.className = 'park';
-        parkDiv.textContent = parkName; // Use the parkName directly
-        areaDiv.appendChild(parkDiv);
+    let parkDiv = document.createElement('div');
+    parkDiv.className = 'park';
+    
+    // Create a new div or paragraph for each park name
+    // This ensures each name is on a separate line
+    let parkNameDiv = document.createElement('div'); // You could also use <p> or another appropriate element
+    parkNameDiv.textContent = parkName; // Add the park name text to the new element
+    parkDiv.appendChild(parkNameDiv); // Append the park name element to the park container
 
-        // Find crew leaders responsible for this park
-        let leaders = details.crewLeaders.filter(leader => leader.park === parkName);
-        leaders.forEach(leader => {
-            let leaderDiv = document.createElement('div');
-            leaderDiv.textContent = `Crew Leader: ${leader.name}`;
-            parkDiv.appendChild(leaderDiv);
-        });
+    // Find crew leaders responsible for this park
+    let leaders = details.crewLeaders.filter(leader => leader.park === parkName);
+    leaders.forEach(leader => {
+        let leaderDiv = document.createElement('div');
+        leaderDiv.textContent = `Crew Leader: ${leader.name}`;
+        parkDiv.appendChild(leaderDiv);
     });
+
+    areaDiv.appendChild(parkDiv); // Make sure to append the parkDiv to the areaDiv as before
+});
 });
 
     // Collect all crew leaders, sort them alphabetically, and then create tiles
