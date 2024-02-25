@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -32,13 +32,12 @@
 </div>
 
 <!-- The Modal -->
-<div id="myModal" class="modal">
+div id="myModal" class="modal">
     <div class="modal-content">
         <span class="close">&times;</span>
         <p id="modalText">Some text in the Modal..</p>
     </div>
 </div>
-
 <script>
 require([
     "esri/identity/OAuthInfo",
@@ -58,10 +57,9 @@ require([
         // Prompt for login
         esriId.getCredential(info.portalUrl + "/sharing");
     });
-
     // Example feature layer
     var featureLayer = new FeatureLayer({
-        url: "YOUR_FEATURE_LAYER_URL" // Replace with your feature layer URL
+        url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0" // Replace with your feature layer URL
     });
 
     // Function to handle the drag start event
@@ -72,8 +70,7 @@ require([
     // Add event listeners for drag and drop (simplified example)
     document.querySelectorAll('.service-area, .people-container').forEach(container => {
         container.addEventListener('dragover', e => e.preventDefault());
-
-        container.addEventListener('drop', function(e) {
+    container.addEventListener('drop', function(e) {
             e.preventDefault();
             const data = e.dataTransfer.getData('text/plain');
             const tile = document.querySelector(`#${data}`);
@@ -95,28 +92,6 @@ require([
             document.getElementById('myModal').style.display = "none";
         }
     };
-
-    // Example of populating peopleContainer with draggable name tiles
-    const people = [{id: 'johnDoe', name: 'John Doe'}, {id: 'janeDoe', name: 'Jane Doe'}];
-    const peopleContainer = document.getElementById('peopleContainer');
-
-    people.forEach(person => {
-        let tile = document.createElement('div');
-        tile.className = 'tile';
-        tile.id = person.id;
-        tile.textContent = person.name;
-        tile.draggable = true;
-        tile.addEventListener('dragstart', handleDragStart);
-        peopleContainer.appendChild(tile);
-    });
-
-    // Modal interaction example
-    // Open the modal to display a message
-    function openModal(message) {
-        document.getElementById('modalText').textContent = message;
-        document.getElementById('myModal').style.display = "block";
-    }
-
     // Example of adding a service area (Static for demonstration)
     // In practice, these would be dynamically generated based on your data
     const serviceAreas = ['North Park', 'South Park'];
