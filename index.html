@@ -112,40 +112,49 @@ require([
     }
 
     function populateUI(serviceAreasMap) {
-        const serviceAreaContainer = document.getElementById('serviceAreaContainer');
-        const peopleContainer = document.getElementById('peopleContainer');
-        // Clear previous content
-        serviceAreaContainer.innerHTML = '';
-        peopleContainer.innerHTML = '';
+    const serviceAreaContainer = document.getElementById('serviceAreaContainer');
+    const peopleContainer = document.getElementById('peopleContainer');
+    // Clear previous content
+    serviceAreaContainer.innerHTML = '';
+    peopleContainer.innerHTML = '';
 
-        Object.entries(serviceAreasMap).forEach(([area, {parks, crewLeaders}]) => {
-            let areaDiv = document.createElement('div');
-            areaDiv.className = 'service-area';
-            areaDiv.textContent = area;
-            serviceAreaContainer.appendChild(areaDiv);
+    // Sort service areas alphabetically
+    const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
 
-            let parkList = document.createElement('ul');
-            parkList.className = 'park-list';
-            Object.values(parks).forEach(park => {
-                let parkItem = document.createElement('li');
-                parkItem.className = 'park';
-                parkItem.textContent = park.name;
-                parkList.appendChild(parkItem);
-            });
-            areaDiv.appendChild(parkList);
+    sortedServiceAreas.forEach(([areaName, details]) => {
+        let areaDiv = document.createElement('div');
+        areaDiv.className = 'service-area';
+        areaDiv.textContent = areaName;
+        serviceAreaContainer.appendChild(areaDiv);
 
-            crewLeaders.forEach(leader => {
-    let leaderTile = document.createElement('div');
-    leaderTile.className = 'tile';
-    leaderTile.textContent = leader.name; // Changed to only display the name
-    leaderTile.setAttribute('draggable', 'true');
-    leaderTile.setAttribute('data-info', JSON.stringify(leader));
-    peopleContainer.appendChild(leaderTile);
-});
+        // Sort parks within each service area alphabetically
+        let sortedParks = Array.from(details.parks).sort((a, b) => a.localeCompare(b));
+        let parkList = document.createElement('ul');
+        parkList.className = 'park-list';
+        sortedParks.forEach(parkName => {
+            let parkItem = document.createElement('li');
+            parkItem.className = 'park';
+            parkItem.textContent = parkName;
+            parkList.appendChild(parkItem);
         });
+        areaDiv.appendChild(parkList);
+    });
 
-        setupDragAndDropListeners();
-    }
+    // Collect all crew leaders, sort them alphabetically, and then create tiles
+    let sortedCrewLeaders = Object.values(serviceAreasMap).flatMap(area => area.crewLeaders)
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+    sortedCrewLeaders.forEach(leader => {
+        let leaderTile = document.createElement('div');
+        leaderTile.className = 'tile';
+        leaderTile.textContent = leader.name; // Display only the name
+        leaderTile.setAttribute('draggable', 'true');
+        leaderTile.setAttribute('data-info', JSON.stringify(leader));
+        peopleContainer.appendChild(leaderTile);
+    });
+
+    setupDragAndDropListeners();
+}
 
     function setupDragAndDropListeners() {
         document.querySelectorAll('.tile').forEach(tile => {
