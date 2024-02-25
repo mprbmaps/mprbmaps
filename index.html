@@ -7,26 +7,61 @@
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
     <script src="https://js.arcgis.com/4.28/"></script>
     <style>
-    .container { display: flex; flex-wrap: wrap; justify-content: space-around; padding: 20px; }
-    .service-area {
-    border: 2px solid #0079c1;
-    margin: 10px;
-    padding: 10px;
-    width: 400px; /* Sets a specific width for each service area */
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-}
-    .park-list { list-style-type: none; padding: 0; }
-    .park { background-color: #f0f0f0; margin-top: 5px; padding: 5px; }
-    .tile { background-color: #add8e6; border: 1px solid #000; margin: 5px; padding: 5px; cursor: grab; }
-    .tile.dragging { opacity: 0.4; }
-    .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
-    .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; }
-    .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
-    .close:hover, .close:focus { color: black; text-decoration: none; cursor: pointer; }
-</style>
+        .container { display: flex; flex-wrap: wrap; justify-content: space-around; padding: 20px; }
+        .service-area {
+            border: 2px solid #0079c1;
+            margin: 10px;
+            padding: 10px;
+            width: 400px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .park {
+            display: block; /* Ensure each park is on its own line */
+            background-color: #f0f0f0;
+            margin-top: 5px;
+            padding: 5px;
+        }
+        .tile {
+            background-color: #add8e6;
+            border: 1px solid #000;
+            margin: 5px;
+            padding: 5px;
+            cursor: grab;
+        }
+        .tile.dragging { opacity: 0.4; }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover, .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
 <div class="container">
@@ -45,6 +80,7 @@
         <p id="modalText">Some text in the Modal..</p>
     </div>
 </div>
+
 <script>
 require([
     "esri/identity/OAuthInfo",
@@ -91,10 +127,10 @@ require([
         const serviceAreasMap = features.reduce((acc, {attributes}) => {
             const { Maintenance_SA, Name_Primary, ASMCrewLeader, ASMCrewLeaderPhone, ASMCrewLeaderEmail } = attributes;
             if (!acc[Maintenance_SA]) {
-                acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
+                acc[Maintenance_SA] = { parks: [], crewLeaders: [] };
             }
-            if (!acc[Maintenance_SA].parks[Name_Primary]) {
-                acc[Maintenance_SA].parks[Name_Primary] = { name: Name_Primary };
+            if (!acc[Maintenance_SA].parks.includes(Name_Primary)) {
+                acc[Maintenance_SA].parks.push(Name_Primary);
             }
             acc[Maintenance_SA].crewLeaders.push({
                 name: ASMCrewLeader,
@@ -114,9 +150,7 @@ require([
         serviceAreaContainer.innerHTML = '';
         peopleContainer.innerHTML = '';
 
-        const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
-
-        sortedServiceAreas.forEach(([areaName, details]) => {
+        Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0])).forEach(([areaName, details]) => {
             let areaDiv = document.createElement('div');
             areaDiv.className = 'service-area';
             serviceAreaContainer.appendChild(areaDiv);
@@ -125,41 +159,14 @@ require([
             areaTitle.textContent = areaName;
             areaDiv.appendChild(areaTitle);
 
-            let sortedParks = Object.keys(details.parks).sort((a, b) => a.localeCompare(b));
-            sortedParks.forEach(parkName => {
+            details.parks.sort((a, b) => a.localeCompare(b)).forEach(parkName => {
                 let parkDiv = document.createElement('div');
                 parkDiv.className = 'park';
-                let parkNameDiv = document.createElement('div');
-                parkNameDiv.textContent = parkName;
-                parkDiv.appendChild(parkNameDiv);
-
-                let leaders = details.crewLeaders.filter(leader => leader.park === parkName);
-                leaders.forEach(leader => {
-                    let leaderDiv = document.createElement('div');
-                    leaderDiv.textContent = `Crew Leader: ${leader.name}`;
-                    parkDiv.appendChild(leaderDiv);
-                });
-
+                parkDiv.textContent = parkName;
                 areaDiv.appendChild(parkDiv);
             });
         });
 
-        let sortedCrewLeaders = Object.values(serviceAreasMap).flatMap(area => area.crewLeaders)
-            .sort((a, b) => a.name.localeCompare(b.name));
-
-        sortedCrewLeaders.forEach(leader => {
-            let leaderTile = document.createElement('div');
-            leaderTile.className = 'tile';
-            leaderTile.textContent = leader.name;
-            leaderTile.setAttribute('draggable', 'true');
-            leaderTile.setAttribute('data-info', JSON.stringify(leader));
-            peopleContainer.appendChild(leaderTile);
-        });
-
-        setupDragAndDropListeners();
-    }
-
-    function setupDragAndDropListeners() {
         document.querySelectorAll('.tile').forEach(tile => {
             tile.addEventListener('dragstart', e => {
                 e.dataTransfer.setData('application/json', tile.getAttribute('data-info'));
@@ -171,7 +178,7 @@ require([
             area.addEventListener('drop', function(e) {
                 e.preventDefault();
                 const leaderInfo = JSON.parse(e.dataTransfer.getData('application/json'));
-                const newServiceArea = this.textContent;
+                const newServiceArea = this.firstChild.textContent;
                 if (leaderInfo.park !== newServiceArea) {
                     updateFeatureInWriteLayer(leaderInfo, newServiceArea);
                 }
@@ -181,7 +188,7 @@ require([
 
     function updateFeatureInWriteLayer(leaderInfo, newServiceAreaName) {
         var query = writeLayer.createQuery();
-        query.where = `Name_Primary = '${newServiceAreaName}'`;
+        query.where = `Name_Primary = '${leaderInfo.park}'`;
         query.returnGeometry = false;
         query.outFields = ["*"];
 
@@ -212,8 +219,6 @@ require([
         }
     };
 });
-
-
 </script>
 </body>
 </html>
