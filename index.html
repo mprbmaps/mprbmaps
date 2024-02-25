@@ -7,17 +7,26 @@
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
     <script src="https://js.arcgis.com/4.28/"></script>
     <style>
-        .container { display: flex; flex-wrap: wrap; justify-content: space-around; padding: 20px; }
-        .service-area { border: 2px dashed #0079c1; margin: 10px; padding: 10px; width: calc(50% - 20px); min-height: 50px; }
-        .park-list { list-style-type: none; padding: 0; }
-        .park { background-color: #f0f0f0; margin-top: 5px; padding: 5px; }
-        .tile { background-color: #add8e6; border: 1px solid #000; margin: 5px; padding: 5px; cursor: grab; }
-        .tile.dragging { opacity: 0.4; }
-        .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
-        .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; }
-        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
-        .close:hover, .close:focus { color: black; text-decoration: none; cursor: pointer; }
-    </style>
+    .container { display: flex; flex-wrap: wrap; justify-content: space-around; padding: 20px; }
+    .service-area {
+        border: 2px dashed #0079c1;
+        margin: 10px;
+        padding: 10px;
+        width: calc(33% - 20px);
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .park-list { list-style-type: none; padding: 0; }
+    .park { background-color: #f0f0f0; margin-top: 5px; padding: 5px; }
+    .tile { background-color: #add8e6; border: 1px solid #000; margin: 5px; padding: 5px; cursor: grab; }
+    .tile.dragging { opacity: 0.4; }
+    .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+    .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; }
+    .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+    .close:hover, .close:focus { color: black; text-decoration: none; cursor: pointer; }
+</style>
 </head>
 <body>
 <div class="container">
@@ -126,14 +135,13 @@ require([
             areaDiv.appendChild(parkList);
 
             crewLeaders.forEach(leader => {
-                let leaderTile = document.createElement('div');
-                leaderTile.className = 'tile';
-                leaderTile.textContent = `${leader.name}, ${leader.phone}, ${leader.email}`;
-                leaderTile.setAttribute('draggable', 'true');
-                leaderTile.setAttribute('data-info', JSON.stringify(leader));
-                // Initially, add all crew leader tiles to the people container
-                peopleContainer.appendChild(leaderTile);
-            });
+    let leaderTile = document.createElement('div');
+    leaderTile.className = 'tile';
+    leaderTile.textContent = leader.name; // Changed to only display the name
+    leaderTile.setAttribute('draggable', 'true');
+    leaderTile.setAttribute('data-info', JSON.stringify(leader));
+    peopleContainer.appendChild(leaderTile);
+});
         });
 
         setupDragAndDropListeners();
