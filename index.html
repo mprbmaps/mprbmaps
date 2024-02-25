@@ -8,10 +8,11 @@
     <script src="https://js.arcgis.com/4.28/"></script>
     <style>
         .container { display: flex; flex-wrap: wrap; justify-content: space-around; padding: 20px; }
-        .service-area, .people-container { border: 2px dashed #0079c1; margin: 10px; padding: 10px; width: calc(50% - 20px); }
+        .service-area { border: 2px dashed #0079c1; margin: 10px; padding: 10px; width: calc(50% - 20px); }
+        .park-list { list-style-type: none; padding: 0; }
+        .park { background-color: #f0f0f0; margin-top: 5px; padding: 5px; }
         .tile { background-color: #add8e6; border: 1px solid #000; margin: 5px; padding: 5px; cursor: grab; }
         .tile.dragging { opacity: 0.4; }
-        .park { background-color: #f0f0f0; margin-top: 5px; padding: 5px; }
 
         /* Modal Styles */
         .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
@@ -24,10 +25,10 @@
 
 <div class="container">
     <div id="peopleContainer" class="people-container">
-        <!-- Name tiles will be dynamically added here -->
+        <!-- People tiles will be dynamically added here -->
     </div>
     <div id="serviceAreaContainer" class="service-area-container">
-        <!-- Service areas will be dynamically added here -->
+        <!-- Service areas and parks will be dynamically added here -->
     </div>
 </div>
 
@@ -64,10 +65,6 @@ require([
         url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0"
     });
 
-    var writeLayer = new FeatureLayer({
-        url: "https://utility.arcgis.com/usrsvcs/servers/9e2987cdb16646348e9398b53fcaf42c/rest/services/MPRB_Locations/MapServer/0"
-    });
-
     function loadLayerAndPopulateUI() {
         var query = new Query();
         query.where = "1=1";
@@ -75,66 +72,78 @@ require([
         query.returnGeometry = false;
 
         queryLayer.queryFeatures(query).then(function(results) {
-            populateUI(results.features);
+            processFeatures(results.features);
         }).catch(function(error) {
             console.error("Error querying features: ", error);
         });
     }
 
-    function populateUI(features) {
-    const serviceAreaContainer = document.getElementById('serviceAreaContainer');
-    const peopleContainer = document.getElementById('peopleContainer');
-    const serviceAreas = {};
-
-    // Step 1: Group parks by service areas and collect unique ones
-    features.forEach(function(feature) {
-        const attributes = feature.attributes;
-        const serviceAreaName = attributes.Maintenance_SA;
-        const parkName = attributes.Name_Primary;
-
-        if (!serviceAreas[serviceAreaName]) {
-            serviceAreas[serviceAreaName] = {
-                parks: [],
-                crewLeaders: [] // Placeholder in case you want to track crew leaders by area
-            };
-        }
-        if (serviceAreas[serviceAreaName].parks.indexOf(parkName) === -1) {
-            serviceAreas[serviceAreaName].parks.push(parkName);
-        }
-    });
-
-    // Step 2: Create UI elements for each unique service area and its parks
-    Object.keys(serviceAreas).forEach(serviceAreaName => {
-        let serviceAreaDiv = document.createElement('div');
-        serviceAreaDiv.className = 'service-area';
-        serviceAreaDiv.textContent = serviceAreaName; // Service Area name as title
-        serviceAreaContainer.appendChild(serviceAreaDiv);
-
-        // Create a sublist for parks within this service area
-        let parkList = document.createElement('ul');
-        serviceAreas[serviceAreaName].parks.forEach(parkName => {
-            let parkItem = document.createElement('li');
-            parkItem.textContent = parkName;
-            parkList.appendChild(parkItem);
-        });
-        serviceAreaDiv.appendChild(parkList);
-    });
-
-    setupDragAndDropListeners(); // Assuming this function sets up the necessary listeners
-}
-
-    function setupDragAndDropListeners() {
-        document.querySelectorAll('.tile').forEach(tile => {
-            tile.addEventListener('dragstart', function(e) {
-                e.dataTransfer.setData('text/plain', JSON.stringify({
-                    namePrimary: this.getAttribute('data-name-primary'),
-                    crewLeader: this.getAttribute('data-crewleader'),
-                    phone: this.getAttribute('data-phone'),
-                    email: this.getAttribute('data-email')
-                }));
+    function processFeatures(features) {
+        const serviceAreaContainer = document.getElementById('serviceAreaContainer');
+        const peopleContainer = document.getElementById('peopleContainer');
+        const serviceAreas = {};
+        
+        // Process features to group by service area
+        features.forEach(feature => {
+            const attr = feature.attributes;
+            const serviceArea = attr.Maintenance_SA;
+            if (!serviceAreas[serviceArea]) {
+                serviceAreas[serviceArea] = {
+                    parks: new Set(),
+                    crewLeaders: []
+                };
+            }
+            serviceAreas[serviceArea].parks.add(attr.Name_Primary);
+            serviceAreas[serviceArea].crewLeaders.push({
+                name: attr.ASMCrewLeader,
+                phone: attr.ASMCrewLeaderPhone,
+                email: attr.ASMCrewLeaderEmail,
+                park: attr.Name_Primary
             });
         });
 
+        // Create UI elements for service areas and parks
+        Object.entries(serviceAreas).forEach(([area, details]) => {
+            let areaDiv = document.createElement('div');
+            areaDiv.className = 'service-area';
+            areaDiv.textContent = area;
+            serviceAreaContainer.appendChild(areaDiv);
+
+            let parkList = document.createElement('ul');
+            parkList.className = 'park-list';
+            details.parks.forEach(parkName => {
+                let parkItem = document.createElement('li');
+                parkItem.className = 'park';
+                parkItem.textContent = parkName;
+                parkList.appendChild(parkItem);
+            });
+            areaDiv.appendChild(parkList);
+        });
+
+        // Create UI elements for crew leaders (people tiles)
+        Object.values(serviceAreas).forEach(area => {
+            area.crewLeaders.forEach(leader => {
+                let leaderTile = document.createElement('div');
+                leaderTile.className = 'tile';
+                leaderTile.textContent = `${leader.name}, ${leader.phone}, ${leader.email}`;
+                leaderTile.draggable = true;
+                leaderTile.setAttribute('data-park', leader.park);
+                peopleContainer.appendChild(leaderTile);
+            });
+        });
+
+        setupDragAndDropListeners();
+    }
+
+    function setupDragAndDropListeners() {
+        // Drag start for crew leader tiles
+        document.querySelectorAll('.tile').forEach(tile => {
+            tile.addEventListener('dragstart', function(e) {
+                e.dataTransfer.setData('text/plain', this.textContent);
+            });
+        });
+
+        // Drag over for service areas - allow drop
         document.querySelectorAll('.service-area').forEach(area => {
             area.addEventListener('dragover', function(e) {
                 e.preventDefault(); // Necessary to allow dropping
@@ -142,49 +151,28 @@ require([
 
             area.addEventListener('drop', function(e) {
                 e.preventDefault();
-                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-                updateFeatureLayer(data, this.getAttribute('data-name-primary'));
+                const data = e.dataTransfer.getData('text/plain');
+                // Handle drop logic here, potentially updating crew leader assignment
+                console.log(`Dropped data: ${data} into ${this.textContent}`);
+                // Update logic or modal display can be triggered here
             });
         });
     }
 
-    function updateFeatureLayer(data, newNamePrimary) {
-        var query = new Query();
-        query.where = `Name_Primary = '${newNamePrimary}'`;
-        query.returnGeometry = false;
-        query.outFields = ["*"];
-
-        writeLayer.queryFeatures(query).then(function(results) {
-            if (results.features.length > 0) {
-                var feature = results.features[0];
-                feature.attributes.ASMCrewLeader = data.crewLeader;
-                feature.attributes.ASMCrewLeaderPhone = data.phone;
-                feature.attributes.ASMCrewLeaderEmail = data.email;
-
-                writeLayer.applyEdits({
-                    updateFeatures: [feature]
-                }).then(function(response) {
-                    if (response.updateFeatureResults.length > 0) {
-                        console.log('Feature updated successfully');
-                    }
-                }).catch(console.error);
-            }
-        }).catch(console.error);
-    }
-
-    // Modal close functionality
+    // Close the modal functionality
     document.querySelector('.close').onclick = function() {
         document.getElementById('myModal').style.display = "none";
     };
+
     window.onclick = function(event) {
         if (event.target == document.getElementById('myModal')) {
-            document.getElementById('myModal').style.display = "none";
-        }
-    };
+        document.getElementById('myModal').style.display = "none";
+    }
+};
 
-    loadLayerAndPopulateUI();
+// Initial call to load data and populate UI
+loadLayerAndPopulateUI();
 });
 </script>
-
 </body>
 </html>
