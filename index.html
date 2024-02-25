@@ -117,9 +117,6 @@ require([
     serviceAreaContainer.innerHTML = '';
     peopleContainer.innerHTML = '';
 
-    // Sort service areas alphabetically
-    const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
-
     sortedServiceAreas.forEach(([areaName, details]) => {
     let areaDiv = document.createElement('div');
     areaDiv.className = 'service-area';
@@ -130,15 +127,20 @@ require([
     let parkNames = Object.keys(details.parks);
     // Sort parks within each service area alphabetically
     let sortedParks = parkNames.sort((a, b) => a.localeCompare(b));
-    let parkList = document.createElement('ul');
-    parkList.className = 'park-list';
     sortedParks.forEach(parkName => {
-        let parkItem = document.createElement('li');i
-        parkItem.className = 'park';
-        parkItem.textContent = parkName; // Use the parkName directly
-        parkList.appendChild(parkItem);
+        let parkDiv = document.createElement('div');
+        parkDiv.className = 'park';
+        parkDiv.textContent = parkName; // Use the parkName directly
+        areaDiv.appendChild(parkDiv);
+
+        // Find crew leaders responsible for this park
+        let leaders = details.crewLeaders.filter(leader => leader.park === parkName);
+        leaders.forEach(leader => {
+            let leaderDiv = document.createElement('div');
+            leaderDiv.textContent = `Crew Leader: ${leader.name}`;
+            parkDiv.appendChild(leaderDiv);
+        });
     });
-    areaDiv.appendChild(parkList);
 });
 
     // Collect all crew leaders, sort them alphabetically, and then create tiles
