@@ -82,35 +82,46 @@ require([
     }
 
     function populateUI(features) {
-        const serviceAreaContainer = document.getElementById('serviceAreaContainer');
-        const peopleContainer = document.getElementById('peopleContainer');
-        features.forEach(function(feature) {
-            const attributes = feature.attributes;
+    const serviceAreaContainer = document.getElementById('serviceAreaContainer');
+    const peopleContainer = document.getElementById('peopleContainer');
+    const serviceAreas = {};
 
-            // Create service area divs
-            let serviceArea = document.createElement('div');
-            serviceArea.className = 'service-area';
-            serviceArea.textContent = attributes.Maintenance_SA; // Assuming Maintenance_SA is the service area name
-            serviceArea.setAttribute('data-name-primary', attributes.Name_Primary); // Store park name for updates
+    // Step 1: Group parks by service areas and collect unique ones
+    features.forEach(function(feature) {
+        const attributes = feature.attributes;
+        const serviceAreaName = attributes.Maintenance_SA;
+        const parkName = attributes.Name_Primary;
 
-            serviceAreaContainer.appendChild(serviceArea);
+        if (!serviceAreas[serviceAreaName]) {
+            serviceAreas[serviceAreaName] = {
+                parks: [],
+                crewLeaders: [] // Placeholder in case you want to track crew leaders by area
+            };
+        }
+        if (serviceAreas[serviceAreaName].parks.indexOf(parkName) === -1) {
+            serviceAreas[serviceAreaName].parks.push(parkName);
+        }
+    });
 
-            // Create draggable name tiles for each crew leader
-            let crewLeaderTile = document.createElement('div');
-            crewLeaderTile.className = 'tile';
-            crewLeaderTile.textContent = `${attributes.ASMCrewLeader} (${attributes.ASMCrewLeaderPhone}, ${attributes.ASMCrewLeaderEmail})`;
-            crewLeaderTile.setAttribute('draggable', true);
-            crewLeaderTile.setAttribute('data-name-primary', attributes.Name_Primary); // To identify the park
-            crewLeaderTile.setAttribute('data-crewleader', attributes.ASMCrewLeader);
-            crewLeaderTile.setAttribute('data-phone', attributes.ASMCrewLeaderPhone);
-            crewLeaderTile.setAttribute('data-email', attributes.ASMCrewLeaderEmail);
+    // Step 2: Create UI elements for each unique service area and its parks
+    Object.keys(serviceAreas).forEach(serviceAreaName => {
+        let serviceAreaDiv = document.createElement('div');
+        serviceAreaDiv.className = 'service-area';
+        serviceAreaDiv.textContent = serviceAreaName; // Service Area name as title
+        serviceAreaContainer.appendChild(serviceAreaDiv);
 
-            // Adding the tile to the people container initially
-            peopleContainer.appendChild(crewLeaderTile);
+        // Create a sublist for parks within this service area
+        let parkList = document.createElement('ul');
+        serviceAreas[serviceAreaName].parks.forEach(parkName => {
+            let parkItem = document.createElement('li');
+            parkItem.textContent = parkName;
+            parkList.appendChild(parkItem);
         });
+        serviceAreaDiv.appendChild(parkList);
+    });
 
-        setupDragAndDropListeners();
-    }
+    setupDragAndDropListeners(); // Assuming this function sets up the necessary listeners
+}
 
     function setupDragAndDropListeners() {
         document.querySelectorAll('.tile').forEach(tile => {
