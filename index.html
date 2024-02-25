@@ -145,27 +145,30 @@ require([
     }
 
     function populateUI(serviceAreasMap) {
-        const serviceAreaContainer = document.getElementById('serviceAreaContainer');
-        const peopleContainer = document.getElementById('peopleContainer');
-        serviceAreaContainer.innerHTML = '';
-        peopleContainer.innerHTML = '';
+    const serviceAreaContainer = document.getElementById('serviceAreaContainer');
+    serviceAreaContainer.innerHTML = ''; // Clear previous content
 
-        Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0])).forEach(([areaName, details]) => {
-            let areaDiv = document.createElement('div');
-            areaDiv.className = 'service-area';
-            serviceAreaContainer.appendChild(areaDiv);
+    Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0])).forEach(([areaName, details]) => {
+        // Create a container for each service area
+        let areaDiv = document.createElement('div');
+        areaDiv.className = 'service-area';
+        serviceAreaContainer.appendChild(areaDiv);
 
-            let areaTitle = document.createElement('div');
-            areaTitle.textContent = areaName;
-            areaDiv.appendChild(areaTitle);
+        // Add the service area name
+        let areaTitle = document.createElement('div');
+        areaTitle.textContent = areaName;
+        areaDiv.appendChild(areaTitle);
 
-            details.parks.forEach(parkName => {
-                let parkDiv = document.createElement('div');
-                parkDiv.className = 'park';
-                parkDiv.textContent = parkName;
-                areaDiv.appendChild(parkDiv);
-            });
+        // Check if parks are stored as an array; adjust logic if stored differently
+        details.parks.forEach(parkName => {
+            // Create a separate div for each park name
+            let parkDiv = document.createElement('div');
+            parkDiv.className = 'park';
+            parkDiv.textContent = parkName;
+            areaDiv.appendChild(parkDiv);
         });
+    });
+}
 
         document.querySelectorAll('.tile').forEach(tile => {
             tile.addEventListener('dragstart', e => {
