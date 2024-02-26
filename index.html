@@ -149,12 +149,14 @@
             query.returnGeometry = false;
 
             queryLayer.queryFeatures(query).then(function(results) {
-                console.log('Query features successful');
-                processFeatures(results.features);
-                alphabetizePeopleContainer(); // Alphabetize the names in the people container after loading
-            }).catch(function(error) {
-                console.error("Error querying features: ", error);
-            });
+    console.log('Query features successful');
+    processFeatures(results.features);
+    alphabetizePeopleContainer(); // Alphabetize the names in the people container after loading
+    prepopulatePeopleContainer(results.features); // Prepopulate people container after processing features
+}).catch(function(error) {
+    console.error("Error querying features: ", error);
+});
+
         }
 
         function alphabetizePeopleContainer() {
