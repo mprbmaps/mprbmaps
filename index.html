@@ -142,85 +142,94 @@
     }
 
     function processFeatures(features) {
-        const serviceAreasMap = features.reduce((acc, {attributes}) => {
-            const { Maintenance_SA, Name_Primary, ASMCrewLeader, ASMCrewLeaderPhone, ASMCrewLeaderEmail } = attributes;
-            if (!acc[Maintenance_SA]) {
-                acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
+    const serviceAreasMap = features.reduce((acc, feature) => {
+        const {attributes} = feature;
+        const { Maintenance_SA, Name_Primary, ASMCrewLeader, ASMCrewLeaderPhone, ASMCrewLeaderEmail, OBJECTID } = attributes;
+        if (!acc[Maintenance_SA]) {
+            acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
+        }
+        Name_Primary.split('"').forEach(parkName => {
+            if (!acc[Maintenance_SA].parks[parkName.trim()]) {
+                acc[Maintenance_SA].parks[parkName.trim()] = { name: parkName.trim() };
             }
-            Name_Primary.split('"').forEach(parkName => {
-                if (!acc[Maintenance_SA].parks[parkName.trim()]) {
-                    acc[Maintenance_SA].parks[parkName.trim()] = { name: parkName.trim() };
-                }
-            });
-            acc[Maintenance_SA].crewLeaders.push({
-                name: ASMCrewLeader,
-                phone: ASMCrewLeaderPhone,
-                email: ASMCrewLeaderEmail,
-                park: Name_Primary
-            });
-            return acc;
-        }, {});
+        });
+        acc[Maintenance_SA].crewLeaders.push({
+            objectId: OBJECTID, // Store the OBJECTID
+            name: ASMCrewLeader,
+            phone: ASMCrewLeaderPhone,
+            email: ASMCrewLeaderEmail,
+            park: Name_Primary
+        });
+        return acc;
+    }, {});
 
-        populateUI(serviceAreasMap);
-    }
+    populateUI(serviceAreasMap);
+}
+
 
     function populateUI(serviceAreasMap) {
-        const serviceAreaContainer = document.getElementById('serviceAreaContainer');
-        serviceAreaContainer.innerHTML = '';
+    const serviceAreaContainer = document.getElementById('serviceAreaContainer');
+    serviceAreaContainer.innerHTML = '';
 
-        const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
+    const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
 
-        sortedServiceAreas.slice(0, 5).forEach(([areaName, details]) => {
-            let areaDiv = document.createElement('div');
-            areaDiv.className = 'service-area';
-            serviceAreaContainer.appendChild(areaDiv);
+    sortedServiceAreas.slice(0, 5).forEach(([areaName, details]) => {
+        let areaDiv = document.createElement('div');
+        areaDiv.className = 'service-area';
+        serviceAreaContainer.appendChild(areaDiv);
 
-            let nameDiv = document.createElement('div');
-            nameDiv.className = 'service-area-name';
-            nameDiv.textContent = areaName;
-            areaDiv.appendChild(nameDiv);
+        let nameDiv = document.createElement('div');
+        nameDiv.className = 'service-area-name';
+        nameDiv.textContent = areaName;
+        areaDiv.appendChild(nameDiv);
 
-            let plusIcon = document.createElement('div');
-            plusIcon.className = 'plus-icon';
-            plusIcon.textContent = '+';
-            nameDiv.appendChild(plusIcon);
+        let plusIcon = document.createElement('div');
+        plusIcon.className = 'plus-icon';
+        plusIcon.textContent = '+';
+        nameDiv.appendChild(plusIcon);
 
-            let contentDiv = document.createElement('div');
-            contentDiv.className = 'service-area-content';
-            areaDiv.appendChild(contentDiv);
+        let contentDiv = document.createElement('div');
+        contentDiv.className = 'service-area-content';
+        areaDiv.appendChild(contentDiv);
 
-            let parksDiv = document.createElement('div');
-            contentDiv.appendChild(parksDiv);
+        let parksDiv = document.createElement('div');
+        contentDiv.appendChild(parksDiv);
 
-            const sortedParkNames = Object.values(details.parks).map(park => park.name).sort((a, b) => a.localeCompare(b));
+        const sortedParkNames = Object.values(details.parks).map(park => park.name).sort((a, b) => a.localeCompare(b));
 
-            sortedParkNames.forEach(parkName => {
-                let parkDiv = document.createElement('div');
-                parkDiv.className = 'park';
-                parkDiv.textContent = parkName;
-                parksDiv.appendChild(parkDiv);
+        sortedParkNames.forEach(parkName => {
+            let parkDiv = document.createElement('div');
+            parkDiv.className = 'park';
+            parkDiv.textContent = parkName;
+            parksDiv.appendChild(parkDiv);
 
-                details.crewLeaders.forEach(cl => {
-                    if (cl.park.split('"').map(p => p.trim()).includes(parkName.trim())) {
-                        let tileDiv = document.createElement('div');
-                        tileDiv.className = 'park-name-tile';
-                        tileDiv.textContent = cl.name;
-                        tileDiv.setAttribute('draggable', true);
-                        parkDiv.appendChild(tileDiv);
-                    }
-                });
-            });
-
-            plusIcon.addEventListener('click', function(event) {
-                event.stopPropagation();
-                contentDiv.style.display = contentDiv.style.display === 'block' ? 'none' : 'block';
+            details.crewLeaders.forEach(cl => {
+                if (cl.park.split('"').map(p => p.trim()).includes(parkName.trim())) {
+                    let tileDiv = document.createElement('div');
+                    tileDiv.className = 'park-name-tile';
+                    tileDiv.id = `tile-${cl.objectId}`; // Adjusted to include OBJECTID
+                    tileDiv.textContent = cl.name;
+                    tileDiv.setAttribute('draggable', true);
+                    parkDiv.appendChild(tileDiv);
+                }
             });
         });
 
-        document.querySelectorAll('.service-area-content').forEach(contentDiv => {
-            contentDiv.style.display = 'none';
+        plusIcon.addEventListener('click', function(event) {
+            event.stopPropagation(); // Prevent the event from bubbling up to the parent elements
+            contentDiv.style.display = contentDiv.style.display === 'block' ? 'none' : 'block';
         });
-    }
+    });
+
+    // Initially hide the content of each service area
+    document.querySelectorAll('.service-area-content').forEach(contentDiv => {
+        contentDiv.style.display = 'none';
+    });
+
+    // Re-apply drag and drop listeners for the updated elements
+    setupDragAndDropListeners();
+}
+
 
     function setupDragAndDropListeners() {
     // Initialize dragstart for park name tiles
