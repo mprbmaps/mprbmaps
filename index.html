@@ -232,12 +232,10 @@
 
 
     function setupDragAndDropListeners() {
-    // Initialize dragstart for park name tiles
+    // Handling drag start for park name tiles
     document.querySelectorAll('.park-name-tile').forEach(tile => {
         tile.addEventListener('dragstart', e => {
-            e.dataTransfer.setData('text/plain', e.target.textContent); // Carry the tile's text content
-            // Store the original parent ID for reference
-            e.dataTransfer.setData('text/parent-id', e.target.parentElement.getAttribute('id'));
+            e.dataTransfer.setData('text/plain', e.target.id); // Use tile's unique ID for identification
             e.dataTransfer.effectAllowed = 'move';
         });
     });
@@ -245,39 +243,48 @@
     // Handling drop for parks
     document.querySelectorAll('.park').forEach(park => {
         park.addEventListener('dragover', e => {
-            e.preventDefault(); // Allow dropping
+            e.preventDefault(); // Necessary to allow dropping
             e.dataTransfer.dropEffect = 'move';
         });
 
         park.addEventListener('drop', e => {
             e.preventDefault();
-            const data = e.dataTransfer.getData('text/plain');
-            const originalParentId = e.dataTransfer.getData('text/parent-id');
-            const draggedTile = document.querySelector(`.park-name-tile:contains('${data}')`);
+            const tileId = e.dataTransfer.getData('text/plain');
+            let draggedTile = document.getElementById(tileId);
 
-            // Check if the target park already has a name tile
-            if (park.querySelector('.park-name-tile')) {
-                // Move the existing name tile to the people container
+            // Prevent duplication when dropping the same tile
+            if (park.contains(draggedTile)) return;
+
+            // Check if dropping into a different park
+            if (draggedTile.parentNode !== park) {
+                // Handle existing tile in the park, if any
                 const existingTile = park.querySelector('.park-name-tile');
-                document.getElementById('peopleContainer').appendChild(existingTile.cloneNode(true));
-                existingTile.remove();
-            }
-
-            // Append the dragged tile to the new park
-            park.appendChild(draggedTile);
-
-            // Remove the tile from its original park if it's different
-            if (originalParentId !== park.getAttribute('id')) {
-                const originalPark = document.getElementById(originalParentId);
-                const tileToRemove = originalPark.querySelector(`.park-name-tile:contains('${data}')`);
-                if (tileToRemove) {
-                    tileToRemove.remove();
+                if (existingTile) {
+                    document.getElementById('peopleContainer').appendChild(existingTile);
                 }
+                park.appendChild(draggedTile);
             }
-
-            setupDragAndDropListeners(); // Re-initialize listeners for new DOM elements
         });
     });
+
+    // Handling drop for the people container
+    const peopleContainer = document.getElementById('peopleContainer');
+    peopleContainer.addEventListener('dragover', e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    });
+
+    peopleContainer.addEventListener('drop', e => {
+        e.preventDefault();
+        const tileId = e.dataTransfer.getData('text/plain');
+        let draggedTile = document.getElementById(tileId);
+
+        // Only append if the tile is not already in the people container
+        if (!peopleContainer.contains(draggedTile)) {
+            peopleContainer.appendChild(draggedTile);
+        }
+    });
+}
 
     // Ensure the people container can accept drops and re-initialize listeners for it
     const peopleContainer = document.getElementById('peopleContainer');
