@@ -119,7 +119,7 @@ require([
 
     var info = new OAuthInfo({
         appId: "ti3fi1FqvHE2Hhyw",
-        popup: false
+        popup: true
     });
     esriId.registerOAuthInfos([info]);
 
@@ -224,6 +224,7 @@ require([
                         let tileDiv = document.createElement('div');
                         tileDiv.className = 'park-name-tile';
                         tileDiv.id = `tile-${cl.objectId}`; // Adjusted to include OBJECTID
+                        tileDiv.dataset.name = cl.name; // Added dataset to store the name
                         tileDiv.textContent = cl.name;
                         tileDiv.setAttribute('draggable', true);
                         parkDiv.appendChild(tileDiv);
@@ -301,15 +302,21 @@ require([
                 const tileId = e.dataTransfer.getData('text/plain');
                 let draggedTile = document.getElementById(tileId);
 
-                // Prevent duplication when dropping the same tile
-                if (draggedTile.parentNode === park) return;
+                // Remove any existing name tile from the park
+                park.querySelectorAll('.park-name-tile').forEach(existingTile => {
+                    existingTile.parentNode.removeChild(existingTile);
+                });
+
+                // Check if the dropped tile already exists in the people container
+                const existingTile = document.querySelector(`#peopleContainer .park-name-tile[data-name="${draggedTile.dataset.name}"]`);
+                if (existingTile) {
+                    // If a tile with the same name exists in the people container, do not append the dragged tile
+                    console.log('Tile with the same name already exists in the people container');
+                    return;
+                }
 
                 // Append the dragged tile to the park
                 park.appendChild(draggedTile);
-
-                // Reset background color after dropping
-                park.style.backgroundColor = 'Gray94';
-
                 console.log('Dropped tile:', draggedTile.id, 'into park:', park.textContent); // Log the dropped tile and park
 
                 // Check if the park has a name tile
@@ -332,36 +339,23 @@ require([
         });
 
         // Handling drop for the people container
-document.getElementById('peopleContainer').addEventListener('drop', e => {
-    e.preventDefault();
-    const tileId = e.dataTransfer.getData('text/plain');
-    let draggedTile = document.getElementById(tileId);
+        document.getElementById('peopleContainer').addEventListener('drop', e => {
+            e.preventDefault();
+            const tileId = e.dataTransfer.getData('text/plain');
+            let draggedTile = document.getElementById(tileId);
 
-    // Remove the dragged tile from its current parent (park)
-    draggedTile.parentNode.removeChild(draggedTile);
+            // Remove any existing name tile from the people container
+            document.getElementById('peopleContainer').querySelectorAll('.park-name-tile').forEach(existingTile => {
+                existingTile.parentNode.removeChild(existingTile);
+            });
 
-    // Check if a tile with the same name already exists in the people container
-    const existingTile = document.querySelector(`#peopleContainer .park-name-tile[data-name="${draggedTile.dataset.name}"]`);
-    if (existingTile) {
-        // If a tile with the same name exists, do not append the dragged tile
-        console.log('Tile with the same name already exists in the people container');
-        return;
+            // Append the dragged tile to the people container
+            document.getElementById('peopleContainer').appendChild(draggedTile);
+            console.log('Dropped tile:', draggedTile.id, 'into people container');
+        });
     }
-
-    // Append the dragged tile to the people container
-    document.getElementById('peopleContainer').appendChild(draggedTile);
-    console.log('Dropped tile:', draggedTile.id, 'into people container');
-
-    // Check if any park has no name tiles and change their background color to light red if necessary
-    document.querySelectorAll('.park').forEach(park => {
-        const nameTiles = park.querySelectorAll('.park-name-tile');
-        if (nameTiles.length === 0) {
-            park.classList.add('no-name-tile'); // Add the CSS class to style the border color to red
-            park.style.backgroundColor = 'lightcoral'; // Change background color to light red
-            console.log('Added no-name-tile class to park:', park.textContent); // Log that the class was added
-        }
-    });
 });
+
 
 
     }
