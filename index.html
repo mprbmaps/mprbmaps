@@ -151,12 +151,11 @@
             queryLayer.queryFeatures(query).then(function(results) {
                 console.log('Query features successful');
                 processFeatures(results.features);
-                alphabetizePeopleContainer(); // Alphabetize the names in the people container after loading
-                prepopulatePeopleContainer(results.features); // Prepopulate people container after processing features
+                alphabetizePeopleContainer();
+                prepopulatePeopleContainer(results.features);
             }).catch(function(error) {
                 console.error("Error querying features: ", error);
             });
-
         }
 
         function alphabetizePeopleContainer() {
@@ -171,7 +170,7 @@
             const serviceAreasMap = features.reduce((acc, feature) => {
                 const {attributes} = feature;
                 const { Maintenance_SA, Name_Primary, ASMCrewLeader, ASMCrewLeaderPhone, ASMCrewLeaderEmail, OBJECTID } = attributes;
-                console.log('OBJECTID:', OBJECTID); // Log the OBJECTID
+                console.log('OBJECTID:', OBJECTID);
                 if (!acc[Maintenance_SA]) {
                     acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
                 }
@@ -181,13 +180,13 @@
                     }
                 });
                 acc[Maintenance_SA].crewLeaders.push({
-                    objectId: OBJECTID, // Store the OBJECTID
+                    objectId: OBJECTID,
                     name: ASMCrewLeader,
                     phone: ASMCrewLeaderPhone,
                     email: ASMCrewLeaderEmail,
                     park: Name_Primary
                 });
-                console.log('Processed feature:', OBJECTID); // Log the processed feature
+                console.log('Processed feature:', OBJECTID);
                 return acc;
             }, {});
 
@@ -235,39 +234,35 @@
                         if (cl.park.split('"').map(p => p.trim()).includes(parkName.trim())) {
                             let tileDiv = document.createElement('div');
                             tileDiv.className = 'park-name-tile';
-                            tileDiv.id = `tile-${cl.objectId}`; // Adjusted to include OBJECTID
+                            tileDiv.id = `tile-${cl.objectId}`;
                             tileDiv.textContent = cl.name;
                             tileDiv.setAttribute('draggable', true);
                             parkDiv.appendChild(tileDiv);
-                            parkDiv.classList.remove('no-name-tile'); // Remove the CSS class if a name tile is present
+                            parkDiv.classList.remove('no-name-tile');
                         }
                     });
 
-                    // Add CSS class to parks without name tiles
                     if (!parkDiv.querySelector('.park-name-tile')) {
                         parkDiv.classList.add('no-name-tile');
                     }
                 });
 
                 plusIcon.addEventListener('click', function(event) {
-                    event.stopPropagation(); // Prevent the event from bubbling up to the parent elements
+                    event.stopPropagation();
                     contentDiv.style.display = contentDiv.style.display === 'block' ? 'none' : 'block';
                 });
             });
 
-            // Initially hide the content of each service area
             document.querySelectorAll('.service-area-content').forEach(contentDiv => {
                 contentDiv.style.display = 'none';
             });
 
-            // Re-apply drag and drop listeners for the updated elements
             setupDragAndDropListeners();
         }
 
         function setupDragAndDropListeners() {
             console.log('Setting up drag and drop listeners');
 
-            // Handling drag start for park name tiles
             document.querySelectorAll('.park-name-tile').forEach(tile => {
                 tile.addEventListener('dragstart', e => {
                     e.dataTransfer.setData('text/plain', e.target.id);
@@ -275,21 +270,20 @@
                 });
             });
 
-            // Handling drag over and drag leave for parks
             document.querySelectorAll('.park').forEach(park => {
                 park.addEventListener('dragover', e => {
-                    e.preventDefault(); // Necessary to allow dropping
+                    e.preventDefault();
                     const tileId = e.dataTransfer.getData('text/plain');
                     const draggedTile = document.getElementById(tileId);
                     if (draggedTile && park.contains(draggedTile)) {
-                        park.style.backgroundColor = 'lightgreen'; // Change background color when dragging a tile into the park
+                        park.style.backgroundColor = 'lightgreen';
                     } else {
-                        park.style.backgroundColor = 'lightgrey'; // Change background color when dragging over the park
+                        park.style.backgroundColor = 'lightgrey';
                     }
                 });
 
                 park.addEventListener('dragleave', e => {
-                    park.style.backgroundColor = ''; // Reset background color when leaving
+                    park.style.backgroundColor = '';
                 });
 
                 park.addEventListener('drop', e => {
@@ -297,71 +291,73 @@
                     const tileId = e.dataTransfer.getData('text/plain');
                     let draggedTile = document.getElementById(tileId);
 
-                    // Prevent duplication when dropping the same tile
                     if (draggedTile.parentNode === park) return;
 
-                    // Remove any existing name tile from the park
                     park.querySelectorAll('.park-name-tile').forEach(existingTile => {
                         existingTile.parentNode.removeChild(existingTile);
                     });
 
-                    // Append the dragged tile to the park
                     park.appendChild(draggedTile);
-
-                    // Reset background color after dropping
                     park.style.backgroundColor = '#f0f0f0';
 
-                    // Check if the park has a name tile
                     const nameTile = park.querySelector('.park-name-tile');
                     if (!nameTile) {
-                        park.classList.add('no-name-tile'); // Add the CSS class to style the border color to red
-                        console.log('Added no-name-tile class to park:', park.textContent); // Log that the class was added
+                        park.classList.add('no-name-tile');
+                        park.style.backgroundColor = 'lightcoral';
+                        console.log('Added no-name-tile class to park:', park.textContent);
                     } else {
-                        park.classList.remove('no-name-tile'); // Remove the CSS class if a name tile is present
-                        console.log('Removed no-name-tile class from park:', park.textContent); // Log that the class was removed
+                        park.classList.remove('no-name-tile');
+                        console.log('Removed no-name-tile class from park:', park.textContent);
                     }
                 });
             });
 
-            // Handling drag over for the people container
             document.getElementById('peopleContainer').addEventListener('dragover', e => {
-                e.preventDefault(); // Necessary to allow dropping
+                e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
             });
 
-            // Handling drop for the people container
             document.getElementById('peopleContainer').addEventListener('drop', e => {
                 e.preventDefault();
                 const tileId = e.dataTransfer.getData('text/plain');
                 let draggedTile = document.getElementById(tileId);
 
-                // Prevent duplication when dropping the same tile
                 if (draggedTile.parentNode === document.getElementById('peopleContainer')) return;
 
-                // Check if the tile already exists in the people container
                 if (document.getElementById('peopleContainer').contains(draggedTile)) return;
 
-                // Append the dragged tile to the people container
                 document.getElementById('peopleContainer').appendChild(draggedTile);
 
-                // Alphabetize the names in the people container after appending a new tile
                 alphabetizePeopleContainer();
 
-                // Adjust the name tile text to move a little right
                 draggedTile.style.paddingLeft = '10px';
 
-                // Check if any park has no name tiles and change their background color to light red if necessary
                 document.querySelectorAll('.park').forEach(park => {
                     const nameTiles = park.querySelectorAll('.park-name-tile');
                     if (nameTiles.length === 0) {
-                        park.classList.add('no-name-tile'); // Add the CSS class to style the border color to red
-                        park.style.backgroundColor = 'lightcoral'; // Change background color to light red
-                        console.log('Added no-name-tile class to park:', park.textContent); // Log that the class was added
+                        park.classList.add('no-name-tile');
+                        park.style.backgroundColor = 'lightcoral';
+                        console.log('Added no-name-tile class to park:', park.textContent);
                     }
                 });
             });
         }
+
+        function prepopulatePeopleContainer(features) {
+            const peopleContainer = document.getElementById('peopleContainer');
+            features.forEach(feature => {
+                const { attributes } = feature;
+                const { ASMCrewLeader, OBJECTID } = attributes;
+                let tileDiv = document.createElement('div');
+                tileDiv.className = 'park-name-tile';
+                tileDiv.id = `tile-${OBJECTID}`;
+                tileDiv.textContent = ASMCrewLeader;
+                tileDiv.setAttribute('draggable', true);
+                peopleContainer.appendChild(tileDiv);
+            });
+        }
     });
 </script>
+
 </body>
 </html>
