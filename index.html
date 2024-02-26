@@ -159,11 +159,20 @@
         }
 
         function alphabetizePeopleContainer() {
-            const peopleContainer = document.getElementById('peopleContainer');
-            Array.from(peopleContainer.children)
-                .sort((a, b) => a.textContent.localeCompare(b.textContent))
-                .forEach(tile => peopleContainer.appendChild(tile));
-        }
+    const peopleContainer = document.getElementById('peopleContainer');
+    const nameTiles = Array.from(peopleContainer.querySelectorAll('.park-name-tile'));
+    
+    // Extract last names and sort alphabetically
+    nameTiles.sort((a, b) => {
+        const lastNameA = a.textContent.trim().split(' ').pop(); // Extract last name from tile A
+        const lastNameB = b.textContent.trim().split(' ').pop(); // Extract last name from tile B
+        return lastNameA.localeCompare(lastNameB);
+    });
+
+    // Append sorted tiles back to the container
+    nameTiles.forEach(tile => peopleContainer.appendChild(tile));
+}
+
 
         function processFeatures(features) {
             console.log('Processing features');
