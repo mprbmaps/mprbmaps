@@ -320,12 +320,17 @@ document.querySelectorAll('.park').forEach(park => {
 const parkContainer = document.getElementById('serviceAreaContainer');
 const observer = new MutationObserver(mutations => {
     mutations.forEach(mutation => {
+        console.log('Mutation:', mutation);
         const removedNodes = Array.from(mutation.removedNodes);
+        console.log('Removed nodes:', removedNodes);
         removedNodes.forEach(node => {
             if (node.classList && node.classList.contains('park-name-tile')) {
+                console.log('Removed park name tile:', node.id);
                 const park = node.closest('.park');
                 if (park) {
+                    console.log('Parent park:', park.textContent);
                     const nameTiles = park.querySelectorAll('.park-name-tile');
+                    console.log('Name tiles in park:', nameTiles.length);
                     if (nameTiles.length === 0) {
                         park.classList.add('no-name-tile');
                         console.log('Added no-name-tile class to park:', park.textContent);
@@ -337,6 +342,7 @@ const observer = new MutationObserver(mutations => {
 });
 
 observer.observe(parkContainer, { subtree: true, childList: true });
+
 
 
 
