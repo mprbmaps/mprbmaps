@@ -154,6 +154,11 @@
         nameDiv.textContent = areaName;
         areaDiv.appendChild(nameDiv);
 
+        let plusIcon = document.createElement('div');
+        plusIcon.className = 'plus-icon';
+        plusIcon.textContent = '+';
+        areaDiv.appendChild(plusIcon);
+
         let contentDiv = document.createElement('div');
         contentDiv.className = 'service-area-content'; // Hide content by default
         areaDiv.appendChild(contentDiv);
@@ -177,14 +182,22 @@
                 }
             });
         });
+
+        // Click event for the plus icon
+        plusIcon.addEventListener('click', function(event) {
+            event.stopPropagation(); // Prevent triggering click on the service-area
+            areaDiv.classList.toggle('expanded');
+            contentDiv.style.display = areaDiv.classList.contains('expanded') ? 'block' : 'none';
+        });
     });
 
-    // Collapse all service area containers
+    // Collapse all service area containers initially
     document.querySelectorAll('.service-area').forEach(container => {
         container.classList.remove('expanded');
         container.querySelector('.service-area-content').style.display = 'none';
     });
 }
+
 
 
         function setupDragAndDropListeners() {
