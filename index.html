@@ -274,13 +274,13 @@ const peopleContainer = document.getElementById('peopleContainer');
 peopleContainer.addEventListener('drop', e => {
     e.preventDefault();
     const tileId = e.dataTransfer.getData('text/plain');
-    let draggedTile = document.getElementById(tileId);
+    const draggedTile = document.getElementById(tileId);
 
-    // Only append if the tile is not already in the people container
-    if (!peopleContainer.contains(draggedTile)) {
-        // Extract the name from the tile ID
-        const name = draggedTile.textContent;
-        
+    // Check if the dragged tile exists and is not already in the people container
+    if (draggedTile && !peopleContainer.contains(draggedTile)) {
+        // Extract the name from the dragged tile's text content
+        const name = draggedTile.textContent.trim();
+
         // Create a new tile with the extracted name
         const newTile = document.createElement('div');
         newTile.className = 'park-name-tile';
@@ -290,6 +290,7 @@ peopleContainer.addEventListener('drop', e => {
         peopleContainer.appendChild(newTile);
     }
 });
+
 
 
 
