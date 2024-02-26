@@ -345,38 +345,39 @@
     });
 
     // Handling drop for the people container
-    document.getElementById('peopleContainer').addEventListener('drop', e => {
-        e.preventDefault();
-        const tileId = e.dataTransfer.getData('text/plain');
-        let draggedTile = document.getElementById(tileId);
+document.getElementById('peopleContainer').addEventListener('drop', e => {
+    e.preventDefault();
+    const tileId = e.dataTransfer.getData('text/plain');
+    let draggedTile = document.getElementById(tileId);
 
-        // Prevent duplication when dropping the same tile
-        if (draggedTile.parentNode === document.getElementById('peopleContainer')) return;
+    // Prevent duplication when dropping the same tile
+    if (draggedTile.parentNode === document.getElementById('peopleContainer')) return;
 
-        // Check if the tile already exists in the people container
-        if (document.getElementById('peopleContainer').contains(draggedTile)) return;
+    // Check if the tile already exists in the people container
+    if (document.getElementById('peopleContainer').contains(draggedTile)) return;
 
-        // Append the dragged tile to the people container
-        document.getElementById('peopleContainer').appendChild(draggedTile);
+    // Append the dragged tile to the people container
+    document.getElementById('peopleContainer').appendChild(draggedTile);
 
-        // Alphabetize the names in the people container
-        Array.from(document.getElementById('peopleContainer').children)
-            .sort((a, b) => a.textContent.localeCompare(b.textContent))
-            .forEach(tile => document.getElementById('peopleContainer').appendChild(tile));
+    // Alphabetize the names in the people container after appending a new tile
+    Array.from(document.getElementById('peopleContainer').children)
+        .sort((a, b) => a.textContent.localeCompare(b.textContent))
+        .forEach(tile => document.getElementById('peopleContainer').appendChild(tile));
 
-        // Adjust the name tile text to move a little right
-        draggedTile.style.paddingLeft = '10px';
+    // Adjust the name tile text to move a little right
+    draggedTile.style.paddingLeft = '10px';
 
-        // Check if any park has no name tiles and change their background color to light red if necessary
-        document.querySelectorAll('.park').forEach(park => {
-            const nameTiles = park.querySelectorAll('.park-name-tile');
-            if (nameTiles.length === 0) {
-                park.classList.add('no-name-tile'); // Add the CSS class to style the border color to red
-                park.style.backgroundColor = 'lightcoral'; // Change background color to light red
-                console.log('Added no-name-tile class to park:', park.textContent); // Log that the class was added
-            }
-        });
+    // Check if any park has no name tiles and change their background color to light red if necessary
+    document.querySelectorAll('.park').forEach(park => {
+        const nameTiles = park.querySelectorAll('.park-name-tile');
+        if (nameTiles.length === 0) {
+            park.classList.add('no-name-tile'); // Add the CSS class to style the border color to red
+            park.style.backgroundColor = 'lightcoral'; // Change background color to light red
+            console.log('Added no-name-tile class to park:', park.textContent); // Log that the class was added
+        }
     });
+});
+
 }
 
 
