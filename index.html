@@ -267,22 +267,13 @@ document.querySelectorAll('.park').forEach(park => {
     });
 });
 
-// Handling drop for the people container
-const peopleContainer = document.getElementById('peopleContainer');
-peopleContainer.addEventListener('drop', e => {
-    e.preventDefault();
-    const tileId = e.dataTransfer.getData('text/plain');
-    const draggedTile = document.getElementById(tileId);
-
-    // Check if the dragged tile exists and is not already in the people container
-    if (draggedTile && !peopleContainer.contains(draggedTile)) {
-        // Append the dragged tile directly to the people container
-        peopleContainer.appendChild(draggedTile);
-        // Re-enable dragging for the moved tile, if needed
-        draggedTile.setAttribute('draggable', true);
-        console.log('Dropped tile:', draggedTile.id, 'into people container'); // Log the dropped tile into the people container
-    }
+// Handling drag over for the people container
+peopleContainer.addEventListener('dragover', e => {
+    e.preventDefault(); // Necessary to allow dropping
+    console.log('Drag over the people container'); // Log when dragging over the people container
+    e.dataTransfer.dropEffect = 'move';
 });
+
         }
     });
 </script>
