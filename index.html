@@ -344,18 +344,27 @@
         }
 
         function prepopulatePeopleContainer(features) {
-            const peopleContainer = document.getElementById('peopleContainer');
-            features.forEach(feature => {
-                const { attributes } = feature;
-                const { ASMCrewLeader, OBJECTID } = attributes;
-                let tileDiv = document.createElement('div');
-                tileDiv.className = 'park-name-tile';
-                tileDiv.id = `tile-${OBJECTID}`;
-                tileDiv.textContent = ASMCrewLeader;
-                tileDiv.setAttribute('draggable', true);
-                peopleContainer.appendChild(tileDiv);
-            });
-        }
+    // Sort the features by crew leader's last name
+    features.sort((a, b) => {
+        const lastNameA = a.attributes.ASMCrewLeader.split(' ').pop();
+        const lastNameB = b.attributes.ASMCrewLeader.split(' ').pop();
+        return lastNameA.localeCompare(lastNameB);
+    });
+
+    // Add the sorted crew leaders to the people container
+    const peopleContainer = document.getElementById('peopleContainer');
+    features.forEach(feature => {
+        const { attributes } = feature;
+        const { ASMCrewLeader, OBJECTID } = attributes;
+        let tileDiv = document.createElement('div');
+        tileDiv.className = 'park-name-tile';
+        tileDiv.id = `tile-${OBJECTID}`;
+        tileDiv.textContent = ASMCrewLeader;
+        tileDiv.setAttribute('draggable', true);
+        peopleContainer.appendChild(tileDiv);
+    });
+}
+
     });
 </script>
 
