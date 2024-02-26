@@ -16,7 +16,7 @@
         .people-container {
     border: 1px solid gray;
     width: 20%; /* Left 20% of the screen */
-    min-height: 100px;
+    min-height: 200px;
     display: flex; /* Ensure the container is always displayed */
     flex-direction: column; /* Align items vertically */
     
@@ -192,7 +192,7 @@
             parksDiv.appendChild(parkDiv);
 
             details.crewLeaders.forEach(cl => {
-                if (cl.park.split('"').map(p => p.trim()).includes(parkName.trim())) {
+                if (cl.park.split(',').map(p => p.trim()).includes(parkName.trim())) {
                     let tileDiv = document.createElement('div');
                     tileDiv.className = 'park-name-tile';
                     tileDiv.textContent = cl.name;
@@ -205,17 +205,16 @@
         // Click event for the plus icon
         plusIcon.addEventListener('click', function(event) {
             event.stopPropagation(); // Prevent triggering click on the service-area
-            areaDiv.classList.toggle('expanded');
-            contentDiv.style.display = areaDiv.classList.contains('expanded') ? 'block' : 'none';
+            contentDiv.style.display = contentDiv.style.display === 'block' ? 'none' : 'block';
         });
     });
 
     // Collapse all service area containers initially
-    document.querySelectorAll('.service-area').forEach(container => {
-        container.classList.remove('expanded');
-        container.querySelector('.service-area-content').style.display = 'none';
+    document.querySelectorAll('.service-area-content').forEach(contentDiv => {
+        contentDiv.style.display = 'none';
     });
 }
+
 
         function setupDragAndDropListeners() {
     // Tiles become draggable
