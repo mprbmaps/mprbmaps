@@ -269,101 +269,97 @@ require([
     }
 
     function setupDragAndDropListeners() {
-        console.log('Setting up drag and drop listeners');
+    console.log('Setting up drag and drop listeners');
 
-        // Handling drag start for park name tiles
-        document.querySelectorAll('.park-name-tile').forEach(tile => {
-            tile.addEventListener('dragstart', e => {
-                console.log('Drag start:', e.target.id); // Log the start of dragging
-                e.dataTransfer.setData('text/plain', e.target.id); // Use tile's unique ID for identification
-                e.dataTransfer.effectAllowed = 'move';
-                const park = tile.closest('.park');
-                if (park) {
-                    // Check if the park has a name tile
-                    const nameTile = park.querySelector('.park-name-tile');
-                    if (!nameTile) {
-                        park.classList.add('no-name-tile'); // Add the CSS class to style the border color to red
-                        console.log('Added no-name-tile class to park:', park.textContent); // Log that the class was added
-                    } else {
-                        park.classList.remove('no-name-tile'); // Remove the CSS class if a name tile is present
-                        console.log('Removed no-name-tile class from park:', park.textContent); // Log that the class was removed
-                    }
+    // Handling drag start for park name tiles
+    document.querySelectorAll('.park-name-tile').forEach(tile => {
+        tile.addEventListener('dragstart', e => {
+            console.log('Drag start:', e.target.id); // Log the start of dragging
+            e.dataTransfer.setData('text/plain', e.target.id); // Use tile's unique ID for identification
+            e.dataTransfer.effectAllowed = 'move';
+            const park = tile.closest('.park');
+            if (park) {
+                // Check if the park has a name tile
+                const nameTile = park.querySelector('.park-name-tile');
+                if (!nameTile) {
+                    park.classList.add('no-name-tile'); // Add the CSS class to style the border color to red
+                    console.log('Added no-name-tile class to park:', park.textContent); // Log that the class was added
+                } else {
+                    park.classList.remove('no-name-tile'); // Remove the CSS class if a name tile is present
+                    console.log('Removed no-name-tile class from park:', park.textContent); // Log that the class was removed
                 }
-            });
+            }
         });
-
-        // Variable to store the park from which the tile was dragged
-        let draggedFromPark;
-
-        // Handling drop for parks
-document.querySelectorAll('.park').forEach(park => {
-    const parkName = park.querySelector('.park-name');
-    
-    parkName.addEventListener('dragover', e => {
-        e.preventDefault(); // Necessary to allow dropping
-        e.dataTransfer.dropEffect = 'move';
-        parkName.style.backgroundColor = 'lightblue'; // Change background color when dragging over
     });
 
-    parkName.addEventListener('dragleave', e => {
-        parkName.style.backgroundColor = '#f0f0f0'; // Reset background color when leaving
-    });
-
-    parkName.addEventListener('drop', e => {
-        e.preventDefault();
-        const tileId = e.dataTransfer.getData('text/plain');
-        let draggedTile = document.getElementById(tileId);
-
-        // Prevent duplication when dropping the same tile
-        if (draggedTile.parentNode === park) return;
-
-        // Handle existing tile in the park, if any
-        const existingTile = park.querySelector('.park-name-tile');
-        if (existingTile) {
-            document.getElementById('peopleContainer').appendChild(existingTile);
-        }
-        park.appendChild(draggedTile);
-
-        // Reset background color after dropping
-        parkName.style.backgroundColor = '#f0f0f0';
-
-        console.log('Dropped tile:', draggedTile.id, 'into park:', parkName.textContent); // Log the dropped tile and park
-
-        // Check if the park has a name tile
-        const nameTile = park.querySelector('.park-name-tile');
-        if (!nameTile) {
-            park.classList.add('no-name-tile'); // Add the CSS class to style the border color to red
-            console.log('Added no-name-tile class to park:', parkName.textContent); // Log that the class was added
-        } else {
-            park.classList.remove('no-name-tile'); // Remove the CSS class if a name tile is present
-            console.log('Removed no-name-tile class from park:', parkName.textContent); // Log that the class was removed
-        }
-    });
-});
-
-
-        // Handling drag over for the people container
-        document.getElementById('peopleContainer').addEventListener('dragover', e => {
+    // Handling drop for parks
+    document.querySelectorAll('.park').forEach(park => {
+        const parkName = park.querySelector('.park-name');
+        if (!parkName) return; // Defensive programming to ensure parkName exists
+        parkName.addEventListener('dragover', e => {
             e.preventDefault(); // Necessary to allow dropping
-            console.log('Drag over the people container'); // Log when dragging over the people container
             e.dataTransfer.dropEffect = 'move';
+            parkName.style.backgroundColor = 'lightblue'; // Change background color when dragging over
         });
 
-        // Handling drop for the people container
-        document.getElementById('peopleContainer').addEventListener('drop', e => {
+        parkName.addEventListener('dragleave', e => {
+            parkName.style.backgroundColor = '#f0f0f0'; // Reset background color when leaving
+        });
+
+        parkName.addEventListener('drop', e => {
             e.preventDefault();
             const tileId = e.dataTransfer.getData('text/plain');
             let draggedTile = document.getElementById(tileId);
 
             // Prevent duplication when dropping the same tile
-            if (draggedTile.parentNode === document.getElementById('peopleContainer')) return;
+            if (draggedTile.parentNode === park) return;
 
-            // Append the dragged tile to the people container
-            document.getElementById('peopleContainer').appendChild(draggedTile);
-            console.log('Dropped tile:', draggedTile.id, 'into people container');
+            // Handle existing tile in the park, if any
+            const existingTile = park.querySelector('.park-name-tile');
+            if (existingTile) {
+                document.getElementById('peopleContainer').appendChild(existingTile);
+            }
+            park.appendChild(draggedTile);
+
+            // Reset background color after dropping
+            parkName.style.backgroundColor = '#f0f0f0';
+
+            console.log('Dropped tile:', draggedTile.id, 'into park:', parkName.textContent); // Log the dropped tile and park
+
+            // Check if the park has a name tile
+            const nameTile = park.querySelector('.park-name-tile');
+            if (!nameTile) {
+                park.classList.add('no-name-tile'); // Add the CSS class to style the border color to red
+                console.log('Added no-name-tile class to park:', parkName.textContent); // Log that the class was added
+            } else {
+                park.classList.remove('no-name-tile'); // Remove the CSS class if a name tile is present
+                console.log('Removed no-name-tile class from park:', parkName.textContent); // Log that the class was removed
+            }
         });
-    }
-});
+    });
+
+    // Handling drag over for the people container
+    document.getElementById('peopleContainer').addEventListener('dragover', e => {
+        e.preventDefault(); // Necessary to allow dropping
+        console.log('Drag over the people container'); // Log when dragging over the people container
+        e.dataTransfer.dropEffect = 'move';
+    });
+
+    // Handling drop for the people container
+    document.getElementById('peopleContainer').addEventListener('drop', e => {
+        e.preventDefault();
+        const tileId = e.dataTransfer.getData('text/plain');
+        let draggedTile = document.getElementById(tileId);
+
+        // Prevent duplication when dropping the same tile
+        if (draggedTile.parentNode === document.getElementById('peopleContainer')) return;
+
+        // Append the dragged tile to the people container
+        document.getElementById('peopleContainer').appendChild(draggedTile);
+        console.log('Dropped tile:', draggedTile.id, 'into people container');
+    });
+}
+
 
 </script>
 
