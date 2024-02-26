@@ -246,6 +246,7 @@
 
         zone.addEventListener('drop', e => {
     e.preventDefault();
+    console.log('Drop event triggered');
     const data = e.dataTransfer.getData('text');
     const draggedElement = document.createElement('div');
     draggedElement.className = 'park-name-tile';
@@ -260,9 +261,13 @@
         if (fromParkName !== toParkName) {
             fromParkContainer.removeChild(replacedTile); // Remove tile from the source park
             toParkContainer.appendChild(draggedElement); // Add tile to the target park
+            console.log('Name tile moved from park to park');
+        } else {
+            console.log('Name tile dropped in the same park');
         }
     } else if (e.target.id === 'peopleContainer') {
         // Add the cloned name tile to the people container
+        console.log('Name tile dropped in the people container');
         document.getElementById('peopleContainer').appendChild(draggedElement);
         // Remove tile from the park
         const fromParkContainer = e.currentTarget;
@@ -270,6 +275,7 @@
         fromParkContainer.removeChild(tileToRemove);
     } else {
         // Add the cloned name tile to the park
+        console.log('Name tile dropped in another park');
         e.target.appendChild(draggedElement);
         // Remove tile from the park
         const fromParkContainer = e.currentTarget;
@@ -277,6 +283,7 @@
         fromParkContainer.removeChild(tileToRemove);
     }
 });
+
 
     });
 }
