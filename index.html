@@ -115,10 +115,7 @@ require([
 
     function populateUI(serviceAreasMap) {
     const serviceAreaContainer = document.getElementById('serviceAreaContainer');
-    const peopleContainer = document.getElementById('peopleContainer');
-    // Clear previous content
-    serviceAreaContainer.innerHTML = '';
-    peopleContainer.innerHTML = '';
+    serviceAreaContainer.innerHTML = ''; // Clear previous content
 
     // Sort service areas alphabetically
     const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
@@ -129,25 +126,22 @@ require([
         areaDiv.textContent = areaName;
         serviceAreaContainer.appendChild(areaDiv);
 
-        let parkList = document.createElement('ul');
-        parkList.className = 'park-list';
-        Object.values(details.parks).forEach(park => {
-            let parkItem = document.createElement('li');
-            parkItem.className = 'park';
-            parkItem.textContent = park.name;
-            parkList.appendChild(parkItem);
+        Object.entries(details.parks).forEach(([parkName, parkDetails]) => {
+            let parkDiv = document.createElement('div');
+            parkDiv.className = 'park';
+            parkDiv.textContent = parkName;
+            areaDiv.appendChild(parkDiv);
 
-            // Pre-populate ASMCrewLeader names
-            details.crewLeaders.filter(leader => leader.park === park.name).forEach(leader => {
-                let leaderTile = document.createElement('div');
-                leaderTile.className = 'tile';
-                leaderTile.textContent = leader.name + " (" + leader.phone + ")"; // Display name and phone
-                leaderTile.setAttribute('draggable', 'true');
-                leaderTile.setAttribute('data-info', JSON.stringify(leader));
-                parkItem.appendChild(leaderTile); // Append leaderTile under the parkItem
+            // Find and display leaders for this park
+            details.crewLeaders.filter(leader => leader.park.includes(parkName)).forEach(leader => {
+                let leaderDiv = document.createElement('div');
+                leaderDiv.className = 'tile';
+                leaderDiv.textContent = leader.name; // Adjust based on your preferred display
+                leaderDiv.setAttribute('draggable', 'true');
+                leaderDiv.setAttribute('data-info', JSON.stringify(leader));
+                parkDiv.appendChild(leaderDiv);
             });
         });
-        areaDiv.appendChild(parkList);
     });
 
     setupDragAndDropListeners();
