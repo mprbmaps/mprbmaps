@@ -139,40 +139,41 @@
         }
 
         function populateUI(serviceAreasMap) {
-            const serviceAreaContainer = document.getElementById('serviceAreaContainer');
-            serviceAreaContainer.innerHTML = ''; // Clear previous content
+    const serviceAreaContainer = document.getElementById('serviceAreaContainer');
+    serviceAreaContainer.innerHTML = ''; // Clear previous content
 
-            const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
+    const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
 
-            sortedServiceAreas.slice(0, 5).forEach(([areaName, details]) => { // Limit to first five service areas
-                let areaDiv = document.createElement('div');
-                areaDiv.className = 'service-area';
-                serviceAreaContainer.appendChild(areaDiv);
+    sortedServiceAreas.slice(0, 5).forEach(([areaName, details]) => { // Limit to first five service areas
+        let areaDiv = document.createElement('div');
+        areaDiv.className = 'service-area';
+        serviceAreaContainer.appendChild(areaDiv);
 
-                let nameDiv = document.createElement('div');
-                nameDiv.className = 'service-area-name';
-                nameDiv.textContent = areaName;
-                areaDiv.appendChild(nameDiv);
+        let nameDiv = document.createElement('div');
+        nameDiv.className = 'service-area-name';
+        nameDiv.textContent = areaName;
+        areaDiv.appendChild(nameDiv);
 
-                let parksDiv = document.createElement('div');
-                areaDiv.appendChild(parksDiv);
+        let parksDiv = document.createElement('div');
+        areaDiv.appendChild(parksDiv);
 
-                Object.values(details.parks).forEach(park => {
-                    let parkDiv = document.createElement('div');
-                    parkDiv.className = 'park';
-                    parkDiv.textContent = park.name;
-                    parksDiv.appendChild(parkDiv);
+        Object.values(details.parks).forEach(park => {
+            let parkDiv = document.createElement('div');
+            parkDiv.className = 'park';
+            parkDiv.textContent = park.name;
+            parksDiv.appendChild(parkDiv);
 
-                    details.crewLeaders.filter(cl => cl.park.trim() === park.name.trim()).forEach(cl => {
-                        let tileDiv = document.createElement('div');
-                        tileDiv.className = 'park-name-tile';
-                        tileDiv.textContent = cl.name;
-                        tileDiv.setAttribute('draggable', true);
-                        parkDiv.appendChild(tileDiv);
-                    });
-                });
+            details.crewLeaders.filter(cl => cl.park.trim() === park.name.trim()).forEach(cl => {
+                let tileDiv = document.createElement('div');
+                tileDiv.className = 'park-name-tile';
+                tileDiv.textContent = cl.name;
+                tileDiv.setAttribute('draggable', true);
+                parkDiv.appendChild(tileDiv);
             });
-        }
+        });
+    });
+}
+
 
         function setupDragAndDropListeners() {
             // Tiles become draggable
