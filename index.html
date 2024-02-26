@@ -320,18 +320,6 @@
     const tileId = e.dataTransfer.getData('text/plain');
     let draggedTile = document.getElementById(tileId);
 
-    // Remove the dragged tile from its original location (if it's under a park)
-    const originalPark = draggedTile.parentNode;
-    if (originalPark.classList.contains('park')) {
-        originalPark.removeChild(draggedTile);
-        // Check if the original park now has no name tiles
-        const nameTiles = originalPark.querySelectorAll('.park-name-tile');
-        if (nameTiles.length === 0) {
-            originalPark.classList.add('no-name-tile');
-            originalPark.style.backgroundColor = ''; // Reset background color
-        }
-    }
-
     // Remove the existing name tile from the park, if it exists
     const existingTile = park.querySelector('.park-name-tile');
     if (existingTile) {
@@ -354,6 +342,7 @@
         console.log('Removed no-name-tile class from park:', park.textContent); // Log that the class was removed
     }
 });
+
 
             });
         }
