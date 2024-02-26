@@ -337,12 +337,16 @@ document.getElementById('peopleContainer').addEventListener('drop', e => {
     const tileId = e.dataTransfer.getData('text/plain');
     let draggedTile = document.getElementById(tileId);
 
-    // Prevent duplication when dropping the same tile
-    if (draggedTile.parentNode === document.getElementById('peopleContainer')) return;
+    // Remove the dragged tile from its current parent (park)
+    draggedTile.parentNode.removeChild(draggedTile);
 
-    // Remove existing tiles with the same name from the people container
-    const existingTiles = document.querySelectorAll(`#peopleContainer .park-name-tile[data-name="${draggedTile.dataset.name}"]`);
-    existingTiles.forEach(tile => tile.parentNode.removeChild(tile));
+    // Check if a tile with the same name already exists in the people container
+    const existingTile = document.querySelector(`#peopleContainer .park-name-tile[data-name="${draggedTile.dataset.name}"]`);
+    if (existingTile) {
+        // If a tile with the same name exists, do not append the dragged tile
+        console.log('Tile with the same name already exists in the people container');
+        return;
+    }
 
     // Append the dragged tile to the people container
     document.getElementById('peopleContainer').appendChild(draggedTile);
@@ -358,6 +362,7 @@ document.getElementById('peopleContainer').addEventListener('drop', e => {
         }
     });
 });
+
 
     }
 });
