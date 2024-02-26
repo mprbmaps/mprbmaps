@@ -223,38 +223,72 @@
     }
 
     function setupDragAndDropListeners() {
-        document.querySelectorAll('.park-name-tile').forEach(tile => {
-            tile.addEventListener('dragstart', e => {
-                e.dataTransfer.setData('text/plain', e.target.textContent);
-                e.dataTransfer.setData('application/my-app', e.target.getAttribute('data-crew-id'));
-                e.dataTransfer.effectAllowed = 'move';
-            });
+    // Initialize dragstart for park name tiles
+    document.querySelectorAll('.park-name-tile').forEach(tile => {
+        tile.addEventListener('dragstart', e => {
+            e.dataTransfer.setData('text/plain', e.target.textContent); // Carry the tile's text content
+            // Store the original parent ID for reference
+            e.dataTransfer.setData('text/parent-id', e.target.parentElement.getAttribute('id'));
+            e.dataTransfer.effectAllowed = 'move';
+        });
+    });
+
+    // Handling drop for parks
+    document.querySelectorAll('.park').forEach(park => {
+        park.addEventListener('dragover', e => {
+            e.preventDefault(); // Allow dropping
+            e.dataTransfer.dropEffect = 'move';
         });
 
-        document.querySelectorAll('.park, #peopleContainer').forEach(zone => {
-            zone.addEventListener('dragover', e => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-            });
+        park.addEventListener('drop', e => {
+            e.preventDefault();
+            const data = e.dataTransfer.getData('text/plain');
+            const originalParentId = e.dataTransfer.getData('text/parent-id');
+            const draggedTile = document.querySelector(`.park-name-tile:contains('${data}')`);
 
-            zone.addEventListener('drop', e => {
-                e.preventDefault();
-                const data = e.dataTransfer.getData('text/plain');
-                const crewId = e.dataTransfer.getData('application/my-app');
-                let targetElement = e.target;
+            // Check if the target park already has a name tile
+            if (park.querySelector('.park-name-tile')) {
+                // Move the existing name tile to the people container
+                const existingTile = park.querySelector('.park-name-tile');
+                document.getElementById('peopleContainer').appendChild(existingTile.cloneNode(true));
+                existingTile.remove();
+            }
 
-                if(targetElement.className === 'park-name-tile') {
-                    targetElement = targetElement.parentNode;
+            // Append the dragged tile to the new park
+            park.appendChild(draggedTile);
+
+            // Remove the tile from its original park if it's different
+            if (originalParentId !== park.getAttribute('id')) {
+                const originalPark = document.getElementById(originalParentId);
+                const tileToRemove = originalPark.querySelector(`.park-name-tile:contains('${data}')`);
+                if (tileToRemove) {
+                    tileToRemove.remove();
                 }
+            }
 
-                if(targetElement.className === 'park') {
-                    updateDataModelAndUI(crewId, targetElement);
-                } else if(targetElement.id === 'peopleContainer') {
-                    removeFromParkUpdateUI(crewId);
-                }
-            });
+            setupDragAndDropListeners(); // Re-initialize listeners for new DOM elements
         });
-    }
+    });
+
+    // Ensure the people container can accept drops and re-initialize listeners for it
+    const peopleContainer = document.getElementById('peopleContainer');
+    peopleContainer.addEventListener('dragover', e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    });
+
+    peopleContainer.addEventListener('drop', e => {
+        e.preventDefault();
+        const data = e.dataTransfer.getData('text/plain');
+        const newTile = document.createElement('div');
+        newTile.className = 'park-name-tile';
+        newTile.textContent = data;
+        newTile.setAttribute('draggable', true);
+        peopleContainer.appendChild(newTile);
+
+        setupDragAndDropListeners(); // Re-apply listeners to include the newly added tile
+    });
+}
 
     function updateDataModelAndUI(crewId, newParkElement) {
         console.log(`Update model and UI for crew ID ${crewId} to park ${newParkElement.textContent.trim()}`);
