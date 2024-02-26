@@ -11,25 +11,31 @@
     <style>
         .container {
     display: flex;
-    justify-content: space-around; /* Centers items horizontally and spaces them evenly */
-    flex-wrap: nowrap; /* Prevents items from wrapping to the next line */
-    overflow-x: auto; /* Allows horizontal scrolling if the items overflow the container's width */
+    justify-content: space-around; /* Spread items evenly */
+    align-items: flex-start; /* Align items at the start of the container */
     padding: 20px;
+    overflow-x: auto; /* Allow horizontal scrolling */
 }
 
 .service-area {
-    flex: 1; /* Allows the boxes to grow to fill the space */
-    min-width: 180px; /* Ensures a minimum width for each box, adjust as needed */
-    max-width: 20%; /* Prevents any box from taking more than 20% of the container's width */
+    flex: 0 0 auto; /* Do not grow, do not shrink, basis is auto */
+    width: 18%; /* Adjust based on the container's width and desired spacing */
+    min-width: 180px; /* Minimum width for each service area */
     border: 2px solid #0079c1;
     margin: 10px;
     padding: 10px;
-    box-sizing: border-box;
     position: relative;
     overflow: hidden;
     cursor: pointer;
-    transition: all 0.3s ease;
 }
+
+/* Update styles for responsiveness */
+@media (max-width: 768px) {
+    .service-area {
+        width: 45%; /* Adjust for smaller screens */
+    }
+}
+
 /* Adjustments for the plus icon and content to ensure they display correctly */
 .plus-icon {
     align-self: flex-end; /* Position the plus icon at the end of the service area */
@@ -183,6 +189,18 @@ require([
 
     setupDragAndDropListeners(); // Ensure this is defined to handle any needed logic
 }
+    function attachExpandCollapseListeners() {
+            document.querySelectorAll('.service-area .plus-icon').forEach(icon => {
+                icon.addEventListener('click', function(event) {
+                    const serviceArea = this.parentNode;
+                    serviceArea.classList.toggle('expanded');
+                    const contentDiv = serviceArea.querySelector('.service-area-content');
+                    contentDiv.style.display = serviceArea.classList.contains('expanded') ? 'block' : 'none';
+                    this.classList.toggle('fa-plus');
+                    this.classList.toggle('fa-minus');
+                });
+            });
+        }
 
 
 
