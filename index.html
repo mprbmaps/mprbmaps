@@ -250,13 +250,22 @@
     console.log('Setting up drag and drop listeners');
 
     // Handling drag start for park name tiles
-    document.querySelectorAll('.park-name-tile').forEach(tile => {
-        tile.addEventListener('dragstart', e => {
-            console.log('Drag start:', e.target.id); // Log the start of dragging
-            e.dataTransfer.setData('text/plain', e.target.id); // Use tile's unique ID for identification
-            e.dataTransfer.effectAllowed = 'move';
-        });
+document.querySelectorAll('.park-name-tile').forEach(tile => {
+    tile.addEventListener('dragstart', e => {
+        console.log('Drag start:', e.target.id); // Log the start of dragging
+        e.dataTransfer.setData('text/plain', e.target.id); // Use tile's unique ID for identification
+        e.dataTransfer.effectAllowed = 'move';
+        const park = tile.closest('.park');
+        if (park) {
+            // Check if the park has a name tile
+            const nameTile = park.querySelector('.park-name-tile');
+            if (!nameTile) {
+                park.classList.add('no-name-tile'); // Add the CSS class to style the border color to red
+            }
+        }
     });
+});
+
 
     // Handling drop for parks
 document.querySelectorAll('.park').forEach(park => {
