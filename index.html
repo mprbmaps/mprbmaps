@@ -7,17 +7,28 @@
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
     <script src="https://js.arcgis.com/4.28/"></script>
     <style>
-        .container { display: flex; flex-wrap: wrap; justify-content: space-around; padding: 20px; }
-        .service-area {
-            border: 2px solid #0079c1;
-            margin: 10px;
-            padding: 10px;
-            width: 400px; /* Sets a specific width for each service area */
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-        }
+        .container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+.service-area {
+    border: 2px solid #0079c1;
+    margin: 10px;
+    padding: 10px;
+    box-sizing: border-box;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    overflow: hidden;
+    height: 40px; /* Initial height for non-expanded state */
+}
+
+.service-area.expanded {
+    height: auto; /* Height for expanded state */
+}
+
         .park-list { list-style-type: none; padding: 0; }
         .park { background-color: #f0f0f0; margin-top: 5px; padding: 5px; }
         .tile { background-color: #add8e6; border: 1px solid #000; margin: 5px; padding: 5px; cursor: grab; transition: transform 0.2s ease-out;}
@@ -112,38 +123,49 @@ require([
     }
 
     function populateUI(serviceAreasMap) {
-        const serviceAreaContainer = document.getElementById('serviceAreaContainer');
-        serviceAreaContainer.innerHTML = ''; // Clear previous content
+    const serviceAreaContainer = document.getElementById('serviceAreaContainer');
+    serviceAreaContainer.innerHTML = ''; // Clear previous content
 
-        // Sort service areas alphabetically
-        const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
+    const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
 
-        sortedServiceAreas.forEach(([areaName, details]) => {
+    sortedServiceAreas.forEach(([areaName, details], index) => {
+        if (index < 5) { // Assuming you want to display only the first five service areas
             let areaDiv = document.createElement('div');
             areaDiv.className = 'service-area';
-            areaDiv.textContent = areaName;
+            areaDiv.textContent = areaName; // You might want to keep this visible in the non-expanded state
             serviceAreaContainer.appendChild(areaDiv);
+
+            let contentDiv = document.createElement('div'); // Container for parks and leaders, hidden initially
+            contentDiv.style.display = 'none'; // Hide content initially
+            areaDiv.appendChild(contentDiv);
 
             Object.entries(details.parks).sort((a, b) => a[0].localeCompare(b[0])).forEach(([parkName, parkDetails]) => {
                 let parkDiv = document.createElement('div');
                 parkDiv.className = 'park';
                 parkDiv.textContent = parkName;
-                areaDiv.appendChild(parkDiv);
+                contentDiv.appendChild(parkDiv);
 
-                // Find and display leaders for this park
                 details.crewLeaders.filter(leader => leader.park.includes(parkName)).forEach(leader => {
                     let leaderDiv = document.createElement('div');
                     leaderDiv.className = 'tile';
-                    leaderDiv.textContent = leader.name; // Adjust based on your preferred display
+                    leaderDiv.textContent = leader.name;
                     leaderDiv.setAttribute('draggable', 'true');
                     leaderDiv.setAttribute('data-info', JSON.stringify(leader));
                     parkDiv.appendChild(leaderDiv);
                 });
             });
-        });
 
-        setupDragAndDropListeners();
-    }
+            // Click event to toggle expanded state
+            areaDiv.addEventListener('click', function() {
+                this.classList.toggle('expanded');
+                contentDiv.style.display = contentDiv.style.display === 'none' ? 'block' : 'none'; // Toggle visibility of content
+            });
+        }
+    });
+
+    setupDragAndDropListeners();
+}
+
 
     function setupDragAndDropListeners() {
         // Tiles become draggable
