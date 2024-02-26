@@ -320,18 +320,24 @@ document.querySelectorAll('.park').forEach(park => {
 const parkContainer = document.getElementById('serviceAreaContainer');
 const observer = new MutationObserver(mutations => {
     mutations.forEach(mutation => {
-        const parks = parkContainer.querySelectorAll('.park');
-        parks.forEach(park => {
-            if (park !== draggedFromPark) {
-                // Only remove the class from parks that are not the draggedFromPark
-                park.classList.remove('no-name-tile');
-                console.log('Removed no-name-tile class from park:', park.textContent);
+        const removedNodes = Array.from(mutation.removedNodes);
+        removedNodes.forEach(node => {
+            if (node.classList && node.classList.contains('park-name-tile')) {
+                const park = node.closest('.park');
+                if (park) {
+                    const nameTiles = park.querySelectorAll('.park-name-tile');
+                    if (nameTiles.length === 0) {
+                        park.classList.add('no-name-tile');
+                        console.log('Added no-name-tile class to park:', park.textContent);
+                    }
+                }
             }
         });
     });
 });
 
 observer.observe(parkContainer, { subtree: true, childList: true });
+
 
 
     // Handling drag over for the people container
