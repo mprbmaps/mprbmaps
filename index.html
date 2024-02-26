@@ -271,11 +271,6 @@
 
             // Handling drop for the people container
 const peopleContainer = document.getElementById('peopleContainer');
-peopleContainer.addEventListener('dragover', e => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-});
-
 peopleContainer.addEventListener('drop', e => {
     e.preventDefault();
     const tileId = e.dataTransfer.getData('text/plain');
@@ -284,7 +279,7 @@ peopleContainer.addEventListener('drop', e => {
     // Only append if the tile is not already in the people container
     if (!peopleContainer.contains(draggedTile)) {
         // Extract the name from the tile ID
-        const name = tileId.split('-')[1];
+        const name = draggedTile.textContent;
         
         // Create a new tile with the extracted name
         const newTile = document.createElement('div');
@@ -295,6 +290,7 @@ peopleContainer.addEventListener('drop', e => {
         peopleContainer.appendChild(newTile);
     }
 });
+
 
         }
     });
