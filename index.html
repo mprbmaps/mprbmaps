@@ -245,21 +245,39 @@
         });
 
         zone.addEventListener('drop', e => {
-            e.preventDefault();
-            const data = e.dataTransfer.getData('text');
-            const draggedElement = document.createElement('div');
-            draggedElement.className = 'park-name-tile';
-            draggedElement.textContent = data;
-            if (e.target.className === 'park-name-tile') {
-                // Replace the existing name tile
-                const replacedTile = e.target;
-                replacedTile.parentNode.insertBefore(draggedElement, replacedTile);
-                replacedTile.parentNode.removeChild(replacedTile);
-            } else if (e.target.id === 'peopleContainer') {
-                // Add the name tile to the people container
-                document.getElementById('peopleContainer').appendChild(draggedElement);
-            }
-        });
+    e.preventDefault();
+    const data = e.dataTransfer.getData('text');
+    const draggedElement = document.createElement('div');
+    draggedElement.className = 'park-name-tile';
+    draggedElement.textContent = data; // Set text content of the dragged element
+    if (e.target.className === 'park-name-tile') {
+        // Replace the existing name tile
+        const replacedTile = e.target;
+        const fromParkContainer = replacedTile.closest('.park');
+        const fromParkName = fromParkContainer.textContent.trim();
+        const toParkContainer = replacedTile.closest('.park');
+        const toParkName = toParkContainer.textContent.trim();
+        if (fromParkName !== toParkName) {
+            fromParkContainer.removeChild(replacedTile); // Remove tile from the source park
+            toParkContainer.appendChild(draggedElement); // Add tile to the target park
+        }
+    } else if (e.target.id === 'peopleContainer') {
+        // Add the cloned name tile to the people container
+        document.getElementById('peopleContainer').appendChild(draggedElement);
+        // Remove tile from the park
+        const fromParkContainer = e.currentTarget;
+        const tileToRemove = fromParkContainer.querySelector('.park-name-tile');
+        fromParkContainer.removeChild(tileToRemove);
+    } else {
+        // Add the cloned name tile to the park
+        e.target.appendChild(draggedElement);
+        // Remove tile from the park
+        const fromParkContainer = e.currentTarget;
+        const tileToRemove = fromParkContainer.querySelector('.park-name-tile');
+        fromParkContainer.removeChild(tileToRemove);
+    }
+});
+
     });
 }
 
