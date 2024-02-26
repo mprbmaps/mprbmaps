@@ -94,13 +94,11 @@ require([
             if (!acc[Maintenance_SA]) {
                 acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
             }
-            // Split park names and add each park if not already present
             Name_Primary.split(',').forEach(parkName => {
                 if (!acc[Maintenance_SA].parks[parkName.trim()]) {
                     acc[Maintenance_SA].parks[parkName.trim()] = { name: parkName.trim() };
                 }
             });
-            // Add crew leader to the area's list
             acc[Maintenance_SA].crewLeaders.push({
                 name: ASMCrewLeader,
                 phone: ASMCrewLeaderPhone,
@@ -114,71 +112,68 @@ require([
     }
 
     function populateUI(serviceAreasMap) {
-    const serviceAreaContainer = document.getElementById('serviceAreaContainer');
-    serviceAreaContainer.innerHTML = ''; // Clear previous content
+        const serviceAreaContainer = document.getElementById('serviceAreaContainer');
+        serviceAreaContainer.innerHTML = ''; // Clear previous content
 
-    // Sort service areas alphabetically
-    const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
+        // Sort service areas alphabetically
+        const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
 
-    sortedServiceAreas.forEach(([areaName, details]) => {
-        let areaDiv = document.createElement('div');
-        areaDiv.className = 'service-area';
-        areaDiv.textContent = areaName;
-        serviceAreaContainer.appendChild(areaDiv);
+        sortedServiceAreas.forEach(([areaName, details]) => {
+            let areaDiv = document.createElement('div');
+            areaDiv.className = 'service-area';
+            areaDiv.textContent = areaName;
+            serviceAreaContainer.appendChild(areaDiv);
 
-        Object.entries(details.parks).forEach(([parkName, parkDetails]) => {
-            let parkDiv = document.createElement('div');
-            parkDiv.className = 'park';
-            parkDiv.textContent = parkName;
-            areaDiv.appendChild(parkDiv);
+            Object.entries(details.parks).sort((a, b) => a[0].localeCompare(b[0])).forEach(([parkName, parkDetails]) => {
+                let parkDiv = document.createElement('div');
+                parkDiv.className = 'park';
+                parkDiv.textContent = parkName;
+                areaDiv.appendChild(parkDiv);
 
-            // Find and display leaders for this park
-            details.crewLeaders.filter(leader => leader.park.includes(parkName)).forEach(leader => {
-                let leaderDiv = document.createElement('div');
-                leaderDiv.className = 'tile';
-                leaderDiv.textContent = leader.name; // Adjust based on your preferred display
-                leaderDiv.setAttribute('draggable', 'true');
-                leaderDiv.setAttribute('data-info', JSON.stringify(leader));
-                parkDiv.appendChild(leaderDiv);
+                // Find and display leaders for this park
+                details.crewLeaders.filter(leader => leader.park.includes(parkName)).forEach(leader => {
+                    let leaderDiv = document.createElement('div');
+                    leaderDiv.className = 'tile';
+                    leaderDiv.textContent = leader.name; // Adjust based on your preferred display
+                    leaderDiv.setAttribute('draggable', 'true');
+                    leaderDiv.setAttribute('data-info', JSON.stringify(leader));
+                    parkDiv.appendChild(leaderDiv);
+                });
             });
         });
-    });
 
-    setupDragAndDropListeners();
-}
+        setupDragAndDropListeners();
+    }
 
     function setupDragAndDropListeners() {
+        // Tiles become draggable
         document.querySelectorAll('.tile').forEach(tile => {
             tile.addEventListener('dragstart', e => {
-                e.dataTransfer.setData('application/json', tile.getAttribute('data-info'));
-                tile.classList.add('dragging');
-            });
-            tile.addEventListener('dragend', () => {
-                document.querySelectorAll('.tile').forEach(t => t.classList.remove('dragging'));
+                e.dataTransfer.setData('text', e.target.id);
+                e.dataTransfer.effectAllowed = 'move';
             });
         });
 
-        document.querySelectorAll('.service-area').forEach(area => {
-            area.addEventListener('dragover', e => {
+        // Setup drop zones
+        const dropZones = document.querySelectorAll('.park, #peopleContainer');
+        dropZones.forEach(zone => {
+            zone.addEventListener('dragover', e => {
                 e.preventDefault();
-                const draggingTile = document.querySelector('.tile.dragging');
-                if (draggingTile) {
-                    area.appendChild(draggingTile);
-                }
+                e.dataTransfer.dropEffect = 'move';
             });
-            area.addEventListener('drop', function(e) {
+
+            zone.addEventListener('drop', e => {
                 e.preventDefault();
-                const leaderInfo = JSON.parse(e.dataTransfer.getData('application/json'));
-                const newServiceArea = this.textContent;
-                // If the park has changed, update the leader's assignment
-                if (leaderInfo.park !== newServiceArea) {
-                    updateFeatureInWriteLayer(leaderInfo, newServiceArea);
+                const data = e.dataTransfer.getData('text');
+                const draggedElement = document.getElementById(data);
+                if (e.target.className === 'park' || e.target.id === 'peopleContainer') {
+                    e.target.appendChild(draggedElement);
                 }
             });
         });
     }
 
-    function updateFeatureInWriteLayer(leaderInfo, newServiceAreaName) {
+        function updateFeatureInWriteLayer(leaderInfo, newServiceAreaName) {
         var query = writeLayer.createQuery();
         query.where = `Name_Primary = '${newServiceAreaName}'`;
         query.returnGeometry = false;
