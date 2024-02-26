@@ -55,43 +55,6 @@
         .service-area.expanded .service-area-content {
             display: block;
         }
-
-        /* Styles for modal */
-        .modal {
-            display: none; /* Hidden by default */
-            position: fixed; /* Stay in place */
-            z-index: 1; /* Sit on top */
-            left: 0;
-            top: 0;
-            width: 100%; /* Full width */
-            height: 100%; /* Full height */
-            overflow: auto; /* Enable scroll if needed */
-            background-color: rgb(0,0,0); /* Fallback color */
-            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
-        }
-
-        .modal-content {
-            background-color: #fefefe;
-            margin: 15% auto; /* 15% from the top and centered */
-            padding: 20px;
-            border: 1px solid #888;
-            width: 80%; /* Could be more or less, depending on screen size */
-        }
-
-        /* The Close Button */
-        .close {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-        }
-
-        .close:hover,
-        .close:focus {
-            color: black;
-            text-decoration: none;
-            cursor: pointer;
-        }
     </style>
 </head>
 <body>
@@ -160,10 +123,10 @@
                 if (!acc[Maintenance_SA]) {
                     acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
                 }
-                if(Name_Primary) {
+                if (Name_Primary) {
                     Name_Primary.split(',').forEach(parkName => {
                         if (!acc[Maintenance_SA].parks[parkName.trim()]) {
-                            acc[Maintenance_SA].parks[parkName.trim()] = { name: parkName.trim() };
+                            acc[Maintenance_SA].parks[parkName.trim()] = { name: parkName.trim(), crewLeaders: [] };
                         }
                     });
                 }
@@ -199,9 +162,20 @@
 
                 let contentDiv = document.createElement('div');
                 contentDiv.className = 'service-area-content';
-                // Example content, customize as needed
-                contentDiv.textContent = 'Details for ' + areaName;
                 areaDiv.appendChild(contentDiv);
+
+                // Populate with park names and crew leader tiles
+                Object.entries(details.parks).forEach(([parkName, parkDetails]) => {
+                    let parkDiv = document.createElement('div');
+                    parkDiv.textContent = parkName;
+                    contentDiv.appendChild(parkDiv);
+
+                    parkDetails.crewLeaders.forEach(leader => {
+                        let leaderDiv = document.createElement('div');
+                        leaderDiv.textContent = leader.name;
+                        contentDiv.appendChild(leaderDiv);
+                    });
+                });
 
                 plusIcon.addEventListener('click', function(event) {
                     event.stopPropagation();
@@ -278,18 +252,8 @@
             }).catch(console.error);
         }
 
-        // Modal close functionality
-        document.querySelector('.close').onclick = function() {
-            document.getElementById('myModal').style.display = "none";
-        };
-        window.onclick = function(event) {
-            if (event.target == document.getElementById('myModal')) {
-                document.getElementById('myModal').style.display = "none";
-            }
-        }
-
         // Call the function to setup drag and drop (if necessary for your app)
-        // setupDragAndDropListeners();
+        setupDragAndDropListeners();
     });
 </script>
 
