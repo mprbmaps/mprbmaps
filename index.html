@@ -113,21 +113,21 @@
             const serviceAreasMap = features.reduce((acc, {attributes}) => {
                 const { Maintenance_SA, Name_Primary, ASMCrewLeader, ASMCrewLeaderPhone, ASMCrewLeaderEmail } = attributes;
                 if (!acc[Maintenance_SA]) {
-                    acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
+                    acc[Maintenance_SA] = { parks: {} };
                 }
                 if (Name_Primary) {
                     Name_Primary.split(',').forEach(parkName => {
-                        if (!acc[Maintenance_SA].parks[parkName.trim()]) {
-                            acc[Maintenance_SA].parks[parkName.trim()] = { name: parkName.trim(), crewLeaders: [] };
+                        const trimmedParkName = parkName.trim();
+                        if (!acc[Maintenance_SA].parks[trimmedParkName]) {
+                            acc[Maintenance_SA].parks[trimmedParkName] = { crewLeaders: [] };
                         }
+                        acc[Maintenance_SA].parks[trimmedParkName].crewLeaders.push({
+                            name: ASMCrewLeader,
+                            phone: ASMCrewLeaderPhone,
+                            email: ASMCrewLeaderEmail
+                        });
                     });
                 }
-                acc[Maintenance_SA].crewLeaders.push({
-                    name: ASMCrewLeader,
-                    phone: ASMCrewLeaderPhone,
-                    email: ASMCrewLeaderEmail,
-                    park: Name_Primary
-                });
                 return acc;
             }, {});
 
