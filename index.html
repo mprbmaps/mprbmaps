@@ -150,6 +150,7 @@
             queryLayer.queryFeatures(query).then(function(results) {
                 console.log('Query features successful');
                 processFeatures(results.features);
+                prepopulatePeopleContainer(results.features); // Prepopulate people container after processing features
             }).catch(function(error) {
                 console.error("Error querying features: ", error);
             });
@@ -181,6 +182,31 @@
             }, {});
 
             populateUI(serviceAreasMap);
+        }
+
+        function prepopulatePeopleContainer(features) {
+            console.log('Prepopulating people container');
+            const peopleContainer = document.getElementById('peopleContainer');
+
+            // Extract ASMCrewLeader names from features
+            const crewLeaders = features.map(feature => feature.attributes.ASMCrewLeader).filter(Boolean);
+
+            // Create name tiles for each ASMCrewLeader
+            crewLeaders.forEach(crewLeader => {
+                let tileDiv = document.createElement('div');
+                tileDiv.className = 'park-name-tile';
+                tileDiv.textContent = crewLeader;
+                tileDiv.setAttribute('draggable', true);
+                peopleContainer.appendChild(tileDiv);
+            });
+
+            // Add event listeners for name tiles in the people container
+            peopleContainer.querySelectorAll('.park-name-tile').forEach(tile => {
+                tile.addEventListener('dragstart', e => {
+                    e.dataTransfer.setData('text/plain', e.target.textContent);
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+            });
         }
 
         function populateUI(serviceAreasMap) {
@@ -364,6 +390,7 @@
         }
     });
 </script>
+
 
 </body>
 </html>
