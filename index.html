@@ -264,6 +264,11 @@
                 });
             });
 
+            // Prevent dragging within the people container
+            document.querySelectorAll('.people-container .park-name-tile').forEach(tile => {
+                tile.removeAttribute('draggable');
+            });
+
             // Handling drop for the people container
             const peopleContainer = document.getElementById('peopleContainer');
             peopleContainer.addEventListener('dragover', e => {
@@ -278,29 +283,12 @@
 
                 // Only append if the tile is not already in the people container
                 if (!peopleContainer.contains(draggedTile)) {
+                    // Set a unique ID for the tile
+                    draggedTile.id = `tile-${Date.now()}`;
                     peopleContainer.appendChild(draggedTile);
                 }
             });
         }
-
-        // Ensure the people container can accept drops and re-initialize listeners for it
-        const peopleContainer = document.getElementById('peopleContainer');
-        peopleContainer.addEventListener('dragover', e => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-        });
-
-        peopleContainer.addEventListener('drop', e => {
-            e.preventDefault();
-            const data = e.dataTransfer.getData('text/plain');
-            const newTile = document.createElement('div');
-            newTile.className = 'park-name-tile';
-            newTile.textContent = data;
-            newTile.setAttribute('draggable', true);
-            peopleContainer.appendChild(newTile);
-
-            setupDragAndDropListeners(); // Re-apply listeners to include the newly added tile
-        });
     });
 </script>
 </body>
