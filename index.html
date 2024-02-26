@@ -145,31 +145,33 @@
         }
 
         function processFeatures(features) {
-            console.log('Processing features');
-            const serviceAreasMap = features.reduce((acc, feature) => {
-                const {attributes} = feature;
-                const { Maintenance_SA, Name_Primary, ASMCrewLeader, ASMCrewLeaderPhone, ASMCrewLeaderEmail, OBJECTID } = attributes;
-                if (!acc[Maintenance_SA]) {
-                    acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
-                }
-                Name_Primary.split('"').forEach(parkName => {
-                    if (!acc[Maintenance_SA].parks[parkName.trim()]) {
-                        acc[Maintenance_SA].parks[parkName.trim()] = { name: parkName.trim() };
-                    }
-                });
-                acc[Maintenance_SA].crewLeaders.push({
-                    objectId: OBJECTID, // Store the OBJECTID
-                    name: ASMCrewLeader,
-                    phone: ASMCrewLeaderPhone,
-                    email: ASMCrewLeaderEmail,
-                    park: Name_Primary
-                });
-                console.log('Processed feature:', OBJECTID); // Log the processed feature
-                return acc;
-            }, {});
-
-            populateUI(serviceAreasMap);
+    console.log('Processing features');
+    const serviceAreasMap = features.reduce((acc, feature) => {
+        const {attributes} = feature;
+        const { Maintenance_SA, Name_Primary, ASMCrewLeader, ASMCrewLeaderPhone, ASMCrewLeaderEmail, OBJECTID } = attributes;
+        console.log('OBJECTID:', OBJECTID); // Log the OBJECTID
+        if (!acc[Maintenance_SA]) {
+            acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
         }
+        Name_Primary.split('"').forEach(parkName => {
+            if (!acc[Maintenance_SA].parks[parkName.trim()]) {
+                acc[Maintenance_SA].parks[parkName.trim()] = { name: parkName.trim() };
+            }
+        });
+        acc[Maintenance_SA].crewLeaders.push({
+            objectId: OBJECTID, // Store the OBJECTID
+            name: ASMCrewLeader,
+            phone: ASMCrewLeaderPhone,
+            email: ASMCrewLeaderEmail,
+            park: Name_Primary
+        });
+        console.log('Processed feature:', OBJECTID); // Log the processed feature
+        return acc;
+    }, {});
+
+    populateUI(serviceAreasMap);
+}
+
 
         function populateUI(serviceAreasMap) {
             console.log('Populating UI');
