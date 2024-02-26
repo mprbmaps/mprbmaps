@@ -20,7 +20,7 @@
         }
         .park-list { list-style-type: none; padding: 0; }
         .park { background-color: #f0f0f0; margin-top: 5px; padding: 5px; }
-        .tile { background-color: #add8e6; border: 1px solid #000; margin: 5px; padding: 5px; cursor: grab; }
+        .tile { background-color: #add8e6; border: 1px solid #000; margin: 5px; padding: 5px; cursor: grab; transition: transform 0.2s ease-out;}
         .tile.dragging { opacity: 0.4; }
         .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
         .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; }
@@ -114,47 +114,44 @@ require([
     }
 
     function populateUI(serviceAreasMap) {
-        const serviceAreaContainer = document.getElementById('serviceAreaContainer');
-        const peopleContainer = document.getElementById('peopleContainer');
-        // Clear previous content
-        serviceAreaContainer.innerHTML = '';
-        peopleContainer.innerHTML = '';
+    const serviceAreaContainer = document.getElementById('serviceAreaContainer');
+    const peopleContainer = document.getElementById('peopleContainer');
+    // Clear previous content
+    serviceAreaContainer.innerHTML = '';
+    peopleContainer.innerHTML = '';
 
-        // Sort service areas alphabetically
-        const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
+    // Sort service areas alphabetically
+    const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
 
-        sortedServiceAreas.forEach(([areaName, details]) => {
-            let areaDiv = document.createElement('div');
-            areaDiv.className = 'service-area';
-            areaDiv.textContent = areaName;
-            serviceAreaContainer.appendChild(areaDiv);
+    sortedServiceAreas.forEach(([areaName, details]) => {
+        let areaDiv = document.createElement('div');
+        areaDiv.className = 'service-area';
+        areaDiv.textContent = areaName;
+        serviceAreaContainer.appendChild(areaDiv);
 
-            let parkList = document.createElement('ul');
-            parkList.className = 'park-list';
-            Object.values(details.parks).forEach(({ name }) => {
-                let parkItem = document.createElement('li');
-                parkItem.className = 'park';
-                parkItem.textContent = name;
-                parkList.appendChild(parkItem);
+        let parkList = document.createElement('ul');
+        parkList.className = 'park-list';
+        Object.values(details.parks).forEach(park => {
+            let parkItem = document.createElement('li');
+            parkItem.className = 'park';
+            parkItem.textContent = park.name;
+            parkList.appendChild(parkItem);
+
+            // Pre-populate ASMCrewLeader names
+            details.crewLeaders.filter(leader => leader.park === park.name).forEach(leader => {
+                let leaderTile = document.createElement('div');
+                leaderTile.className = 'tile';
+                leaderTile.textContent = leader.name + " (" + leader.phone + ")"; // Display name and phone
+                leaderTile.setAttribute('draggable', 'true');
+                leaderTile.setAttribute('data-info', JSON.stringify(leader));
+                parkItem.appendChild(leaderTile); // Append leaderTile under the parkItem
             });
-            areaDiv.appendChild(parkList);
         });
+        areaDiv.appendChild(parkList);
+    });
 
-        // Collect all crew leaders, sort them alphabetically, and then create tiles
-        let sortedCrewLeaders = Object.values(serviceAreasMap).flatMap(area => area.crewLeaders)
-            .sort((a, b) => a.name.localeCompare(b.name));
-
-        sortedCrewLeaders.forEach(leader => {
-            let leaderTile = document.createElement('div');
-            leaderTile.className = 'tile';
-            leaderTile.textContent = leader.name; // Display only the name
-            leaderTile.setAttribute('draggable', 'true');
-            leaderTile.setAttribute('data-info', JSON.stringify(leader));
-            peopleContainer.appendChild(leaderTile);
-        });
-
-        setupDragAndDropListeners();
-    }
+    setupDragAndDropListeners();
+}
 
     function setupDragAndDropListeners() {
         document.querySelectorAll('.tile').forEach(tile => {
