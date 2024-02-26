@@ -270,9 +270,6 @@ document.querySelectorAll('.park-name-tile').forEach(tile => {
     });
 });
 
-
-
-
     // Variable to store the park from which the tile was dragged
 let draggedFromPark;
 
@@ -281,10 +278,6 @@ document.querySelectorAll('.park').forEach(park => {
     park.addEventListener('dragover', e => {
         e.preventDefault(); // Necessary to allow dropping
         e.dataTransfer.dropEffect = 'move';
-    });
-
-    park.addEventListener('dragstart', e => {
-        draggedFromPark = park; // Store the reference to the park
     });
 
     park.addEventListener('drop', e => {
@@ -302,49 +295,40 @@ document.querySelectorAll('.park').forEach(park => {
             }
             park.appendChild(draggedTile);
             console.log('Dropped tile:', draggedTile.id, 'into park:', park.textContent); // Log the dropped tile and park
-        }
 
-        // Check if the park has a name tile
-        const nameTile = park.querySelector('.park-name-tile');
-        if (!nameTile) {
-            park.classList.add('no-name-tile'); // Add the CSS class to style the border color to red
-            console.log('Added no-name-tile class to park:', park.textContent); // Log that the class was added
-        } else {
-            park.classList.remove('no-name-tile'); // Remove the CSS class if a name tile is present
-            console.log('Removed no-name-tile class from park:', park.textContent); // Log that the class was removed
+            // Check if the park has a name tile
+            const nameTile = park.querySelector('.park-name-tile');
+            if (!nameTile) {
+                park.classList.add('no-name-tile'); // Add the CSS class to style the border color to red
+                console.log('Added no-name-tile class to park:', park.textContent); // Log that the class was added
+            } else {
+                park.classList.remove('no-name-tile'); // Remove the CSS class if a name tile is present
+                console.log('Removed no-name-tile class from park:', park.textContent); // Log that the class was removed
+            }
         }
     });
-});
 
-// Observe changes in the park container
-const parkContainer = document.getElementById('serviceAreaContainer');
-const observer = new MutationObserver(mutations => {
-    mutations.forEach(mutation => {
-        console.log('Mutation:', mutation);
-        const removedNodes = Array.from(mutation.removedNodes);
-        console.log('Removed nodes:', removedNodes);
-        removedNodes.forEach(node => {
-            if (node.classList && node.classList.contains('park-name-tile')) {
-                console.log('Removed park name tile:', node.id);
-                const park = node.closest('.park');
-                if (park) {
-                    console.log('Parent park:', park.textContent);
+    // Mutation observer to detect changes in park content
+    const observer = new MutationObserver(mutationsList => {
+        for (let mutation of mutationsList) {
+            if (mutation.type === 'childList') {
+                const removedNodes = Array.from(mutation.removedNodes);
+                const removedTiles = removedNodes.filter(node => node.classList.contains('park-name-tile'));
+                if (removedTiles.length > 0) {
+                    console.log('Removed park name tile:', removedTiles[0].id); // Log the removed name tile
                     const nameTiles = park.querySelectorAll('.park-name-tile');
-                    console.log('Name tiles in park:', nameTiles.length);
                     if (nameTiles.length === 0) {
-                        park.classList.add('no-name-tile');
-                        console.log('Added no-name-tile class to park:', park.textContent);
+                        park.classList.add('no-name-tile'); // Add the CSS class if no name tiles are present
+                        console.log('Added no-name-tile class to park:', park.textContent); // Log that the class was added
                     }
                 }
             }
-        });
+        }
     });
+
+    // Start observing the park node for changes
+    observer.observe(park, { childList: true });
 });
-
-observer.observe(parkContainer, { subtree: true, childList: true });
-
-
-
 
     // Handling drag over for the people container
     document.getElementById('peopleContainer').addEventListener('dragover', e => {
