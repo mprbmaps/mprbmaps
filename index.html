@@ -163,16 +163,19 @@
             parkDiv.textContent = park.name;
             parksDiv.appendChild(parkDiv);
 
-            details.crewLeaders.filter(cl => cl.park.trim() === park.name.trim()).forEach(cl => {
-                let tileDiv = document.createElement('div');
-                tileDiv.className = 'park-name-tile';
-                tileDiv.textContent = cl.name;
-                tileDiv.setAttribute('draggable', true);
-                parkDiv.appendChild(tileDiv);
+            details.crewLeaders.forEach(cl => {
+                if (cl.park.split(',').map(p => p.trim()).includes(park.name.trim())) {
+                    let tileDiv = document.createElement('div');
+                    tileDiv.className = 'park-name-tile';
+                    tileDiv.textContent = cl.name;
+                    tileDiv.setAttribute('draggable', true);
+                    parkDiv.appendChild(tileDiv);
+                }
             });
         });
     });
 }
+
 
 
         function setupDragAndDropListeners() {
