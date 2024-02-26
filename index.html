@@ -10,37 +10,37 @@
 
     <style>
         .container {
-    display: flex;
-    justify-content: space-around; /* Spread items evenly */
-    align-items: flex-start; /* Align items at the start of the container */
-    padding: 20px;
-    overflow-x: auto; /* Allow horizontal scrolling */
-    flex-wrap: wrap; /* Allow wrapping to multiple lines */
-    flex-direction: row; /* Spread items horizontally */
-}
+            display: flex;
+            width: 100%;
+        }
 
+        .people-container {
+            width: 20%; /* Left 20% of the screen */
+        }
+
+        .service-area-container {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            align-items: flex-start;
+            width: 80%; /* Right 80% of the screen */
+            padding: 20px;
+            overflow-x: auto;
+        }
 
         .service-area {
-    flex-grow: 1; /* Allow containers to grow and fill the available space */
-    max-width: 200px; /* Limit the maximum width of each service area */
-    border: 2px solid #0079c1;
-    margin: 10px;
-    padding: 10px;
-    position: relative;
-    overflow: hidden;
-    cursor: pointer;
-    box-sizing: border-box; /* Include padding and border in the width calculation */
-}
-
-    .service-area-container {
-    display: flex;
-    justify-content: space-around; /* Spread items evenly */
-    align-items: flex-start; /* Align items at the start of the container */
-    padding: 20px;
-    overflow-x: auto; /* Allow horizontal scrolling */
-    flex-wrap: wrap; /* Allow wrapping to multiple lines */
-    flex-direction: row; /* Spread items horizontally */
-}
+            flex-grow: 1;
+            flex-basis: calc(33.333% - 20px);
+            max-width: 200px;
+            border: 2px solid #0079c1;
+            margin: 10px;
+            padding: 10px;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
 
         .plus-icon {
             position: absolute;
@@ -49,11 +49,48 @@
         }
 
         .service-area-content {
-            display: none; /* Keep content hidden initially */
+            display: none;
         }
 
         .service-area.expanded .service-area-content {
-            display: block; /* Show content on expansion */
+            display: block;
+        }
+
+        /* Styles for modal */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgb(0,0,0); /* Fallback color */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto; /* 15% from the top and centered */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; /* Could be more or less, depending on screen size */
+        }
+
+        /* The Close Button */
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -64,17 +101,8 @@
     </div>
     <div id="serviceAreaContainer" class="service-area-container">
         <!-- Service areas and parks will be dynamically added here -->
-        <!-- Example structure for a service area with expand/collapse icon -->
-        <!-- This part will be dynamically generated in JavaScript, shown here for illustration -->
-        <!-- <div class="service-area">
-            <span class="expand-icon">+</span> Service Area 1
-            <div class="content">
-                <!-- Parks and leaders go here -->
-            <!-- </div>
-        </div> -->
     </div>
 </div>
-
 
 <!-- The Modal -->
 <div id="myModal" class="modal">
@@ -132,11 +160,13 @@
                 if (!acc[Maintenance_SA]) {
                     acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
                 }
-                Name_Primary.split(',').forEach(parkName => {
-                    if (!acc[Maintenance_SA].parks[parkName.trim()]) {
-                        acc[Maintenance_SA].parks[parkName.trim()] = { name: parkName.trim() };
-                    }
-                });
+                if(Name_Primary) {
+                    Name_Primary.split(',').forEach(parkName => {
+                        if (!acc[Maintenance_SA].parks[parkName.trim()]) {
+                            acc[Maintenance_SA].parks[parkName.trim()] = { name: parkName.trim() };
+                        }
+                    });
+                }
                 acc[Maintenance_SA].crewLeaders.push({
                     name: ASMCrewLeader,
                     phone: ASMCrewLeaderPhone,
@@ -153,9 +183,7 @@
             const serviceAreaContainer = document.getElementById('serviceAreaContainer');
             serviceAreaContainer.innerHTML = ''; // Clear previous content
 
-            const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
-
-            sortedServiceAreas.slice(0, 5).forEach(([areaName, details]) => { // Limit to first five service areas
+            Object.entries(serviceAreasMap).forEach(([areaName, details]) => {
                 let areaDiv = document.createElement('div');
                 areaDiv.className = 'service-area';
                 serviceAreaContainer.appendChild(areaDiv);
@@ -166,24 +194,38 @@
 
                 let plusIcon = document.createElement('div');
                 plusIcon.className = 'plus-icon';
-                plusIcon.textContent = '+'; // Use an icon from a library if preferred
+                plusIcon.textContent = '+';
                 areaDiv.appendChild(plusIcon);
 
                 let contentDiv = document.createElement('div');
                 contentDiv.className = 'service-area-content';
+                // Example content, customize as needed
+                contentDiv.textContent = 'Details for ' + areaName;
                 areaDiv.appendChild(contentDiv);
 
-                // Click event for the plus icon
                 plusIcon.addEventListener('click', function(event) {
-                    event.stopPropagation(); // Prevent triggering click on the service-area
+                    event.stopPropagation();
                     areaDiv.classList.toggle('expanded');
                     contentDiv.style.display = areaDiv.classList.contains('expanded') ? 'block' : 'none';
                 });
             });
-
-            setupDragAndDropListeners(); // Ensure this is defined to handle any needed logic
         }
 
+        // Modal functionality
+        var modal = document.getElementById('myModal');
+        var span = document.getElementsByClassName("close")[0];
+
+        span.onclick = function() {
+            modal.style.display = "none";
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        // Setup drag and drop listeners - example setup, adjust as necessary
         function setupDragAndDropListeners() {
             // Tiles become draggable
             document.querySelectorAll('.tile').forEach(tile => {
@@ -244,7 +286,10 @@
             if (event.target == document.getElementById('myModal')) {
                 document.getElementById('myModal').style.display = "none";
             }
-        };
+        }
+
+        // Call the function to setup drag and drop (if necessary for your app)
+        // setupDragAndDropListeners();
     });
 </script>
 
