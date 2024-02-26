@@ -10,47 +10,47 @@
 
     <style>
         .container {
-    display: flex;
-    justify-content: space-around; /* Spread items evenly */
-    align-items: flex-start; /* Align items at the start of the container */
-    padding: 20px;
-    overflow-x: auto; /* Allow horizontal scrolling */
-}
+            display: flex;
+            justify-content: space-around; /* Spread items evenly */
+            align-items: flex-start; /* Align items at the start of the container */
+            padding: 20px;
+            overflow-x: auto; /* Allow horizontal scrolling */
+            flex-wrap: nowrap; /* Prevent wrapping to maintain horizontal layout */
+            flex-direction: row; /* Arrange items horizontally */
+        }
 
-.service-area {
-    flex: 0 0 auto; /* Do not grow, do not shrink, basis is auto */
-    width: 18%; /* Adjust based on the container's width and desired spacing */
-    min-width: 180px; /* Minimum width for each service area */
-    border: 2px solid #0079c1;
-    margin: 10px;
-    padding: 10px;
-    position: relative;
-    overflow: hidden;
-    cursor: pointer;
-}
+        .service-area {
+            flex: 0 0 auto; /* Do not grow, do not shrink, basis is auto */
+            width: 18%; /* Adjust based on the container's width and desired spacing */
+            min-width: 180px; /* Minimum width for each service area */
+            border: 2px solid #0079c1;
+            margin: 10px;
+            padding: 10px;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
 
-/* Update styles for responsiveness */
-@media (max-width: 768px) {
-    .service-area {
-        width: 45%; /* Adjust for smaller screens */
-    }
-}
+        /* Update styles for responsiveness */
+        @media (max-width: 768px) {
+            .service-area {
+                width: 45%; /* Adjust for smaller screens */
+            }
+        }
 
-/* Adjustments for the plus icon and content to ensure they display correctly */
-.plus-icon {
-    align-self: flex-end; /* Position the plus icon at the end of the service area */
-}
+        /* Adjustments for the plus icon and content to ensure they display correctly */
+        .plus-icon {
+            align-self: flex-end; /* Position the plus icon at the end of the service area */
+        }
 
-.service-area-content {
-    width: 100%; /* Ensure content uses the full width of the service area */
-    display: none; /* Keep content hidden initially */
-}
+        .service-area-content {
+            width: 100%; /* Ensure content uses the full width of the service area */
+            display: none; /* Keep content hidden initially */
+        }
 
-.service-area.expanded .service-area-content {
-    display: block; /* Show content on expansion */
-}
-
-
+        .service-area.expanded .service-area-content {
+            display: block; /* Show content on expansion */
+        }
 
         .park-list { list-style-type: none; padding: 0; }
         .park { background-color: #f0f0f0; margin-top: 5px; padding: 5px; }
@@ -90,182 +90,169 @@
 </div>
 
 <script>
-require([
-    "esri/identity/OAuthInfo",
-    "esri/identity/IdentityManager",
-    "esri/layers/FeatureLayer",
-    "esri/rest/support/Query"
-], function(OAuthInfo, esriId, FeatureLayer, Query) {
-    var info = new OAuthInfo({
-        appId: "ti3fi1FqvHE2Hhyw",
-        popup: true
-    });
-    esriId.registerOAuthInfos([info]);
-
-    esriId.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
-        console.log("Signed in");
-        loadLayerAndPopulateUI();
-    }).catch(function() {
-        console.error("Not signed in");
-        esriId.getCredential(info.portalUrl + "/sharing");
-    });
-
-    var queryLayer = new FeatureLayer({
-        url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0"
-    });
-
-    var writeLayer = new FeatureLayer({
-        url: "https://utility.arcgis.com/usrsvcs/servers/9e2987cdb16646348e9398b53fcaf42c/rest/services/MPRB_Locations/MapServer/0"
-    });
-
-    function loadLayerAndPopulateUI() {
-        var query = queryLayer.createQuery();
-        query.where = "1=1";
-        query.outFields = ["Name_Primary", "ASMCrewLeader", "ASMCrewLeaderPhone", "ASMCrewLeaderEmail", "Maintenance_SA"];
-        query.returnGeometry = false;
-
-        queryLayer.queryFeatures(query).then(function(results) {
-            processFeatures(results.features);
-        }).catch(function(error) {
-            console.error("Error querying features: ", error);
+    require([
+        "esri/identity/OAuthInfo",
+        "esri/identity/IdentityManager",
+        "esri/layers/FeatureLayer",
+        "esri/rest/support/Query"
+    ], function(OAuthInfo, esriId, FeatureLayer, Query) {
+        var info = new OAuthInfo({
+            appId: "ti3fi1FqvHE2Hhyw",
+            popup: true
         });
-    }
+        esriId.registerOAuthInfos([info]);
 
-    function processFeatures(features) {
-        const serviceAreasMap = features.reduce((acc, {attributes}) => {
-            const { Maintenance_SA, Name_Primary, ASMCrewLeader, ASMCrewLeaderPhone, ASMCrewLeaderEmail } = attributes;
-            if (!acc[Maintenance_SA]) {
-                acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
-            }
-            Name_Primary.split(',').forEach(parkName => {
-                if (!acc[Maintenance_SA].parks[parkName.trim()]) {
-                    acc[Maintenance_SA].parks[parkName.trim()] = { name: parkName.trim() };
+        esriId.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+            console.log("Signed in");
+            loadLayerAndPopulateUI();
+        }).catch(function() {
+            console.error("Not signed in");
+            esriId.getCredential(info.portalUrl + "/sharing");
+        });
+
+        var queryLayer = new FeatureLayer({
+            url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0"
+        });
+
+        var writeLayer = new FeatureLayer({
+            url: "https://utility.arcgis.com/usrsvcs/servers/9e2987cdb16646348e9398b53fcaf42c/rest/services/MPRB_Locations/MapServer/0"
+        });
+
+        function loadLayerAndPopulateUI() {
+            var query = queryLayer.createQuery();
+            query.where = "1=1";
+            query.outFields = ["Name_Primary", "ASMCrewLeader", "ASMCrewLeaderPhone", "ASMCrewLeaderEmail", "Maintenance_SA"];
+            query.returnGeometry = false;
+
+            queryLayer.queryFeatures(query).then(function(results) {
+                processFeatures(results.features);
+            }).catch(function(error) {
+                console.error("Error querying features: ", error);
+            });
+        }
+
+        function processFeatures(features) {
+            const serviceAreasMap = features.reduce((acc, {attributes}) => {
+                const { Maintenance_SA, Name_Primary, ASMCrewLeader, ASMCrewLeaderPhone, ASMCrewLeaderEmail } = attributes;
+                if (!acc[Maintenance_SA]) {
+                    acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
                 }
+                Name_Primary.split(',').forEach(parkName => {
+                    if (!acc[Maintenance_SA].parks[parkName.trim()]) {
+                        acc[Maintenance_SA].parks[parkName.trim()] = { name: parkName.trim() };
+                    }
+                });
+                acc[Maintenance_SA].crewLeaders.push({
+                    name: ASMCrewLeader,
+                    phone: ASMCrewLeaderPhone,
+                    email: ASMCrewLeaderEmail,
+                    park: Name_Primary
+                });
+                return acc;
+            }, {});
+
+            populateUI(serviceAreasMap);
+        }
+
+        function populateUI(serviceAreasMap) {
+            const serviceAreaContainer = document.getElementById('serviceAreaContainer');
+            serviceAreaContainer.innerHTML = ''; // Clear previous content
+
+            const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
+
+            sortedServiceAreas.slice(0, 5).forEach(([areaName, details]) => { // Limit to first five service areas
+                let areaDiv = document.createElement('div');
+                areaDiv.className = 'service-area';
+                serviceAreaContainer.appendChild(areaDiv);
+
+                let nameDiv = document.createElement('div');
+                nameDiv.textContent = areaName;
+                areaDiv.appendChild(nameDiv);
+
+                let plusIcon = document.createElement('div');
+                plusIcon.className = 'plus-icon';
+                plusIcon.textContent = '+'; // Use an icon from a library if preferred
+                areaDiv.appendChild(plusIcon);
+
+                let contentDiv = document.createElement('div');
+                contentDiv.className = 'service-area-content';
+                areaDiv.appendChild(contentDiv);
+
+                // Populate contentDiv as before
+
+                // Click event for the plus icon
+                plusIcon.addEventListener('click', function(event) {
+                    event.stopPropagation(); // Prevent triggering click on the service-area
+                    areaDiv.classList.toggle('expanded');
+                    contentDiv.style.display = areaDiv.classList.contains('expanded') ? 'block' : 'none';
+                });
             });
-            acc[Maintenance_SA].crewLeaders.push({
-                name: ASMCrewLeader,
-                phone: ASMCrewLeaderPhone,
-                email: ASMCrewLeaderEmail,
-                park: Name_Primary
+
+            setupDragAndDropListeners(); // Ensure this is defined to handle any needed logic
+        }
+
+        function setupDragAndDropListeners() {
+            // Tiles become draggable
+            document.querySelectorAll('.tile').forEach(tile => {
+                tile.addEventListener('dragstart', e => {
+                    e.dataTransfer.setData('text', e.target.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                });
             });
-            return acc;
-        }, {});
 
-        populateUI(serviceAreasMap);
-    }
+            // Setup drop zones
+            const dropZones = document.querySelectorAll('.park, #peopleContainer');
+            dropZones.forEach(zone => {
+                zone.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                });
 
-    function populateUI(serviceAreasMap) {
-    const serviceAreaContainer = document.getElementById('serviceAreaContainer');
-    serviceAreaContainer.innerHTML = ''; // Clear previous content
-
-    const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
-
-    sortedServiceAreas.slice(0, 5).forEach(([areaName, details]) => { // Limit to first five service areas
-        let areaDiv = document.createElement('div');
-        areaDiv.className = 'service-area';
-        serviceAreaContainer.appendChild(areaDiv);
-
-        let nameDiv = document.createElement('div');
-        nameDiv.textContent = areaName;
-        areaDiv.appendChild(nameDiv);
-
-        let plusIcon = document.createElement('div');
-        plusIcon.className = 'plus-icon';
-        plusIcon.textContent = '+'; // Use an icon from a library if preferred
-        areaDiv.appendChild(plusIcon);
-
-        let contentDiv = document.createElement('div');
-        contentDiv.className = 'service-area-content';
-        areaDiv.appendChild(contentDiv);
-
-        // Populate contentDiv as before
-
-        // Click event for the plus icon
-        plusIcon.addEventListener('click', function(event) {
-            event.stopPropagation(); // Prevent triggering click on the service-area
-            areaDiv.classList.toggle('expanded');
-        });
-    });
-
-    setupDragAndDropListeners(); // Ensure this is defined to handle any needed logic
-}
-    function attachExpandCollapseListeners() {
-            document.querySelectorAll('.service-area .plus-icon').forEach(icon => {
-                icon.addEventListener('click', function(event) {
-                    const serviceArea = this.parentNode;
-                    serviceArea.classList.toggle('expanded');
-                    const contentDiv = serviceArea.querySelector('.service-area-content');
-                    contentDiv.style.display = serviceArea.classList.contains('expanded') ? 'block' : 'none';
-                    this.classList.toggle('fa-plus');
-                    this.classList.toggle('fa-minus');
+                zone.addEventListener('drop', e => {
+                    e.preventDefault();
+                    const data = e.dataTransfer.getData('text');
+                    const draggedElement = document.getElementById(data);
+                    if (e.target.className === 'park' || e.target.id === 'peopleContainer') {
+                        e.target.appendChild(draggedElement);
+                    }
                 });
             });
         }
 
-
-
-    function setupDragAndDropListeners() {
-        // Tiles become draggable
-        document.querySelectorAll('.tile').forEach(tile => {
-            tile.addEventListener('dragstart', e => {
-                e.dataTransfer.setData('text', e.target.id);
-                e.dataTransfer.effectAllowed = 'move';
-            });
-        });
-
-        // Setup drop zones
-        const dropZones = document.querySelectorAll('.park, #peopleContainer');
-        dropZones.forEach(zone => {
-            zone.addEventListener('dragover', e => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-            });
-
-            zone.addEventListener('drop', e => {
-                e.preventDefault();
-                const data = e.dataTransfer.getData('text');
-                const draggedElement = document.getElementById(data);
-                if (e.target.className === 'park' || e.target.id === 'peopleContainer') {
-                    e.target.appendChild(draggedElement);
-                }
-            });
-        });
-    }
-
         function updateFeatureInWriteLayer(leaderInfo, newServiceAreaName) {
-        var query = writeLayer.createQuery();
-        query.where = `Name_Primary = '${newServiceAreaName}'`;
-        query.returnGeometry = false;
-        query.outFields = ["*"];
+            var query = writeLayer.createQuery();
+            query.where = `Name_Primary = '${newServiceAreaName}'`;
+            query.returnGeometry = false;
+            query.outFields = ["*"];
 
-        writeLayer.queryFeatures(query).then(function(results) {
-            if (results.features.length > 0) {
-                var featureToUpdate = results.features[0];
-                featureToUpdate.attributes['ASMCrewLeader'] = leaderInfo.name;
-                featureToUpdate.attributes['ASMCrewLeaderPhone'] = leaderInfo.phone;
-                featureToUpdate.attributes['ASMCrewLeaderEmail'] = leaderInfo.email;
+            writeLayer.queryFeatures(query).then(function(results) {
+                if (results.features.length > 0) {
+                    var featureToUpdate = results.features[0];
+                    featureToUpdate.attributes['ASMCrewLeader'] = leaderInfo.name;
+                    featureToUpdate.attributes['ASMCrewLeaderPhone'] = leaderInfo.phone;
+                    featureToUpdate.attributes['ASMCrewLeaderEmail'] = leaderInfo.email;
 
-                writeLayer.applyEdits({
-                    updateFeatures: [featureToUpdate]
-                }).then(function(response) {
-                    if (response.updateFeatureResults.length > 0) {
-                        console.log('Feature updated successfully in the write layer.');
-                    }
-                }).catch(console.error);
-            }
-        }).catch(console.error);
-    }
-
-    // Modal close functionality
-    document.querySelector('.close').onclick = function() {
-        document.getElementById('myModal').style.display = "none";
-    };
-    window.onclick = function(event) {
-        if (event.target == document.getElementById('myModal')) {
-            document.getElementById('myModal').style.display = "none";
+                    writeLayer.applyEdits({
+                        updateFeatures: [featureToUpdate]
+                    }).then(function(response) {
+                        if (response.updateFeatureResults.length > 0) {
+                            console.log('Feature updated successfully in the write layer.');
+                        }
+                    }).catch(console.error);
+                }
+            }).catch(console.error);
         }
-    };
-});
+
+        // Modal close functionality
+        document.querySelector('.close').onclick = function() {
+            document.getElementById('myModal').style.display = "none";
+        };
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('myModal')) {
+                document.getElementById('myModal').style.display = "none";
+            }
+        };
+    });
 </script>
 
 </body>
