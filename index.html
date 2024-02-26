@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
     <script src="https://js.arcgis.com/4.28/"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-
     <style>
         .container {
             display: flex;
@@ -42,18 +41,25 @@
             box-sizing: border-box;
         }
 
-        .plus-icon {
-            position: absolute;
-            top: 5px;
-            right: 5px;
+        .service-area-name {
+            background-color: orange;
+            padding: 5px;
+            margin-bottom: 10px;
+            font-weight: bold;
         }
 
-        .service-area-content {
-            display: none;
+        .park {
+            background-color: lightgreen;
+            padding: 5px;
+            margin-bottom: 5px;
+            margin-left: 10px;
         }
 
-        .service-area.expanded .service-area-content {
-            display: block;
+        .park-name-tile {
+            background-color: lightblue;
+            padding: 5px;
+            margin-bottom: 3px;
+            cursor: move;
         }
     </style>
 </head>
@@ -113,21 +119,19 @@
             const serviceAreasMap = features.reduce((acc, {attributes}) => {
                 const { Maintenance_SA, Name_Primary, ASMCrewLeader, ASMCrewLeaderPhone, ASMCrewLeaderEmail } = attributes;
                 if (!acc[Maintenance_SA]) {
-                    acc[Maintenance_SA] = { parks: {} };
+                    acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
                 }
-                if (Name_Primary) {
-                    Name_Primary.split(',').forEach(parkName => {
-                        const trimmedParkName = parkName.trim();
-                        if (!acc[Maintenance_SA].parks[trimmedParkName]) {
-                            acc[Maintenance_SA].parks[trimmedParkName] = { crewLeaders: [] };
-                        }
-                        acc[Maintenance_SA].parks[trimmedParkName].crewLeaders.push({
-                            name: ASMCrewLeader,
-                            phone: ASMCrewLeaderPhone,
-                            email: ASMCrewLeaderEmail
-                        });
-                    });
-                }
+                Name_Primary.split(',').forEach(parkName => {
+                    if (!acc[Maintenance_SA].parks[parkName.trim()]) {
+                        acc[Maintenance_SA].parks[parkName.trim()] = { name: parkName.trim() };
+                    }
+                });
+                acc[Maintenance_SA].crewLeaders.push({
+                    name: ASMCrewLeader,
+                    phone: ASMCrewLeaderPhone,
+                    email: ASMCrewLeaderEmail,
+                    park: Name_Primary
+                });
                 return acc;
             }, {});
 
@@ -138,51 +142,45 @@
             const serviceAreaContainer = document.getElementById('serviceAreaContainer');
             serviceAreaContainer.innerHTML = ''; // Clear previous content
 
-            Object.entries(serviceAreasMap).forEach(([areaName, details]) => {
+            const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
+
+            sortedServiceAreas.slice(0, 5).forEach(([areaName, details]) => { // Limit to first five service areas
                 let areaDiv = document.createElement('div');
                 areaDiv.className = 'service-area';
                 serviceAreaContainer.appendChild(areaDiv);
 
                 let nameDiv = document.createElement('div');
+                nameDiv.className = 'service-area-name';
                 nameDiv.textContent = areaName;
                 areaDiv.appendChild(nameDiv);
 
-                let plusIcon = document.createElement('div');
-                plusIcon.className = 'plus-icon';
-                plusIcon.textContent = '+';
-                areaDiv.appendChild(plusIcon);
+                let parksDiv = document.createElement('div');
+                areaDiv.appendChild(parksDiv);
 
-                let contentDiv = document.createElement('div');
-                contentDiv.className = 'service-area-content';
-                areaDiv.appendChild(contentDiv);
-
-                // Populate with park names and crew leader tiles
-                Object.entries(details.parks).forEach(([parkName, parkDetails]) => {
+                Object.values(details.parks).forEach(park => {
                     let parkDiv = document.createElement('div');
-                    parkDiv.textContent = parkName;
-                    contentDiv.appendChild(parkDiv);
+                    parkDiv.className = 'park';
+                    parkDiv.textContent = park.name;
+                    parksDiv.appendChild(parkDiv);
 
-                    parkDetails.crewLeaders.forEach(leader => {
-                        let leaderDiv = document.createElement('div');
-                        leaderDiv.textContent = leader.name;
-                        parkDiv.appendChild(leaderDiv);
+                    details.crewLeaders.filter(cl => cl.park.trim() === park.name.trim()).forEach(cl => {
+                        let tileDiv = document.createElement('div');
+                        tileDiv.className = 'park-name-tile';
+                        tileDiv.textContent = cl.name;
+                        tileDiv.setAttribute('draggable', true);
+                        parkDiv.appendChild(tileDiv);
                     });
                 });
-
-                plusIcon.addEventListener('click', function(event) {
-                    event.stopPropagation();
-                    areaDiv.classList.toggle('expanded');
-                    contentDiv.style.display = areaDiv.classList.contains('expanded') ? 'block' : 'none';
-                });
             });
+
+            setupDragAndDropListeners(); // Ensure this is defined to handle any needed logic
         }
 
-        // Setup drag and drop listeners
         function setupDragAndDropListeners() {
             // Tiles become draggable
-            document.querySelectorAll('.tile').forEach(tile => {
+            document.querySelectorAll('.park-name-tile').forEach(tile => {
                 tile.addEventListener('dragstart', e => {
-                    e.dataTransfer.setData('text', e.target.id);
+                    e.dataTransfer.setData('text', e.target.textContent);
                     e.dataTransfer.effectAllowed = 'move';
                 });
             });
@@ -198,9 +196,13 @@
                 zone.addEventListener('drop', e => {
                     e.preventDefault();
                     const data = e.dataTransfer.getData('text');
-                    const draggedElement = document.getElementById(data);
-                    if (e.target.className === 'park' || e.target.id === 'peopleContainer') {
+                    const draggedElement = document.createElement('div');
+                    draggedElement.className = 'park-name-tile';
+                    draggedElement.textContent = data;
+                    if (e.target.className === 'park') {
                         e.target.appendChild(draggedElement);
+                    } else if (e.target.id === 'peopleContainer') {
+                        document.getElementById('peopleContainer').appendChild(draggedElement);
                     }
                 });
             });
@@ -230,10 +232,16 @@
             }).catch(console.error);
         }
 
-        // Call the drag and drop setup function
-        setupDragAndDropListeners();
+        // Modal close functionality
+        document.querySelector('.close').onclick = function() {
+            document.getElementById('myModal').style.display = "none";
+        };
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('myModal')) {
+                document.getElementById('myModal').style.display = "none";
+            }
+        };
     });
 </script>
-
 </body>
 </html>
