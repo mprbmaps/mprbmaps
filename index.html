@@ -10,35 +10,26 @@
 
     <style>
         .container {
-    display: flex;
-    justify-content: space-around; /* Spread items evenly */
-    align-items: flex-start; /* Align items at the start of the container */
-    padding: 20px;
-    overflow-x: auto; /* Allow horizontal scrolling */
-}
+            display: flex;
+            justify-content: space-around; /* Spread items evenly */
+            align-items: flex-start; /* Align items at the start of the container */
+            padding: 20px;
+            overflow-x: auto; /* Allow horizontal scrolling */
+            flex-wrap: wrap; /* Allow wrapping to multiple lines */
+        }
 
-.service-area {
-    width: 18%; /* Adjust based on the container's width and desired spacing */
-    min-width: 180px; /* Minimum width for each service area */
-    border: 2px solid #0079c1;
-    margin: 10px;
-    padding: 10px;
-    position: relative;
-    overflow: hidden;
-    cursor: pointer;
-    box-sizing: border-box; /* Include padding and border in the width calculation */
-}
+        .service-area {
+            width: 18%; /* Adjust based on the container's width and desired spacing */
+            min-width: 180px; /* Minimum width for each service area */
+            border: 2px solid #0079c1;
+            margin: 10px;
+            padding: 10px;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            box-sizing: border-box; /* Include padding and border in the width calculation */
+        }
 
-       
-    .service-area {
-        width: calc(20% - 20px); /* Adjust based on the container's width and desired spacing */
-        min-width: 180px; /* Minimum width for each service area */
-        margin: 10px;
-        box-sizing: border-box; /* Include padding and border in the width calculation */
-    }
-}
-        
-        /* Adjustments for the plus icon and content to ensure they display correctly */
         .plus-icon {
             position: absolute;
             top: 5px;
@@ -52,15 +43,6 @@
         .service-area.expanded .service-area-content {
             display: block; /* Show content on expansion */
         }
-
-        .park-list { list-style-type: none; padding: 0; }
-        .park { background-color: #f0f0f0; margin-top: 5px; padding: 5px; }
-        .tile { background-color: #add8e6; border: 1px solid #000; margin: 5px; padding: 5px; cursor: grab; transition: transform 0.2s ease-out;}
-        .tile.dragging { opacity: 0.4; }
-        .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
-        .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; }
-        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
-        .close:hover, .close:focus { color: black; text-decoration: none; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -99,7 +81,7 @@
     ], function(OAuthInfo, esriId, FeatureLayer, Query) {
         var info = new OAuthInfo({
             appId: "ti3fi1FqvHE2Hhyw",
-            popup: false
+            popup: true
         });
         esriId.registerOAuthInfos([info]);
 
@@ -178,8 +160,6 @@
                 let contentDiv = document.createElement('div');
                 contentDiv.className = 'service-area-content';
                 areaDiv.appendChild(contentDiv);
-
-                // Populate contentDiv as before
 
                 // Click event for the plus icon
                 plusIcon.addEventListener('click', function(event) {
