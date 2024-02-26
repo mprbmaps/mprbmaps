@@ -226,31 +226,43 @@
     });
 
     // Setup drop zones
-    const dropZones = document.querySelectorAll('.park-name-tile, #peopleContainer');
-    dropZones.forEach(zone => {
-        zone.addEventListener('dragover', e => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-        });
-
-        zone.addEventListener('drop', e => {
-            e.preventDefault();
-            const data = e.dataTransfer.getData('text');
-            const draggedElement = document.createElement('div');
-            draggedElement.className = 'park-name-tile';
-            draggedElement.textContent = data;
-            if (e.target.className === 'park-name-tile') {
-                // Replace the existing name tile
-                const replacedTile = e.target;
-                replacedTile.parentNode.insertBefore(draggedElement, replacedTile);
-                replacedTile.parentNode.removeChild(replacedTile);
-            } else if (e.target.id === 'peopleContainer') {
-                // Add the name tile to the people container
-                document.getElementById('peopleContainer').appendChild(draggedElement);
-            }
-        });
+const dropZones = document.querySelectorAll('.park-name-tile, #peopleContainer');
+dropZones.forEach(zone => {
+    zone.addEventListener('dragover', e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
     });
-}
+
+    zone.addEventListener('drop', e => {
+        e.preventDefault();
+        const data = e.dataTransfer.getData('text');
+        const draggedElement = document.createElement('div');
+        draggedElement.className = 'park-name-tile';
+        draggedElement.textContent = data;
+
+        if (e.target.className === 'park-name-tile') {
+            // Replace the existing name tile
+            const replacedTile = e.target;
+            replacedTile.parentNode.insertBefore(draggedElement, replacedTile);
+            replacedTile.parentNode.removeChild(replacedTile);
+        } else if (e.target.id === 'peopleContainer') {
+            // Add the name tile to the people container
+            draggedElement.style.width = 'auto'; // Ensure the width adjusts based on content
+            draggedElement.style.display = 'inline-block'; // Ensure the tile doesn't take the full width
+            e.target.appendChild(draggedElement);
+        }
+
+        // Remove the ASMCrewLeader name tile from the park it was moved from
+        const parkDiv = e.target.closest('.park');
+        if (parkDiv) {
+            const tileToRemove = parkDiv.querySelector('.park-name-tile');
+            if (tileToRemove) {
+                tileToRemove.parentNode.removeChild(tileToRemove);
+            }
+        }
+    });
+});
+
 
 
         function updateFeatureInWriteLayer(leaderInfo, newServiceAreaName) {
