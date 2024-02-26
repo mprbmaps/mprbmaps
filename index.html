@@ -7,26 +7,26 @@
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
     <script src="https://js.arcgis.com/4.28/"></script>
     <style>
-    .container { display: flex; flex-wrap: wrap; justify-content: space-around; padding: 20px; }
-    .service-area {
-    border: 2px solid #0079c1;
-    margin: 10px;
-    padding: 10px;
-    width: 400px; /* Sets a specific width for each service area */
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-}
-    .park-list { list-style-type: none; padding: 0; }
-    .park { background-color: #f0f0f0; margin-top: 5px; padding: 5px; }
-    .tile { background-color: #add8e6; border: 1px solid #000; margin: 5px; padding: 5px; cursor: grab; }
-    .tile.dragging { opacity: 0.4; }
-    .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
-    .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; }
-    .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
-    .close:hover, .close:focus { color: black; text-decoration: none; cursor: pointer; }
-</style>
+        .container { display: flex; flex-wrap: wrap; justify-content: space-around; padding: 20px; }
+        .service-area {
+            border: 2px solid #0079c1;
+            margin: 10px;
+            padding: 10px;
+            width: 400px; /* Sets a specific width for each service area */
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .park-list { list-style-type: none; padding: 0; }
+        .park { background-color: #f0f0f0; margin-top: 5px; padding: 5px; }
+        .tile { background-color: #add8e6; border: 1px solid #000; margin: 5px; padding: 5px; cursor: grab; }
+        .tile.dragging { opacity: 0.4; }
+        .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; }
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+        .close:hover, .close:focus { color: black; text-decoration: none; cursor: pointer; }
+    </style>
 </head>
 <body>
 <div class="container">
@@ -94,10 +94,12 @@ require([
             if (!acc[Maintenance_SA]) {
                 acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
             }
-            // Add park if not already present
-            if (!acc[Maintenance_SA].parks[Name_Primary]) {
-                acc[Maintenance_SA].parks[Name_Primary] = { name: Name_Primary };
-            }
+            // Split park names and add each park if not already present
+            Name_Primary.split(',').forEach(parkName => {
+                if (!acc[Maintenance_SA].parks[parkName.trim()]) {
+                    acc[Maintenance_SA].parks[parkName.trim()] = { name: parkName.trim() };
+                }
+            });
             // Add crew leader to the area's list
             acc[Maintenance_SA].crewLeaders.push({
                 name: ASMCrewLeader,
@@ -112,61 +114,67 @@ require([
     }
 
     function populateUI(serviceAreasMap) {
-    const serviceAreaContainer = document.getElementById('serviceAreaContainer');
-    const peopleContainer = document.getElementById('peopleContainer');
-    // Clear previous content
-    serviceAreaContainer.innerHTML = '';
-    peopleContainer.innerHTML = '';
+        const serviceAreaContainer = document.getElementById('serviceAreaContainer');
+        const peopleContainer = document.getElementById('peopleContainer');
+        // Clear previous content
+        serviceAreaContainer.innerHTML = '';
+        peopleContainer.innerHTML = '';
 
-    // Sort service areas alphabetically
-    const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
+        // Sort service areas alphabetically
+        const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
 
-    sortedServiceAreas.forEach(([areaName, details]) => {
-    let areaDiv = document.createElement('div');
-    areaDiv.className = 'service-area';
-    areaDiv.textContent = areaName;
-    serviceAreaContainer.appendChild(areaDiv);
+        sortedServiceAreas.forEach(([areaName, details]) => {
+            let areaDiv = document.createElement('div');
+            areaDiv.className = 'service-area';
+            areaDiv.textContent = areaName;
+            serviceAreaContainer.appendChild(areaDiv);
 
-    // Corrected: Convert parks object to an array of park names
-    let parkNames = Object.keys(details.parks);
-    // Sort parks within each service area alphabetically
-    let sortedParks = parkNames.sort((a, b) => a.localeCompare(b));
-    let parkList = document.createElement('ul');
-    parkList.className = 'park-list';
-    sortedParks.forEach(parkName => {
-        let parkItem = document.createElement('li');
-        parkItem.className = 'park';
-        parkItem.textContent = parkName; // Use the parkName directly
-        parkList.appendChild(parkItem);
-    });
-    areaDiv.appendChild(parkList);
-});
+            let parkList = document.createElement('ul');
+            parkList.className = 'park-list';
+            Object.values(details.parks).forEach(({ name }) => {
+                let parkItem = document.createElement('li');
+                parkItem.className = 'park';
+                parkItem.textContent = name;
+                parkList.appendChild(parkItem);
+            });
+            areaDiv.appendChild(parkList);
+        });
 
-    // Collect all crew leaders, sort them alphabetically, and then create tiles
-    let sortedCrewLeaders = Object.values(serviceAreasMap).flatMap(area => area.crewLeaders)
-        .sort((a, b) => a.name.localeCompare(b.name));
+        // Collect all crew leaders, sort them alphabetically, and then create tiles
+        let sortedCrewLeaders = Object.values(serviceAreasMap).flatMap(area => area.crewLeaders)
+            .sort((a, b) => a.name.localeCompare(b.name));
 
-    sortedCrewLeaders.forEach(leader => {
-        let leaderTile = document.createElement('div');
-        leaderTile.className = 'tile';
-        leaderTile.textContent = leader.name; // Display only the name
-        leaderTile.setAttribute('draggable', 'true');
-        leaderTile.setAttribute('data-info', JSON.stringify(leader));
-        peopleContainer.appendChild(leaderTile);
-    });
+        sortedCrewLeaders.forEach(leader => {
+            let leaderTile = document.createElement('div');
+            leaderTile.className = 'tile';
+            leaderTile.textContent = leader.name; // Display only the name
+            leaderTile.setAttribute('draggable', 'true');
+            leaderTile.setAttribute('data-info', JSON.stringify(leader));
+            peopleContainer.appendChild(leaderTile);
+        });
 
-    setupDragAndDropListeners();
-}
+        setupDragAndDropListeners();
+    }
 
     function setupDragAndDropListeners() {
         document.querySelectorAll('.tile').forEach(tile => {
             tile.addEventListener('dragstart', e => {
                 e.dataTransfer.setData('application/json', tile.getAttribute('data-info'));
+                tile.classList.add('dragging');
+            });
+            tile.addEventListener('dragend', () => {
+                document.querySelectorAll('.tile').forEach(t => t.classList.remove('dragging'));
             });
         });
 
         document.querySelectorAll('.service-area').forEach(area => {
-            area.addEventListener('dragover', e => e.preventDefault());
+            area.addEventListener('dragover', e => {
+                e.preventDefault();
+                const draggingTile = document.querySelector('.tile.dragging');
+                if (draggingTile) {
+                    area.appendChild(draggingTile);
+                }
+            });
             area.addEventListener('drop', function(e) {
                 e.preventDefault();
                 const leaderInfo = JSON.parse(e.dataTransfer.getData('application/json'));
