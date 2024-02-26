@@ -133,142 +133,142 @@ require([
 ], function(OAuthInfo, esriId, FeatureLayer, Query) {
     console.log('Required modules loaded');
 
-    var info = new OAuthInfo({
-        appId: "ti3fi1FqvHE2Hhyw",
-        popup: true
+var info = new OAuthInfo({
+    appId: "ti3fi1FqvHE2Hhyw",
+    popup: true
+});
+esriId.registerOAuthInfos([info]);
+
+esriId.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+    console.log("Signed in");
+    loadLayerAndPopulateUI();
+}).catch(function() {
+    console.error("Not signed in");
+    esriId.getCredential(info.portalUrl + "/sharing");
+});
+
+var queryLayer = new FeatureLayer({
+    url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0"
+});
+
+var writeLayer = new FeatureLayer({
+    url: "https://utility.arcgis.com/usrsvcs/servers/9e2987cdb16646348e9398b53fcaf42c/rest/services/MPRB_Locations/MapServer/0"
+});
+
+function loadLayerAndPopulateUI() {
+    console.log('Loading layer and populating UI');
+    var query = queryLayer.createQuery();
+    query.where = "1=1";
+    query.outFields = ["Name_Primary", "ASMCrewLeader", "ASMCrewLeaderPhone", "ASMCrewLeaderEmail", "Maintenance_SA", "OBJECTID"];
+    query.returnGeometry = false;
+
+    queryLayer.queryFeatures(query).then(function(results) {
+        console.log('Query features successful');
+        processFeatures(results.features);
+    }).catch(function(error) {
+        console.error("Error querying features: ", error);
     });
-    esriId.registerOAuthInfos([info]);
+}
 
-    esriId.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
-        console.log("Signed in");
-        loadLayerAndPopulateUI();
-    }).catch(function() {
-        console.error("Not signed in");
-        esriId.getCredential(info.portalUrl + "/sharing");
-    });
-
-    var queryLayer = new FeatureLayer({
-        url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0"
-    });
-
-    var writeLayer = new FeatureLayer({
-        url: "https://utility.arcgis.com/usrsvcs/servers/9e2987cdb16646348e9398b53fcaf42c/rest/services/MPRB_Locations/MapServer/0"
-    });
-
-    function loadLayerAndPopulateUI() {
-        console.log('Loading layer and populating UI');
-        var query = queryLayer.createQuery();
-        query.where = "1=1";
-        query.outFields = ["Name_Primary", "ASMCrewLeader", "ASMCrewLeaderPhone", "ASMCrewLeaderEmail", "Maintenance_SA", "OBJECTID"];
-        query.returnGeometry = false;
-
-        queryLayer.queryFeatures(query).then(function(results) {
-            console.log('Query features successful');
-            processFeatures(results.features);
-        }).catch(function(error) {
-            console.error("Error querying features: ", error);
-        });
-    }
-
-    function processFeatures(features) {
-        console.log('Processing features');
-        const serviceAreasMap = features.reduce((acc, feature) => {
-            const {attributes} = feature;
-            const { Maintenance_SA, Name_Primary, ASMCrewLeader, ASMCrewLeaderPhone, ASMCrewLeaderEmail, OBJECTID } = attributes;
-            console.log('OBJECTID:', OBJECTID); // Log the OBJECTID
-            if (!acc[Maintenance_SA]) {
-                acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
+function processFeatures(features) {
+    console.log('Processing features');
+    const serviceAreasMap = features.reduce((acc, feature) => {
+        const {attributes} = feature;
+        const { Maintenance_SA, Name_Primary, ASMCrewLeader, ASMCrewLeaderPhone, ASMCrewLeaderEmail, OBJECTID } = attributes;
+        console.log('OBJECTID:', OBJECTID); // Log the OBJECTID
+        if (!acc[Maintenance_SA]) {
+            acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
+        }
+        Name_Primary.split('"').forEach(parkName => {
+            if (!acc[Maintenance_SA].parks[parkName.trim()]) {
+                acc[Maintenance_SA].parks[parkName.trim()] = { name: parkName.trim() };
             }
-            Name_Primary.split('"').forEach(parkName => {
-                if (!acc[Maintenance_SA].parks[parkName.trim()]) {
-                    acc[Maintenance_SA].parks[parkName.trim()] = { name: parkName.trim() };
-                }
-            });
-            acc[Maintenance_SA].crewLeaders.push({
-                objectId: OBJECTID, // Store the OBJECTID
-                name: ASMCrewLeader,
-                phone: ASMCrewLeaderPhone,
-                email: ASMCrewLeaderEmail,
-                park: Name_Primary
-            });
-            console.log('Processed feature:', OBJECTID); // Log the processed feature
-            return acc;
-        }, {});
+        });
+        acc[Maintenance_SA].crewLeaders.push({
+            objectId: OBJECTID, // Store the OBJECTID
+            name: ASMCrewLeader,
+            phone: ASMCrewLeaderPhone,
+            email: ASMCrewLeaderEmail,
+            park: Name_Primary
+        });
+        console.log('Processed feature:', OBJECTID); // Log the processed feature
+        return acc;
+    }, {});
 
-        populateUI(serviceAreasMap);
-    }
+    populateUI(serviceAreasMap);
+}
 
-    function populateUI(serviceAreasMap) {
-        console.log('Populating UI');
-        const serviceAreaContainer = document.getElementById('serviceAreaContainer');
-        serviceAreaContainer.innerHTML = '';
+function populateUI(serviceAreasMap) {
+    console.log('Populating UI');
+    const serviceAreaContainer = document.getElementById('serviceAreaContainer');
+    serviceAreaContainer.innerHTML = '';
 
-        const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
+    const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
 
-        sortedServiceAreas.slice(0, 5).forEach(([areaName, details]) => {
-            let areaDiv = document.createElement('div');
-            areaDiv.className = 'service-area';
-            serviceAreaContainer.appendChild(areaDiv);
+    sortedServiceAreas.slice(0, 5).forEach(([areaName, details]) => {
+        let areaDiv = document.createElement('div');
+        areaDiv.className = 'service-area';
+        serviceAreaContainer.appendChild(areaDiv);
 
-            let nameDiv = document.createElement('div');
-            nameDiv.className = 'service-area-name';
-            nameDiv.textContent = areaName;
-            areaDiv.appendChild(nameDiv);
+        let nameDiv = document.createElement('div');
+        nameDiv.className = 'service-area-name';
+        nameDiv.textContent = areaName;
+        areaDiv.appendChild(nameDiv);
 
-            let plusIcon = document.createElement('div');
-            plusIcon.className = 'plus-icon';
-            plusIcon.textContent = '+';
-            nameDiv.appendChild(plusIcon);
+        let plusIcon = document.createElement('div');
+        plusIcon.className = 'plus-icon';
+        plusIcon.textContent = '+';
+        nameDiv.appendChild(plusIcon);
 
-            let contentDiv = document.createElement('div');
-            contentDiv.className = 'service-area-content';
-            areaDiv.appendChild(contentDiv);
+        let contentDiv = document.createElement('div');
+        contentDiv.className = 'service-area-content';
+        areaDiv.appendChild(contentDiv);
 
-            let parksDiv = document.createElement('div');
-            contentDiv.appendChild(parksDiv);
+        let parksDiv = document.createElement('div');
+        contentDiv.appendChild(parksDiv);
 
-            const sortedParkNames = Object.values(details.parks).map(park => park.name).sort((a, b) => a.localeCompare(b));
+        const sortedParkNames = Object.values(details.parks).map(park => park.name).sort((a, b) => a.localeCompare(b));
 
-            sortedParkNames.forEach(parkName => {
-                let parkDiv = document.createElement('div');
-                parkDiv.className = 'park';
-                parkDiv.textContent = parkName;
-                parksDiv.appendChild(parkDiv);
+        sortedParkNames.forEach(parkName => {
+            let parkDiv = document.createElement('div');
+            parkDiv.className = 'park';
+            parkDiv.textContent = parkName;
+            parksDiv.appendChild(parkDiv);
 
-                details.crewLeaders.forEach(cl => {
-                    if (cl.park.split('"').map(p => p.trim()).includes(parkName.trim())) {
-                        let tileDiv = document.createElement('div');
-                        tileDiv.className = 'park-name-tile';
-                        tileDiv.id = `tile-${cl.objectId}`; // Adjusted to include OBJECTID
-                        tileDiv.textContent = cl.name;
-                        tileDiv.setAttribute('draggable', true);
-                        parkDiv.appendChild(tileDiv);
-                        parkDiv.classList.remove('no-name-tile'); // Remove the CSS class if a name tile is present
-                    }
-                });
-
-                // Add CSS class to parks without name tiles
-                if (!parkDiv.querySelector('.park-name-tile')) {
-                    parkDiv.classList.add('no-name-tile');
+            details.crewLeaders.forEach(cl => {
+                if (cl.park.split('"').map(p => p.trim()).includes(parkName.trim())) {
+                    let tileDiv = document.createElement('div');
+                    tileDiv.className = 'park-name-tile';
+                    tileDiv.id = `tile-${cl.objectId}`; // Adjusted to include OBJECTID
+                    tileDiv.textContent = cl.name;
+                    tileDiv.setAttribute('draggable', true);
+                    parkDiv.appendChild(tileDiv);
+                    parkDiv.classList.remove('no-name-tile'); // Remove the CSS class if a name tile is present
                 }
             });
 
-            plusIcon.addEventListener('click', function(event) {
-                event.stopPropagation(); // Prevent the event from bubbling up to the parent elements
-                contentDiv.style.display = contentDiv.style.display === 'block' ? 'none' : 'block';
-            });
+            // Add CSS class to parks without name tiles
+            if (!parkDiv.querySelector('.park-name-tile')) {
+                parkDiv.classList.add('no-name-tile');
+            }
         });
 
-        // Initially hide the content of each service area
-        document.querySelectorAll('.service-area-content').forEach(contentDiv => {
-            contentDiv.style.display = 'none';
+        plusIcon.addEventListener('click', function(event) {
+            event.stopPropagation(); // Prevent the event from bubbling up to the parent elements
+            contentDiv.style.display = contentDiv.style.display === 'block' ? 'none' : 'block';
         });
+    });
 
-        // Re-apply drag and drop listeners for the updated elements
-        setupDragAndDropListeners();
-    }
+    // Initially hide the content of each service area
+    document.querySelectorAll('.service-area-content').forEach(contentDiv => {
+        contentDiv.style.display = 'none';
+    });
 
-    function setupDragAndDropListeners() {
+    // Re-apply drag and drop listeners for the updated elements
+    setupDragAndDropListeners();
+}
+
+function setupDragAndDropListeners() {
     console.log('Setting up drag and drop listeners');
 
     // Handling drag start for park name tiles
@@ -360,8 +360,6 @@ require([
     });
 }
 
-
 </script>
-
 </body>
 </html>
