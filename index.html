@@ -145,7 +145,7 @@ function populateServiceAreas(serviceAreasMap, crewLeaderMap) {
     container.innerHTML = ''; // Clear existing content
 
     Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0])).forEach(([area, parksSet]) => {
-        console.log(`Processing area: ${area}`, parksSet); // Log the area being processed, showing it's a Set
+        console.log(`Processing area: ${area}`, parksSet); // Log the area being processed
 
         const areaDiv = document.createElement('div');
         areaDiv.className = 'service-area';
@@ -155,7 +155,7 @@ function populateServiceAreas(serviceAreasMap, crewLeaderMap) {
 
         const expandCollapseIcon = document.createElement('span');
         expandCollapseIcon.className = 'expand-collapse-icon';
-        expandCollapseIcon.textContent = '▶'; // You can customize the icon here
+        expandCollapseIcon.textContent = '▶'; // Customize the icon here
 
         const nameDiv = document.createElement('div');
         nameDiv.className = 'service-area-name';
@@ -173,58 +173,39 @@ function populateServiceAreas(serviceAreasMap, crewLeaderMap) {
         // Convert the Set to an array and sort alphabetically
         const sortedParks = [...parksSet].sort();
 
-        // Iterate through sorted park names and add them to the service area content
-sortedParks.forEach(parkName => {
-    console.log(`Adding park: ${parkName} to area: ${area}`); // Log each park being added
+        sortedParks.forEach(parkName => {
+            const parkContainer = document.createElement('div');
+            parkContainer.className = 'park-container';
 
-    // Create a container for the park
-    const parkContainer = document.createElement('div');
-    parkContainer.className = 'park-container';
+            const parkDiv = document.createElement('div');
+            parkDiv.className = 'park';
+            parkDiv.textContent = parkName;
+            parkContainer.appendChild(parkDiv);
 
-    // Create the park <div> element
-    const parkDiv = document.createElement('div');
-    parkDiv.className = 'park';
-    parkDiv.textContent = parkName;
-
-    // Append the parkDiv to the park container
-    parkContainer.appendChild(parkDiv);
-
-    // Append the park container to the contentDiv
-    contentDiv.appendChild(parkContainer);
-});
-
-// After adding all parks, iterate again for each park to append its corresponding crew leader(s)
-sortedParks.forEach(parkName => {
-    // Find the container for the park
-    const parkContainers = contentDiv.getElementsByClassName('park-container');
-    Array.from(parkContainers).forEach(parkContainer => {
-        if (parkContainer.firstChild.textContent === parkName) {
-            // Check if ASMCrewLeader is responsible for this park and prepopulate their name
+            // Append the crew leader name tiles right after the park name
             Object.entries(crewLeaderMap).forEach(([leaderName, leaderData]) => {
                 if (leaderData.parks.includes(parkName)) {
                     const leaderTile = document.createElement('div');
                     leaderTile.className = 'crew-leader';
                     leaderTile.textContent = leaderName;
-                    parkContainer.appendChild(leaderTile); // Append the leaderTile to the parkContainer
+                    parkContainer.appendChild(leaderTile); // Append the leaderTile after the parkDiv
                 }
             });
-        }
-    });
-});
 
+            contentDiv.appendChild(parkContainer); // Append the park container to the contentDiv
+        });
 
         expandCollapseIcon.addEventListener('click', function() {
             const isExpanded = contentDiv.style.display === 'block';
             contentDiv.style.display = isExpanded ? 'none' : 'block';
-            expandCollapseIcon.textContent = isExpanded ? '▶' : '▼'; // Change the icon based on the current state
+            expandCollapseIcon.textContent = isExpanded ? '▶' : '▼'; // Toggle the icon
         });
 
-        container.appendChild(areaDiv);
+        container.appendChild(areaDiv); // Append the areaDiv to the container
     });
 
     console.log('Finished populating service areas'); // Log completion
 }
-
 
 });
 </script>
