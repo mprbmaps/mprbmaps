@@ -296,28 +296,28 @@
 document.querySelectorAll('.park').forEach(park => {
     park.addEventListener('drop', e => {
         e.preventDefault();
-        let draggedTileId = e.dataTransfer.getData('text/plain');
-        let draggedTile = document.getElementById(draggedTileId);
+        let draggedTile = e.target;
         const existingTile = park.querySelector('.park-name-tile');
 
-        console.log('About to drop tile:', draggedTileId);
+        console.log('About to drop tile:', draggedTile ? draggedTile.id : "Not Found");
         console.log('Existing tile before drop:', existingTile ? existingTile.id : "Not Found");
 
         if (draggedTile && draggedTile.classList.contains('park-name-tile')) {
-            if (existingTile && draggedTileId !== existingTile.id) { // Check if dragged tile is not the same as existing tile
+            if (existingTile && draggedTile !== existingTile) { // Check if dragged tile is not the same as existing tile
                 existingTile.textContent = draggedTile.textContent;
-                draggedTile.remove(); // Remove the dragged tile
+                draggedTile.parentNode.removeChild(draggedTile); // Remove the dragged tile from its parent
             } else {
                 park.appendChild(draggedTile);
             }
             updateVisualState(park);
             park.style.backgroundColor = 'Gray94';
-            console.log('Dropped tile:', draggedTileId, 'into park:', park.textContent);
+            console.log('Dropped tile:', draggedTile ? draggedTile.id : null, 'into park:', park.textContent);
         } else {
             console.error('Dragged tile is null or does not exist in the DOM.');
         }
     });
 });
+
 
 
 
