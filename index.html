@@ -57,86 +57,97 @@ require([
     "esri/layers/FeatureLayer",
     "esri/rest/support/Query"
 ], function(OAuthInfo, esriId, FeatureLayer, Query) {
+    // Initialize OAuth with your app's specific details
     var info = new OAuthInfo({
-        appId: "ti3fi1FqvHE2Hhyw",
-        popup: false
+        appId: "ti3fi1FqvHE2Hhyw", // Replace with your actual App ID
+        popup: false // Using the redirect pattern for OAuth
     });
     esriId.registerOAuthInfos([info]);
 
+    // Check if the user is already signed in
     esriId.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+        // Proceed to load and display the data
         loadCrewLeaders();
     }).catch(function() {
+        // If not signed in, prompt the user to sign in
         esriId.getCredential(info.portalUrl + "/sharing");
     });
 
+    // Function to load crew leaders from the FeatureLayer
     function loadCrewLeaders() {
+        // Define the FeatureLayer you are working with
         var layer = new FeatureLayer({
             url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0"
         });
 
+        // Create a query to fetch all features with all fields
         var query = layer.createQuery();
         query.where = "1=1";
         query.outFields = ["*"];
         query.returnGeometry = false;
+
+        // Execute the query
         layer.queryFeatures(query).then(function(response) {
+            // Process the features returned by the query
             processFeatures(response.features);
         });
     }
 
+    // Function to process features and organize data for UI population
     function processFeatures(features) {
-        const crewLeaderMap = {};
         const serviceAreasMap = {};
 
         features.forEach(feature => {
             const { Maintenance_SA, Name_Primary, ASMCrewLeader } = feature.attributes;
 
+            // Initialize the service area entry if it doesn't exist
             if (!serviceAreasMap[Maintenance_SA]) {
-                serviceAreasMap[Maintenance_SA] = new Set();
+                serviceAreasMap[Maintenance_SA] = { parks: [], crewLeaders: new Set() };
             }
-            // Splitting Name_Primary based on " and " assuming it's the delimiter
-            const parkNames = Name_Primary.split(" and ");
-            parkNames.forEach(parkName => serviceAreasMap[Maintenance_SA].add(parkName.trim()));
+            
+            // Split the Name_Primary field to get individual park names
+            // Assuming park names are separated by ";"
+            const parkNames = Name_Primary.split(";").map(name => name.trim());
+            parkNames.forEach(parkName => {
+                if (parkName) serviceAreasMap[Maintenance_SA].parks.push(parkName);
+            });
 
-            if (!crewLeaderMap[ASMCrewLeader]) {
-                crewLeaderMap[ASMCrewLeader] = [];
-            }
-            crewLeaderMap[ASMCrewLeader].push(Name_Primary);
+            // Add the crew leader to the set of crew leaders for the service area
+            serviceAreasMap[Maintenance_SA].crewLeaders.add(ASMCrewLeader);
         });
 
-        populateCrewLeaders(crewLeaderMap);
+        // Populate the UI with the organized data
         populateServiceAreas(serviceAreasMap);
     }
 
-    function populateCrewLeaders(crewLeaderMap) {
-        const container = document.getElementById('crewLeaderContainer');
-        Object.keys(crewLeaderMap).forEach(name => {
-            const div = document.createElement('div');
-            div.className = 'crew-leader';
-            div.textContent = name;
-            container.appendChild(div);
-        });
-    }
-
+    // Function to dynamically create and insert service area and park elements into the DOM
     function populateServiceAreas(serviceAreasMap) {
         const container = document.getElementById('serviceAreaContainer');
-        Object.entries(serviceAreasMap).forEach(([area, parks]) => {
+        container.innerHTML = ''; // Clear existing content
+
+        Object.entries(serviceAreasMap).forEach(([area, {parks, crewLeaders}]) => {
+            // Create the container for the service area
             const areaDiv = document.createElement('div');
             areaDiv.className = 'service-area';
-
+            
+            // Create and append the name element for the service area
             const nameDiv = document.createElement('div');
             nameDiv.className = 'service-area-name';
             nameDiv.textContent = area;
             areaDiv.appendChild(nameDiv);
 
+            // Create and append the plus icon for toggling visibility
             const plusIcon = document.createElement('span');
             plusIcon.className = 'plus-icon';
             plusIcon.textContent = '+';
             nameDiv.appendChild(plusIcon);
 
+            // Container for the parks and crew leaders
             const contentDiv = document.createElement('div');
             contentDiv.className = 'service-area-content';
             areaDiv.appendChild(contentDiv);
 
+            // Append each park to the service area
             parks.forEach(parkName => {
                 const parkDiv = document.createElement('div');
                 parkDiv.className = 'park';
@@ -144,16 +155,27 @@ require([
                 contentDiv.appendChild(parkDiv);
             });
 
+            // Append each crew leader to the service area
+            crewLeaders.forEach(leaderName => {
+                const leaderDiv = document.createElement('div');
+                leaderDiv.className = 'crew-leader';
+                leaderDiv.textContent = leaderName;
+                contentDiv.appendChild(leaderDiv);
+            });
+
+            // Add click event listener for toggling the display of the contentDiv
             plusIcon.addEventListener('click', function() {
                 const isExpanded = contentDiv.style.display === 'block';
                 contentDiv.style.display = isExpanded ? 'none' : 'block';
                 plusIcon.textContent = isExpanded ? '+' : '-';
             });
 
+            // Append the service area div to the container
             container.appendChild(areaDiv);
         });
     }
 });
+
 
 
 </script>
