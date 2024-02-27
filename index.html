@@ -128,10 +128,14 @@ function populateCrewLeaders(crewLeaderMap) {
 }
 
 function populateServiceAreas(serviceAreasMap) {
+    console.log('Starting to populate service areas', serviceAreasMap); // Log the initial data
+
     const container = document.getElementById('serviceAreaContainer');
     container.innerHTML = ''; // Clear existing content
 
     Object.entries(serviceAreasMap).forEach(([area, {parks, crewLeaders}]) => {
+        console.log(`Processing area: ${area}`, parks, crewLeaders); // Log the area being processed
+
         const areaDiv = document.createElement('div');
         areaDiv.className = 'service-area';
 
@@ -149,16 +153,17 @@ function populateServiceAreas(serviceAreasMap) {
         contentDiv.className = 'service-area-content';
         areaDiv.appendChild(contentDiv);
 
-        // Ensure parks is defined and iterable before proceeding
-        if (Array.isArray(parks)) {
+        // Append each park to the service area
+        if (parks && parks.length) {
             parks.forEach(parkName => {
+                console.log(`Adding park: ${parkName} to area: ${area}`); // Log each park being added
                 const parkDiv = document.createElement('div');
                 parkDiv.className = 'park';
                 parkDiv.textContent = parkName;
                 contentDiv.appendChild(parkDiv);
             });
         } else {
-            console.warn(`No parks defined for service area ${area}`);
+            console.log(`No parks defined for service area ${area}`); // Log if no parks are found
         }
 
         plusIcon.addEventListener('click', function() {
@@ -169,6 +174,8 @@ function populateServiceAreas(serviceAreasMap) {
 
         container.appendChild(areaDiv);
     });
+
+    console.log('Finished populating service areas'); // Log completion
 }
 
 
