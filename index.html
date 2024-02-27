@@ -94,7 +94,10 @@ require([
         features.forEach(feature => {
             const { Maintenance_SA, Name_Primary, ASMCrewLeader } = feature.attributes;
             // Ensure service area "Southwest" is included
-            serviceAreasMap[Maintenance_SA] = true;
+            if (!serviceAreasMap[Maintenance_SA]) {
+                serviceAreasMap[Maintenance_SA] = { parks: {} };
+            }
+            serviceAreasMap[Maintenance_SA].parks[Name_Primary] = true;
 
             if (!crewLeaderMap[ASMCrewLeader]) {
                 crewLeaderMap[ASMCrewLeader] = [];
@@ -103,7 +106,7 @@ require([
         });
 
         populateCrewLeaders(crewLeaderMap);
-        populateServiceAreas(Object.keys(serviceAreasMap));
+        populateServiceAreas(serviceAreasMap);
     }
 
     function populateCrewLeaders(crewLeaderMap) {
@@ -116,13 +119,39 @@ require([
         });
     }
 
-    function populateServiceAreas(serviceAreas) {
+    function populateServiceAreas(serviceAreasMap) {
         const container = document.getElementById('serviceAreaContainer');
-        serviceAreas.forEach(area => {
-            const div = document.createElement('div');
-            div.className = 'service-area';
-            div.textContent = area;
-            container.appendChild(div);
+        Object.entries(serviceAreasMap).forEach(([area, details]) => {
+            const areaDiv = document.createElement('div');
+            areaDiv.className = 'service-area';
+            container.appendChild(areaDiv);
+
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'service-area-name';
+            nameDiv.textContent = area;
+            areaDiv.appendChild(nameDiv);
+
+            const plusIcon = document.createElement('span');
+            plusIcon.className = 'plus-icon';
+            plusIcon.textContent = '+';
+            nameDiv.appendChild(plusIcon);
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'service-area-content';
+            areaDiv.appendChild(contentDiv);
+
+            Object.keys(details.parks).forEach(parkName => {
+                const parkDiv = document.createElement('div');
+                parkDiv.className = 'park';
+                parkDiv.textContent = parkName;
+                contentDiv.appendChild(parkDiv);
+            });
+
+            plusIcon.addEventListener('click', function() {
+                const isExpanded = contentDiv.style.display === 'block';
+                contentDiv.style.display = isExpanded ? 'none' : 'block';
+                plusIcon.textContent = isExpanded ? '+' : '-';
+            });
         });
     }
 });
