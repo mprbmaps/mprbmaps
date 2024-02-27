@@ -178,15 +178,21 @@ function populateServiceAreas(serviceAreasMap, crewLeaderMap) {
             parkDiv.textContent = parkName;
             parkContainer.appendChild(parkDiv);
 
-            // Append the crew leader name tiles right after the park name
+            // Create a container for Crew Leader name tiles
+            const crewLeaderContainer = document.createElement('div');
+            crewLeaderContainer.className = 'crew-leader-container';
+
+            // Append the crew leader name tiles for this park
             Object.entries(crewLeaderMap).forEach(([leaderName, leaderData]) => {
                 if (leaderData.serviceAreas.has(area) && leaderData.parks.includes(parkName)) {
                     const leaderTile = document.createElement('div');
                     leaderTile.className = 'crew-leader';
                     leaderTile.textContent = leaderName;
-                    parkContainer.appendChild(leaderTile); // Append the leaderTile after the parkDiv
+                    crewLeaderContainer.appendChild(leaderTile);
                 }
             });
+
+            parkContainer.appendChild(crewLeaderContainer); // Append the container with Crew Leader tiles to the parkContainer
 
             contentDiv.appendChild(parkContainer); // Append the park container to the contentDiv
         });
