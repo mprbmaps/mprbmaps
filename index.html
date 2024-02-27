@@ -260,7 +260,8 @@
                     setupDragAndDropListeners();
                 }
             
-                function setupDragAndDropListeners() {
+                
+function setupDragAndDropListeners() {
     console.log('Setting up drag and drop listeners');
 
     // Handling drag start for park name tiles in the people container
@@ -299,70 +300,48 @@
             const tileId = e.dataTransfer.getData('text/plain');
             let draggedTile = document.getElementById(tileId);
 
-            console.log('About to drop tile:', draggedTile ? draggedTile.id : "Dragged tile is null or does not exist in the DOM.");
+            console.log('About to drop tile:', draggedTile ? draggedTile.id : "Not Found");
 
-            // Ensure that draggedTile exists before proceeding
-            if (!draggedTile) {
-                console.error('Dragged tile is null or does not exist in the DOM.');
-                return; // Exit the function if draggedTile is null
-            }
+            if (draggedTile) {
+                const existingTile = park.querySelector('.park-name-tile');
+                console.log('Existing tile before drop:', existingTile ? existingTile.id : "Not Found");
 
-            // Get the existing name tile in the park, if any
-            const existingTile = park.querySelector('.park-name-tile');
-
-            console.log('Existing tile:', existingTile ? existingTile.id : "No existing tile");
-
-            // If both draggedTile and existingTile exist, perform replacement
-            if (existingTile) {
-                // Get the parent of the dragged tile before replacing it
-                const draggedTileParent = draggedTile.parentElement;
-
-                console.log('Dragged tile parent:', draggedTileParent ? draggedTileParent.id : "No parent");
-
-                // Check if the dragged tile has a parent node before accessing it
-                if (draggedTileParent) {
-                    // Append the dragged tile to the park
+                if (existingTile) {
+                    const draggedTileParent = draggedTile.parentElement;
                     park.replaceChild(draggedTile, existingTile);
-
-                    // If the dragged tile was from another park, append the existing tile to its original parent
                     if (draggedTileParent !== park) {
                         draggedTileParent.appendChild(existingTile);
                     }
+                } else {
+                    park.appendChild(draggedTile);
                 }
+                updateVisualState(park);
             } else {
-                // If there is no existing tile in the park, simply append the dragged tile
-                park.appendChild(draggedTile);
+                console.error('Dragged tile is null or does not exist in the DOM.');
             }
 
-            // Reset background color after dropping
-            park.style.backgroundColor = '';
-
-            console.log('Dropped tile:', draggedTile ? draggedTile.id : "Dragged tile ID not found", 'into park:', park.id);
-
-            // Update the park's visual state based on whether it has a name tile
-            updateVisualState(park);
+            park.style.backgroundColor = 'Gray94';
+            console.log('Dropped tile:', draggedTile ? draggedTile.id : null, 'into park:', park.textContent);
         });
     });
 }
 
-// Update the visual state of a park based on its content
 function updateVisualState(park) {
     const nameTile = park.querySelector('.park-name-tile');
     if (!nameTile) {
         park.classList.add('no-name-tile'); // Add class if no name tile is present
-        console.log('Added no-name-tile class to park:', park.id);
+        console.log('Added no-name-tile class to park:', park.textContent.trim());
     } else {
         park.classList.remove('no-name-tile'); // Remove class if a name tile is present
-        console.log('Removed no-name-tile class from park:', park.id);
+        console.log('Removed no-name-tile class from park:', park.textContent.trim());
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     setupDragAndDropListeners();
+});
 
 
-
-            });
         </script>
     </body>
 </html>
