@@ -139,14 +139,10 @@ function populatePeople(crewLeaderMap) {
 }
 
 function populateServiceAreas(serviceAreasMap, crewLeaderMap) {
-    console.log('Starting to populate service areas', serviceAreasMap); // Log the initial data
-
     const container = document.getElementById('serviceAreaContainer');
     container.innerHTML = ''; // Clear existing content
 
     Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0])).forEach(([area, parksSet]) => {
-        console.log(`Processing area: ${area}`, parksSet); // Log the area being processed
-
         const areaDiv = document.createElement('div');
         areaDiv.className = 'service-area';
 
@@ -155,7 +151,7 @@ function populateServiceAreas(serviceAreasMap, crewLeaderMap) {
 
         const expandCollapseIcon = document.createElement('span');
         expandCollapseIcon.className = 'expand-collapse-icon';
-        expandCollapseIcon.textContent = '▶'; // Customize the icon here
+        expandCollapseIcon.textContent = '▶';
 
         const nameDiv = document.createElement('div');
         nameDiv.className = 'service-area-name';
@@ -184,7 +180,7 @@ function populateServiceAreas(serviceAreasMap, crewLeaderMap) {
 
             // Append the crew leader name tiles right after the park name
             Object.entries(crewLeaderMap).forEach(([leaderName, leaderData]) => {
-                if (leaderData.parks.includes(parkName)) {
+                if (leaderData.serviceAreas.has(area) && leaderData.parks.includes(parkName)) {
                     const leaderTile = document.createElement('div');
                     leaderTile.className = 'crew-leader';
                     leaderTile.textContent = leaderName;
@@ -203,9 +199,8 @@ function populateServiceAreas(serviceAreasMap, crewLeaderMap) {
 
         container.appendChild(areaDiv); // Append the areaDiv to the container
     });
-
-    console.log('Finished populating service areas'); // Log completion
 }
+
 
 });
 </script>
