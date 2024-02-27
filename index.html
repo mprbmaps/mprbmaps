@@ -180,25 +180,19 @@ function populateServiceAreas(serviceAreasMap, crewLeaderMap) {
     parkDiv.className = 'park';
     parkDiv.textContent = parkName;
 
-    // Check if ASMCrewLeader is responsible for this park and prepopulate their name
-    const leaderNames = [];
+    // Iterate over crewLeaders to find ones responsible for this park
     Object.entries(crewLeaderMap).forEach(([leaderName, leaderData]) => {
         if (leaderData.parks.includes(parkName)) {
-            leaderNames.push(leaderName);
-        }
-    });
-
-    if (leaderNames.length > 0) {
-        leaderNames.forEach(leaderName => {
             const leaderDiv = document.createElement('div');
             leaderDiv.className = 'crew-leader'; // Use the same class as the ones in crewLeaderContainer
             leaderDiv.textContent = leaderName;
             parkDiv.appendChild(leaderDiv); // Add the CrewLeader name tile inside the parkDiv
-        });
-    }
+        }
+    });
 
     contentDiv.appendChild(parkDiv); // Add the parkDiv containing the park name and CrewLeader name tiles
 });
+
 
 
         expandCollapseIcon.addEventListener('click', function() {
