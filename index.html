@@ -2,53 +2,52 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Draggable Crew Leader Dashboard with ArcGIS</title>
+    <title>Draggable Crew Leader Tiles</title>
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
     <style>
+        body {
+            font-family: Avenir Next, sans-serif;
+        }
         .container {
             display: flex;
-            flex-direction: row;
+            flex-wrap: wrap;
         }
-        .crew-leaders {
-            flex: 1;
+        .crew-leader {
+            margin: 10px;
             padding: 10px;
-            border-right: 1px solid #ddd;
+            background: #0079c1;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
         }
-        .service-areas {
-            flex: 3;
+        .service-area {
+            margin: 10px;
             padding: 10px;
-        }
-        .draggable {
-            padding: 5px;
-            margin-bottom: 5px;
-            background-color: #f0f0f0;
-            border: 1px solid #ddd;
-            cursor: move;
-        }
-        .drop-zone {
-            padding: 10px;
-            margin-top: 5px;
-            background-color: #f9f9f9;
-            border: 1px dashed #ccc;
+            background: #f3f3f3;
+            border: 1px solid #ccc;
+            border-radius: 4px;
         }
         .park {
             padding: 5px;
-            margin: 5px 0;
-            background-color: #e7ffe7;
+            background: #e7ffe7;
             border: 1px solid #b2ffb2;
+            margin-top: 5px;
+            border-radius: 4px;
         }
-        .service-header {
+        .service-area-name, .plus-icon {
+            font-weight: bold;
             cursor: pointer;
+        }
+        .service-area-content {
+            display: none;
+        }
+        .no-name-tile {
+            display: none;
         }
     </style>
 </head>
 <body>
-<div class="container">
-    <div class="crew-leaders" id="crewLeaders"></div>
-    <div class="service-areas">
-        <!-- Service Areas Here -->
-    </div>
-</div>
+<div id="serviceAreaContainer" class="container"></div>
 
 <script src="https://js.arcgis.com/4.28/"></script>
 <script>
@@ -57,26 +56,22 @@ require([
     "esri/identity/IdentityManager",
     "esri/layers/FeatureLayer",
     "esri/rest/support/Query"
-], function (OAuthInfo, esriId, FeatureLayer, Query) {
-
+], function(OAuthInfo, esriId, FeatureLayer, Query) {
     // Set up OAuthInfo
     var info = new OAuthInfo({
         appId: "ti3fi1FqvHE2Hhyw",
-        popup: false
+        popup: false // Set to false to use the redirect OAuth pattern
     });
     esriId.registerOAuthInfos([info]);
 
-    esriId.checkSignInStatus(info.portalUrl + "/sharing").then(
-        function () {
-            console.log("User is signed in");
-            loadCrewLeaders();
-        }
-    ).catch(
-        function () {
-            console.log("User is not signed in.");
-            esriId.getCredential(info.portalUrl + "/sharing");
-        }
-    );
+    esriId.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+        console.log("User is signed in");
+        loadCrewLeaders();
+    }).catch(function() {
+        // Redirects the user to the OAuth sign-in page
+        console.log("User is not signed in");
+        esriId.getCredential(info.portalUrl + "/sharing");
+    });
 
     function loadCrewLeaders() {
         var queryLayer = new FeatureLayer({
@@ -84,28 +79,72 @@ require([
         });
 
         var query = new Query();
-        query.where = "1=1"; // Adjust this query to suit your needs
-        query.outFields = ["ASMCrewLeader"];
+        query.where = "1=1"; // Fetch all features
+        query.outFields = ["*"]; // Get all fields
         query.returnGeometry = false;
 
-        queryLayer.queryFeatures(query).then(function (results) {
-            var crewLeadersElement = document.getElementById("crewLeaders");
-            results.features.forEach(function (feature) {
-                var crewLeaderName = feature.attributes.ASMCrewLeader;
-                var div = document.createElement("div");
-                div.className = "draggable";
-                div.setAttribute("draggable", "true");
-                div.setAttribute("id", crewLeaderName.replace(/\s+/g, '_'));
-                div.textContent = crewLeaderName;
-                div.ondragstart = function (event) {
-                    event.dataTransfer.setData("text", event.target.id);
-                };
-                crewLeadersElement.appendChild(div);
+        queryLayer.queryFeatures(query).then(function(response) {
+            processFeatures(response.features);
+        });
+    }
+
+    function processFeatures(features) {
+        console.log('Processing features');
+        const serviceAreasMap = features.reduce((acc, feature) => {
+            const {attributes} = feature;
+            const { Maintenance_SA, Name_Primary, ASMCrewLeader, ASMCrewLeaderPhone, ASMCrewLeaderEmail, OBJECTID } = attributes;
+            if (!acc[Maintenance_SA]) {
+                acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
+            }
+            Name_Primary.split('"').forEach(parkName => {
+                if (!acc[Maintenance_SA].parks[parkName.trim()]) {
+                    acc[Maintenance_SA].parks[parkName.trim()] = { name: parkName.trim() };
+                }
+            });
+            acc[Maintenance_SA].crewLeaders.push({
+                objectId: OBJECTID,
+                name: ASMCrewLeader,
+                phone: ASMCrewLeaderPhone,
+                email: ASMCrewLeaderEmail,
+                park: Name_Primary
+            });
+            return acc;
+        }, {});
+
+        populateUI(serviceAreasMap);
+    }
+
+    function populateUI(serviceAreasMap) {
+        const serviceAreaContainer = document.getElementById('serviceAreaContainer');
+        serviceAreaContainer.innerHTML = '';
+
+        Object.entries(serviceAreasMap).forEach(([areaName, details]) => {
+            let areaDiv = document.createElement('div');
+            areaDiv.className = 'service-area';
+            serviceAreaContainer.appendChild(areaDiv);
+
+            let nameDiv = document.createElement('div');
+            nameDiv.textContent = areaName || 'No Name';
+            nameDiv.className = areaName ? 'service-area-name' : 'no-name-tile';
+            areaDiv.appendChild(nameDiv);
+
+            details.crewLeaders.forEach(crewLeader => {
+                let leaderDiv = document.createElement('div');
+                leaderDiv.className = 'crew-leader';
+                leaderDiv.textContent = crewLeader.name;
+                areaDiv.appendChild(leaderDiv);
+            });
+
+            Object.values(details.parks).forEach(park => {
+                let parkDiv = document.createElement('div');
+                parkDiv.className = 'park';
+                parkDiv.textContent = park.name;
+                areaDiv.appendChild(parkDiv);
             });
         });
     }
 
-    // Draggable functionality would be similar to previous examples
+    // You might want to add the drag and drop functionality here
 });
 </script>
 </body>
