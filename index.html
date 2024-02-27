@@ -133,8 +133,8 @@ function populateServiceAreas(serviceAreasMap) {
     const container = document.getElementById('serviceAreaContainer');
     container.innerHTML = ''; // Clear existing content
 
-    Object.entries(serviceAreasMap).forEach(([area, {parks, crewLeaders}]) => {
-        console.log(`Processing area: ${area}`, parks, crewLeaders); // Log the area being processed
+    Object.entries(serviceAreasMap).forEach(([area, parksSet]) => {
+        console.log(`Processing area: ${area}`, parksSet); // Log the area being processed, showing it's a Set
 
         const areaDiv = document.createElement('div');
         areaDiv.className = 'service-area';
@@ -153,9 +153,9 @@ function populateServiceAreas(serviceAreasMap) {
         contentDiv.className = 'service-area-content';
         areaDiv.appendChild(contentDiv);
 
-        // Append each park to the service area
-        if (parks && parks.length) {
-            parks.forEach(parkName => {
+        // Since parksSet is a Set, convert it to an array and then append each park to the service area
+        if (parksSet && parksSet.size) {
+            [...parksSet].forEach(parkName => {
                 console.log(`Adding park: ${parkName} to area: ${area}`); // Log each park being added
                 const parkDiv = document.createElement('div');
                 parkDiv.className = 'park';
@@ -177,7 +177,6 @@ function populateServiceAreas(serviceAreasMap) {
 
     console.log('Finished populating service areas'); // Log completion
 }
-
 
 });
 
