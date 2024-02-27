@@ -305,18 +305,16 @@
                     console.log('Existing tile before drop:', existingTile ? existingTile.id : "Not Found");
 
                     if (draggedTile) {
-                        if (existingTile) {
-                            park.replaceChild(draggedTile, existingTile);
-                            // Move the existing tile back to the people container
-                            const peopleContainer = document.getElementById('peopleContainer');
-                            peopleContainer.appendChild(existingTile);
-                        } else {
-                            park.appendChild(draggedTile);
-                        }
-                        updateVisualState(park);
-                    } else {
-                        console.error('Dragged tile is null or does not exist in the DOM.');
-                    }
+    if (existingTile) {
+        existingTile.textContent = draggedTile.textContent; // Update the text content of the existing tile
+    } else {
+        park.appendChild(draggedTile);
+    }
+    updateVisualState(park);
+} else {
+    console.error('Dragged tile is null or does not exist in the DOM.');
+}
+
 
                     park.style.backgroundColor = 'Gray94';
                     console.log('Dropped tile:', draggedTile ? draggedTile.id : null, 'into park:', park.textContent);
