@@ -296,33 +296,32 @@ function setupDragAndDropListeners() {
     // Handling drop for parks
     document.querySelectorAll('.park').forEach(park => {
         park.addEventListener('drop', e => {
-            e.preventDefault();
-            const tileId = e.dataTransfer.getData('text/plain');
-            let draggedTile = document.getElementById(tileId);
+    e.preventDefault();
+    const tileId = e.dataTransfer.getData('text/plain');
+    let draggedTile = document.getElementById(tileId);
+    const existingTile = park.querySelector('.park-name-tile');
 
-            console.log('About to drop tile:', draggedTile ? draggedTile.id : "Not Found");
+    console.log('About to drop tile:', draggedTile ? draggedTile.id : "Not Found");
+    console.log('Existing tile before drop:', existingTile ? existingTile.id : "Not Found");
 
-            if (draggedTile) {
-                const existingTile = park.querySelector('.park-name-tile');
-                console.log('Existing tile before drop:', existingTile ? existingTile.id : "Not Found");
+    if (draggedTile) {
+        if (existingTile) {
+            park.replaceChild(draggedTile, existingTile);
+            // Move the existing tile back to the people container
+            const peopleContainer = document.getElementById('peopleContainer');
+            peopleContainer.appendChild(existingTile);
+        } else {
+            park.appendChild(draggedTile);
+        }
+        updateVisualState(park);
+    } else {
+        console.error('Dragged tile is null or does not exist in the DOM.');
+    }
 
-                if (existingTile) {
-                    const draggedTileParent = draggedTile.parentElement;
-                    park.replaceChild(draggedTile, existingTile);
-                    if (draggedTileParent !== park) {
-                        draggedTileParent.appendChild(existingTile);
-                    }
-                } else {
-                    park.appendChild(draggedTile);
-                }
-                updateVisualState(park);
-            } else {
-                console.error('Dragged tile is null or does not exist in the DOM.');
-            }
+    park.style.backgroundColor = 'Gray94';
+    console.log('Dropped tile:', draggedTile ? draggedTile.id : null, 'into park:', park.textContent);
+});
 
-            park.style.backgroundColor = 'Gray94';
-            console.log('Dropped tile:', draggedTile ? draggedTile.id : null, 'into park:', park.textContent);
-        });
     });
 }
 
