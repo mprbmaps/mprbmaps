@@ -98,249 +98,248 @@
             </div>
         </div>
         <script>
-            require([
-                "esri/identity/OAuthInfo",
-                "esri/identity/IdentityManager",
-                "esri/layers/FeatureLayer",
-                "esri/rest/support/Query"
-            ], function(OAuthInfo, esriId, FeatureLayer, Query) {
-                console.log('Required modules loaded');
-            
-                var info = new OAuthInfo({
-                    appId: "ti3fi1FqvHE2Hhyw",
-                    popup: false
-                });
-                esriId.registerOAuthInfos([info]);
-            
-                esriId.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
-                    console.log("Signed in");
-                    loadLayerAndPopulateUI();
-                }).catch(function() {
-                    console.error("Not signed in");
-                    esriId.getCredential(info.portalUrl + "/sharing");
-                });
-            
-                var queryLayer = new FeatureLayer({
-                    url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0"
-                });
-            
-                var writeLayer = new FeatureLayer({
-                    url: "https://utility.arcgis.com/usrsvcs/servers/9e2987cdb16646348e9398b53fcaf42c/rest/services/MPRB_Locations/MapServer/0"
-                });
-            
-                function loadLayerAndPopulateUI() {
-                    console.log('Loading layer and populating UI');
-                    var query = queryLayer.createQuery();
-                    query.where = "1=1";
-                    query.outFields = ["Name_Primary", "ASMCrewLeader", "ASMCrewLeaderPhone", "ASMCrewLeaderEmail", "Maintenance_SA", "OBJECTID"];
-                    query.returnGeometry = false;
-            
-                    queryLayer.queryFeatures(query).then(function(results) {
-                        console.log('Query features successful');
-                        processFeatures(results.features);
-                        // Prepopulate the people container with name tiles
-                        prepopulatePeopleContainer(results.features);
-                    }).catch(function(error) {
-                        console.error("Error querying features: ", error);
-                    });
-                }
-            
-                function prepopulatePeopleContainer(features) {
-                    const peopleContainer = document.getElementById('peopleContainer');
-                    features.forEach(feature => {
-                        const { attributes } = feature;
-                        const { ASMCrewLeader, OBJECTID } = attributes;
-                        let tileDiv = document.createElement('div');
-                        tileDiv.className = 'park-name-tile';
-                        tileDiv.id = `tile-${OBJECTID}`; // Assign the OBJECTID value to the id attribute
-                        tileDiv.textContent = ASMCrewLeader;
-                        tileDiv.setAttribute('draggable', true);
-                        peopleContainer.appendChild(tileDiv);
-                    });
-                }
-            
-                function processFeatures(features) {
-                    console.log('Processing features');
-                    const serviceAreasMap = features.reduce((acc, feature) => {
-                        const {attributes} = feature;
-                        const { Maintenance_SA, Name_Primary, ASMCrewLeader, ASMCrewLeaderPhone, ASMCrewLeaderEmail, OBJECTID } = attributes;
-                        console.log('OBJECTID:', OBJECTID); // Log the OBJECTID
-                        if (!acc[Maintenance_SA]) {
-                            acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
-                        }
-                        Name_Primary.split('"').forEach(parkName => {
-                            if (!acc[Maintenance_SA].parks[parkName.trim()]) {
-                                acc[Maintenance_SA].parks[parkName.trim()] = { name: parkName.trim() };
-                            }
-                        });
-                        acc[Maintenance_SA].crewLeaders.push({
-                            objectId: OBJECTID, // Store the OBJECTID
-                            name: ASMCrewLeader,
-                            phone: ASMCrewLeaderPhone,
-                            email: ASMCrewLeaderEmail,
-                            park: Name_Primary
-                        });
-                        console.log('Processed feature:', OBJECTID); // Log the processed feature
-                        return acc;
-                    }, {});
-            
-                    populateUI(serviceAreasMap);
-                }
-            
-                function populateUI(serviceAreasMap) {
-                    console.log('Populating UI');
-                    const serviceAreaContainer = document.getElementById('serviceAreaContainer');
-                    serviceAreaContainer.innerHTML = '';
-            
-                    const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
-            
-                    sortedServiceAreas.slice(0, 5).forEach(([areaName, details]) => {
-                        let areaDiv = document.createElement('div');
-                        areaDiv.className = 'service-area';
-                        serviceAreaContainer.appendChild(areaDiv);
-            
-                        let nameDiv = document.createElement('div');
-                        nameDiv.className = 'service-area-name';
-                        nameDiv.textContent = areaName;
-                        areaDiv.appendChild(nameDiv);
-            
-                        let plusIcon = document.createElement('div');
-                        plusIcon.className = 'plus-icon';
-                        plusIcon.textContent = '+';
-                        nameDiv.appendChild(plusIcon);
-            
-                        let contentDiv = document.createElement('div');
-                        contentDiv.className = 'service-area-content';
-                        areaDiv.appendChild(contentDiv);
-            
-                        let parksDiv = document.createElement('div');
-                        contentDiv.appendChild(parksDiv);
-            
-                        const sortedParkNames = Object.values(details.parks).map(park => park.name).sort((a, b) => a.localeCompare(b));
-            
-                        sortedParkNames.forEach(parkName => {
-                            let parkDiv = document.createElement('div');
-                            parkDiv.className = 'park';
-                            parkDiv.textContent = parkName;
-                            parksDiv.appendChild(parkDiv);
-            
-                            details.crewLeaders.forEach(cl => {
-                                if (cl.park.split('"').map(p => p.trim()).includes(parkName.trim())) {
-                                    let tileDiv = document.createElement('div');
-                                    tileDiv.className = 'park-name-tile';
-                                    tileDiv.id = `tile-${cl.objectId}`; // Assigning the OBJECTID value to the id attribute
-                                    tileDiv.textContent = cl.name;
-                                    tileDiv.setAttribute('draggable', true);
-                                    parkDiv.appendChild(tileDiv);
-                                    parkDiv.classList.remove('no-name-tile'); // Remove the CSS class if a name tile is present
-            
-                                    // Log the OBJECTID when the name tile is created
-                                    console.log('Created name tile with OBJECTID:', cl.objectId);
-                                }
-                            });
-            
-                            // Add CSS class to parks without name tiles
-                            if (!parkDiv.querySelector('.park-name-tile')) {
-                                parkDiv.classList.add('no-name-tile');
-                            }
-                        });
-            
-                        plusIcon.addEventListener('click', function(event) {
-                            event.stopPropagation(); // Prevent the event from bubbling up to the parent elements
-                            contentDiv.style.display = contentDiv.style.display === 'block' ? 'none' : 'block';
-                        });
-                    });
-            
-                    // Initially hide the content of each service area
-                    document.querySelectorAll('.service-area-content').forEach(contentDiv => {
-                        contentDiv.style.display = 'none';
-                    });
-            
-                    // Re-apply drag and drop listeners for the updated elements
-                    setupDragAndDropListeners();
-                }
-            
-                
-function setupDragAndDropListeners() {
-    console.log('Setting up drag and drop listeners');
+    require([
+        "esri/identity/OAuthInfo",
+        "esri/identity/IdentityManager",
+        "esri/layers/FeatureLayer",
+        "esri/rest/support/Query"
+    ], function(OAuthInfo, esriId, FeatureLayer, Query) {
+        console.log('Required modules loaded');
 
-    // Handling drag start for park name tiles in the people container
-    document.querySelectorAll('#peopleContainer .park-name-tile').forEach(tile => {
-        tile.addEventListener('dragstart', e => {
-            console.log('Drag start:', e.target.id); // Log the start of dragging
-            console.log('Dragged tile ID:', e.target.id); // Log the ID of the dragged tile
-            console.log('Dragged tile OBJECTID:', e.target.id.split('-')[1]); // Log the OBJECTID of the dragged tile
-            e.dataTransfer.setData('text/plain', e.target.id); // Use tile's unique ID for identification
-            e.dataTransfer.effectAllowed = 'move';
+        var info = new OAuthInfo({
+            appId: "ti3fi1FqvHE2Hhyw",
+            popup: false
         });
-    });
+        esriId.registerOAuthInfos([info]);
 
-    // Handling drag over and drag leave for parks
-    document.querySelectorAll('.park').forEach(park => {
-        park.addEventListener('dragover', e => {
-            e.preventDefault(); // Necessary to allow dropping
-            const tileId = e.dataTransfer.getData('text/plain');
-            const draggedTile = document.getElementById(tileId);
-            if (draggedTile && park.contains(draggedTile)) {
-                park.style.backgroundColor = 'lightgreen'; // Visual feedback for tile being over its current park
-            } else {
-                park.style.backgroundColor = 'lightgrey'; // Visual feedback for potential drop
-            }
+        esriId.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+            console.log("Signed in");
+            loadLayerAndPopulateUI();
+        }).catch(function() {
+            console.error("Not signed in");
+            esriId.getCredential(info.portalUrl + "/sharing");
         });
 
-        park.addEventListener('dragleave', e => {
-            park.style.backgroundColor = ''; // Reset visual feedback
+        var queryLayer = new FeatureLayer({
+            url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0"
         });
-    });
 
-    // Handling drop for parks
-    document.querySelectorAll('.park').forEach(park => {
-        park.addEventListener('drop', e => {
-    e.preventDefault();
-    const tileId = e.dataTransfer.getData('text/plain');
-    let draggedTile = document.getElementById(tileId);
-    const existingTile = park.querySelector('.park-name-tile');
+        var writeLayer = new FeatureLayer({
+            url: "https://utility.arcgis.com/usrsvcs/servers/9e2987cdb16646348e9398b53fcaf42c/rest/services/MPRB_Locations/MapServer/0"
+        });
 
-    console.log('About to drop tile:', draggedTile ? draggedTile.id : "Not Found");
-    console.log('Existing tile before drop:', existingTile ? existingTile.id : "Not Found");
+        function loadLayerAndPopulateUI() {
+            console.log('Loading layer and populating UI');
+            var query = queryLayer.createQuery();
+            query.where = "1=1";
+            query.outFields = ["Name_Primary", "ASMCrewLeader", "ASMCrewLeaderPhone", "ASMCrewLeaderEmail", "Maintenance_SA", "OBJECTID"];
+            query.returnGeometry = false;
 
-    if (draggedTile) {
-        if (existingTile) {
-            park.replaceChild(draggedTile, existingTile);
-            // Move the existing tile back to the people container
-            const peopleContainer = document.getElementById('peopleContainer');
-            peopleContainer.appendChild(existingTile);
-        } else {
-            park.appendChild(draggedTile);
+            queryLayer.queryFeatures(query).then(function(results) {
+                console.log('Query features successful');
+                processFeatures(results.features);
+                // Prepopulate the people container with name tiles
+                prepopulatePeopleContainer(results.features);
+            }).catch(function(error) {
+                console.error("Error querying features: ", error);
+            });
         }
-        updateVisualState(park);
-    } else {
-        console.error('Dragged tile is null or does not exist in the DOM.');
-    }
 
-    park.style.backgroundColor = 'Gray94';
-    console.log('Dropped tile:', draggedTile ? draggedTile.id : null, 'into park:', park.textContent);
-});
+        function prepopulatePeopleContainer(features) {
+            const peopleContainer = document.getElementById('peopleContainer');
+            features.forEach(feature => {
+                const { attributes } = feature;
+                const { ASMCrewLeader, OBJECTID } = attributes;
+                let tileDiv = document.createElement('div');
+                tileDiv.className = 'park-name-tile';
+                tileDiv.id = `tile-${OBJECTID}`; // Assign the OBJECTID value to the id attribute
+                tileDiv.textContent = ASMCrewLeader;
+                tileDiv.setAttribute('draggable', true);
+                peopleContainer.appendChild(tileDiv);
+            });
+        }
 
-    });
-}
+        function processFeatures(features) {
+            console.log('Processing features');
+            const serviceAreasMap = features.reduce((acc, feature) => {
+                const {attributes} = feature;
+                const { Maintenance_SA, Name_Primary, ASMCrewLeader, ASMCrewLeaderPhone, ASMCrewLeaderEmail, OBJECTID } = attributes;
+                console.log('OBJECTID:', OBJECTID); // Log the OBJECTID
+                if (!acc[Maintenance_SA]) {
+                    acc[Maintenance_SA] = { parks: {}, crewLeaders: [] };
+                }
+                Name_Primary.split('"').forEach(parkName => {
+                    if (!acc[Maintenance_SA].parks[parkName.trim()]) {
+                        acc[Maintenance_SA].parks[parkName.trim()] = { name: parkName.trim() };
+                    }
+                });
+                acc[Maintenance_SA].crewLeaders.push({
+                    objectId: OBJECTID, // Store the OBJECTID
+                    name: ASMCrewLeader,
+                    phone: ASMCrewLeaderPhone,
+                    email: ASMCrewLeaderEmail,
+                    park: Name_Primary
+                });
+                console.log('Processed feature:', OBJECTID); // Log the processed feature
+                return acc;
+            }, {});
 
-function updateVisualState(park) {
-    const nameTile = park.querySelector('.park-name-tile');
-    if (!nameTile) {
-        park.classList.add('no-name-tile'); // Add class if no name tile is present
-        console.log('Added no-name-tile class to park:', park.textContent.trim());
-    } else {
-        park.classList.remove('no-name-tile'); // Remove class if a name tile is present
-        console.log('Removed no-name-tile class from park:', park.textContent.trim());
-    }
-}
+            populateUI(serviceAreasMap);
+        }
 
-document.addEventListener('DOMContentLoaded', () => {
-    setupDragAndDropListeners();
-});
+        function populateUI(serviceAreasMap) {
+            console.log('Populating UI');
+            const serviceAreaContainer = document.getElementById('serviceAreaContainer');
+            serviceAreaContainer.innerHTML = '';
 
+            const sortedServiceAreas = Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0]));
 
-        </script>
+            sortedServiceAreas.slice(0, 5).forEach(([areaName, details]) => {
+                let areaDiv = document.createElement('div');
+                areaDiv.className = 'service-area';
+                serviceAreaContainer.appendChild(areaDiv);
+
+                let nameDiv = document.createElement('div');
+                nameDiv.className = 'service-area-name';
+                nameDiv.textContent = areaName;
+                areaDiv.appendChild(nameDiv);
+
+                let plusIcon = document.createElement('div');
+                plusIcon.className = 'plus-icon';
+                plusIcon.textContent = '+';
+                nameDiv.appendChild(plusIcon);
+
+                let contentDiv = document.createElement('div');
+                contentDiv.className = 'service-area-content';
+                areaDiv.appendChild(contentDiv);
+
+                let parksDiv = document.createElement('div');
+                contentDiv.appendChild(parksDiv);
+
+                const sortedParkNames = Object.values(details.parks).map(park => park.name).sort((a, b) => a.localeCompare(b));
+
+                sortedParkNames.forEach(parkName => {
+                    let parkDiv = document.createElement('div');
+                    parkDiv.className = 'park';
+                    parkDiv.textContent = parkName;
+                    parksDiv.appendChild(parkDiv);
+
+                    details.crewLeaders.forEach(cl => {
+                        if (cl.park.split('"').map(p => p.trim()).includes(parkName.trim())) {
+                            let tileDiv = document.createElement('div');
+                            tileDiv.className = 'park-name-tile';
+                            tileDiv.id = `tile-${cl.objectId}`; // Assigning the OBJECTID value to the id attribute
+                            tileDiv.textContent = cl.name;
+                            tileDiv.setAttribute('draggable', true);
+                            parkDiv.appendChild(tileDiv);
+                            parkDiv.classList.remove('no-name-tile'); // Remove the CSS class if a name tile is present
+
+                            // Log the OBJECTID when the name tile is created
+                            console.log('Created name tile with OBJECTID:', cl.objectId);
+                        }
+                    });
+
+                    // Add CSS class to parks without name tiles
+                    if (!parkDiv.querySelector('.park-name-tile')) {
+                        parkDiv.classList.add('no-name-tile');
+                    }
+                });
+
+                plusIcon.addEventListener('click', function(event) {
+                    event.stopPropagation(); // Prevent the event from bubbling up to the parent elements
+                    contentDiv.style.display = contentDiv.style.display === 'block' ? 'none' : 'block';
+                });
+            });
+
+            // Initially hide the content of each service area
+            document.querySelectorAll('.service-area-content').forEach(contentDiv => {
+                contentDiv.style.display = 'none';
+            });
+
+            // Re-apply drag and drop listeners for the updated elements
+            setupDragAndDropListeners();
+        }
+
+        
+        function setupDragAndDropListeners() {
+            console.log('Setting up drag and drop listeners');
+
+            // Handling drag start for park name tiles in the people container
+            document.querySelectorAll('#peopleContainer .park-name-tile').forEach(tile => {
+                tile.addEventListener('dragstart', e => {
+                    console.log('Drag start:', e.target.id); // Log the start of dragging
+                    console.log('Dragged tile ID:', e.target.id); // Log the ID of the dragged tile
+                    console.log('Dragged tile OBJECTID:', e.target.id.split('-')[1]); // Log the OBJECTID of the dragged tile
+                    e.dataTransfer.setData('text/plain', e.target.id); // Use tile's unique ID for identification
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+            });
+
+            // Handling drag over and drag leave for parks
+            document.querySelectorAll('.park').forEach(park => {
+                park.addEventListener('dragover', e => {
+                    e.preventDefault(); // Necessary to allow dropping
+                    const tileId = e.dataTransfer.getData('text/plain');
+                    const draggedTile = document.getElementById(tileId);
+                    if (draggedTile && park.contains(draggedTile)) {
+                        park.style.backgroundColor = 'lightgreen'; // Visual feedback for tile being over its current park
+                    } else {
+                        park.style.backgroundColor = 'lightgrey'; // Visual feedback for potential drop
+                    }
+                });
+
+                park.addEventListener('dragleave', e => {
+                    park.style.backgroundColor = ''; // Reset visual feedback
+                });
+            });
+
+            // Handling drop for parks
+            document.querySelectorAll('.park').forEach(park => {
+                park.addEventListener('drop', e => {
+                    e.preventDefault();
+                    const tileId = e.dataTransfer.getData('text/plain');
+                    let draggedTile = document.getElementById(tileId);
+                    const existingTile = park.querySelector('.park-name-tile');
+
+                    console.log('About to drop tile:', draggedTile ? draggedTile.id : "Not Found");
+                    console.log('Existing tile before drop:', existingTile ? existingTile.id : "Not Found");
+
+                    if (draggedTile) {
+                        if (existingTile) {
+                            park.replaceChild(draggedTile, existingTile);
+                            // Move the existing tile back to the people container
+                            const peopleContainer = document.getElementById('peopleContainer');
+                            peopleContainer.appendChild(existingTile);
+                        } else {
+                            park.appendChild(draggedTile);
+                        }
+                        updateVisualState(park);
+                    } else {
+                        console.error('Dragged tile is null or does not exist in the DOM.');
+                    }
+
+                    park.style.backgroundColor = 'Gray94';
+                    console.log('Dropped tile:', draggedTile ? draggedTile.id : null, 'into park:', park.textContent);
+                });
+            });
+        }
+
+        function updateVisualState(park) {
+            const nameTile = park.querySelector('.park-name-tile');
+            if (!nameTile) {
+                park.classList.add('no-name-tile'); // Add class if no name tile is present
+                console.log('Added no-name-tile class to park:', park.textContent.trim());
+            } else {
+                park.classList.remove('no-name-tile'); // Remove class if a name tile is present
+                console.log('Removed no-name-tile class from park:', park.textContent.trim());
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setupDragAndDropListeners();
+        });
+
+    </script>
+
     </body>
 </html>
