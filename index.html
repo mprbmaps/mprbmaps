@@ -84,29 +84,47 @@ require([
     }
 
     function processFeatures(features) {
+    const crewLeaderMap = {};
     const serviceAreasMap = {};
 
     features.forEach(feature => {
-        const { Maintenance_SA, Name_Primary } = feature.attributes;
-        
-        // Initialize the service area entry if it doesn't exist
+        const { Maintenance_SA, Name_Primary, ASMCrewLeader } = feature.attributes;
+
+        // Handling park names
         if (!serviceAreasMap[Maintenance_SA]) {
-            serviceAreasMap[Maintenance_SA] = { parks: [], crewLeaders: new Set() };
+            serviceAreasMap[Maintenance_SA] = new Set();
         }
-
-        // Split the Name_Primary field to extract individual park names
-        // Assuming the park names are separated by a double quote (")
         const parkNames = Name_Primary.split('"').filter(parkName => parkName.trim().length > 0);
+        parkNames.forEach(parkName => serviceAreasMap[Maintenance_SA].add(parkName.trim()));
 
-        // Add each park name to the service area
-        parkNames.forEach(parkName => {
-            if (parkName && !serviceAreasMap[Maintenance_SA].parks.includes(parkName)) {
-                serviceAreasMap[Maintenance_SA].parks.push(parkName.trim());
-            }
-        });
+        // Handling CrewLeader names
+        if (ASMCrewLeader && !crewLeaderMap[ASMCrewLeader]) {
+            crewLeaderMap[ASMCrewLeader] = { serviceAreas: new Set(), parks: [] };
+        }
+        if (ASMCrewLeader) {
+            crewLeaderMap[ASMCrewLeader].serviceAreas.add(Maintenance_SA);
+            parkNames.forEach(parkName => {
+                if (!crewLeaderMap[ASMCrewLeader].parks.includes(parkName)) {
+                    crewLeaderMap[ASMCrewLeader].parks.push(parkName);
+                }
+            });
+        }
     });
 
+    populateCrewLeaders(crewLeaderMap);
     populateServiceAreas(serviceAreasMap);
+}
+
+function populateCrewLeaders(crewLeaderMap) {
+    const container = document.getElementById('crewLeaderContainer');
+    container.innerHTML = ''; // Clear existing content
+
+    Object.keys(crewLeaderMap).forEach(name => {
+        const div = document.createElement('div');
+        div.className = 'crew-leader';
+        div.textContent = name;
+        container.appendChild(div);
+    });
 }
 
 function populateServiceAreas(serviceAreasMap) {
