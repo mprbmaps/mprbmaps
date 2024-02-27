@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Crew Leader and Services Dashboard</title>
+    <title>Draggable Crew Leader Dashboard</title>
     <style>
         body, html {
             font-family: Arial, sans-serif;
@@ -32,47 +32,70 @@
             font-weight: bold;
         }
 
-        .service-area .service-list {
-            display: none;
-            list-style-type: none;
-            padding: 0;
+        .service-area .drop-zone, .park {
+            padding: 10px;
+            margin-top: 5px;
+            background-color: #f9f9f9;
+            border: 1px dashed #ccc;
+        }
+
+        .park {
+            background-color: #e7ffe7;
+            border: 1px solid #b2ffb2;
+            margin: 5px 0;
+        }
+
+        .draggable {
+            padding: 5px;
+            margin-bottom: 5px;
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            cursor: move;
         }
     </style>
 </head>
 <body>
 <div class="container">
-    <div class="crew-leaders">
-        <ul id="crewLeadersList">
-            <!-- Crew Leaders will be listed here -->
-            <li>Crew Leader 1</li>
-            <li>Crew Leader 2</li>
-            <li>Crew Leader 3</li>
-        </ul>
+    <div class="crew-leaders" id="crewLeaders">
+        <!-- Draggable Crew Leaders -->
+        <div draggable="true" ondragstart="drag(event)" id="crewLeader1" class="draggable">Crew Leader 1</div>
+        <div draggable="true" ondragstart="drag(event)" id="crewLeader2" class="draggable">Crew Leader 2</div>
+        <div draggable="true" ondragstart="drag(event)" id="crewLeader3" class="draggable">Crew Leader 3</div>
     </div>
     <div class="service-areas">
-        <!-- Service Areas -->
-        <div class="service-area" id="serviceArea1">
+        <!-- Service Area 1 with Parks as drop zones -->
+        <div class="service-area">
             <div class="service-header" onclick="toggleServiceArea('serviceArea1')">+ Service Area 1</div>
-            <ul class="service-list">
-                <li>Service 1 Task</li>
-                <li>Service 2 Task</li>
-            </ul>
+            <div id="serviceArea1" ondrop="drop(event)" ondragover="allowDrop(event)" class="drop-zone">
+                <div class="park" ondrop="drop(event)" ondragover="allowDrop(event)">Park 1</div>
+                <div class="park" ondrop="drop(event)" ondragover="allowDrop(event)">Park 2</div>
+            </div>
         </div>
-        <div class="service-area" id="serviceArea2">
-            <div class="service-header" onclick="toggleServiceArea('serviceArea2')">+ Service Area 2</div>
-            <ul class="service-list">
-                <li>Service 1 Task</li>
-                <li>Service 2 Task</li>
-            </ul>
-        </div>
-        <!-- Repeat for other service areas as needed -->
+        <!-- Additional service areas as needed -->
     </div>
 </div>
 <script>
+    function allowDrop(ev) {
+        ev.preventDefault();
+    }
+
+    function drag(ev) {
+        ev.dataTransfer.setData("text", ev.target.id);
+    }
+
+    function drop(ev) {
+        ev.preventDefault();
+        var data = ev.dataTransfer.getData("text");
+        var targetElement = ev.target;
+        if (targetElement.classList.contains('park') || targetElement.classList.contains('drop-zone')) {
+            targetElement.appendChild(document.getElementById(data));
+        }
+    }
+
     function toggleServiceArea(areaId) {
-        const area = document.getElementById(areaId);
-        const list = area.querySelector('.service-list');
-        const isVisible = list.style.display === 'block';
+        var area = document.getElementById(areaId);
+        var list = area.querySelector('.drop-zone');
+        var isVisible = list.style.display === 'block';
         list.style.display = isVisible ? 'none' : 'block';
     }
 </script>
