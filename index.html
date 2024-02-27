@@ -316,8 +316,8 @@ document.querySelectorAll('.park').forEach(park => {
 
         console.log('Existing tile:', existingTile); // Log the existing tile
 
-        // Replace the existing name tile if one exists
-        if (existingTile) {
+        // Ensure that draggedTile and existingTile are not null before proceeding
+        if (draggedTile && existingTile) {
             // Get the parent of the dragged tile before replacing it
             const draggedTileParent = draggedTile.parentElement;
 
@@ -334,14 +334,13 @@ document.querySelectorAll('.park').forEach(park => {
                 }
             }
         } else {
-            // Append the dragged tile to the park if no name tile exists
-            park.appendChild(draggedTile);
+            console.error('Dragged tile or existing tile is null.'); // Log an error if either tile is null
         }
 
         // Reset background color after dropping
         park.style.backgroundColor = 'Gray94';
 
-        console.log('Dropped tile:', draggedTile.id, 'into park:', park.textContent); // Log the dropped tile and park
+        console.log('Dropped tile:', draggedTile ? draggedTile.id : null, 'into park:', park.textContent); // Log the dropped tile and park
 
         // Check if the park has a name tile
         const nameTile = park.querySelector('.park-name-tile');
@@ -354,6 +353,7 @@ document.querySelectorAll('.park').forEach(park => {
         }
     });
 });
+
 
     // Handling drag over for the people container
     document.getElementById('peopleContainer').addEventListener('dragover', e => {
