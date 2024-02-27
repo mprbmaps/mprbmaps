@@ -93,16 +93,12 @@ require([
 
         features.forEach(feature => {
             const { Maintenance_SA, Name_Primary, ASMCrewLeader } = feature.attributes;
+            // Ensure service area and parks are correctly mapped
             if (!serviceAreasMap[Maintenance_SA]) {
-                serviceAreasMap[Maintenance_SA] = { parks: {} };
+                serviceAreasMap[Maintenance_SA] = new Set();
             }
-
-            // Splitting park names and adding to service area
-            Name_Primary.split('"').forEach(parkName => {
-                if (parkName.trim().length) { // Check if park name is not just whitespace
-                    serviceAreasMap[Maintenance_SA].parks[parkName] = true;
-                }
-            });
+            // Assuming Name_Primary might contain multiple parks separated by some delimiter
+            serviceAreasMap[Maintenance_SA].add(Name_Primary);
 
             if (!crewLeaderMap[ASMCrewLeader]) {
                 crewLeaderMap[ASMCrewLeader] = [];
@@ -126,14 +122,13 @@ require([
 
     function populateServiceAreas(serviceAreasMap) {
         const container = document.getElementById('serviceAreaContainer');
-        Object.entries(serviceAreasMap).forEach(([area, details]) => {
+        Object.entries(serviceAreasMap).forEach(([area, parks]) => {
             const areaDiv = document.createElement('div');
             areaDiv.className = 'service-area';
-            container.appendChild(areaDiv);
 
             const nameDiv = document.createElement('div');
             nameDiv.className = 'service-area-name';
-            nameDiv.textContent = area;
+            nameDiv.textContent = area + ' ';
             areaDiv.appendChild(nameDiv);
 
             const plusIcon = document.createElement('span');
@@ -145,7 +140,7 @@ require([
             contentDiv.className = 'service-area-content';
             areaDiv.appendChild(contentDiv);
 
-            Object.keys(details.parks).forEach(parkName => {
+            parks.forEach(parkName => {
                 const parkDiv = document.createElement('div');
                 parkDiv.className = 'park';
                 parkDiv.textContent = parkName;
@@ -157,6 +152,8 @@ require([
                 contentDiv.style.display = isExpanded ? 'none' : 'block';
                 plusIcon.textContent = isExpanded ? '+' : '-';
             });
+
+            container.appendChild(areaDiv);
         });
     }
 });
