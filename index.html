@@ -112,23 +112,10 @@ require([
     });
 
     populateCrewLeaders(crewLeaderMap);
-    populateServiceAreas(serviceAreasMap);
+    populateServiceAreas(serviceAreasMap, crewLeaderMap);
 }
 
-function populateCrewLeaders(crewLeaderMap) {
-    const container = document.getElementById('crewLeaderContainer');
-    container.innerHTML = ''; // Clear existing content
-
-    Object.keys(crewLeaderMap).sort().forEach(name => {
-        const div = document.createElement('div');
-        div.className = 'crew-leader';
-        div.textContent = name;
-        container.appendChild(div);
-    });
-}
-
-
-function populateServiceAreas(serviceAreasMap) {
+function populateServiceAreas(serviceAreasMap, crewLeaderMap) {
     console.log('Starting to populate service areas', serviceAreasMap); // Log the initial data
 
     const container = document.getElementById('serviceAreaContainer');
@@ -140,18 +127,20 @@ function populateServiceAreas(serviceAreasMap) {
         const areaDiv = document.createElement('div');
         areaDiv.className = 'service-area';
 
-        const nameDiv = document.createElement('div');
-        nameDiv.className = 'service-area-name';
-        areaDiv.appendChild(nameDiv);
+        const nameContainerDiv = document.createElement('div');
+        nameContainerDiv.className = 'name-container';
 
         const expandCollapseIcon = document.createElement('span');
         expandCollapseIcon.className = 'expand-collapse-icon';
         expandCollapseIcon.textContent = '▶'; // You can customize the icon here
-        nameDiv.appendChild(expandCollapseIcon);
+        nameContainerDiv.appendChild(expandCollapseIcon);
 
-        const areaNameSpan = document.createElement('span');
-        areaNameSpan.textContent = area;
-        nameDiv.appendChild(areaNameSpan);
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'service-area-name';
+        nameDiv.textContent = area;
+        nameContainerDiv.appendChild(nameDiv);
+
+        areaDiv.appendChild(nameContainerDiv);
 
         const contentDiv = document.createElement('div');
         contentDiv.className = 'service-area-content';
@@ -166,6 +155,14 @@ function populateServiceAreas(serviceAreasMap) {
             const parkDiv = document.createElement('div');
             parkDiv.className = 'park';
             parkDiv.textContent = parkName;
+            
+            // Check if ASMCrewLeader is responsible for this park and prepopulate their name
+            Object.entries(crewLeaderMap).forEach(([leaderName, leaderData]) => {
+                if (leaderData.parks.includes(parkName)) {
+                    parkDiv.textContent += ` (${leaderName})`;
+                }
+            });
+            
             contentDiv.appendChild(parkDiv);
         });
 
@@ -180,7 +177,6 @@ function populateServiceAreas(serviceAreasMap) {
 
     console.log('Finished populating service areas'); // Log completion
 }
-
 
 });
 </script>
