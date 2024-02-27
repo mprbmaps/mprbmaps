@@ -2,49 +2,22 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Draggable Crew Leader Dashboard</title>
+    <title>Draggable Crew Leader Dashboard with ArcGIS</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
     <style>
-        body, html {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            height: 100%;
-        }
-
         .container {
             display: flex;
+            flex-direction: row;
         }
-
         .crew-leaders {
             flex: 1;
-            border-right: 2px solid #ccc;
             padding: 10px;
+            border-right: 1px solid #ddd;
         }
-
         .service-areas {
             flex: 3;
             padding: 10px;
         }
-
-        .service-area .service-header {
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        .service-area .drop-zone, .park {
-            padding: 10px;
-            margin-top: 5px;
-            background-color: #f9f9f9;
-            border: 1px dashed #ccc;
-        }
-
-        .park {
-            background-color: #e7ffe7;
-            border: 1px solid #b2ffb2;
-            margin: 5px 0;
-        }
-
         .draggable {
             padding: 5px;
             margin-bottom: 5px;
@@ -52,52 +25,88 @@
             border: 1px solid #ddd;
             cursor: move;
         }
+        .drop-zone {
+            padding: 10px;
+            margin-top: 5px;
+            background-color: #f9f9f9;
+            border: 1px dashed #ccc;
+        }
+        .park {
+            padding: 5px;
+            margin: 5px 0;
+            background-color: #e7ffe7;
+            border: 1px solid #b2ffb2;
+        }
+        .service-header {
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
 <div class="container">
-    <div class="crew-leaders" id="crewLeaders">
-        <!-- Draggable Crew Leaders -->
-        <div draggable="true" ondragstart="drag(event)" id="crewLeader1" class="draggable">Crew Leader 1</div>
-        <div draggable="true" ondragstart="drag(event)" id="crewLeader2" class="draggable">Crew Leader 2</div>
-        <div draggable="true" ondragstart="drag(event)" id="crewLeader3" class="draggable">Crew Leader 3</div>
-    </div>
+    <div class="crew-leaders" id="crewLeaders"></div>
     <div class="service-areas">
-        <!-- Service Area 1 with Parks as drop zones -->
-        <div class="service-area">
-            <div class="service-header" onclick="toggleServiceArea('serviceArea1')">+ Service Area 1</div>
-            <div id="serviceArea1" ondrop="drop(event)" ondragover="allowDrop(event)" class="drop-zone">
-                <div class="park" ondrop="drop(event)" ondragover="allowDrop(event)">Park 1</div>
-                <div class="park" ondrop="drop(event)" ondragover="allowDrop(event)">Park 2</div>
-            </div>
-        </div>
-        <!-- Additional service areas as needed -->
+        <!-- Service Areas Here -->
     </div>
 </div>
+
+<script src="https://js.arcgis.com/4.28/"></script>
 <script>
-    function allowDrop(ev) {
-        ev.preventDefault();
-    }
+require([
+    "esri/identity/OAuthInfo",
+    "esri/identity/IdentityManager",
+    "esri/layers/FeatureLayer",
+    "esri/rest/support/Query"
+], function (OAuthInfo, esriId, FeatureLayer, Query) {
 
-    function drag(ev) {
-        ev.dataTransfer.setData("text", ev.target.id);
-    }
+    // Set up OAuthInfo
+    var info = new OAuthInfo({
+        appId: "ti3fi1FqvHE2Hhyw",
+        popup: false
+    });
+    esriId.registerOAuthInfos([info]);
 
-    function drop(ev) {
-        ev.preventDefault();
-        var data = ev.dataTransfer.getData("text");
-        var targetElement = ev.target;
-        if (targetElement.classList.contains('park') || targetElement.classList.contains('drop-zone')) {
-            targetElement.appendChild(document.getElementById(data));
+    esriId.checkSignInStatus(info.portalUrl + "/sharing").then(
+        function () {
+            console.log("User is signed in");
+            loadCrewLeaders();
         }
+    ).catch(
+        function () {
+            console.log("User is not signed in.");
+            esriId.getCredential(info.portalUrl + "/sharing");
+        }
+    );
+
+    function loadCrewLeaders() {
+        var queryLayer = new FeatureLayer({
+            url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0"
+        });
+
+        var query = new Query();
+        query.where = "1=1"; // Adjust this query to suit your needs
+        query.outFields = ["ASMCrewLeader"];
+        query.returnGeometry = false;
+
+        queryLayer.queryFeatures(query).then(function (results) {
+            var crewLeadersElement = document.getElementById("crewLeaders");
+            results.features.forEach(function (feature) {
+                var crewLeaderName = feature.attributes.ASMCrewLeader;
+                var div = document.createElement("div");
+                div.className = "draggable";
+                div.setAttribute("draggable", "true");
+                div.setAttribute("id", crewLeaderName.replace(/\s+/g, '_'));
+                div.textContent = crewLeaderName;
+                div.ondragstart = function (event) {
+                    event.dataTransfer.setData("text", event.target.id);
+                };
+                crewLeadersElement.appendChild(div);
+            });
+        });
     }
 
-    function toggleServiceArea(areaId) {
-        var area = document.getElementById(areaId);
-        var list = area.querySelector('.drop-zone');
-        var isVisible = list.style.display === 'block';
-        list.style.display = isVisible ? 'none' : 'block';
-    }
+    // Draggable functionality would be similar to previous examples
+});
 </script>
 </body>
 </html>
