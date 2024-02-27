@@ -176,22 +176,32 @@ function populateServiceAreas(serviceAreasMap, crewLeaderMap) {
         // Iterate through sorted park names and add them to the service area content
         sortedParks.forEach(parkName => {
     console.log(`Adding park: ${parkName} to area: ${area}`); // Log each park being added
+    
+    // Create a container for the park
+    const parkContainer = document.createElement('div');
+    parkContainer.className = 'park-container';
+    
+    // Create the park <div> element
     const parkDiv = document.createElement('div');
     parkDiv.className = 'park';
     parkDiv.textContent = parkName;
+
+    // Append the parkDiv to the park container
+    parkContainer.appendChild(parkDiv);
     
-    // Append the parkDiv first
-    contentDiv.appendChild(parkDiv);
+    // Append the park container to the contentDiv
+    contentDiv.appendChild(parkContainer);
     
     // Check if ASMCrewLeader is responsible for this park and prepopulate their name
     Object.entries(crewLeaderMap).forEach(([leaderName, leaderData]) => {
         if (leaderData.parks.includes(parkName)) {
             const leaderTile = document.createElement('div');
             leaderTile.textContent = leaderName;
-            parkDiv.insertAdjacentElement('afterend', leaderTile);
+            parkContainer.appendChild(leaderTile);
         }
     });
 });
+
 
 
 
