@@ -279,10 +279,7 @@
         park.addEventListener('dragover', e => {
             e.preventDefault(); // Necessary to allow dropping
             const tileId = e.dataTransfer.getData('text/plain');
-            console.log('Drag over park with tile ID:', tileId); // Log the ID of the tile being dragged over a park
             const draggedTile = document.getElementById(tileId);
-            console.log('Drag over - draggedTile:', draggedTile ? draggedTile.id : 'null'); // Log the dragged tile during drag over
-
             if (draggedTile && park.contains(draggedTile)) {
                 park.style.backgroundColor = 'lightgreen'; // Visual feedback for tile being over its current park
             } else {
@@ -291,62 +288,62 @@
         });
 
         park.addEventListener('dragleave', e => {
-            console.log('Drag leave from park:', e.target); // Log drag leave event
             park.style.backgroundColor = ''; // Reset visual feedback
         });
     });
 
     // Handling drop for parks
-document.querySelectorAll('.park').forEach(park => {
-    park.addEventListener('drop', e => {
-        e.preventDefault();
-        const tileId = e.dataTransfer.getData('text/plain');
-        let draggedTile = document.getElementById(tileId);
+    document.querySelectorAll('.park').forEach(park => {
+        park.addEventListener('drop', e => {
+            e.preventDefault();
+            const tileId = e.dataTransfer.getData('text/plain');
+            let draggedTile = document.getElementById(tileId);
 
-        console.log('About to drop tile:', draggedTile ? draggedTile.id : "Dragged tile is null or does not exist in the DOM.");
+            console.log('About to drop tile:', draggedTile ? draggedTile.id : "Dragged tile is null or does not exist in the DOM.");
 
-        // Ensure that draggedTile exists before proceeding
-        if (!draggedTile) {
-            console.error('Dragged tile is null or does not exist in the DOM.');
-            return; // Exit the function if draggedTile is null
-        }
-
-        // Get the existing name tile in the park, if any
-        const existingTile = park.querySelector('.park-name-tile');
-
-        console.log('Existing tile:', existingTile ? existingTile.id : "No existing tile");
-
-        // If both draggedTile and existingTile exist, perform replacement
-        if (existingTile) {
-            // Get the parent of the dragged tile before replacing it
-            const draggedTileParent = draggedTile.parentElement;
-
-            console.log('Dragged tile parent:', draggedTileParent ? draggedTileParent.id : "No parent");
-
-            // Check if the dragged tile has a parent node before accessing it
-            if (draggedTileParent) {
-                // Append the dragged tile to the park
-                park.replaceChild(draggedTile, existingTile);
-
-                // If the dragged tile was from another park, append the existing tile to its original parent
-                if (draggedTileParent !== park) {
-                    draggedTileParent.appendChild(existingTile);
-                }
+            // Ensure that draggedTile exists before proceeding
+            if (!draggedTile) {
+                console.error('Dragged tile is null or does not exist in the DOM.');
+                return; // Exit the function if draggedTile is null
             }
-        } else {
-            // If there is no existing tile in the park, simply append the dragged tile
-            park.appendChild(draggedTile);
-        }
 
-        // Reset background color after dropping
-        park.style.backgroundColor = '';
+            // Get the existing name tile in the park, if any
+            const existingTile = park.querySelector('.park-name-tile');
 
-        console.log('Dropped tile:', draggedTile ? draggedTile.id : "Dragged tile ID not found", 'into park:', park.id);
+            console.log('Existing tile:', existingTile ? existingTile.id : "No existing tile");
 
-        // Update the park's visual state based on whether it has a name tile
-        updateVisualState(park);
+            // If both draggedTile and existingTile exist, perform replacement
+            if (existingTile) {
+                // Get the parent of the dragged tile before replacing it
+                const draggedTileParent = draggedTile.parentElement;
+
+                console.log('Dragged tile parent:', draggedTileParent ? draggedTileParent.id : "No parent");
+
+                // Check if the dragged tile has a parent node before accessing it
+                if (draggedTileParent) {
+                    // Append the dragged tile to the park
+                    park.replaceChild(draggedTile, existingTile);
+
+                    // If the dragged tile was from another park, append the existing tile to its original parent
+                    if (draggedTileParent !== park) {
+                        draggedTileParent.appendChild(existingTile);
+                    }
+                }
+            } else {
+                // If there is no existing tile in the park, simply append the dragged tile
+                park.appendChild(draggedTile);
+            }
+
+            // Reset background color after dropping
+            park.style.backgroundColor = '';
+
+            console.log('Dropped tile:', draggedTile ? draggedTile.id : "Dragged tile ID not found", 'into park:', park.id);
+
+            // Update the park's visual state based on whether it has a name tile
+            updateVisualState(park);
+        });
     });
-});
+}
 
 // Update the visual state of a park based on its content
 function updateVisualState(park) {
@@ -362,7 +359,7 @@ function updateVisualState(park) {
 
 document.addEventListener('DOMContentLoaded', () => {
     setupDragAndDropListeners();
-});
+
 
 
             });
