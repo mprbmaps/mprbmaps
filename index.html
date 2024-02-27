@@ -296,29 +296,29 @@
             // Handling drop for parks
             document.querySelectorAll('.park').forEach(park => {
                 park.addEventListener('drop', e => {
-                    e.preventDefault();
-                    const tileId = e.dataTransfer.getData('text/plain');
-                    let draggedTile = document.getElementById(tileId);
-                    const existingTile = park.querySelector('.park-name-tile');
+    e.preventDefault();
+    const tileId = e.dataTransfer.getData('text/plain');
+    let draggedTile = document.getElementById(tileId);
+    const existingTile = park.querySelector('.park-name-tile');
 
-                    console.log('About to drop tile:', draggedTile ? draggedTile.id : "Not Found");
-                    console.log('Existing tile before drop:', existingTile ? existingTile.id : "Not Found");
+    console.log('About to drop tile:', draggedTile ? draggedTile.id : "Not Found");
+    console.log('Existing tile before drop:', existingTile ? existingTile.id : "Not Found");
 
-                    if (draggedTile) {
-    if (existingTile) {
-        existingTile.textContent = draggedTile.textContent; // Update the text content of the existing tile
+    if (draggedTile && draggedTile.classList.contains('park-name-tile')) { // Check if dragged tile exists and is a park name tile
+        if (existingTile) {
+            existingTile.textContent = draggedTile.textContent; // Update the text content of the existing tile
+        } else {
+            park.appendChild(draggedTile);
+        }
+        updateVisualState(park);
     } else {
-        park.appendChild(draggedTile);
+        console.error('Dragged tile is null or does not exist in the DOM.');
     }
-    updateVisualState(park);
-} else {
-    console.error('Dragged tile is null or does not exist in the DOM.');
-}
 
+    park.style.backgroundColor = 'Gray94';
+    console.log('Dropped tile:', draggedTile ? draggedTile.id : null, 'into park:', park.textContent);
+});
 
-                    park.style.backgroundColor = 'Gray94';
-                    console.log('Dropped tile:', draggedTile ? draggedTile.id : null, 'into park:', park.textContent);
-                });
             });
         }
 
