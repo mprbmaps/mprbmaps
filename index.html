@@ -149,13 +149,17 @@ function populateServiceAreas(serviceAreasMap) {
         contentDiv.className = 'service-area-content';
         areaDiv.appendChild(contentDiv);
 
-        // Append each park to the service area
-        parks.forEach(parkName => {
-            const parkDiv = document.createElement('div');
-            parkDiv.className = 'park';
-            parkDiv.textContent = parkName;
-            contentDiv.appendChild(parkDiv);
-        });
+        // Ensure parks is defined and iterable before proceeding
+        if (Array.isArray(parks)) {
+            parks.forEach(parkName => {
+                const parkDiv = document.createElement('div');
+                parkDiv.className = 'park';
+                parkDiv.textContent = parkName;
+                contentDiv.appendChild(parkDiv);
+            });
+        } else {
+            console.warn(`No parks defined for service area ${area}`);
+        }
 
         plusIcon.addEventListener('click', function() {
             const isExpanded = contentDiv.style.display === 'block';
@@ -166,6 +170,7 @@ function populateServiceAreas(serviceAreasMap) {
         container.appendChild(areaDiv);
     });
 }
+
 
 });
 
