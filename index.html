@@ -84,85 +84,71 @@ require([
     }
 
     function processFeatures(features) {
-        const crewLeaderMap = {}; // To store crew leaders
-        const serviceAreasMap = {}; // To store service areas and associated parks
+    const serviceAreasMap = {};
 
-        features.forEach(feature => {
-            const { Maintenance_SA, Name_Primary, ASMCrewLeader, ASMCrewLeaderPhone, ASMCrewLeaderEmail, OBJECTID } = feature.attributes;
-            
-            // Ensure we have a unique list of crew leaders
-            if (!crewLeaderMap[ASMCrewLeader]) {
-                crewLeaderMap[ASMCrewLeader] = true; // Mark this leader as processed
+    features.forEach(feature => {
+        const { Maintenance_SA, Name_Primary } = feature.attributes;
+        
+        // Initialize the service area entry if it doesn't exist
+        if (!serviceAreasMap[Maintenance_SA]) {
+            serviceAreasMap[Maintenance_SA] = { parks: [], crewLeaders: new Set() };
+        }
+
+        // Split the Name_Primary field to extract individual park names
+        // Assuming the park names are separated by a double quote (")
+        const parkNames = Name_Primary.split('"').filter(parkName => parkName.trim().length > 0);
+
+        // Add each park name to the service area
+        parkNames.forEach(parkName => {
+            if (parkName && !serviceAreasMap[Maintenance_SA].parks.includes(parkName)) {
+                serviceAreasMap[Maintenance_SA].parks.push(parkName.trim());
             }
+        });
+    });
 
-            // Initialize service areas and prepare to add parks
-            if (!serviceAreasMap[Maintenance_SA]) {
-                serviceAreasMap[Maintenance_SA] = { crewLeaders: new Set(), parks: new Set() };
-            }
+    populateServiceAreas(serviceAreasMap);
+}
 
-            // Add the crew leader to the service area
-            serviceAreasMap[Maintenance_SA].crewLeaders.add(ASMCrewLeader);
+function populateServiceAreas(serviceAreasMap) {
+    const container = document.getElementById('serviceAreaContainer');
+    container.innerHTML = ''; // Clear existing content
 
-            // Split and add park names to the service area
-            Name_Primary.split('"').forEach(parkName => {
-                serviceAreasMap[Maintenance_SA].parks.add(parkName.trim());
-            });
+    Object.entries(serviceAreasMap).forEach(([area, {parks, crewLeaders}]) => {
+        const areaDiv = document.createElement('div');
+        areaDiv.className = 'service-area';
+
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'service-area-name';
+        nameDiv.textContent = area;
+        areaDiv.appendChild(nameDiv);
+
+        const plusIcon = document.createElement('span');
+        plusIcon.className = 'plus-icon';
+        plusIcon.textContent = '+';
+        nameDiv.appendChild(plusIcon);
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'service-area-content';
+        areaDiv.appendChild(contentDiv);
+
+        // Append each park to the service area
+        parks.forEach(parkName => {
+            const parkDiv = document.createElement('div');
+            parkDiv.className = 'park';
+            parkDiv.textContent = parkName;
+            contentDiv.appendChild(parkDiv);
         });
 
-        populateCrewLeaders(Object.keys(crewLeaderMap));
-        populateServiceAreas(serviceAreasMap);
-    }
-
-    function populateCrewLeaders(crewLeaders) {
-        const container = document.getElementById('crewLeaderContainer');
-        container.innerHTML = ''; // Clear existing content
-        crewLeaders.forEach(name => {
-            const div = document.createElement('div');
-            div.className = 'crew-leader';
-            div.textContent = name;
-            container.appendChild(div);
+        plusIcon.addEventListener('click', function() {
+            const isExpanded = contentDiv.style.display === 'block';
+            contentDiv.style.display = isExpanded ? 'none' : 'block';
+            plusIcon.textContent = isExpanded ? '+' : '-';
         });
-    }
 
-    function populateServiceAreas(serviceAreasMap) {
-        const container = document.getElementById('serviceAreaContainer');
-        container.innerHTML = ''; // Clear existing content
+        container.appendChild(areaDiv);
+    });
+}
 
-        Object.entries(serviceAreasMap).forEach(([area, {crewLeaders, parks}]) => {
-            const areaDiv = document.createElement('div');
-            areaDiv.className = 'service-area';
-
-            const nameDiv = document.createElement('div');
-            nameDiv.className = 'service-area-name';
-            nameDiv.textContent = area;
-            areaDiv.appendChild(nameDiv);
-
-            const plusIcon = document.createElement('span');
-            plusIcon.className = 'plus-icon';
-            plusIcon.textContent = '+';
-            nameDiv.appendChild(plusIcon);
-
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'service-area-content';
-            areaDiv.appendChild(contentDiv);
-
-            // Add park names to the service area content
-            parks.forEach(parkName => {
-                const parkDiv = document.createElement('div');
-                parkDiv.className = 'park';
-                parkDiv.textContent = parkName;
-                contentDiv.appendChild(parkDiv);
-            });
-
-            plusIcon.addEventListener('click', function() {
-                const isExpanded = contentDiv.style.display === 'block';
-                contentDiv.style.display = isExpanded ? 'none' : 'block';
-                plusIcon.textContent = isExpanded ? '+' : '-';
-            });
-
-            container.appendChild(areaDiv);
-        });
-    }
 });
 
 </script>
