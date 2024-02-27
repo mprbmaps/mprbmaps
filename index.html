@@ -181,10 +181,18 @@ function populateServiceAreas(serviceAreasMap, crewLeaderMap) {
             parkDiv.textContent = parkName;
             
             // Check if ASMCrewLeader is responsible for this park and prepopulate their name
+            const leaderNames = [];
             Object.entries(crewLeaderMap).forEach(([leaderName, leaderData]) => {
                 if (leaderData.parks.includes(parkName)) {
-                    parkDiv.textContent += ` (${leaderName})`;
+                    leaderNames.push(leaderName);
                 }
+            });
+
+            leaderNames.forEach(leaderName => {
+                const leaderDiv = document.createElement('div');
+                leaderDiv.className = 'crew-leader'; // Use the same class as the ones in crewLeaderContainer
+                leaderDiv.textContent = leaderName;
+                contentDiv.appendChild(leaderDiv);
             });
             
             contentDiv.appendChild(parkDiv);
@@ -201,6 +209,7 @@ function populateServiceAreas(serviceAreasMap, crewLeaderMap) {
 
     console.log('Finished populating service areas'); // Log completion
 }
+
 
 
 });
