@@ -119,7 +119,7 @@ require([
 
     var info = new OAuthInfo({
         appId: "ti3fi1FqvHE2Hhyw",
-        popup: true
+        popup: false
     });
     esriId.registerOAuthInfos([info]);
 
@@ -140,19 +140,42 @@ require([
     });
 
     function loadLayerAndPopulateUI() {
-        console.log('Loading layer and populating UI');
-        var query = queryLayer.createQuery();
-        query.where = "1=1";
-        query.outFields = ["Name_Primary", "ASMCrewLeader", "ASMCrewLeaderPhone", "ASMCrewLeaderEmail", "Maintenance_SA", "OBJECTID"];
-        query.returnGeometry = false;
+    console.log('Loading layer and populating UI');
+    var query = queryLayer.createQuery();
+    query.where = "1=1";
+    query.outFields = ["Name_Primary", "ASMCrewLeader", "ASMCrewLeaderPhone", "ASMCrewLeaderEmail", "Maintenance_SA", "OBJECTID"];
+    query.returnGeometry = false;
 
-        queryLayer.queryFeatures(query).then(function(results) {
-            console.log('Query features successful');
-            processFeatures(results.features);
-        }).catch(function(error) {
-            console.error("Error querying features: ", error);
-        });
-    }
+    queryLayer.queryFeatures(query).then(function(results) {
+        console.log('Query features successful');
+        populatePeopleContainer(results.features); // Populate the people container first
+        processFeatures(results.features); // Then process service areas
+    }).catch(function(error) {
+        console.error("Error querying features: ", error);
+    });
+}
+
+function populatePeopleContainer(features) {
+    console.log('Populating people container');
+    const peopleContainer = document.getElementById('peopleContainer');
+
+    const crewLeaders = features.map(feature => feature.attributes.ASMCrewLeader);
+    const sortedCrewLeaders = crewLeaders.sort((a, b) => {
+        // Assuming crew leader names are in the format "Last, First"
+        const lastNameA = a.split(',')[0].trim().toUpperCase();
+        const lastNameB = b.split(',')[0].trim().toUpperCase();
+        return lastNameA.localeCompare(lastNameB);
+    });
+
+    sortedCrewLeaders.forEach(crewLeader => {
+        let tileDiv = document.createElement('div');
+        tileDiv.className = 'park-name-tile';
+        tileDiv.textContent = crewLeader;
+        tileDiv.setAttribute('draggable', true);
+        peopleContainer.appendChild(tileDiv);
+    });
+}
+
 
     function processFeatures(features) {
         console.log('Processing features');
