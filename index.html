@@ -119,7 +119,7 @@ function populateCrewLeaders(crewLeaderMap) {
     const container = document.getElementById('crewLeaderContainer');
     container.innerHTML = ''; // Clear existing content
 
-    Object.keys(crewLeaderMap).forEach(name => {
+    Object.keys(crewLeaderMap).sort().forEach(name => {
         const div = document.createElement('div');
         div.className = 'crew-leader';
         div.textContent = name;
@@ -127,13 +127,14 @@ function populateCrewLeaders(crewLeaderMap) {
     });
 }
 
+
 function populateServiceAreas(serviceAreasMap) {
     console.log('Starting to populate service areas', serviceAreasMap); // Log the initial data
 
     const container = document.getElementById('serviceAreaContainer');
     container.innerHTML = ''; // Clear existing content
 
-    Object.entries(serviceAreasMap).forEach(([area, parksSet]) => {
+    Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0])).forEach(([area, parksSet]) => {
         console.log(`Processing area: ${area}`, parksSet); // Log the area being processed, showing it's a Set
 
         const areaDiv = document.createElement('div');
@@ -153,18 +154,17 @@ function populateServiceAreas(serviceAreasMap) {
         contentDiv.className = 'service-area-content';
         areaDiv.appendChild(contentDiv);
 
-        // Since parksSet is a Set, convert it to an array and then append each park to the service area
-        if (parksSet && parksSet.size) {
-            [...parksSet].forEach(parkName => {
-                console.log(`Adding park: ${parkName} to area: ${area}`); // Log each park being added
-                const parkDiv = document.createElement('div');
-                parkDiv.className = 'park';
-                parkDiv.textContent = parkName;
-                contentDiv.appendChild(parkDiv);
-            });
-        } else {
-            console.log(`No parks defined for service area ${area}`); // Log if no parks are found
-        }
+        // Convert the Set to an array and sort alphabetically
+        const sortedParks = [...parksSet].sort();
+
+        // Iterate through sorted park names and add them to the service area content
+        sortedParks.forEach(parkName => {
+            console.log(`Adding park: ${parkName} to area: ${area}`); // Log each park being added
+            const parkDiv = document.createElement('div');
+            parkDiv.className = 'park';
+            parkDiv.textContent = parkName;
+            contentDiv.appendChild(parkDiv);
+        });
 
         plusIcon.addEventListener('click', function() {
             const isExpanded = contentDiv.style.display === 'block';
