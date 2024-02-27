@@ -16,16 +16,15 @@
             background-color: #f0f0f0;
             padding: 10px;
         }
-        .park .crew-leader {
-    margin: 5px 0;
-    padding: 5px; /* Adjust padding as needed */
-    background-color: #0079c1;
-    color: white;
-    border-radius: 4px;
-    cursor: pointer;
-    user-select: none;
-}
-
+        .crew-leader {
+            margin: 5px 0;
+            padding: 10px;
+            background-color: #0079c1;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none; /* Prevent text selection */
+        }
         #serviceAreaContainer {
             flex-grow: 1;
             padding: 10px;
@@ -176,25 +175,20 @@ function populateServiceAreas(serviceAreasMap, crewLeaderMap) {
 
         // Iterate through sorted park names and add them to the service area content
         sortedParks.forEach(parkName => {
-    console.log(`Adding park: ${parkName} to area: ${area}`); // Log each park being added
-    const parkDiv = document.createElement('div');
-    parkDiv.className = 'park';
-    parkDiv.textContent = parkName;
-
-    // Iterate over crewLeaders to find ones responsible for this park
-    Object.entries(crewLeaderMap).forEach(([leaderName, leaderData]) => {
-        if (leaderData.parks.includes(parkName)) {
-            const leaderDiv = document.createElement('div');
-            leaderDiv.className = 'crew-leader'; // Use the same class as the ones in crewLeaderContainer
-            leaderDiv.textContent = leaderName;
-            parkDiv.appendChild(leaderDiv); // Add the CrewLeader name tile inside the parkDiv
-        }
-    });
-
-    contentDiv.appendChild(parkDiv); // Add the parkDiv containing the park name and CrewLeader name tiles
-});
-
-
+            console.log(`Adding park: ${parkName} to area: ${area}`); // Log each park being added
+            const parkDiv = document.createElement('div');
+            parkDiv.className = 'park';
+            parkDiv.textContent = parkName;
+            
+            // Check if ASMCrewLeader is responsible for this park and prepopulate their name
+            Object.entries(crewLeaderMap).forEach(([leaderName, leaderData]) => {
+                if (leaderData.parks.includes(parkName)) {
+                    parkDiv.textContent += ` (${leaderName})`;
+                }
+            });
+            
+            contentDiv.appendChild(parkDiv);
+        });
 
         expandCollapseIcon.addEventListener('click', function() {
             const isExpanded = contentDiv.style.display === 'block';
