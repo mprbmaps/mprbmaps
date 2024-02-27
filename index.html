@@ -57,29 +57,26 @@ require([
     "esri/layers/FeatureLayer",
     "esri/rest/support/Query"
 ], function(OAuthInfo, esriId, FeatureLayer, Query) {
-    // Initialize OAuth
     var info = new OAuthInfo({
-        appId: "ti3fi1FqvHE2Hhyw", // Replace with your App ID
-        popup: false // Use redirect OAuth pattern
+        appId: "ti3fi1FqvHE2Hhyw",
+        popup: false
     });
     esriId.registerOAuthInfos([info]);
 
     esriId.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
-        console.log("User is signed in");
         loadCrewLeaders();
     }).catch(function() {
-        console.log("User is not signed in");
         esriId.getCredential(info.portalUrl + "/sharing");
     });
 
     function loadCrewLeaders() {
         var layer = new FeatureLayer({
-            url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0" // Replace with your FeatureLayer URL
+            url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0"
         });
 
         var query = layer.createQuery();
-        query.where = "1=1"; // Fetch all features
-        query.outFields = ["*"]; // Fetch all fields
+        query.where = "1=1";
+        query.outFields = ["*"];
         query.returnGeometry = false;
         layer.queryFeatures(query).then(function(response) {
             processFeatures(response.features);
@@ -87,18 +84,18 @@ require([
     }
 
     function processFeatures(features) {
-        console.log('Processing features');
         const crewLeaderMap = {};
         const serviceAreasMap = {};
 
         features.forEach(feature => {
             const { Maintenance_SA, Name_Primary, ASMCrewLeader } = feature.attributes;
-            // Ensure service area and parks are correctly mapped
+
             if (!serviceAreasMap[Maintenance_SA]) {
                 serviceAreasMap[Maintenance_SA] = new Set();
             }
-            // Assuming Name_Primary might contain multiple parks separated by some delimiter
-            serviceAreasMap[Maintenance_SA].add(Name_Primary);
+            // Splitting Name_Primary based on " and " assuming it's the delimiter
+            const parkNames = Name_Primary.split(" and ");
+            parkNames.forEach(parkName => serviceAreasMap[Maintenance_SA].add(parkName.trim()));
 
             if (!crewLeaderMap[ASMCrewLeader]) {
                 crewLeaderMap[ASMCrewLeader] = [];
@@ -128,7 +125,7 @@ require([
 
             const nameDiv = document.createElement('div');
             nameDiv.className = 'service-area-name';
-            nameDiv.textContent = area + ' ';
+            nameDiv.textContent = area;
             areaDiv.appendChild(nameDiv);
 
             const plusIcon = document.createElement('span');
@@ -157,6 +154,7 @@ require([
         });
     }
 });
+
 
 </script>
 </body>
