@@ -297,45 +297,52 @@
     });
 
     // Handling drop for parks
-    document.querySelectorAll('.park').forEach(park => {
-        park.addEventListener('drop', e => {
-            e.preventDefault();
-            const tileId = e.dataTransfer.getData('text/plain');
-            console.log('Drop event with tile ID:', tileId); // Log the tile ID on drop
-            let draggedTile = document.getElementById(tileId);
+document.querySelectorAll('.park').forEach(park => {
+    park.addEventListener('drop', e => {
+        e.preventDefault();
+        const tileId = e.dataTransfer.getData('text/plain');
+        let draggedTile = document.getElementById(tileId);
 
-            console.log('About to drop tile:', draggedTile ? draggedTile.id : "Not Found");
+        console.log('Drop event tileId:', tileId); // Additional logging
+        console.log('About to drop tile:', draggedTile ? draggedTile.id : "Not Found");
 
-            // Get the existing name tile in the park, if any
-            const existingTile = park.querySelector('.park-name-tile');
+        // Get the existing name tile in the park, if any
+        const existingTile = park.querySelector('.park-name-tile');
 
-            console.log('Existing tile before drop:', existingTile ? existingTile.id : 'null'); // Log the existing tile before drop
+        console.log('Existing tile before drop:', existingTile ? existingTile.id : "No existing tile");
 
-            // Ensure that draggedTile and existingTile are not null before proceeding
-            if (draggedTile && existingTile) {
+        // Check if draggedTile is not null and exists in the DOM
+        if (draggedTile && document.body.contains(draggedTile)) {
+            // If there is an existing tile in the park
+            if (existingTile) {
+                // Get the parent of the dragged tile before replacing it
                 const draggedTileParent = draggedTile.parentElement;
-                console.log('Dragged tile parent before swap:', draggedTileParent ? draggedTileParent.id : 'null'); // Log the parent of the dragged tile before swap
+                console.log('Dragged tile parent:', draggedTileParent ? draggedTileParent.id : "No parent");
 
-                park.replaceChild(draggedTile, existingTile);
-
-                if (draggedTileParent !== park) {
+                // Swap tiles if draggedTile is coming from a different parent
+                if (draggedTileParent && draggedTileParent !== park) {
+                    park.replaceChild(draggedTile, existingTile);
                     draggedTileParent.appendChild(existingTile);
-                    console.log('Swapped tiles between parks:', draggedTileParent.id, 'and', park.id); // Log swapping tiles between parks
+                } else if (!draggedTileParent) {
+                    // Directly append draggedTile if it has no parent (e.g., from the people container)
+                    park.appendChild(draggedTile);
                 }
-            } else if (draggedTile) {
-                park.appendChild(draggedTile);
-                console.log('Appended dragged tile to park without existing tile:', draggedTile.id); // Log appending dragged tile to park
             } else {
-                console.error('Dragged tile or existing tile is null.'); // Log an error if either tile is null
+                // If there's no existing tile, simply append the dragged tile
+                park.appendChild(draggedTile);
             }
+        } else {
+            console.error('Dragged tile is null or does not exist in the DOM.');
+        }
 
-            park.style.backgroundColor = 'Gray94';
+        // Reset background color after dropping
+        park.style.backgroundColor = '';
 
-            console.log('Dropped tile:', draggedTile ? draggedTile.id : null, 'into park:', park.textContent); // Log the dropped tile and park
-
-            updateVisualState(park);
-        });
+        console.log('Dropped tile:', draggedTile ? draggedTile.id : "null", 'into park:', park.textContent.trim());
+        updateVisualState(park);
     });
+});
+
 }
 
 function updateVisualState(park) {
