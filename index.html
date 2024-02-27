@@ -175,20 +175,23 @@ function populateServiceAreas(serviceAreasMap, crewLeaderMap) {
 
         // Iterate through sorted park names and add them to the service area content
         sortedParks.forEach(parkName => {
-            console.log(`Adding park: ${parkName} to area: ${area}`); // Log each park being added
-            const parkDiv = document.createElement('div');
-            parkDiv.className = 'park';
-            parkDiv.textContent = parkName;
-            
-            // Check if ASMCrewLeader is responsible for this park and prepopulate their name
-            Object.entries(crewLeaderMap).forEach(([leaderName, leaderData]) => {
-                if (leaderData.parks.includes(parkName)) {
-                    parkDiv.textContent += ` (${leaderName})`;
-                }
-            });
-            
-            contentDiv.appendChild(parkDiv);
-        });
+    console.log(`Adding park: ${parkName} to area: ${area}`); // Log each park being added
+    const parkDiv = document.createElement('div');
+    parkDiv.className = 'park';
+    parkDiv.textContent = parkName;
+    
+    // Check if ASMCrewLeader is responsible for this park and prepopulate their name
+    Object.entries(crewLeaderMap).forEach(([leaderName, leaderData]) => {
+        if (leaderData.parks.includes(parkName)) {
+            const leaderTile = document.createElement('div');
+            leaderTile.textContent = leaderName;
+            contentDiv.appendChild(leaderTile);
+        }
+    });
+    
+    contentDiv.appendChild(parkDiv);
+});
+
 
         expandCollapseIcon.addEventListener('click', function() {
             const isExpanded = contentDiv.style.display === 'block';
