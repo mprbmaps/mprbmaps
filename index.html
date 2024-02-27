@@ -176,7 +176,7 @@ function populateServiceAreas(serviceAreasMap, crewLeaderMap) {
         // Iterate through sorted park names and add them to the service area content
 sortedParks.forEach(parkName => {
     console.log(`Adding park: ${parkName} to area: ${area}`); // Log each park being added
-    
+
     // Create a container for the park
     const parkContainer = document.createElement('div');
     parkContainer.className = 'park-container';
@@ -191,14 +191,23 @@ sortedParks.forEach(parkName => {
 
     // Append the park container to the contentDiv
     contentDiv.appendChild(parkContainer);
+});
 
-    // Check if ASMCrewLeader is responsible for this park and prepopulate their name
-    Object.entries(crewLeaderMap).forEach(([leaderName, leaderData]) => {
-        if (leaderData.parks.includes(parkName)) {
-            const leaderTile = document.createElement('div');
-            leaderTile.className = 'crew-leader';
-            leaderTile.textContent = leaderName;
-            parkContainer.appendChild(leaderTile);
+// After adding all parks, iterate again for each park to append its corresponding crew leader(s)
+sortedParks.forEach(parkName => {
+    // Find the container for the park
+    const parkContainers = contentDiv.getElementsByClassName('park-container');
+    Array.from(parkContainers).forEach(parkContainer => {
+        if (parkContainer.firstChild.textContent === parkName) {
+            // Check if ASMCrewLeader is responsible for this park and prepopulate their name
+            Object.entries(crewLeaderMap).forEach(([leaderName, leaderData]) => {
+                if (leaderData.parks.includes(parkName)) {
+                    const leaderTile = document.createElement('div');
+                    leaderTile.className = 'crew-leader';
+                    leaderTile.textContent = leaderName;
+                    parkContainer.appendChild(leaderTile); // Append the leaderTile to the parkContainer
+                }
+            });
         }
     });
 });
