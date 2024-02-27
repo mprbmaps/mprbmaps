@@ -93,11 +93,16 @@ require([
 
         features.forEach(feature => {
             const { Maintenance_SA, Name_Primary, ASMCrewLeader } = feature.attributes;
-            // Ensure service area "Southwest" is included
             if (!serviceAreasMap[Maintenance_SA]) {
                 serviceAreasMap[Maintenance_SA] = { parks: {} };
             }
-            serviceAreasMap[Maintenance_SA].parks[Name_Primary] = true;
+
+            // Splitting park names and adding to service area
+            Name_Primary.split('"').forEach(parkName => {
+                if (parkName.trim().length) { // Check if park name is not just whitespace
+                    serviceAreasMap[Maintenance_SA].parks[parkName] = true;
+                }
+            });
 
             if (!crewLeaderMap[ASMCrewLeader]) {
                 crewLeaderMap[ASMCrewLeader] = [];
@@ -155,6 +160,7 @@ require([
         });
     }
 });
+
 </script>
 </body>
 </html>
