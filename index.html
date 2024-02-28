@@ -195,13 +195,19 @@
         // First, remove any existing assignment
         Object.values(serviceAreasMap).forEach(parks => {
             Object.keys(parks).forEach(park => {
-                parks[park].delete(parseInt(objectID)); // Remove the new crew leader from any other park
+                if (parks[park] instanceof Set) {
+                    parks[park].delete(parseInt(objectID)); // Remove the new crew leader from any other park
+                }
             });
         });
 
         // Assign the new crew leader to the current park
         serviceAreasMap[area][parkName] = new Set([parseInt(objectID)]);
     }
+
+    // Refresh the UI here if needed to reflect other changes
+}
+
 
     function populateServiceAreas(serviceAreasMap, crewLeaders) {
         const container = document.getElementById('serviceAreaContainer');
