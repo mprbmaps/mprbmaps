@@ -132,26 +132,63 @@
         populateServiceAreas(serviceAreasMap);
     }
 
-    function populatePeople(crewLeaderNames) {
-        const container = document.getElementById('crewLeaderContainer');
-        container.innerHTML = ''; // Clear existing content
+    function populatePeople(crewLeaderNames, crewLeaderIds) {
+    const container = document.getElementById('crewLeaderContainer');
+    container.innerHTML = ''; // Clear existing content
 
-        // Sort crew leader names alphabetically
-        const sortedLeaderNames = crewLeaderNames.sort();
+    crewLeaderNames.forEach((leaderName, index) => {
+        const leaderDiv = document.createElement('div');
+        leaderDiv.className = 'crew-leader';
+        leaderDiv.textContent = leaderName;
+        leaderDiv.setAttribute('draggable', true);
+        leaderDiv.setAttribute('data-objectid', crewLeaderIds[index]);
+        leaderDiv.addEventListener('dragstart', handleDragStart);
+        container.appendChild(leaderDiv);
+    });
+}
 
-        sortedLeaderNames.forEach(leaderName => {
-            const leaderDiv = document.createElement('div');
-            leaderDiv.className = 'crew-leader';
-            leaderDiv.textContent = leaderName;
-            container.appendChild(leaderDiv);
-        });
+function handleDragStart(event) {
+    event.dataTransfer.setData("text/plain", event.target.getAttribute('data-objectid'));
+}
+
+function makeDroppable() {
+    const parks = document.querySelectorAll('.park-and-leaders-container');
+    parks.forEach(park => {
+        park.addEventListener('dragover', event => event.preventDefault());
+        park.addEventListener('drop', handleDrop);
+    });
+}
+
+function handleDrop(event) {
+    event.preventDefault();
+    const objectID = event.dataTransfer.getData("text/plain");
+    const droppedCrewLeaderName = findCrewLeaderNameById(objectID);
+    if (!droppedCrewLeaderName) return;
+
+    const parkContainer = event.target.closest('.park-and-leaders-container');
+    let crewLeaderTile = parkContainer.querySelector('.crew-leader');
+    
+    if (crewLeaderTile) {
+        crewLeaderTile.textContent = droppedCrewLeaderName; // Replace existing crew leader name
+    } else {
+        crewLeaderTile = document.createElement('div');
+        crewLeaderTile.className = 'crew-leader';
+        crewLeaderTile.textContent = droppedCrewLeaderName;
+        parkContainer.appendChild(crewLeaderTile); // Adjust based on your actual container structure
     }
+}
 
-    function populateServiceAreas(serviceAreasMap) {
+function findCrewLeaderNameById(objectID) {
+    // This function needs to search your data structure where crew leader names and OBJECTIDs are stored and return the matching name
+    // For demonstration, returning a placeholder
+    return 'Placeholder Name'; // Replace with actual logic to find the name based on OBJECTID
+}
+
+function populateServiceAreas(serviceAreasMap) {
     const container = document.getElementById('serviceAreaContainer');
     container.innerHTML = ''; // Clear existing content
 
-    Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0])).forEach(([area, parks]) => {
+    Object.entries(serviceAreasMap).forEach(([area, parks]) => {
         const areaDiv = document.createElement('div');
         areaDiv.className = 'service-area';
 
@@ -176,7 +213,6 @@
         areaDiv.appendChild(contentDiv);
 
         Object.entries(parks).forEach(([parkName, crewLeaders]) => {
-            // Create a container for the park and its crew leaders
             const parkAndLeadersContainer = document.createElement('div');
             parkAndLeadersContainer.className = 'park-and-leaders-container';
 
@@ -185,33 +221,30 @@
             parkDiv.textContent = parkName;
             parkAndLeadersContainer.appendChild(parkDiv);
 
-            const crewLeaderContainer = document.createElement('div');
-            crewLeaderContainer.className = 'crew-leader-container';
-            
             crewLeaders.forEach(leaderName => {
-                if (leaderName) { // Check for non-null leader names
+                if (leaderName) {
                     const leaderTile = document.createElement('div');
                     leaderTile.className = 'crew-leader';
                     leaderTile.textContent = leaderName;
-                    crewLeaderContainer.appendChild(leaderTile);
+                    parkAndLeadersContainer.appendChild(leaderTile);
                 }
             });
 
-            parkAndLeadersContainer.appendChild(crewLeaderContainer);
             contentDiv.appendChild(parkAndLeadersContainer);
         });
 
         expandCollapseIcon.addEventListener('click', function() {
             const isExpanded = contentDiv.style.display === 'block';
             contentDiv.style.display = isExpanded ? 'none' : 'block';
-            expandCollapseIcon.textContent = isExpanded ? '▶' : '▼'; // Toggle the icon
+            expandCollapseIcon.textContent = isExpanded ? '▶' : '▼';
         });
 
-        container.appendChild(areaDiv); // Append the areaDiv to the container
+        container.appendChild(areaDiv);
     });
 }
+
 });
-   
+ 
 </script>
 </body>
 </html>
