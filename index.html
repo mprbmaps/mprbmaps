@@ -82,6 +82,8 @@
     });
     esriId.registerOAuthInfos([info]);
 
+    var expandedServiceAreas = {}; // Track expanded service areas
+
     esriId.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
         loadCrewLeaders();
     }).catch(function() {
@@ -104,13 +106,13 @@
 
     function processFeatures(features) {
         const serviceAreasMap = {};
-        const crewLeaders = new Map(); // Changed to use Map for storing crew leaders
+        const crewLeaders = new Map(); // Use Map to store crew leaders and their IDs
 
         features.forEach(feature => {
             const { Maintenance_SA, Name_Primary, ASMCrewLeader, OBJECTID } = feature.attributes;
 
             if (ASMCrewLeader) {
-                crewLeaders.set(OBJECTID, ASMCrewLeader); // Map OBJECTID to crew leader name for easy lookup
+                crewLeaders.set(OBJECTID, ASMCrewLeader); // Map OBJECTID to crew leader name
             }
 
             if (!serviceAreasMap[Maintenance_SA]) {
@@ -123,7 +125,7 @@
                 if (!serviceAreasMap[Maintenance_SA][parkName]) {
                     serviceAreasMap[Maintenance_SA][parkName] = new Set();
                 }
-                serviceAreasMap[Maintenance_SA][parkName].add(OBJECTID); // Associate park with crew leader OBJECTID
+                serviceAreasMap[Maintenance_SA][parkName].add(OBJECTID); // Associate OBJECTID with park
             });
         });
 
@@ -133,10 +135,8 @@
 
     function populatePeople(crewLeaders) {
         const container = document.getElementById('crewLeaderContainer');
-        container.innerHTML = ''; // Clear existing content
+        container.innerHTML = '';
 
-        // Convert Map to an array and sort by crew leader name
-        const sortedLeaderNames = Array.from(crewLeaders.values()).sort();
         Array.from(crewLeaders.entries()).sort((a, b) => a[1].localeCompare(b[1])).forEach(([id, name]) => {
             const leaderDiv = document.createElement('div');
             leaderDiv.className = 'crew-leader';
@@ -154,7 +154,7 @@
 
     function populateServiceAreas(serviceAreasMap, crewLeaders) {
         const container = document.getElementById('serviceAreaContainer');
-        container.innerHTML = ''; // Clear existing content
+        container.innerHTML = '';
 
         Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0])).forEach(([area, parks]) => {
             const areaDiv = document.createElement('div');
@@ -165,7 +165,7 @@
 
             const expandCollapseIcon = document.createElement('span');
             expandCollapseIcon.className = 'expand-collapse-icon';
-            expandCollapseIcon.textContent = '▶';
+            expandCollapseIcon.textContent = expandedServiceAreas[area] ? '▼' : '▶';
 
             const nameDiv = document.createElement('div');
             nameDiv.className = 'service-area-name';
@@ -178,6 +178,7 @@
 
             const contentDiv = document.createElement('div');
             contentDiv.className = 'service-area-content';
+            contentDiv.style.display = expandedServiceAreas[area] ? 'block' : 'none';
             areaDiv.appendChild(contentDiv);
 
             Object.entries(parks).forEach(([parkName, crewLeaderIds]) => {
@@ -209,6 +210,7 @@
                 const isExpanded = contentDiv.style.display === 'block';
                 contentDiv.style.display = isExpanded ? 'none' : 'block';
                 expandCollapseIcon.textContent = isExpanded ? '▶' : '▼';
+                expandedServiceAreas[area] = isExpanded ? false : true; // Toggle expanded state
             });
 
             container.appendChild(areaDiv);
@@ -222,13 +224,13 @@
 
         if (!crewLeaderName) return;
 
-        // Assuming you want to update the park's crew leader in the serviceAreasMap
-        // This part of logic needs to be adjusted based on how you want to handle the drop operation
-        serviceAreasMap[area][parkName] = new Set([parseInt(objectID)]); // Replace the existing set of IDs with the new one
+        serviceAreasMap[area][parkName] = new Set([parseInt(objectID)]); // Update with new crew leader ID
 
-        // Now, re-populate the service areas to reflect the change
-        populateServiceAreas(serviceAreasMap, crewLeaders);
+        expandedServiceAreas[area] = true; // Ensure the area remains expanded
+
+        populateServiceAreas(serviceAreasMap, crewLeaders); // Repopulate areas
     }
+});
 });
 </script>
 </body>
