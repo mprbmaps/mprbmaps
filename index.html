@@ -173,47 +173,42 @@ require([
         console.log("Sorted Parks:", sortedParks);
 
         sortedParks.forEach(parkName => {
-            // Create a container for each park
-            const parkContainer = document.createElement('div');
-            parkContainer.className = 'park-container';
+            // CreasortedParks.forEach(parkName => {
+    // Create a container for each park
+    const parkContainer = document.createElement('div');
+    parkContainer.className = 'park-container';
 
-            // Create the parkDiv
-            const parkDiv = document.createElement('div');
-            parkDiv.className = 'park';
-            parkDiv.textContent = parkName;
-            parkContainer.appendChild(parkDiv);
+    // Create the parkDiv
+    const parkDiv = document.createElement('div');
+    parkDiv.className = 'park';
+    parkDiv.textContent = parkName;
+    parkContainer.appendChild(parkDiv);
 
-            // Append the park container to the contentDiv
-            contentDiv.appendChild(parkContainer);
+    // Append the park container to the contentDiv
+    contentDiv.appendChild(parkContainer);
 
-            // Create a container for Crew Leader name tiles for this park
-            const crewLeaderContainer = document.createElement('div');
-            crewLeaderContainer.className = 'crew-leader-container';
+    // Convert the Set to an array and sort alphabetically
+    const sortedParks = [...parksSet].sort();
+    console.log("Sorted Parks:", sortedParks);
 
-            // Append the crew leader name tiles for this park
-            Object.entries(crewLeaderMap).forEach(([leaderName, leaderData]) => {
-                if (leaderData.serviceAreas.has(area) && leaderData.parks.includes(parkName)) {
-                    console.log("Adding Leader Tile for", leaderName, "for park", parkName);
-                    const leaderTile = document.createElement('div');
-                    leaderTile.className = 'crew-leader';
-                    leaderTile.textContent = leaderName;
-                    crewLeaderContainer.appendChild(leaderTile);
-                }
-            });
+    // Create a container for Crew Leader name tiles for this park
+    const crewLeaderContainer = document.createElement('div');
+    crewLeaderContainer.className = 'crew-leader-container';
 
-            // Append the container with Crew Leader tiles to the parkContainer
-            parkContainer.appendChild(crewLeaderContainer);
-        });
-
-        expandCollapseIcon.addEventListener('click', function() {
-            const isExpanded = contentDiv.style.display === 'block';
-            contentDiv.style.display = isExpanded ? 'none' : 'block';
-            expandCollapseIcon.textContent = isExpanded ? '▶' : '▼'; // Toggle the icon
-        });
-
-        container.appendChild(areaDiv); // Append the areaDiv to the container
+    // Append the crew leader name tiles for this park
+    Object.entries(crewLeaderMap).forEach(([leaderName, leaderData]) => {
+        if (leaderData.serviceAreas.has(area) && leaderData.parks.includes(parkName)) {
+            console.log("Adding Leader Tile for", leaderName, "for park", parkName);
+            const leaderTile = document.createElement('div');
+            leaderTile.className = 'crew-leader';
+            leaderTile.textContent = leaderName;
+            crewLeaderContainer.appendChild(leaderTile);
+        }
     });
-}
+
+    // Append the container with Crew Leader tiles to the parkContainer
+    parkContainer.appendChild(crewLeaderContainer);
+});
 });
 </script>
 </body>
