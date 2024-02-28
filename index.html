@@ -306,30 +306,31 @@ require([
         }
     }
 
-    function handleCrewLeaderReplacement(event, crewLeaders, serviceAreasMap, area, parkName) {
-        console.log("handleCrewLeaderReplacement function started");
-        const objectID = event.dataTransfer.getData("text/plain");
-        const newCrewLeaderName = crewLeaders.get(parseInt(objectID));
+    // Modified handleCrewLeaderReplacement function with logging
+  function handleCrewLeaderReplacement(event) {
+    console.log("handleCrewLeaderReplacement function started");
+    const newCrewLeaderName = event.target.textContent;
+    console.log("newCrewLeaderName:", newCrewLeaderName);
 
-        console.log("New Crew Leader Name:", newCrewLeaderName);
+    const parkContainer = event.target.closest('.park-and-leaders-container');
+    console.log("parkContainer:", parkContainer);
 
-        const parkContainer = event.target.closest('.park-and-leaders-container');
-        console.log("Park Container:", parkContainer);
+    const parkName = parkContainer.querySelector('.park').textContent;
+    console.log("parkName:", parkName);
 
-        const parkName = parkContainer.querySelector('.park').textContent;
-        console.log("Park Name:", parkName);
+    // 1. Fetch Crew Leader details from CrewLeaderAssignments layer
+    console.log("Fetching crew leader details...");
+    const crewLeaderLayer = new FeatureLayer({
+        url: 'https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0'
+    });
 
-        // Fetch Crew Leader details from CrewLeaderAssignments layer
-        const crewLeaderLayer = new FeatureLayer({
-            url: 'https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0'
-        });
+    const crewLeaderQuery = crewLeaderLayer.createQuery();
+    crewLeaderQuery.where = `ASMCrewLeader = '${newCrewLeaderName}'`;
+    crewLeaderQuery.outFields = ['OBJECTID', 'ASMCrewLeaderPhone', 'ASMCrewLeaderEmail'];
+    crewLeaderQuery.returnGeometry = false;
 
-        const crewLeaderQuery = crewLeaderLayer.createQuery();
-        crewLeaderQuery.where = `ASMCrewLeader = '${newCrewLeaderName}'`;
-        crewLeaderQuery.outFields = ['OBJECTID', 'ASMCrewLeaderPhone', 'ASMCrewLeaderEmail'];
-        crewLeaderQuery.returnGeometry = false;
-
-        crewLeaderLayer.queryFeatures(crewLeaderQuery).then(results => {
+    crewLeaderLayer.queryFeatures(crewLeaderQuery)
+        .then(results => {
             if (results.features.length === 0) {
                 console.error("Error: Crew Leader not found.");
                 return;
@@ -338,7 +339,12 @@ require([
             const crewLeaderDetails = results.features[0].attributes;
             console.log("Crew Leader details:", crewLeaderDetails);
 
-            // Query MPRB_Locations to find the feature to update
+            const objectId = crewLeaderDetails.OBJECTID;
+            const newCrewLeaderPhone = crewLeaderDetails.ASMCrewLeaderPhone;
+            const newCrewLeaderEmail = crewLeaderDetails.ASMCrewLeaderEmail;
+
+            // 2. Query MPRB_Locations to find the feature to update
+            console.log("Starting ArcGIS Query to find feature to update");
             const updateLayer = new FeatureLayer({
                 url: 'https://utility.arcgis.com/usrsvcs/servers/d752181f819b4ac590982066e78addd9/rest/services/MPRB_Location_InternalEdits/FeatureServer/0'
             });
@@ -348,48 +354,51 @@ require([
             updateQuery.outFields = ['*'];
             updateQuery.returnGeometry = false;
 
-            updateLayer.queryFeatures(updateQuery).then(results => {
-                if (results.features.length === 0) {
-                    console.error("Error: Park not found with the given name.");
-                    return;
-                }
-
-                const featureToUpdate = results.features[0];
-                console.log("Feature to update:", featureToUpdate);
-
-                // Prepare updates
-                const updates = [{
-                    attributes: {
-                        OBJECTID: featureToUpdate.attributes.OBJECTID,
-                        ASMCrewLeader: newCrewLeaderName,
-                        ASMCrewLeaderPhone: crewLeaderDetails.ASMCrewLeaderPhone,
-                        ASMCrewLeaderEmail: crewLeaderDetails.ASMCrewLeaderEmail
+            updateLayer.queryFeatures(updateQuery)
+                .then(results => {
+                    if (results.features.length === 0) {
+                        console.error("Error: Park not found with the given name.");
+                        return;
                     }
-                }];
 
-                // Applying edits to the feature layer
-                updateLayer.applyEdits({
-                    updateFeatures: updates
-                }).then(editResults => {
-                    if (editResults.updateFeatureResults.length > 0) {
-                        const updateResult = editResults.updateFeatureResults[0];
-                        if (updateResult.error) {
-                            console.error("Update failed:", updateResult.error);
-                        } else {
-                            console.log("Update successful, OBJECTID:", updateResult.objectId);
-                            // Optionally, display a success message or update the UI accordingly
+                    const featureToUpdate = results.features[0];
+                    console.log("Feature to update:", featureToUpdate);
+
+                    // Prepare updates
+                    const updates = [{
+                        attributes: {
+                            OBJECTID: featureToUpdate.attributes.OBJECTID,
+                            ASMCrewLeader: newCrewLeaderName,
+                            ASMCrewLeaderPhone: newCrewLeaderPhone,
+                            ASMCrewLeaderEmail: newCrewLeaderEmail
                         }
-                    }
-                }).catch(error => {
-                    console.error("ApplyEdits failed:", error);
-                });
-            }).catch(error => {
-                console.error("Park Query Error:", error);
-            });
-        }).catch(error => {
-            console.error("CrewLeaderAssignments Query Error:", error);
-        });
-    }
+                    }];
+
+                    console.log("Data to be updated:", updates);
+
+                    // Applying edits to the feature layer
+                    console.log("Applying edits to feature layer...");
+                    updateLayer.applyEdits({
+                        updateFeatures: updates
+                    }).then(function(editResults) {
+                        if (editResults.updateFeatureResults.length > 0) {
+                            var updateResult = editResults.updateFeatureResults[0];
+                            if (updateResult.error) {
+                                console.error("Update failed:", updateResult.error);
+                            } else {
+                                console.log("Update successful, OBJECTID:", updateResult.objectId);
+                                // Display popup message
+                                displayPopupMessage(newCrewLeaderName, parkName);
+                            }
+                        }
+                    }).catch(function(error) {
+                        console.error("ApplyEdits failed:", error);
+                    });
+                })
+                .catch(error => console.error("MPRB_Locations Query Error:", error));
+        })
+        .catch(error => console.error("CrewLeaderAssignments Query Error:", error));
+}
 
 function displayPopupMessage(newCrewLeaderName, parkName) {
     const message = `${newCrewLeaderName} has been successfully assigned to ${parkName}.`;
