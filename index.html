@@ -6,108 +6,106 @@
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
     <style>
     body {
-    font-family: Avenir Next, sans-serif;
-    display: flex;
-}
-.crew-leader-header {
-  background-color: #f0f0f0; /* Choose a background color */
-  padding: 10px;
-  font-weight: bold;
-  text-align: center; /* Center align the header text */
-}
+        font-family: Avenir Next, sans-serif;
+        display: flex;
+    }
+    .crew-leader-header {
+        background-color: #f0f0f0;
+        padding: 10px;
+        font-weight: bold;
+        text-align: center;
+    }
 
-#crewLeaderContainer {
-    width: 200px;
-    height: calc(100vh - 40px); /* Subtract the height of the header */
-    overflow-y: auto;
-    background-color: #f0f0f0;
-    padding: 10px;
-    position: fixed;
-    top: 0; /* Align to the top */
-    left: 0; /* Align to the left */
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    z-index: 1; /* Ensure crew leader container stays below other content */
-}
+    #crewLeaderContainer {
+        width: 200px;
+        height: calc(100vh - 40px);
+        overflow-y: auto;
+        background-color: #f0f0f0;
+        padding: 10px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        z-index: 1;
+    }
 
-#serviceAreaContainer {
-    margin-left: 260px; /* This is the width of the #crewLeaderContainer plus padding */
-    padding-left: 40px; /* Optional: Adds padding inside the container for better spacing */
-    padding-right: 20px; /* Optional: Adds padding inside the container for better spacing */
-    overflow-y: auto;
-    height: 100vh;
-    width: auto; /* Allows the container to take the necessary width */
-    box-sizing: border-box; /* Ensures padding is included in the width */
-}
+    #serviceAreaContainer {
+        margin-left: 260px;
+        padding-left: 40px;
+        padding-right: 20px;
+        overflow-y: auto;
+        height: 100vh;
+        width: auto;
+        box-sizing: border-box;
+    }
 
-.crew-leader {
-    margin: 10px 0 5px 0; /* Adjusted margin to remove indentation in crewLeaderContainer */
-    padding: 10px;
-    background-color: #0079c1;
-    color: white;
-    border: 1px solid #005a8b;
-    border-radius: 4px;
-    cursor: pointer;
-    user-select: none;
-    display: block; /* Ensure block-level display for correct margin application */
-}
+    .crew-leader {
+        margin: 10px 0 5px 0;
+        padding: 10px;
+        background-color: #0079c1;
+        color: white;
+        border: 1px solid #005a8b;
+        border-radius: 4px;
+        cursor: pointer;
+        user-select: none;
+        display: block;
+    }
 
-.park {
-    margin: 5px 0;
-    padding: 10px;
-    background-color: darkgreen; /* Specific styling for park name tiles */
-    color: white;
-    font-weight: bold;
-    border: 1px solid #005a8b;
-    border-radius: 4px;
-    cursor: pointer;
-    user-select: none;
-    display: block; /* Ensure block-level display */
-}
+    .park {
+        margin: 5px 0;
+        padding: 10px;
+        background-color: darkgreen;
+        color: white;
+        font-weight: bold;
+        border: 1px solid #005a8b;
+        border-radius: 4px;
+        cursor: pointer;
+        user-select: none;
+        display: block;
+    }
 
-.service-area {
-    margin: 10px 0; /* Adjusted margin for clarity and consistency */
-    padding: 10px;
-    background-color: #f3f3f3;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-}
+    .service-area {
+        margin: 10px 0;
+        padding: 10px;
+        background-color: #f3f3f3;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
 
-.park-and-leaders-container {
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    margin-bottom: 10px;
-    padding: 10px;
-    background-color: #f9f9f9;
-    max-width: 400px; /* Consistent max-width for alignment */
-    margin-left: auto; /* Center alignment if needed */
-    margin-right: auto; /* Center alignment if needed */
-}
+    .park-and-leaders-container {
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        margin-bottom: 10px;
+        padding: 10px;
+        background-color: #f9f9f9;
+        max-width: 400px;
+        margin-left: auto;
+        margin-right: auto;
+    }
 
-.service-area-name, .plus-icon {
-    font-weight: bold;
-    cursor: pointer;
-}
+    .service-area-name, .plus-icon {
+        font-weight: bold;
+        cursor: pointer;
+    }
 
-.service-area-content {
-    display: none; /* Initially hide the content */
-}
+    .service-area-content {
+        display: none;
+    }
 
-.expand-collapse-icon {
-    display: inline-block;
-    margin-right: 5px;
-}
+    .expand-collapse-icon {
+        display: inline-block;
+        margin-right: 5px;
+    }
 
-.service-area-name {
-    display: inline-block;
-}
+    .service-area-name {
+        display: inline-block;
+    }
 
-/* Added indentation for crew leader tiles in service area container */
-.park-and-leaders-container .crew-leader {
-    margin-left: 20px;
-}
-
-</style>
+    .park-and-leaders-container .crew-leader {
+        margin-left: 20px;
+    }
+    </style>
 </head>
 <body>
 <div id="crewLeaderContainer"></div>
@@ -115,7 +113,7 @@
 
 <script src="https://js.arcgis.com/4.28/"></script>
 <script>
-    require([
+require([
   "esri/identity/OAuthInfo",
   "esri/identity/IdentityManager",
   "esri/layers/FeatureLayer",
@@ -127,7 +125,7 @@
     });
     esriId.registerOAuthInfos([info]);
 
-    var expandedServiceAreas = {}; // Track expanded service areas
+    var expandedServiceAreas = {};
 
     esriId.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
         loadCrewLeaders();
@@ -309,37 +307,29 @@
     }
 
     function handleCrewLeaderReplacement(event, crewLeaders, serviceAreasMap, area, parkName) {
-        console.log("handleCrewLeaderReplacement called");
-        // Implement the body of your function here.
-        // This should include logging, fetching crew leader details, querying for the park, preparing updates, and applying edits.
-    }
-});
+        console.log("handleCrewLeaderReplacement function started");
+        const objectID = event.dataTransfer.getData("text/plain");
+        const newCrewLeaderName = crewLeaders.get(parseInt(objectID));
 
-  // Modified handleCrewLeaderReplacement function with logging
-  function handleCrewLeaderReplacement(event) {
-    console.log("handleCrewLeaderReplacement function started");
-    const newCrewLeaderName = event.target.textContent;
-    console.log("newCrewLeaderName:", newCrewLeaderName);
+        console.log("New Crew Leader Name:", newCrewLeaderName);
 
-    const parkContainer = event.target.closest('.park-and-leaders-container');
-    console.log("parkContainer:", parkContainer);
+        const parkContainer = event.target.closest('.park-and-leaders-container');
+        console.log("Park Container:", parkContainer);
 
-    const parkName = parkContainer.querySelector('.park').textContent;
-    console.log("parkName:", parkName);
+        const parkName = parkContainer.querySelector('.park').textContent;
+        console.log("Park Name:", parkName);
 
-    // 1. Fetch Crew Leader details from CrewLeaderAssignments layer
-    console.log("Fetching crew leader details...");
-    const crewLeaderLayer = new FeatureLayer({
-        url: 'https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0'
-    });
+        // Fetch Crew Leader details from CrewLeaderAssignments layer
+        const crewLeaderLayer = new FeatureLayer({
+            url: 'https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0'
+        });
 
-    const crewLeaderQuery = crewLeaderLayer.createQuery();
-    crewLeaderQuery.where = `ASMCrewLeader = '${newCrewLeaderName}'`;
-    crewLeaderQuery.outFields = ['OBJECTID', 'ASMCrewLeaderPhone', 'ASMCrewLeaderEmail'];
-    crewLeaderQuery.returnGeometry = false;
+        const crewLeaderQuery = crewLeaderLayer.createQuery();
+        crewLeaderQuery.where = `ASMCrewLeader = '${newCrewLeaderName}'`;
+        crewLeaderQuery.outFields = ['OBJECTID', 'ASMCrewLeaderPhone', 'ASMCrewLeaderEmail'];
+        crewLeaderQuery.returnGeometry = false;
 
-    crewLeaderLayer.queryFeatures(crewLeaderQuery)
-        .then(results => {
+        crewLeaderLayer.queryFeatures(crewLeaderQuery).then(results => {
             if (results.features.length === 0) {
                 console.error("Error: Crew Leader not found.");
                 return;
@@ -348,12 +338,7 @@
             const crewLeaderDetails = results.features[0].attributes;
             console.log("Crew Leader details:", crewLeaderDetails);
 
-            const objectId = crewLeaderDetails.OBJECTID;
-            const newCrewLeaderPhone = crewLeaderDetails.ASMCrewLeaderPhone;
-            const newCrewLeaderEmail = crewLeaderDetails.ASMCrewLeaderEmail;
-
-            // 2. Query MPRB_Locations to find the feature to update
-            console.log("Starting ArcGIS Query to find feature to update");
+            // Query MPRB_Locations to find the feature to update
             const updateLayer = new FeatureLayer({
                 url: 'https://utility.arcgis.com/usrsvcs/servers/d752181f819b4ac590982066e78addd9/rest/services/MPRB_Location_InternalEdits/FeatureServer/0'
             });
@@ -363,51 +348,48 @@
             updateQuery.outFields = ['*'];
             updateQuery.returnGeometry = false;
 
-            updateLayer.queryFeatures(updateQuery)
-                .then(results => {
-                    if (results.features.length === 0) {
-                        console.error("Error: Park not found with the given name.");
-                        return;
+            updateLayer.queryFeatures(updateQuery).then(results => {
+                if (results.features.length === 0) {
+                    console.error("Error: Park not found with the given name.");
+                    return;
+                }
+
+                const featureToUpdate = results.features[0];
+                console.log("Feature to update:", featureToUpdate);
+
+                // Prepare updates
+                const updates = [{
+                    attributes: {
+                        OBJECTID: featureToUpdate.attributes.OBJECTID,
+                        ASMCrewLeader: newCrewLeaderName,
+                        ASMCrewLeaderPhone: crewLeaderDetails.ASMCrewLeaderPhone,
+                        ASMCrewLeaderEmail: crewLeaderDetails.ASMCrewLeaderEmail
                     }
+                }];
 
-                    const featureToUpdate = results.features[0];
-                    console.log("Feature to update:", featureToUpdate);
-
-                    // Prepare updates
-                    const updates = [{
-                        attributes: {
-                            OBJECTID: featureToUpdate.attributes.OBJECTID,
-                            ASMCrewLeader: newCrewLeaderName,
-                            ASMCrewLeaderPhone: newCrewLeaderPhone,
-                            ASMCrewLeaderEmail: newCrewLeaderEmail
+                // Applying edits to the feature layer
+                updateLayer.applyEdits({
+                    updateFeatures: updates
+                }).then(editResults => {
+                    if (editResults.updateFeatureResults.length > 0) {
+                        const updateResult = editResults.updateFeatureResults[0];
+                        if (updateResult.error) {
+                            console.error("Update failed:", updateResult.error);
+                        } else {
+                            console.log("Update successful, OBJECTID:", updateResult.objectId);
+                            // Optionally, display a success message or update the UI accordingly
                         }
-                    }];
-
-                    console.log("Data to be updated:", updates);
-
-                    // Applying edits to the feature layer
-                    console.log("Applying edits to feature layer...");
-                    updateLayer.applyEdits({
-                        updateFeatures: updates
-                    }).then(function(editResults) {
-                        if (editResults.updateFeatureResults.length > 0) {
-                            var updateResult = editResults.updateFeatureResults[0];
-                            if (updateResult.error) {
-                                console.error("Update failed:", updateResult.error);
-                            } else {
-                                console.log("Update successful, OBJECTID:", updateResult.objectId);
-                                // Display popup message
-                                displayPopupMessage(newCrewLeaderName, parkName);
-                            }
-                        }
-                    }).catch(function(error) {
-                        console.error("ApplyEdits failed:", error);
-                    });
-                })
-                .catch(error => console.error("MPRB_Locations Query Error:", error));
-        })
-        .catch(error => console.error("CrewLeaderAssignments Query Error:", error));
-}
+                    }
+                }).catch(error => {
+                    console.error("ApplyEdits failed:", error);
+                });
+            }).catch(error => {
+                console.error("Park Query Error:", error);
+            });
+        }).catch(error => {
+            console.error("CrewLeaderAssignments Query Error:", error);
+        });
+    }
 
 function displayPopupMessage(newCrewLeaderName, parkName) {
     const message = `${newCrewLeaderName} has been successfully assigned to ${parkName}.`;
