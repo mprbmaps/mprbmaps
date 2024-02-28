@@ -25,9 +25,14 @@
             cursor: pointer;
             user-select: none; /* Prevent text selection */
         }
-        #serviceAreaContainer {
-            flex-grow: 1;
-            padding: 10px;
+        .park-container {
+            margin-bottom: 10px; /* Add margin to separate park name from crew leader tiles */
+        }
+        .park {
+            margin-bottom: 5px; /* Add margin below park name */
+        }
+        .crew-leader-container {
+            margin-top: 5px; /* Add margin above crew leader tiles */
         }
         .service-area, .park {
             margin: 10px;
@@ -50,9 +55,6 @@
         .service-area-name {
             display: inline-block;
         }
-        .crew-leader-container {
-            margin-top: 10px; /* Adjust spacing between parks and Crew Leaders */
-        }
     </style>
 </head>
 <body>
@@ -61,7 +63,7 @@
 
 <script src="https://js.arcgis.com/4.28/"></script>
 <script>
-        require([
+require([
     "esri/identity/OAuthInfo",
     "esri/identity/IdentityManager",
     "esri/layers/FeatureLayer",
@@ -140,63 +142,82 @@
     }
 
     function populateServiceAreas(serviceAreasMap, crewLeaderMap) {
-    const container = document.getElementById('serviceAreaContainer');
-    container.innerHTML = ''; // Clear existing content
+        const container = document.getElementById('serviceAreaContainer');
+        container.innerHTML = ''; // Clear existing content
 
-    Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0])).forEach(([area, parksSet]) => {
-        console.log("Area:", area);
-        const areaDiv = document.createElement('div');
-        areaDiv.className = 'service-area';
+        Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0])).forEach(([area, parksSet]) => {
+            console.log("Area:", area);
+            const areaDiv = document.createElement('div');
+            areaDiv.className = 'service-area';
 
-        const nameContainerDiv = document.createElement('div');
-        nameContainerDiv.className = 'name-container';
+            const nameContainerDiv = document.createElement('div');
+            nameContainerDiv.className = 'name-container';
 
-        const expandCollapseIcon = document.createElement('span');
-        expandCollapseIcon.className = 'expand-collapse-icon';
-        expandCollapseIcon.textContent = '▶';
+            const expandCollapseIcon = document.createElement('span');
+            expandCollapseIcon.className = 'expand-collapse-icon';
+            expandCollapseIcon.textContent = '▶';
 
-        const nameDiv = document.createElement('div');
-        nameDiv.className = 'service-area-name';
-        nameDiv.textContent = area;
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'service-area-name';
+            nameDiv.textContent = area;
 
-        nameContainerDiv.appendChild(expandCollapseIcon);
-        nameContainerDiv.appendChild(nameDiv);
+            nameContainerDiv.appendChild(expandCollapseIcon);
+            nameContainerDiv.appendChild(nameDiv);
 
-        areaDiv.appendChild(nameContainerDiv);
+            areaDiv.appendChild(nameContainerDiv);
 
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'service-area-content';
-        areaDiv.appendChild(contentDiv);
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'service-area-content';
+            areaDiv.appendChild(contentDiv);
 
-        // Convert the Set to an array and sort alphabetically
-        const sortedParks = [...parksSet].sort();
-        console.log("Sorted Parks:", sortedParks);
+            // Convert the Set to an array and sort alphabetically
+            const sortedParks = [...parksSet].sort();
+            console.log("Sorted Parks:", sortedParks);
 
-        sortedParks.forEach(parkName => {
-            // Create a container for each park
-            const parkContainer = document.createElement('div');
-            parkContainer.className = 'park-container';
+            sortedParks.forEach(parkName => {
+                // Create a container for each park
+                const parkContainer = document.createElement('div');
+                parkContainer.className = 'park-container';
 
-            // Create the parkDiv
-            const parkDiv = document.createElement('div');
-            parkDiv.className = 'park';
-            parkDiv.textContent = parkName;
-            parkContainer.appendChild(parkDiv);
+                // Create the parkDiv
+                const parkDiv = document.createElement('div');
+                parkDiv.className = 'park';
+                parkDiv.textContent = parkName;
+                parkContainer.appendChild(parkDiv);
 
-            // Append the park container to the contentDiv
-            contentDiv.appendChild(parkContainer);
+                // Create a container for Crew Leader name tiles for this park
+                const crewLeaderContainer = document.createElement('div');
+                crewLeaderContainer.className = 'crew-leader-container';
+
+                // Iterate over crew leaders to check assignments for this park
+                Object.entries(crewLeaderMap).forEach(([leaderName, leaderData]) => {
+                    if (leaderData.serviceAreas.has(area) && leaderData.parks.includes(parkName)) {
+                        console.log("Adding Leader Tile for", leaderName, "for park", parkName);
+                        const leaderTile = document.createElement('div');
+                        leaderTile.className = 'crew-leader';
+                        leaderTile.textContent = leaderName;
+                        crewLeaderContainer.appendChild(leaderTile);
+                    }
+                });
+
+                // Append the container with Crew Leader tiles to the parkContainer
+                parkContainer.appendChild(crewLeaderContainer);
+
+                // Append the park container to the contentDiv
+                contentDiv.appendChild(parkContainer);
+            });
+
+            expandCollapseIcon.addEventListener('click', function() {
+                const isExpanded = contentDiv.style.display === 'block';
+                contentDiv.style.display = isExpanded ? 'none' : 'block';
+                expandCollapseIcon.textContent = isExpanded ? '▶' : '▼'; // Toggle the icon
+            });
+
+            container.appendChild(areaDiv); // Append the areaDiv to the container
         });
-
-        expandCollapseIcon.addEventListener('click', function() {
-            const isExpanded = contentDiv.style.display === 'block';
-            contentDiv.style.display = isExpanded ? 'none' : 'block';
-            expandCollapseIcon.textContent = isExpanded ? '▶' : '▼'; // Toggle the icon
-        });
-
-        container.appendChild(areaDiv); // Append the areaDiv to the container
-    });
     }
-});        
+
+});
 </script>
 </body>
 </html>
