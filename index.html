@@ -204,43 +204,40 @@
   }
 
   function handleDrop(event, crewLeaders, serviceAreasMap, area, parkName) {
-    event.preventDefault();
-    const objectID = event.dataTransfer.getData("text/plain");
-    const newCrewLeaderName = crewLeaders.get(parseInt(objectID));
+    event.preventDefault(); // Prevent the default action to allow for the drop.
+    const objectID = event.dataTransfer.getData("text/plain"); // Retrieve the dragged data (the object ID of the crew leader).
+    const newCrewLeaderName = crewLeaders.get(parseInt(objectID)); // Get the name of the crew leader based on the object ID.
 
-    if (!newCrewLeaderName) return;
+    if (!newCrewLeaderName) return; // If no crew leader name is found, exit the function.
 
-    const parkContainer = event.target.closest('.park-and-leaders-container');
+    const parkContainer = event.target.closest('.park-and-leaders-container'); // Find the closest park container to the drop target.
 
-    const isDropOnCrewLeader = event.target.classList.contains('crew-leader');
+    const isDropOnCrewLeader = event.target.classList.contains('crew-leader'); // Check if the drop is on another crew leader.
 
-    if (isDropOnCrewLeader || parkContainer) {
-      const existingLeaderTile = parkContainer.querySelector('.crew-leader');
+    if (isDropOnCrewLeader || parkContainer) { // If the drop is on a crew leader or within a park container...
+        const existingLeaderTile = parkContainer.querySelector('.crew-leader'); // Find any existing crew leader tile within the park container.
 
-      if (existingLeaderTile) {
-        existingLeaderTile.textContent = newCrewLeaderName;
-        existingLeaderTile.setAttribute('data-objectid', objectID);
-      } else {
-        const leaderTile = document.createElement('div');
-        leaderTile.className = 'crew-leader';
-        leaderTile.textContent = newCrewLeaderName;
-        leaderTile.setAttribute('data-objectid', objectID);
-        leaderTile.setAttribute('draggable', true);
-        leaderTile.addEventListener('dragstart', handleDragStart);
-        parkContainer.appendChild(leaderTile);
-      }
+        if (existingLeaderTile) { // If an existing crew leader tile is found...
+            existingLeaderTile.textContent = newCrewLeaderName; // Update its text content to the new crew leader's name.
+            existingLeaderTile.setAttribute('data-objectid', objectID); // Update its data attribute to the new object ID.
+        } else { // If no existing crew leader tile is found...
+            const leaderTile = document.createElement('div'); // Create a new div element for the crew leader tile.
+            leaderTile.className = 'crew-leader'; // Assign the 'crew-leader' class to it.
+            leaderTile.textContent = newCrewLeaderName; // Set its text content to the new crew leader's name.
+            leaderTile.setAttribute('data-objectid', objectID); // Set its data attribute to the new object ID.
+            leaderTile.setAttribute('draggable', true); // Make it draggable.
+            leaderTile.addEventListener('dragstart', handleDragStart); // Add a 'dragstart' event listener to it.
+            parkContainer.appendChild(leaderTile); // Append the new crew leader tile to the park container.
+        }
 
-      Object.values(serviceAreasMap).forEach(parks => {
-        Object.keys(parks).forEach(park => {
-          if (parks[park] instanceof Set) {
-            parks[park].delete(parseInt(objectID)); 
-          }
-        });
-      });
+        // Add the crew leader ID to the specific park in the service area.
+        serviceAreasMap[area][parkName] = new Set([parseInt(objectID)]);
 
-      serviceAreasMap[area][parkName] = new Set([parseInt(objectID)]);
+        // Call the handleCrewLeaderReplacement function.
+        handleCrewLeaderReplacement(event, crewLeaders, serviceAreasMap, area, parkName);
     }
-  }
+}
+
 
   function populateServiceAreas(serviceAreasMap, crewLeaders) {
     const container = document.getElementById('serviceAreaContainer');
@@ -309,7 +306,7 @@
 
   // Modified handleCrewLeaderReplacement function with logging
   function handleCrewLeaderReplacement(event) {
-    console.log("handleCrewLeaderReplacement function started"); // Log function start
+    console.log("handleCrewLeaderReplacement function started");
     const newCrewLeaderName = event.target.textContent;
     console.log("newCrewLeaderName:", newCrewLeaderName);
 
@@ -321,12 +318,12 @@
 
     // 1. Fetch Crew Leader details from CrewLeaderAssignments layer
     console.log("Fetching crew leader details...");
-    const crewLeaderLayer = new FeatureLayer({ 
-        url: 'https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0' 
+    const crewLeaderLayer = new FeatureLayer({
+        url: 'https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0'
     });
 
     const crewLeaderQuery = crewLeaderLayer.createQuery();
-    crewLeaderQuery.where = `ASMCrewLeader = '${newCrewLeaderName}'`; 
+    crewLeaderQuery.where = `ASMCrewLeader = '${newCrewLeaderName}'`;
     crewLeaderQuery.outFields = ['OBJECTID', 'ASMCrewLeaderPhone', 'ASMCrewLeaderEmail'];
     crewLeaderQuery.returnGeometry = false;
 
@@ -334,11 +331,11 @@
         .then(results => {
             if (results.features.length === 0) {
                 console.error("Error: Crew Leader not found.");
-                return; 
-            } 
+                return;
+            }
 
             const crewLeaderDetails = results.features[0].attributes;
-            console.log("Crew Leader details:", crewLeaderDetails); // Log fetched details
+            console.log("Crew Leader details:", crewLeaderDetails);
 
             const objectId = crewLeaderDetails.OBJECTID;
             const newCrewLeaderPhone = crewLeaderDetails.ASMCrewLeaderPhone;
@@ -351,7 +348,7 @@
             });
 
             const updateQuery = updateLayer.createQuery();
-            updateQuery.where = `ParkName = '${parkName}'`; 
+            updateQuery.where = `ParkName = '${parkName}'`;
             updateQuery.outFields = ['*'];
             updateQuery.returnGeometry = false;
 
@@ -359,11 +356,11 @@
                 .then(results => {
                     if (results.features.length === 0) {
                         console.error("Error: Park not found with the given name.");
-                        return; 
-                    } 
+                        return;
+                    }
 
-                    const featureToUpdate = results.features[0]; 
-                    console.log("Feature to update:", featureToUpdate); // Log the feature
+                    const featureToUpdate = results.features[0];
+                    console.log("Feature to update:", featureToUpdate);
 
                     // Prepare updates
                     const updates = [{
@@ -375,12 +372,12 @@
                         }
                     }];
 
-                    // Logging updates before applying edits
                     console.log("Data to be updated:", updates);
 
-                    // Apply edits (Replace this section when ready)
+                    // Here, insert the logic to apply edits to the feature layer
                     console.log("Applying edits to feature layer...");
-                    // ... (Your applyEdits implementation with ArcGIS REST API) ...            
+
+                    // The actual application of edits would go here
                 })
                 .catch(error => console.error("MPRB_Locations Query Error:", error));
         })
