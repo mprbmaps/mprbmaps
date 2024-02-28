@@ -159,18 +159,48 @@
     }
 
     function handleDrop(event, crewLeaders, serviceAreasMap, area, parkName) {
-        event.preventDefault();
-        const objectID = event.dataTransfer.getData("text/plain");
-        const crewLeaderName = crewLeaders.get(parseInt(objectID));
+    event.preventDefault();
+    const objectID = event.dataTransfer.getData("text/plain");
+    const newCrewLeaderName = crewLeaders.get(parseInt(objectID));
 
-        if (!crewLeaderName) return;
+    if (!newCrewLeaderName) return;
 
-        // Update the model as needed. This is a simplified placeholder for the logic.
-        console.log(`Dropped crew leader ${crewLeaderName} (${objectID}) onto ${parkName} in ${area}`);
+    // Find the park container where the drop happened
+    const parkContainer = event.target.closest('.park-and-leaders-container');
 
-        // Refresh the UI as needed. Here's where you'd implement specific UI update logic.
-        expandedServiceAreas[area] = true; // Ensure the service area remains expanded
-        populateServiceAreas(serviceAreasMap, crewLeaders); // Repopulate to reflect changes
+    // Check if the drop target is a crew leader tile within the park
+    const isDropOnCrewLeader = event.target.classList.contains('crew-leader');
+
+    // Replace or add the crew leader tile
+    if (isDropOnCrewLeader || parkContainer) {
+        // Find existing crew leader tile if present
+        const existingLeaderTile = parkContainer.querySelector('.crew-leader');
+
+        if (existingLeaderTile) {
+            // Replace existing crew leader name and ID
+            existingLeaderTile.textContent = newCrewLeaderName;
+            existingLeaderTile.setAttribute('data-objectid', objectID);
+        } else {
+            // If no existing crew leader, add a new tile
+            const leaderTile = document.createElement('div');
+            leaderTile.className = 'crew-leader';
+            leaderTile.textContent = newCrewLeaderName;
+            leaderTile.setAttribute('data-objectid', objectID);
+            leaderTile.setAttribute('draggable', true);
+            leaderTile.addEventListener('dragstart', handleDragStart);
+            parkContainer.appendChild(leaderTile);
+        }
+
+        // Update the internal model to reflect the new crew leader
+        // First, remove any existing assignment
+        Object.values(serviceAreasMap).forEach(parks => {
+            Object.keys(parks).forEach(park => {
+                parks[park].delete(parseInt(objectID)); // Remove the new crew leader from any other park
+            });
+        });
+
+        // Assign the new crew leader to the current park
+        serviceAreasMap[area][parkName] = new Set([parseInt(objectID)]);
     }
 
     function populateServiceAreas(serviceAreasMap, crewLeaders) {
