@@ -104,14 +104,13 @@
 
     function processFeatures(features) {
         const serviceAreasMap = {};
-        const crewLeadersSet = new Set(); // To hold unique crew leader names
+        const crewLeaders = new Map(); // Changed to use Map for storing crew leaders
 
         features.forEach(feature => {
-            const { Maintenance_SA, Name_Primary, ASMCrewLeader } = feature.attributes;
-            
-            // Add the crew leader to the set
+            const { Maintenance_SA, Name_Primary, ASMCrewLeader, OBJECTID } = feature.attributes;
+
             if (ASMCrewLeader) {
-                crewLeadersSet.add(ASMCrewLeader);
+                crewLeaders.set(OBJECTID, ASMCrewLeader); // Map OBJECTID to crew leader name for easy lookup
             }
 
             if (!serviceAreasMap[Maintenance_SA]) {
@@ -124,127 +123,113 @@
                 if (!serviceAreasMap[Maintenance_SA][parkName]) {
                     serviceAreasMap[Maintenance_SA][parkName] = new Set();
                 }
-                serviceAreasMap[Maintenance_SA][parkName].add(ASMCrewLeader);
+                serviceAreasMap[Maintenance_SA][parkName].add(OBJECTID); // Associate park with crew leader OBJECTID
             });
         });
 
-        populatePeople([...crewLeadersSet]); // Convert to array for sorting
-        populateServiceAreas(serviceAreasMap);
+        populatePeople(crewLeaders);
+        populateServiceAreas(serviceAreasMap, crewLeaders);
     }
 
-    function populatePeople(crewLeaderNames, crewLeaderIds) {
-    const container = document.getElementById('crewLeaderContainer');
-    container.innerHTML = ''; // Clear existing content
+    function populatePeople(crewLeaders) {
+        const container = document.getElementById('crewLeaderContainer');
+        container.innerHTML = ''; // Clear existing content
 
-    crewLeaderNames.forEach((leaderName, index) => {
-        const leaderDiv = document.createElement('div');
-        leaderDiv.className = 'crew-leader';
-        leaderDiv.textContent = leaderName;
-        leaderDiv.setAttribute('draggable', true);
-        leaderDiv.setAttribute('data-objectid', crewLeaderIds[index]);
-        leaderDiv.addEventListener('dragstart', handleDragStart);
-        container.appendChild(leaderDiv);
-    });
-}
-
-function handleDragStart(event) {
-    event.dataTransfer.setData("text/plain", event.target.getAttribute('data-objectid'));
-}
-
-function makeDroppable() {
-    const parks = document.querySelectorAll('.park-and-leaders-container');
-    parks.forEach(park => {
-        park.addEventListener('dragover', event => event.preventDefault());
-        park.addEventListener('drop', handleDrop);
-    });
-}
-
-function handleDrop(event) {
-    event.preventDefault();
-    const objectID = event.dataTransfer.getData("text/plain");
-    const droppedCrewLeaderName = findCrewLeaderNameById(objectID);
-    if (!droppedCrewLeaderName) return;
-
-    const parkContainer = event.target.closest('.park-and-leaders-container');
-    let crewLeaderTile = parkContainer.querySelector('.crew-leader');
-    
-    if (crewLeaderTile) {
-        crewLeaderTile.textContent = droppedCrewLeaderName; // Replace existing crew leader name
-    } else {
-        crewLeaderTile = document.createElement('div');
-        crewLeaderTile.className = 'crew-leader';
-        crewLeaderTile.textContent = droppedCrewLeaderName;
-        parkContainer.appendChild(crewLeaderTile); // Adjust based on your actual container structure
+        // Convert Map to an array and sort by crew leader name
+        const sortedLeaderNames = Array.from(crewLeaders.values()).sort();
+        Array.from(crewLeaders.entries()).sort((a, b) => a[1].localeCompare(b[1])).forEach(([id, name]) => {
+            const leaderDiv = document.createElement('div');
+            leaderDiv.className = 'crew-leader';
+            leaderDiv.textContent = name;
+            leaderDiv.setAttribute('draggable', true);
+            leaderDiv.setAttribute('data-objectid', id);
+            leaderDiv.addEventListener('dragstart', handleDragStart);
+            container.appendChild(leaderDiv);
+        });
     }
-}
 
-function findCrewLeaderNameById(objectID) {
-    // This function needs to search your data structure where crew leader names and OBJECTIDs are stored and return the matching name
-    // For demonstration, returning a placeholder
-    return 'Placeholder Name'; // Replace with actual logic to find the name based on OBJECTID
-}
+    function handleDragStart(event) {
+        event.dataTransfer.setData("text/plain", event.target.getAttribute('data-objectid'));
+    }
 
-function populateServiceAreas(serviceAreasMap) {
-    const container = document.getElementById('serviceAreaContainer');
-    container.innerHTML = ''; // Clear existing content
+    function populateServiceAreas(serviceAreasMap, crewLeaders) {
+        const container = document.getElementById('serviceAreaContainer');
+        container.innerHTML = ''; // Clear existing content
 
-    Object.entries(serviceAreasMap).forEach(([area, parks]) => {
-        const areaDiv = document.createElement('div');
-        areaDiv.className = 'service-area';
+        Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0])).forEach(([area, parks]) => {
+            const areaDiv = document.createElement('div');
+            areaDiv.className = 'service-area';
 
-        const nameContainerDiv = document.createElement('div');
-        nameContainerDiv.className = 'name-container';
+            const nameContainerDiv = document.createElement('div');
+            nameContainerDiv.className = 'name-container';
 
-        const expandCollapseIcon = document.createElement('span');
-        expandCollapseIcon.className = 'expand-collapse-icon';
-        expandCollapseIcon.textContent = '▶';
+            const expandCollapseIcon = document.createElement('span');
+            expandCollapseIcon.className = 'expand-collapse-icon';
+            expandCollapseIcon.textContent = '▶';
 
-        const nameDiv = document.createElement('div');
-        nameDiv.className = 'service-area-name';
-        nameDiv.textContent = area;
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'service-area-name';
+            nameDiv.textContent = area;
 
-        nameContainerDiv.appendChild(expandCollapseIcon);
-        nameContainerDiv.appendChild(nameDiv);
+            nameContainerDiv.appendChild(expandCollapseIcon);
+            nameContainerDiv.appendChild(nameDiv);
 
-        areaDiv.appendChild(nameContainerDiv);
+            areaDiv.appendChild(nameContainerDiv);
 
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'service-area-content';
-        areaDiv.appendChild(contentDiv);
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'service-area-content';
+            areaDiv.appendChild(contentDiv);
 
-        Object.entries(parks).forEach(([parkName, crewLeaders]) => {
-            const parkAndLeadersContainer = document.createElement('div');
-            parkAndLeadersContainer.className = 'park-and-leaders-container';
+            Object.entries(parks).forEach(([parkName, crewLeaderIds]) => {
+                const parkAndLeadersContainer = document.createElement('div');
+                parkAndLeadersContainer.className = 'park-and-leaders-container';
+                parkAndLeadersContainer.addEventListener('dragover', event => event.preventDefault());
+                parkAndLeadersContainer.addEventListener('drop', event => handleDrop(event, crewLeaders, serviceAreasMap, area, parkName));
 
-            const parkDiv = document.createElement('div');
-            parkDiv.className = 'park';
-            parkDiv.textContent = parkName;
-            parkAndLeadersContainer.appendChild(parkDiv);
+                const parkDiv = document.createElement('div');
+                parkDiv.className = 'park';
+                parkDiv.textContent = parkName;
+                parkAndLeadersContainer.appendChild(parkDiv);
 
-            crewLeaders.forEach(leaderName => {
-                if (leaderName) {
-                    const leaderTile = document.createElement('div');
-                    leaderTile.className = 'crew-leader';
-                    leaderTile.textContent = leaderName;
-                    parkAndLeadersContainer.appendChild(leaderTile);
-                }
+                crewLeaderIds.forEach(objectId => {
+                    const leaderName = crewLeaders.get(objectId);
+                    if (leaderName) {
+                        const leaderTile = document.createElement('div');
+                        leaderTile.className = 'crew-leader';
+                        leaderTile.textContent = leaderName;
+                        leaderTile.setAttribute('data-objectid', objectId);
+                        parkAndLeadersContainer.appendChild(leaderTile);
+                    }
+                });
+
+                contentDiv.appendChild(parkAndLeadersContainer);
             });
 
-            contentDiv.appendChild(parkAndLeadersContainer);
+            expandCollapseIcon.addEventListener('click', function() {
+                const isExpanded = contentDiv.style.display === 'block';
+                contentDiv.style.display = isExpanded ? 'none' : 'block';
+                expandCollapseIcon.textContent = isExpanded ? '▶' : '▼';
+            });
+
+            container.appendChild(areaDiv);
         });
+    }
 
-        expandCollapseIcon.addEventListener('click', function() {
-            const isExpanded = contentDiv.style.display === 'block';
-            contentDiv.style.display = isExpanded ? 'none' : 'block';
-            expandCollapseIcon.textContent = isExpanded ? '▶' : '▼';
-        });
+    function handleDrop(event, crewLeaders, serviceAreasMap, area, parkName) {
+        event.preventDefault();
+        const objectID = event.dataTransfer.getData("text/plain");
+        const crewLeaderName = crewLeaders.get(parseInt(objectID));
 
-        container.appendChild(areaDiv);
-    });
-}
+        if (!crewLeaderName) return;
 
+        // Assuming you want to update the park's crew leader in the serviceAreasMap
+        // This part of logic needs to be adjusted based on how you want to handle the drop operation
+        serviceAreasMap[area][parkName] = new Set([parseInt(objectID)]); // Replace the existing set of IDs with the new one
+
+        // Now, re-populate the service areas to reflect the change
+        populateServiceAreas(serviceAreasMap, crewLeaders);
+    }
 });
- 
 </script>
 </body>
 </html>
