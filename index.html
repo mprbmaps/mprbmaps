@@ -63,14 +63,14 @@
 
 <script src="https://js.arcgis.com/4.28/"></script>
 <script>
-require([
+    require([
     "esri/identity/OAuthInfo",
     "esri/identity/IdentityManager",
     "esri/layers/FeatureLayer",
     "esri/rest/support/Query"
 ], function(OAuthInfo, esriId, FeatureLayer, Query) {
     var info = new OAuthInfo({
-        appId: "ti3fi1FqvHE2Hhyw",
+        appId: "ti3fi1fqvhe2hhyw",
         popup: false
     });
     esriId.registerOAuthInfos([info]);
@@ -96,92 +96,114 @@ require([
     }
 
     function processFeatures(features) {
-    const serviceAreasMap = {}; // Maps service areas to parks and their crew leaders
+        const serviceAreasMap = {};
+        const crewLeadersSet = new Set(); // To hold unique crew leader names
 
-    features.forEach(feature => {
-        const { Maintenance_SA, Name_Primary, ASMCrewLeader } = feature.attributes;
-        
-        // Initialize the service area in the map if not already present
-        if (!serviceAreasMap[Maintenance_SA]) {
-            serviceAreasMap[Maintenance_SA] = {};
-        }
-
-        // Split and trim park names from the Name_Primary field
-        const parkNames = Name_Primary.split('"').filter(parkName => parkName.trim().length > 0);
-        parkNames.forEach(parkName => {
-            parkName = parkName.trim(); // Clean up whitespace
-            if (!serviceAreasMap[Maintenance_SA][parkName]) {
-                serviceAreasMap[Maintenance_SA][parkName] = new Set(); // Use a Set to hold crew leaders uniquely
-            }
-            serviceAreasMap[Maintenance_SA][parkName].add(ASMCrewLeader);
-        });
-    });
-
-    populateServiceAreas(serviceAreasMap);
-}
-
-// Adjust populateServiceAreas to reflect the new data structure
-function populateServiceAreas(serviceAreasMap) {
-    const container = document.getElementById('serviceAreaContainer');
-    container.innerHTML = ''; // Clear existing content
-
-    Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0])).forEach(([area, parks]) => {
-        const areaDiv = document.createElement('div');
-        areaDiv.className = 'service-area';
-
-        const nameContainerDiv = document.createElement('div');
-        nameContainerDiv.className = 'name-container';
-
-        const expandCollapseIcon = document.createElement('span');
-        expandCollapseIcon.className = 'expand-collapse-icon';
-        expandCollapseIcon.textContent = '▶';
-
-        const nameDiv = document.createElement('div');
-        nameDiv.className = 'service-area-name';
-        nameDiv.textContent = area;
-
-        nameContainerDiv.appendChild(expandCollapseIcon);
-        nameContainerDiv.appendChild(nameDiv);
-
-        areaDiv.appendChild(nameContainerDiv);
-
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'service-area-content';
-        areaDiv.appendChild(contentDiv);
-
-        Object.entries(parks).forEach(([parkName, crewLeaders]) => {
-            const parkContainer = document.createElement('div');
-            parkContainer.className = 'park-container';
-
-            const parkDiv = document.createElement('div');
-            parkDiv.className = 'park';
-            parkDiv.textContent = parkName;
-            parkContainer.appendChild(parkDiv);
-
-            const crewLeaderContainer = document.createElement('div');
-            crewLeaderContainer.className = 'crew-leader-container';
+        features.forEach(feature => {
+            const { Maintenance_SA, Name_Primary, ASMCrewLeader } = feature.attributes;
             
-            crewLeaders.forEach(leaderName => {
-                const leaderTile = document.createElement('div');
-                leaderTile.className = 'crew-leader';
-                leaderTile.textContent = leaderName;
-                crewLeaderContainer.appendChild(leaderTile);
+            // Add the crew leader to the set
+            if (ASMCrewLeader) {
+                crewLeadersSet.add(ASMCrewLeader);
+            }
+
+            if (!serviceAreasMap[Maintenance_SA]) {
+                serviceAreasMap[Maintenance_SA] = {};
+            }
+
+            const parkNames = Name_Primary.split('"').filter(parkName => parkName.trim().length > 0);
+            parkNames.forEach(parkName => {
+                parkName = parkName.trim();
+                if (!serviceAreasMap[Maintenance_SA][parkName]) {
+                    serviceAreasMap[Maintenance_SA][parkName] = new Set();
+                }
+                serviceAreasMap[Maintenance_SA][parkName].add(ASMCrewLeader);
+            });
+        });
+
+        populatePeople([...crewLeadersSet]); // Convert to array for sorting
+        populateServiceAreas(serviceAreasMap);
+    }
+
+    function populatePeople(crewLeaderNames) {
+        const container = document.getElementById('crewLeaderContainer');
+        container.innerHTML = ''; // Clear existing content
+
+        // Sort crew leader names alphabetically
+        const sortedLeaderNames = crewLeaderNames.sort();
+
+        sortedLeaderNames.forEach(leaderName => {
+            const leaderDiv = document.createElement('div');
+            leaderDiv.className = 'crew-leader';
+            leaderDiv.textContent = leaderName;
+            container.appendChild(leaderDiv);
+        });
+    }
+
+    function populateServiceAreas(serviceAreasMap) {
+        const container = document.getElementById('serviceAreaContainer');
+        container.innerHTML = ''; // Clear existing content
+
+        Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0])).forEach(([area, parks]) => {
+            const areaDiv = document.createElement('div');
+            areaDiv.className = 'service-area';
+
+            const nameContainerDiv = document.createElement('div');
+            nameContainerDiv.className = 'name-container';
+
+            const expandCollapseIcon = document.createElement('span');
+            expandCollapseIcon.className = 'expand-collapse-icon';
+            expandCollapseIcon.textContent = '▶';
+
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'service-area-name';
+            nameDiv.textContent = area;
+
+            nameContainerDiv.appendChild(expandCollapseIcon);
+            nameContainerDiv.appendChild(nameDiv);
+
+            areaDiv.appendChild(nameContainerDiv);
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'service-area-content';
+            areaDiv.appendChild(contentDiv);
+
+            Object.entries(parks).forEach(([parkName, crewLeaders]) => {
+                const parkContainer = document.createElement('div');
+                parkContainer.className = 'park-container';
+
+                const parkDiv = document.createElement('div');
+                parkDiv.className = 'park';
+                parkDiv.textContent = parkName;
+                parkContainer.appendChild(parkDiv);
+
+                const crewLeaderContainer = document.createElement('div');
+                crewLeaderContainer.className = 'crew-leader-container';
+                
+                crewLeaders.forEach(leaderName => {
+                    if (leaderName) { // Check for non-null leader names
+                        const leaderTile = document.createElement('div');
+                        leaderTile.className = 'crew-leader';
+                        leaderTile.textContent = leaderName;
+                        crewLeaderContainer.appendChild(leaderTile);
+                    }
+                });
+
+                parkContainer.appendChild(crewLeaderContainer);
+                contentDiv.appendChild(parkContainer);
             });
 
-            parkContainer.appendChild(crewLeaderContainer);
-            contentDiv.appendChild(parkContainer);
-        });
+            expandCollapseIcon.addEventListener('click', function() {
+                const isExpanded = contentDiv.style.display === 'block';
+                contentDiv.style.display = isExpanded ? 'none' : 'block';
+                expandCollapseIcon.textContent = isExpanded ? '▶' : '▼'; // Toggle the icon
+            });
 
-        expandCollapseIcon.addEventListener('click', function() {
-            const isExpanded = contentDiv.style.display === 'block';
-            contentDiv.style.display = isExpanded ? 'none' : 'block';
-            expandCollapseIcon.textContent = isExpanded ? '▶' : '▼'; // Toggle the icon
+            container.appendChild(areaDiv); // Append the areaDiv to the container
         });
-
-        container.appendChild(areaDiv); // Append the areaDiv to the container
-    });
-}
+    }
 });
+   
 </script>
 </body>
 </html>
