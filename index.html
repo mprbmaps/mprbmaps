@@ -5,58 +5,54 @@
     <title>Crew Leader Dashboard</title>
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
     <style>
-        <style>
-    body {
-        font-family: Avenir Next, sans-serif;
-        display: flex;
-    }
-    #crewLeaderContainer {
-        width: 200px;
-        height: 100vh;
-        overflow-y: auto;
-        background-color: #f0f0f0;
-        padding: 10px;
-    }
-    .crew-leader {
-        margin: 5px 0;
-        padding: 10px;
-        background-color: #0079c1;
-        color: white;
-        border-radius: 4px;
-        cursor: pointer;
-        user-select: none; /* Prevent text selection */
-    }
-    #serviceAreaContainer {
-        flex-grow: 1;
-        padding: 10px;
-    }
-    .service-area, .park {
-        margin: 10px;
-        padding: 10px;
-        background-color: #f3f3f3;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-    }
-    .service-area-name, .plus-icon {
-        font-weight: bold;
-        cursor: pointer;
-    }
-    .service-area-content {
-        display: none; /* Initially hide the content */
-    }
-    .expand-collapse-icon {
-        display: inline-block;
-        margin-right: 5px; /* Adjust as needed */
-    }
-    .service-area-name {
-        display: inline-block;
-    }
-    .crew-leader-container {
-        margin-top: 10px; /* Adjust spacing between parks and Crew Leaders */
-    }
-</style>
-
-
+        body {
+            font-family: Avenir Next, sans-serif;
+            display: flex;
+        }
+        #crewLeaderContainer {
+            width: 200px;
+            height: 100vh;
+            overflow-y: auto;
+            background-color: #f0f0f0;
+            padding: 10px;
+        }
+        .crew-leader {
+            margin: 5px 0;
+            padding: 10px;
+            background-color: #0079c1;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none; /* Prevent text selection */
+        }
+        #serviceAreaContainer {
+            flex-grow: 1;
+            padding: 10px;
+        }
+        .service-area, .park {
+            margin: 10px;
+            padding: 10px;
+            background-color: #f3f3f3;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .service-area-name, .plus-icon {
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .service-area-content {
+            display: none; /* Initially hide the content */
+        }
+        .expand-collapse-icon {
+            display: inline-block;
+            margin-right: 5px; /* Adjust as needed */
+        }
+        .service-area-name {
+            display: inline-block;
+        }
+        .crew-leader-container {
+            margin-top: 10px; /* Adjust spacing between parks and Crew Leaders */
+        }
     </style>
 </head>
 <body>
@@ -98,125 +94,125 @@ require([
     }
 
     function processFeatures(features) {
-    const crewLeaderMap = {};
-    const serviceAreasMap = {};
+        const crewLeaderMap = {};
+        const serviceAreasMap = {};
 
-    features.forEach(feature => {
-        const { Maintenance_SA, Name_Primary, ASMCrewLeader } = feature.attributes;
+        features.forEach(feature => {
+            const { Maintenance_SA, Name_Primary, ASMCrewLeader } = feature.attributes;
 
-        // Handling park names
-        if (!serviceAreasMap[Maintenance_SA]) {
-            serviceAreasMap[Maintenance_SA] = new Set();
-        }
-        const parkNames = Name_Primary.split('"').filter(parkName => parkName.trim().length > 0);
-        parkNames.forEach(parkName => serviceAreasMap[Maintenance_SA].add(parkName.trim()));
+            // Handling park names
+            if (!serviceAreasMap[Maintenance_SA]) {
+                serviceAreasMap[Maintenance_SA] = new Set();
+            }
+            const parkNames = Name_Primary.split('"').filter(parkName => parkName.trim().length > 0);
+            parkNames.forEach(parkName => serviceAreasMap[Maintenance_SA].add(parkName.trim()));
 
-        // Handling CrewLeader names
-        if (ASMCrewLeader && !crewLeaderMap[ASMCrewLeader]) {
-            crewLeaderMap[ASMCrewLeader] = { serviceAreas: new Set(), parks: [] };
-        }
-        if (ASMCrewLeader) {
-            crewLeaderMap[ASMCrewLeader].serviceAreas.add(Maintenance_SA);
-            parkNames.forEach(parkName => {
-                if (!crewLeaderMap[ASMCrewLeader].parks.includes(parkName)) {
-                    crewLeaderMap[ASMCrewLeader].parks.push(parkName);
-                }
-            });
-        }
-    });
-
-    populatePeople(crewLeaderMap);
-    populateServiceAreas(serviceAreasMap, crewLeaderMap);
-}
-
-function populatePeople(crewLeaderMap) {
-    const container = document.getElementById('crewLeaderContainer');
-    container.innerHTML = ''; // Clear existing content
-
-    // Alphabetize the leader names
-    const sortedLeaderNames = Object.keys(crewLeaderMap).sort();
-    sortedLeaderNames.forEach(leaderName => {
-        const leaderDiv = document.createElement('div');
-        leaderDiv.className = 'crew-leader';
-        leaderDiv.textContent = leaderName;
-        container.appendChild(leaderDiv);
-    });
-}
-
-function populateServiceAreas(serviceAreasMap, crewLeaderMap) {
-    const container = document.getElementById('serviceAreaContainer');
-    container.innerHTML = ''; // Clear existing content
-
-    Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0])).forEach(([area, parksSet]) => {
-        console.log("Area:", area);
-        const areaDiv = document.createElement('div');
-        areaDiv.className = 'service-area';
-
-        const nameContainerDiv = document.createElement('div');
-        nameContainerDiv.className = 'name-container';
-
-        const expandCollapseIcon = document.createElement('span');
-        expandCollapseIcon.className = 'expand-collapse-icon';
-        expandCollapseIcon.textContent = '▶';
-
-        const nameDiv = document.createElement('div');
-        nameDiv.className = 'service-area-name';
-        nameDiv.textContent = area;
-
-        nameContainerDiv.appendChild(expandCollapseIcon);
-        nameContainerDiv.appendChild(nameDiv);
-
-        areaDiv.appendChild(nameContainerDiv);
-
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'service-area-content';
-        areaDiv.appendChild(contentDiv);
-
-        // Convert the Set to an array and sort alphabetically
-        const sortedParks = [...parksSet].sort();
-        console.log("Sorted Parks:", sortedParks);
-
-        sortedParks.forEach(parkName => {
-            console.log("Park:", parkName);
-            const parkContainer = document.createElement('div');
-            parkContainer.className = 'park-container';
-
-            const parkDiv = document.createElement('div');
-            parkDiv.className = 'park';
-            parkDiv.textContent = parkName;
-            parkContainer.appendChild(parkDiv);
-
-            // Append the park container to the contentDiv
-            contentDiv.appendChild(parkContainer); 
-
-            // Create a container for Crew Leader name tiles for this park
-            const crewLeaderContainer = document.createElement('div');
-            crewLeaderContainer.className = 'crew-leader-container';
-
-            // Append the crew leader name tiles for this park
-            Object.entries(crewLeaderMap).forEach(([leaderName, leaderData]) => {
-                if (leaderData.serviceAreas.has(area) && leaderData.parks.includes(parkName)) {
-                    console.log("Adding Leader Tile for", leaderName, "for park", parkName);
-                    const leaderTile = document.createElement('div');
-                    leaderTile.className = 'crew-leader';
-                    leaderTile.textContent = leaderName;
-                    crewLeaderContainer.appendChild(leaderTile);
-                }
-            });
-
-            // Append the container with Crew Leader tiles to the contentDiv
-            contentDiv.appendChild(crewLeaderContainer); 
+            // Handling CrewLeader names
+            if (ASMCrewLeader && !crewLeaderMap[ASMCrewLeader]) {
+                crewLeaderMap[ASMCrewLeader] = { serviceAreas: new Set(), parks: [] };
+            }
+            if (ASMCrewLeader) {
+                crewLeaderMap[ASMCrewLeader].serviceAreas.add(Maintenance_SA);
+                parkNames.forEach(parkName => {
+                    if (!crewLeaderMap[ASMCrewLeader].parks.includes(parkName)) {
+                        crewLeaderMap[ASMCrewLeader].parks.push(parkName);
+                    }
+                });
+            }
         });
 
-        expandCollapseIcon.addEventListener('click', function() {
-            const isExpanded = contentDiv.style.display === 'block';
-            contentDiv.style.display = isExpanded ? 'none' : 'block';
-            expandCollapseIcon.textContent = isExpanded ? '▶' : '▼'; // Toggle the icon
-        });
+        populatePeople(crewLeaderMap);
+        populateServiceAreas(serviceAreasMap, crewLeaderMap);
+    }
 
-        container.appendChild(areaDiv); // Append the areaDiv to the container
-    });
-}
+    function populatePeople(crewLeaderMap) {
+        const container = document.getElementById('crewLeaderContainer');
+        container.innerHTML = ''; // Clear existing content
+
+        // Alphabetize the leader names
+        const sortedLeaderNames = Object.keys(crewLeaderMap).sort();
+        sortedLeaderNames.forEach(leaderName => {
+            const leaderDiv = document.createElement('div');
+            leaderDiv.className = 'crew-leader';
+            leaderDiv.textContent = leaderName;
+            container.appendChild(leaderDiv);
+        });
+    }
+
+    function populateServiceAreas(serviceAreasMap, crewLeaderMap) {
+        const container = document.getElementById('serviceAreaContainer');
+        container.innerHTML = ''; // Clear existing content
+
+        Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0])).forEach(([area, parksSet]) => {
+            console.log("Area:", area);
+            const areaDiv = document.createElement('div');
+            areaDiv.className = 'service-area';
+
+            const nameContainerDiv = document.createElement('div');
+            nameContainerDiv.className = 'name-container';
+
+            const expandCollapseIcon = document.createElement('span');
+            expandCollapseIcon.className = 'expand-collapse-icon';
+            expandCollapseIcon.textContent = '▶';
+
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'service-area-name';
+            nameDiv.textContent = area;
+
+            nameContainerDiv.appendChild(expandCollapseIcon);
+            nameContainerDiv.appendChild(nameDiv);
+
+            areaDiv.appendChild(nameContainerDiv);
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'service-area-content';
+            areaDiv.appendChild(contentDiv);
+
+            // Convert the Set to an array and sort alphabetically
+            const sortedParks = [...parksSet].sort();
+            console.log("Sorted Parks:", sortedParks);
+
+            sortedParks.forEach(parkName => {
+                console.log("Park:", parkName);
+                const parkContainer = document.createElement('div');
+                parkContainer.className = 'park-container';
+
+                const parkDiv = document.createElement('div');
+                parkDiv.className = 'park';
+                parkDiv.textContent = parkName;
+                parkContainer.appendChild(parkDiv);
+
+                // Append the park container to the contentDiv
+                contentDiv.appendChild(parkContainer); 
+
+                // Create a container for Crew Leader name tiles for this park
+                const crewLeaderContainer = document.createElement('div');
+                crewLeaderContainer.className = 'crew-leader-container';
+
+                // Append the crew leader name tiles for this park
+                Object.entries(crewLeaderMap).forEach(([leaderName, leaderData]) => {
+                    if (leaderData.serviceAreas.has(area) && leaderData.parks.includes(parkName)) {
+                        console.log("Adding Leader Tile for", leaderName, "for park", parkName);
+                        const leaderTile = document.createElement('div');
+                        leaderTile.className = 'crew-leader';
+                        leaderTile.textContent = leaderName;
+                        crewLeaderContainer.appendChild(leaderTile);
+                    }
+                });
+
+                // Append the container with Crew Leader tiles to the contentDiv
+                contentDiv.appendChild(crewLeaderContainer); 
+            });
+
+            expandCollapseIcon.addEventListener('click', function() {
+                const isExpanded = contentDiv.style.display === 'block';
+                contentDiv.style.display = isExpanded ? 'none' : 'block';
+                expandCollapseIcon.textContent = isExpanded ? '▶' : '▼'; // Toggle the icon
+            });
+
+            container.appendChild(areaDiv); // Append the areaDiv to the container
+        });
+    }
 
 });
 </script>
