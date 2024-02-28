@@ -116,208 +116,277 @@
 <script src="https://js.arcgis.com/4.28/"></script>
 <script>
     require([
-    "esri/identity/OAuthInfo",
-    "esri/identity/IdentityManager",
-    "esri/layers/FeatureLayer",
-    "esri/rest/support/Query"
-], function(OAuthInfo, esriId, FeatureLayer, Query) {
-    var info = new OAuthInfo({
-        appId: "ti3fi1fqvhe2hhyw",
-        popup: false
+  "esri/identity/OAuthInfo",
+  "esri/identity/IdentityManager",
+  "esri/layers/FeatureLayer",
+  "esri/rest/support/Query"
+], function (OAuthInfo, esriId, FeatureLayer, Query) {
+  var info = new OAuthInfo({
+    appId: "ti3fi1fqvhe2hhyw", 
+    popup: false
+  });
+  esriId.registerOAuthInfos([info]);
+
+  var expandedServiceAreas = {}; // Track expanded service areas
+
+  esriId.checkSignInStatus(info.portalUrl + "/sharing").then(function () {
+    loadCrewLeaders();
+  }).catch(function () {
+    esriId.getCredential(info.portalUrl + "/sharing");
+  });
+
+  function loadCrewLeaders() {
+    var layer = new FeatureLayer({
+      url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0"
     });
-    esriId.registerOAuthInfos([info]);
 
-    var expandedServiceAreas = {}; // Track expanded service areas
+    var query = layer.createQuery();
+    query.where = "1=1";
+    query.outFields = ["Name_Primary", "ASMCrewLeader", "ASMCrewLeaderPhone", "ASMCrewLeaderEmail", "Maintenance_SA", "OBJECTID"];
+    query.returnGeometry = false;
+    layer.queryFeatures(query).then(function (response) {
+      processFeatures(response.features);
+    });
+  }
 
-    esriId.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
-        loadCrewLeaders();
-    }).catch(function() {
-        esriId.getCredential(info.portalUrl + "/sharing");
+  function processFeatures(features) {
+    const serviceAreasMap = {};
+    const crewLeaders = new Map(); 
+
+    features.forEach(feature => {
+      const { Maintenance_SA, Name_Primary, ASMCrewLeader, OBJECTID } = feature.attributes;
+
+      if (ASMCrewLeader) {
+        crewLeaders.set(OBJECTID, ASMCrewLeader); 
+      }
+
+      if (!serviceAreasMap[Maintenance_SA]) {
+        serviceAreasMap[Maintenance_SA] = {};
+      }
+
+      const parkNames = Name_Primary.split('"').filter(parkName => parkName.trim().length > 0);
+      parkNames.forEach(parkName => {
+        parkName = parkName.trim();
+        if (!serviceAreasMap[Maintenance_SA][parkName]) {
+          serviceAreasMap[Maintenance_SA][parkName] = new Set();
+        }
+        serviceAreasMap[Maintenance_SA][parkName].add(OBJECTID); 
+      });
     });
 
-    function loadCrewLeaders() {
-        var layer = new FeatureLayer({
-            url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0"
-        });
+    populatePeople(crewLeaders);
+    populateServiceAreas(serviceAreasMap, crewLeaders);
+  }
 
-        var query = layer.createQuery();
-        query.where = "1=1";
-        query.outFields = ["Name_Primary", "ASMCrewLeader", "ASMCrewLeaderPhone", "ASMCrewLeaderEmail", "Maintenance_SA", "OBJECTID"];
-        query.returnGeometry = false;
-        layer.queryFeatures(query).then(function(response) {
-            processFeatures(response.features);
-        });
-    }
+  function populatePeople(crewLeaders) {
+    const container = document.getElementById('crewLeaderContainer');
+    container.innerHTML = '';
 
-    function processFeatures(features) {
-        const serviceAreasMap = {};
-        const crewLeaders = new Map(); // Use Map to store crew leaders and their IDs
+    // Add header element
+    const header = document.createElement('div');
+    header.className = 'crew-leader-header';
+    header.textContent = 'Crew Leaders';
+    container.appendChild(header);
 
-        features.forEach(feature => {
-            const { Maintenance_SA, Name_Primary, ASMCrewLeader, OBJECTID } = feature.attributes;
+    Array.from(crewLeaders.entries()).sort((a, b) => a[1].localeCompare(b[1])).forEach(([id, name]) => {
+      const leaderDiv = document.createElement('div');
+      leaderDiv.className = 'crew-leader';
+      leaderDiv.textContent = name;
+      leaderDiv.setAttribute('draggable', true);
+      leaderDiv.setAttribute('data-objectid', id);
+      leaderDiv.addEventListener('dragstart', handleDragStart);
+      container.appendChild(leaderDiv);
+    });
+  }
 
-            if (ASMCrewLeader) {
-                crewLeaders.set(OBJECTID, ASMCrewLeader); // Map OBJECTID to crew leader name
-            }
+  function handleDragStart(event) {
+    event.dataTransfer.setData("text/plain", event.target.getAttribute('data-objectid'));
+  }
 
-            if (!serviceAreasMap[Maintenance_SA]) {
-                serviceAreasMap[Maintenance_SA] = {};
-            }
-
-            const parkNames = Name_Primary.split('"').filter(parkName => parkName.trim().length > 0);
-            parkNames.forEach(parkName => {
-                parkName = parkName.trim();
-                if (!serviceAreasMap[Maintenance_SA][parkName]) {
-                    serviceAreasMap[Maintenance_SA][parkName] = new Set();
-                }
-                serviceAreasMap[Maintenance_SA][parkName].add(OBJECTID); // Associate OBJECTID with park
-            });
-        });
-
-        populatePeople(crewLeaders);
-        populateServiceAreas(serviceAreasMap, crewLeaders);
-    }
-
-    function populatePeople(crewLeaders) {
-        const container = document.getElementById('crewLeaderContainer');
-        container.innerHTML = '';
-
-        // Add header element
-              const header = document.createElement('div');
-              header.className = 'crew-leader-header';
-              header.textContent = 'Crew Leaders'; // Set desired header content
-              container.appendChild(header);
-
-        Array.from(crewLeaders.entries()).sort((a, b) => a[1].localeCompare(b[1])).forEach(([id, name]) => {
-            const leaderDiv = document.createElement('div');
-            leaderDiv.className = 'crew-leader';
-            leaderDiv.textContent = name;
-            leaderDiv.setAttribute('draggable', true);
-            leaderDiv.setAttribute('data-objectid', id);
-            leaderDiv.addEventListener('dragstart', handleDragStart);
-            container.appendChild(leaderDiv);
-        });
-    }
-
-    function handleDragStart(event) {
-        event.dataTransfer.setData("text/plain", event.target.getAttribute('data-objectid'));
-    }
-
-    function handleDrop(event, crewLeaders, serviceAreasMap, area, parkName) {
+  function handleDrop(event, crewLeaders, serviceAreasMap, area, parkName) {
     event.preventDefault();
     const objectID = event.dataTransfer.getData("text/plain");
     const newCrewLeaderName = crewLeaders.get(parseInt(objectID));
 
     if (!newCrewLeaderName) return;
 
-    // Find the park container where the drop happened
     const parkContainer = event.target.closest('.park-and-leaders-container');
 
-    // Check if the drop target is a crew leader tile within the park
     const isDropOnCrewLeader = event.target.classList.contains('crew-leader');
 
-    // Replace or add the crew leader tile
     if (isDropOnCrewLeader || parkContainer) {
-        // Find existing crew leader tile if present
-        const existingLeaderTile = parkContainer.querySelector('.crew-leader');
+      const existingLeaderTile = parkContainer.querySelector('.crew-leader');
 
-        if (existingLeaderTile) {
-            // Replace existing crew leader name and ID
-            existingLeaderTile.textContent = newCrewLeaderName;
-            existingLeaderTile.setAttribute('data-objectid', objectID);
-        } else {
-            // If no existing crew leader, add a new tile
+      if (existingLeaderTile) {
+        existingLeaderTile.textContent = newCrewLeaderName;
+        existingLeaderTile.setAttribute('data-objectid', objectID);
+      } else {
+        const leaderTile = document.createElement('div');
+        leaderTile.className = 'crew-leader';
+        leaderTile.textContent = newCrewLeaderName;
+        leaderTile.setAttribute('data-objectid', objectID);
+        leaderTile.setAttribute('draggable', true);
+        leaderTile.addEventListener('dragstart', handleDragStart);
+        parkContainer.appendChild(leaderTile);
+      }
+
+      Object.values(serviceAreasMap).forEach(parks => {
+        Object.keys(parks).forEach(park => {
+          if (parks[park] instanceof Set) {
+            parks[park].delete(parseInt(objectID)); 
+          }
+        });
+      });
+
+      serviceAreasMap[area][parkName] = new Set([parseInt(objectID)]);
+    }
+  }
+
+  function populateServiceAreas(serviceAreasMap, crewLeaders) {
+    const container = document.getElementById('serviceAreaContainer');
+    container.innerHTML = ''; 
+
+    Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0])).forEach(([area, parks]) => {
+      const areaDiv = document.createElement('div');
+      areaDiv.className = 'service-area';
+
+      const nameContainerDiv = document.createElement('div');
+      nameContainerDiv.className = 'name-container';
+
+      const expandCollapseIcon = document.createElement('span');
+      expandCollapseIcon.className = 'expand-collapse-icon';
+      expandCollapseIcon.textContent = expandedServiceAreas[area] ? '▼' : '▶';
+
+      const nameDiv = document.createElement('div');
+      nameDiv.className = 'service-area-name';
+      nameDiv.textContent = area;
+
+      nameContainerDiv.appendChild(expandCollapseIcon);
+      nameContainerDiv.appendChild(nameDiv);
+
+      areaDiv.appendChild(nameContainerDiv);
+
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'service-area-content';
+      contentDiv.style.display = expandedServiceAreas[area] ? 'block' : 'none';
+      areaDiv.appendChild(contentDiv);
+
+      Object.entries(parks).sort((a, b) => a[0].localeCompare(b[0])).forEach(([parkName, crewLeaderIds]) => {
+        const parkAndLeadersContainer = document.createElement('div');
+        parkAndLeadersContainer.className = 'park-and-leaders-container';
+        parkAndLeadersContainer.addEventListener('dragover', event => event.preventDefault());
+        parkAndLeadersContainer.addEventListener('drop', event => handleDrop(event, crewLeaders, serviceAreasMap, area, parkName));
+
+        const parkDiv = document.createElement('div');
+        parkDiv.className = 'park';
+        parkDiv.textContent = parkName;
+        parkAndLeadersContainer.appendChild(parkDiv);
+
+        crewLeaderIds.forEach(objectId => {
+          const leaderName = crewLeaders.get(objectId);
+          if (leaderName) {
             const leaderTile = document.createElement('div');
             leaderTile.className = 'crew-leader';
-            leaderTile.textContent = newCrewLeaderName;
-            leaderTile.setAttribute('data-objectid', objectID);
-            leaderTile.setAttribute('draggable', true);
-            leaderTile.addEventListener('dragstart', handleDragStart);
-            parkContainer.appendChild(leaderTile);
-        }
-
-        // Update the internal model to reflect the new crew leader
-        // First, remove any existing assignment
-        Object.values(serviceAreasMap).forEach(parks => {
-            Object.keys(parks).forEach(park => {
-                if (parks[park] instanceof Set) {
-                    parks[park].delete(parseInt(objectID)); // Remove the new crew leader from any other park
-                }
-            });
+            leaderTile.textContent = leaderName;
+            leaderTile.setAttribute('data-objectid', objectId);
+            parkAndLeadersContainer.appendChild(leaderTile);
+          }
         });
 
-        // Assign the new crew leader to the current park
-        serviceAreasMap[area][parkName] = new Set([parseInt(objectID)]);
-    }
+        contentDiv.appendChild(parkAndLeadersContainer);
+      });
 
-    // Refresh the UI here if needed to reflect other changes
+      expandCollapseIcon.addEventListener('click', function () {
+        const isExpanded = contentDiv.style.display === 'block';
+        contentDiv.style.display = isExpanded ? 'none' : 'block';
+        expandCollapseIcon.textContent = isExpanded ? '▶' : '▼';
+        expandedServiceAreas[area] = !expandedServiceAreas[area]; 
+      });
+
+      container.appendChild(areaDiv);
+    });
+  }
+
+  // Modified handleCrewLeaderReplacement function with logging
+  function handleCrewLeaderReplacement(event) {
+    console.log("handleCrewLeaderReplacement function started"); // Log function start
+    const newCrewLeaderName = event.target.textContent;
+    console.log("newCrewLeaderName:", newCrewLeaderName);
+
+    const parkContainer = event.target.closest('.park-and-leaders-container');
+    console.log("parkContainer:", parkContainer);
+
+    const parkName = parkContainer.querySelector('.park').textContent;
+    console.log("parkName:", parkName);
+
+    // 1. Fetch Crew Leader details from CrewLeaderAssignments layer
+    console.log("Fetching crew leader details...");
+    const crewLeaderLayer = new FeatureLayer({ 
+        url: 'https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0' 
+    });
+
+    const crewLeaderQuery = crewLeaderLayer.createQuery();
+    crewLeaderQuery.where = `ASMCrewLeader = '${newCrewLeaderName}'`; 
+    crewLeaderQuery.outFields = ['OBJECTID', 'ASMCrewLeaderPhone', 'ASMCrewLeaderEmail'];
+    crewLeaderQuery.returnGeometry = false;
+
+    crewLeaderLayer.queryFeatures(crewLeaderQuery)
+        .then(results => {
+            if (results.features.length === 0) {
+                console.error("Error: Crew Leader not found.");
+                return; 
+            } 
+
+            const crewLeaderDetails = results.features[0].attributes;
+            console.log("Crew Leader details:", crewLeaderDetails); // Log fetched details
+
+            const objectId = crewLeaderDetails.OBJECTID;
+            const newCrewLeaderPhone = crewLeaderDetails.ASMCrewLeaderPhone;
+            const newCrewLeaderEmail = crewLeaderDetails.ASMCrewLeaderEmail;
+
+            // 2. Query MPRB_Locations to find the feature to update
+            console.log("Starting ArcGIS Query to find feature to update");
+            const updateLayer = new FeatureLayer({
+                url: 'https://utility.arcgis.com/usrsvcs/servers/9e2987cdb16646348e9398b53fcaf42c/rest/services/MPRB_Locations/MapServer/0'
+            });
+
+            const updateQuery = updateLayer.createQuery();
+            updateQuery.where = `ParkName = '${parkName}'`; 
+            updateQuery.outFields = ['*'];
+            updateQuery.returnGeometry = false;
+
+            updateLayer.queryFeatures(updateQuery)
+                .then(results => {
+                    if (results.features.length === 0) {
+                        console.error("Error: Park not found with the given name.");
+                        return; 
+                    } 
+
+                    const featureToUpdate = results.features[0]; 
+                    console.log("Feature to update:", featureToUpdate); // Log the feature
+
+                    // Prepare updates
+                    const updates = [{
+                        attributes: {
+                            OBJECTID: featureToUpdate.attributes.OBJECTID,
+                            ASMCrewLeader: newCrewLeaderName,
+                            ASMCrewLeaderPhone: newCrewLeaderPhone,
+                            ASMCrewLeaderEmail: newCrewLeaderEmail
+                        }
+                    }];
+
+                    // Logging updates before applying edits
+                    console.log("Data to be updated:", updates);
+
+                    // Apply edits (Replace this section when ready)
+                    console.log("Applying edits to feature layer...");
+                    // ... (Your applyEdits implementation with ArcGIS REST API) ...            
+                })
+                .catch(error => console.error("MPRB_Locations Query Error:", error));
+        })
+        .catch(error => console.error("CrewLeaderAssignments Query Error:", error));
 }
 
-
-    function populateServiceAreas(serviceAreasMap, crewLeaders) {
-        const container = document.getElementById('serviceAreaContainer');
-        container.innerHTML = ''; // Clear existing content
-
-        Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0])).forEach(([area, parks]) => {
-            const areaDiv = document.createElement('div');
-            areaDiv.className = 'service-area';
-
-            const nameContainerDiv = document.createElement('div');
-            nameContainerDiv.className = 'name-container';
-
-            const expandCollapseIcon = document.createElement('span');
-            expandCollapseIcon.className = 'expand-collapse-icon';
-            expandCollapseIcon.textContent = expandedServiceAreas[area] ? '▼' : '▶';
-
-            const nameDiv = document.createElement('div');
-            nameDiv.className = 'service-area-name';
-            nameDiv.textContent = area;
-
-            nameContainerDiv.appendChild(expandCollapseIcon);
-            nameContainerDiv.appendChild(nameDiv);
-
-            areaDiv.appendChild(nameContainerDiv);
-
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'service-area-content';
-            contentDiv.style.display = expandedServiceAreas[area] ? 'block' : 'none';
-            areaDiv.appendChild(contentDiv);
-
-            Object.entries(parks).sort((a, b) => a[0].localeCompare(b[0])).forEach(([parkName, crewLeaderIds]) => {
-                const parkAndLeadersContainer = document.createElement('div');
-                parkAndLeadersContainer.className = 'park-and-leaders-container';
-                parkAndLeadersContainer.addEventListener('dragover', event => event.preventDefault());
-                parkAndLeadersContainer.addEventListener('drop', event => handleDrop(event, crewLeaders, serviceAreasMap, area, parkName));
-
-                const parkDiv = document.createElement('div');
-                parkDiv.className = 'park';
-                parkDiv.textContent = parkName;
-                parkAndLeadersContainer.appendChild(parkDiv);
-
-                crewLeaderIds.forEach(objectId => {
-                    const leaderName = crewLeaders.get(objectId);
-                    if (leaderName) {
-                        const leaderTile = document.createElement('div');
-                        leaderTile.className = 'crew-leader';
-                        leaderTile.textContent = leaderName;
-                        leaderTile.setAttribute('data-objectid', objectId);
-                        parkAndLeadersContainer.appendChild(leaderTile);
-                    }
-                });
-
-                contentDiv.appendChild(parkAndLeadersContainer);
-            });
-
-            expandCollapseIcon.addEventListener('click', function() {
-                const isExpanded = contentDiv.style.display === 'block';
-                contentDiv.style.display = isExpanded ? 'none' : 'block';
-                expandCollapseIcon.textContent = isExpanded ? '▶' : '▼';
-                expandedServiceAreas[area] = !expandedServiceAreas[area]; // Toggle expanded state
-            });
-
-            container.appendChild(areaDiv);
-        });
-    }
 });
 
 </script>
