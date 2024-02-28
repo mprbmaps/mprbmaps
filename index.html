@@ -374,14 +374,34 @@
 
                     console.log("Data to be updated:", updates);
 
-                    // Here, insert the logic to apply edits to the feature layer
+                    // Applying edits to the feature layer
                     console.log("Applying edits to feature layer...");
-
-                    // The actual application of edits would go here
+                    updateLayer.applyEdits({
+                        updateFeatures: updates
+                    }).then(function(editResults) {
+                        if (editResults.updateFeatureResults.length > 0) {
+                            var updateResult = editResults.updateFeatureResults[0];
+                            if (updateResult.error) {
+                                console.error("Update failed:", updateResult.error);
+                            } else {
+                                console.log("Update successful, OBJECTID:", updateResult.objectId);
+                                // Display popup message
+                                displayPopupMessage(newCrewLeaderName, parkName);
+                            }
+                        }
+                    }).catch(function(error) {
+                        console.error("ApplyEdits failed:", error);
+                    });
                 })
                 .catch(error => console.error("MPRB_Locations Query Error:", error));
         })
         .catch(error => console.error("CrewLeaderAssignments Query Error:", error));
+}
+
+function displayPopupMessage(newCrewLeaderName, parkName) {
+    const message = `${newCrewLeaderName} has been successfully assigned to ${parkName}.`;
+    console.log("Popup message:", message); // For debugging
+    alert(message); // Example of displaying the message, consider using a more sophisticated method in production
 }
 
 });
