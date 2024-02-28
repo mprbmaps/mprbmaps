@@ -151,32 +151,35 @@
 
   function processFeatures(features) {
     const serviceAreasMap = {};
-    const crewLeaders = new Map(); 
+    const crewLeaders = new Map();
 
-    features.forEach(feature => {
-      const { Maintenance_SA, Name_Primary, ASMCrewLeader, OBJECTID } = feature.attributes;
-
-      if (ASMCrewLeader) {
-        crewLeaders.set(OBJECTID, ASMCrewLeader); 
-      }
-
-      if (!serviceAreasMap[Maintenance_SA]) {
-        serviceAreasMap[Maintenance_SA] = {};
-      }
-
-      const parkNames = Name_Primary.split('"').filter(parkName => parkName.trim().length > 0);
-      parkNames.forEach(parkName => {
-        parkName = parkName.trim();
-        if (!serviceAreasMap[Maintenance_SA][parkName]) {
-          serviceAreasMap[Maintenance_SA][parkName] = new Set();
+    response.features.forEach(function(feature) {
+        const { Maintenance_SA, Name_Primary, ASMCrewLeader, OBJECTID } = feature.attributes;
+        if (ASMCrewLeader) {
+            crewLeaders.set(OBJECTID, ASMCrewLeader);
         }
-        serviceAreasMap[Maintenance_SA][parkName].add(OBJECTID); 
-      });
+
+        // Split Maintenance_SA by commas to support multiple service areas
+        const serviceAreas = Maintenance_SA.split(',').map(sa => sa.trim());
+        serviceAreas.forEach(function(serviceArea) {
+            if (!serviceAreasMap[serviceArea]) {
+                serviceAreasMap[serviceArea] = {};
+            }
+
+            const parkNames = Name_Primary.split('"').filter(Boolean);
+            parkNames.forEach(function(parkName) {
+                parkName = parkName.trim();
+                if (!serviceAreasMap[serviceArea][parkName]) {
+                    serviceAreasMap[serviceArea][parkName] = new Set();
+                }
+                serviceAreasMap[serviceArea][parkName].add(OBJECTID);
+            });
+        });
     });
 
     populatePeople(crewLeaders);
     populateServiceAreas(serviceAreasMap, crewLeaders);
-  }
+}
 
   function populatePeople(crewLeaders) {
     const container = document.getElementById('crewLeaderContainer');
