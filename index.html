@@ -244,16 +244,20 @@ function revertChangesOnFailure(parkContainer, originalCrewLeaderInfo) {
 
 // Modify handleCrewLeaderReplacement to accept and use the revertChangesOnFailure callback
 function handleCrewLeaderReplacement(event, crewLeaders, serviceAreasMap, area, parkName, originalCrewLeaderInfo, revertCallback) {
-    // Your existing logic here to attempt the update
-
-    // Example: on failure of updateLayer.applyEdits call
-    .catch(function(error) {
-        console.error("ApplyEdits failed:", error);
-        // Call the revertCallback function if the update fails
-        revertCallback(event.target.closest('.park-and-leaders-container'), originalCrewLeaderInfo);
-    });
+    console.log("handleCrewLeaderReplacement function started");
+    // Assume there's a promise-based operation here, like fetching or updating data
+    someAsyncOperation()
+        .then(function(result) {
+            // Handle success
+            console.log("Operation successful:", result);
+            // Potentially more logic here
+        })
+        .catch(function(error) {
+            console.error("ApplyEdits failed:", error);
+            // Call the revertCallback function if the update fails
+            revertCallback(event.target.closest('.park-and-leaders-container'), originalCrewLeaderInfo);
+        });
 }
-
 
 
   function populateServiceAreas(serviceAreasMap, crewLeaders) {
