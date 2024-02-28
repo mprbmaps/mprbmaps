@@ -244,7 +244,7 @@
 
   function populateServiceAreas(serviceAreasMap, crewLeaders) {
     const container = document.getElementById('serviceAreaContainer');
-    container.innerHTML = ''; 
+    container.innerHTML = ''; // Clear existing service area containers
 
     Object.entries(serviceAreasMap).sort((a, b) => a[0].localeCompare(b[0])).forEach(([area, parks]) => {
         const areaDiv = document.createElement('div');
@@ -260,7 +260,6 @@
         const nameDiv = document.createElement('div');
         nameDiv.className = 'service-area-name';
         nameDiv.textContent = area;
-
         nameContainerDiv.appendChild(expandCollapseIcon);
         nameContainerDiv.appendChild(nameDiv);
 
@@ -274,7 +273,9 @@
             const parkAndLeadersContainer = document.createElement('div');
             parkAndLeadersContainer.className = 'park-and-leaders-container';
             parkAndLeadersContainer.addEventListener('dragover', event => event.preventDefault());
-            parkAndLeadersContainer.addEventListener('drop', event => handleDrop(event, crewLeaders, serviceAreasMap, area, parkName));
+            parkAndLeadersContainer.addEventListener('drop', event => {
+                handleDrop(event, crewLeaders, serviceAreasMap, area, parkName);
+            });
 
             const parkDiv = document.createElement('div');
             parkDiv.className = 'park';
@@ -299,13 +300,14 @@
             const isExpanded = contentDiv.style.display === 'block';
             contentDiv.style.display = isExpanded ? 'none' : 'block';
             expandCollapseIcon.textContent = isExpanded ? '▶' : '▼';
-            expandedServiceAreas[area] = !expandedServiceAreas[area]; 
+            expandedServiceAreas[area] = !expandedServiceAreas[area];
         });
 
         areaDiv.appendChild(contentDiv);
         container.appendChild(areaDiv);
     });
 }
+
 
 
   // Modified handleCrewLeaderReplacement function with logging
