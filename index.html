@@ -22,8 +22,10 @@ require([
   "esri/views/MapView",
   "esri/layers/FeatureLayer",
   "esri/widgets/Editor",
-  "esri/identity/IdentityManager"
-], function(Map, MapView, FeatureLayer, Editor, esriId) {
+  "esri/identity/OAuthInfo",
+  "esri/identity/IdentityManager",
+  "esri/views/layers/support/FeatureFilter"
+], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, esriId, FeatureFilter) {
   const map = new Map({
     basemap: "streets"
   });
@@ -31,14 +33,17 @@ require([
   const view = new MapView({
     container: "viewDiv",
     map: map,
-    center: [-118.805, 34.027],
+    center: [-94.805, 45.027],
     zoom: 13
   });
+
   const info = new OAuthInfo({
     appId: "ti3fi1fqvhe2hhyw",
     popup: false,
-    
+    popupCallbackUrl: "<url_to_callback_page>"
   });
+
+  esriId.registerOAuthInfos([info]);
 
   esriId.checkSignInStatus("https://minneapolisparks.maps.arcgis.com").then(function () {
     const userInfo = esriId.credentials[0].userId;
