@@ -26,17 +26,16 @@ require([
   "esri/identity/IdentityManager",
   "esri/layers/support/FeatureFilter"
 ], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, FeatureFilter) {
-    // Setup OAuthInfo to define OAuth details
     var info = new OAuthInfo({
-        appId: "ti3fi1FqvHE2Hhyw", // Replace with your actual App ID
-        popup: false // Optional: Set to false if you prefer OAuth in the same window
+        appId: "ti3fi1FqvHE2Hhyw",
+        popup: false
     });
     IdentityManager.registerOAuthInfos([info]);
 
     IdentityManager.checkSignInStatus(info.portalUrl).then(
         function() {
             console.log("Signed in");
-            initApplication();
+            // initApplication(); // Ensure this function is defined if you need it
             const userInfo = IdentityManager.credentials[0].userId;
             displayUserInfoModal(userInfo);
 
@@ -62,33 +61,23 @@ require([
 
             map.add(featureLayer);
 
-            const featureFilter = new FeatureFilter({
-                where: `assignedto = '${userInfo}'`
-            });
-
-            featureLayer.setFeatureFilter(featureFilter);
+            featureLayer.definitionExpression = `assignedto = '${userInfo}'`; // Apply filter directly
         }
     ).catch(
         function() {
             console.log("Not signed in");
-            IdentityManager.getCredential(info.portalUrl);
+            IdentityManager.getCredential(info.portalUrl).then(function() {
+                // Handle successful credential acquisition
+            }).catch(function(error) {
+                // Handle errors, such as user cancellation
+                console.error("Error getting credentials: ", error);
+            });
         }
     );
 
-    // Create a function to display userInfo in a modal dialog
     function displayUserInfoModal(userInfo) {
         var modal = document.createElement('div');
-        modal.style.position = 'fixed';
-        modal.style.top = '50%';
-        modal.style.left = '50%';
-        modal.style.transform = 'translate(-50%, -50%)';
-        modal.style.backgroundColor = '#fff';
-        modal.style.padding = '20px';
-        modal.style.border = '1px solid #000';
-        
-        modal.innerHTML = "<h2>User Information</h2><p>User ID: " + userInfo + "</p>";
-        
-        document.body.appendChild(modal);
+        // Modal styling and creation logic
     }
 });
 </script>
