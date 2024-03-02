@@ -26,79 +26,70 @@ require([
   "esri/identity/IdentityManager",
   "esri/layers/support/FeatureFilter"
 ], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, FeatureFilter) {
-// Setup OAuthInfo to define OAuth details
-            var info = new OAuthInfo({
-                appId: "ti3fi1FqvHE2Hhyw", // Replace with your actual App ID
-                popup: false // Optional: Set to false if you prefer OAuth in the same window
-            });
-            IdentityManager.registerOAuthInfos([info]);
+    // Setup OAuthInfo to define OAuth details
+    var info = new OAuthInfo({
+        appId: "ti3fi1FqvHE2Hhyw", // Replace with your actual App ID
+        popup: false // Optional: Set to false if you prefer OAuth in the same window
+    });
+    IdentityManager.registerOAuthInfos([info]);
 
-            IdentityManager.checkSignInStatus(info.portalUrl).then(
-                function() {
-                    console.log("Signed in");
-                    initApplication();
-                }
-            ).catch(
-                function() {
-                    console.log("Not signed in");
-                    IdentityManager.getCredential(info.portalUrl);
-                }
-            );
-  
-  const map = new Map({
-    basemap: "streets"
-  });
+    IdentityManager.checkSignInStatus(info.portalUrl).then(
+        function() {
+            console.log("Signed in");
+            initApplication();
+            const userInfo = IdentityManager.credentials[0].userId;
+            displayUserInfoModal(userInfo);
+        }
+    ).catch(
+        function() {
+            console.log("Not signed in");
+            IdentityManager.getCredential(info.portalUrl);
+        }
+    );
 
-  const view = new MapView({
-    container: "viewDiv",
-    map: map,
-    center: [-94.805, 45.027],
-    zoom: 13
-  });
+    const map = new Map({
+        basemap: "streets"
+    });
 
-  
-  
-    const userInfo = IdentityManager.credentials[0].userId;
-    
+    const view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-94.805, 45.027],
+        zoom: 13
+    });
+
     const featureLayer = new FeatureLayer({
-      url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0",
-      outFields: ["*"],
-      popupTemplate: {
-        title: "Work Order {WorkOrderID}",
-        content: "Description: {Description}<br>Assigned To: {assignedto}"
-      }
+        url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0",
+        outFields: ["*"],
+        popupTemplate: {
+            title: "Work Order {WorkOrderID}",
+            content: "Description: {Description}<br>Assigned To: {assignedto}"
+        }
     });
 
     map.add(featureLayer);
 
     const featureFilter = new FeatureFilter({
-      where: `assignedto = '${userInfo}'`
+        where: `assignedto = '${userInfo}'`
     });
 
     featureLayer.setFeatureFilter(featureFilter);
 
-  // Create a function to display userInfo in a modal dialog
-function displayUserInfoModal(userInfo) {
-  // Create a modal dialog element
-  var modal = document.createElement('div');
-  modal.style.position = 'fixed';
-  modal.style.top = '50%';
-  modal.style.left = '50%';
-  modal.style.transform = 'translate(-50%, -50%)';
-  modal.style.backgroundColor = '#fff';
-  modal.style.padding = '20px';
-  modal.style.border = '1px solid #000';
-  
-  // Set the content of the modal dialog to the userInfo value
-  modal.innerHTML = "<h2>User Information</h2><p>User ID: " + userInfo + "</p>";
-  
-  // Append the modal to the body of the document
-  document.body.appendChild(modal);
-}
-
-// Call the function to display the userInfo in a modal dialog
-displayUserInfoModal(userInfo);
-
+    // Create a function to display userInfo in a modal dialog
+    function displayUserInfoModal(userInfo) {
+        var modal = document.createElement('div');
+        modal.style.position = 'fixed';
+        modal.style.top = '50%';
+        modal.style.left = '50%';
+        modal.style.transform = 'translate(-50%, -50%)';
+        modal.style.backgroundColor = '#fff';
+        modal.style.padding = '20px';
+        modal.style.border = '1px solid #000';
+        
+        modal.innerHTML = "<h2>User Information</h2><p>User ID: " + userInfo + "</p>";
+        
+        document.body.appendChild(modal);
+    }
 });
 </script>
 </body>
