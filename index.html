@@ -45,7 +45,10 @@ require([
 
   esriId.registerOAuthInfos([info]);
 
-  esriId.checkSignInStatus("https://minneapolisparks.maps.arcgis.com/sharing").then(function () {
+    esriId.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+      
+        esriId.getCredential(info.portalUrl + "/sharing");
+    });
     const userInfo = esriId.credentials[0].userId;
     
     const featureLayer = new FeatureLayer({
