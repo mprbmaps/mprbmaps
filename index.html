@@ -25,7 +25,7 @@ require([
   "esri/identity/OAuthInfo",
   "esri/identity/IdentityManager",
   "esri/layers/support/FeatureFilter"
-], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, esriId, FeatureFilter) {
+], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, FeatureFilter) {
   const map = new Map({
     basemap: "streets"
   });
@@ -37,9 +37,10 @@ require([
     zoom: 13
   });
 
-  var info = new OAuthInfo({
-                appId: "ti3fi1FqvHE2Hhyw", // Your actual App ID
-                popup: false
+  // Setup OAuthInfo to define OAuth details
+            var info = new OAuthInfo({
+                appId: "ti3fi1FqvHE2Hhyw", // Replace with your actual App ID
+                popup: false // Optional: Set to false if you prefer OAuth in the same window
             });
             IdentityManager.registerOAuthInfos([info]);
 
@@ -55,7 +56,7 @@ require([
                 }
             );
   
-    const userInfo = esriId.credentials[0].userId;
+    const userInfo = IdentityManager.credentials[0].userId;
     
     const featureLayer = new FeatureLayer({
       url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0",
