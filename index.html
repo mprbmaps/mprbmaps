@@ -24,10 +24,9 @@ require([
   "esri/widgets/Editor",
   "esri/identity/OAuthInfo",
   "esri/identity/IdentityManager",
-  "esri/layers/support/FeatureFilter"
-], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, FeatureFilter) {
+], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager) {
     var info = new OAuthInfo({
-        appId: "ti3fi1FqvHE2Hhyw",
+        appId: "ti3fi1FqvHE2Hhyw", // Your actual App ID
         popup: false
     });
     IdentityManager.registerOAuthInfos([info]);
@@ -66,15 +65,25 @@ require([
                     layer: featureLayer,
                     addEnabled: false,
                     deleteEnabled: false
-                  
                 }]
             });
 
             // Add the Editor to the top-right corner of the view
             view.ui.add(editor, "top-right");
 
-            // Apply filter directly within the promise after user info is available
-            featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
+            // Query FeatureLayer for work orders and populate side panel
+            featureLayer.queryFeatures({
+                where: "1=1", // Adjust this to your filter condition
+                outFields: ["WorkOrderID", "Description"],
+                returnGeometry: false
+            }).then(function(response) {
+                const sidePanel = document.getElementById("sidePanel");
+                response.features.forEach(function(feature) {
+                    const div = document.createElement("div");
+                    div.innerText = `Work Order ID: ${feature.attributes.WorkOrderID}, Description: ${feature.attributes.Description}`;
+                    sidePanel.appendChild(div);
+                });
+            });
         }
     ).catch(
         function(error) {
