@@ -39,6 +39,34 @@ require([
             initApplication();
             const userInfo = IdentityManager.credentials[0].userId;
             displayUserInfoModal(userInfo);
+
+            const map = new Map({
+                basemap: "streets"
+            });
+
+            const view = new MapView({
+                container: "viewDiv",
+                map: map,
+                center: [-94.805, 45.027],
+                zoom: 13
+            });
+
+            const featureLayer = new FeatureLayer({
+                url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0",
+                outFields: ["*"],
+                popupTemplate: {
+                    title: "Work Order {WorkOrderID}",
+                    content: "Description: {Description}<br>Assigned To: {assignedto}"
+                }
+            });
+
+            map.add(featureLayer);
+
+            const featureFilter = new FeatureFilter({
+                where: `assignedto = '${userInfo}'`
+            });
+
+            featureLayer.setFeatureFilter(featureFilter);
         }
     ).catch(
         function() {
@@ -46,34 +74,6 @@ require([
             IdentityManager.getCredential(info.portalUrl);
         }
     );
-
-    const map = new Map({
-        basemap: "streets"
-    });
-
-    const view = new MapView({
-        container: "viewDiv",
-        map: map,
-        center: [-94.805, 45.027],
-        zoom: 13
-    });
-
-    const featureLayer = new FeatureLayer({
-        url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0",
-        outFields: ["*"],
-        popupTemplate: {
-            title: "Work Order {WorkOrderID}",
-            content: "Description: {Description}<br>Assigned To: {assignedto}"
-        }
-    });
-
-    map.add(featureLayer);
-
-    const featureFilter = new FeatureFilter({
-        where: `assignedto = '${userInfo}'`
-    });
-
-    featureLayer.setFeatureFilter(featureFilter);
 
     // Create a function to display userInfo in a modal dialog
     function displayUserInfoModal(userInfo) {
