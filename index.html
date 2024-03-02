@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Work Order Dashboard</title>
+<style>
+  #viewDiv {
+    height: 400px;
+    width: 100%;
+  }
+</style>
+<link rel="stylesheet" href="https://js.arcgis.com/4.24/esri/themes/light/main.css">
+<script src="https://js.arcgis.com/4.24/"></script>
+</head>
+<body>
+<div id="viewDiv"></div>
+
+<script>
+require([
+  "esri/Map",
+  "esri/views/MapView",
+  "esri/layers/FeatureLayer",
+  "esri/widgets/Editor",
+  "esri/identity/IdentityManager"
+], function(Map, MapView, FeatureLayer, Editor, esriId) {
+  const map = new Map({
+    basemap: "streets"
+  });
+
+  const view = new MapView({
+    container: "viewDiv",
+    map: map,
+    center: [-118.805, 34.027],
+    zoom: 13
+  });
+
+  esriId.checkSignInStatus("https//:minneapolisparks.maps.arcgis.com").then(function () {
+    const userInfo = esriId.credentials[0].userId;
+    
+    const featureLayer = new FeatureLayer({
+      url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0",
+      outFields: ["*"],
+      popupTemplate: {
+        title: "Work Order {WorkOrderID}",
+        content: "Description: {Description}<br>Assigned To: {AssignedTo}"
+      }
+    });
+
+    map.add(featureLayer);
+
+    const featureFilter = new FeatureFilter({
+      where: `AssignedTo = '${userInfo}'`
+    });
+
+    featureLayer.setFeatureFilter(featureFilter);
+  });
+});
+</script>
+</body>
+</html>
