@@ -6,7 +6,7 @@
 <title>Work Order Dashboard</title>
 <style>
   #viewDiv {
-    height: 800px;
+    height: 100%;
     width: 100%;
   }
 </style>
@@ -24,9 +24,10 @@ require([
   "esri/widgets/Editor",
   "esri/identity/OAuthInfo",
   "esri/identity/IdentityManager",
-], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager) {
+  "esri/layers/support/FeatureFilter"
+], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, FeatureFilter) {
     var info = new OAuthInfo({
-        appId: "ti3fi1FqvHE2Hhyw", // Your actual App ID
+        appId: "ti3fi1FqvHE2Hhyw",
         popup: false
     });
     IdentityManager.registerOAuthInfos([info]);
@@ -65,25 +66,15 @@ require([
                     layer: featureLayer,
                     addEnabled: false,
                     deleteEnabled: false
+                  
                 }]
             });
 
             // Add the Editor to the top-right corner of the view
             view.ui.add(editor, "top-right");
 
-            // Query FeatureLayer for work orders and populate side panel
-            featureLayer.queryFeatures({
-                where: "1=1", // Adjust this to your filter condition
-                outFields: ["WorkOrderID", "Description"],
-                returnGeometry: false
-            }).then(function(response) {
-                const sidePanel = document.getElementById("sidePanel");
-                response.features.forEach(function(feature) {
-                    const div = document.createElement("div");
-                    div.innerText = `Work Order ID: ${feature.attributes.WorkOrderID}, Description: ${feature.attributes.Description}`;
-                    sidePanel.appendChild(div);
-                });
-            });
+            // Apply filter directly within the promise after user info is available
+            featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
         }
     ).catch(
         function(error) {
