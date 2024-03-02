@@ -37,17 +37,23 @@ require([
     zoom: 13
   });
 
-  const info = new OAuthInfo({
-    appId: "ti3fi1fqvhe2hhyw",
-    popup: false
-    
-  });
+  var info = new OAuthInfo({
+                appId: "ti3fi1FqvHE2Hhyw", // Your actual App ID
+                popup: false
+            });
+            IdentityManager.registerOAuthInfos([info]);
 
-  esriId.registerOAuthInfos([info]);
-
-  esriId.checkSignInStatus(info.portalUrl + "/sharing")
-      
-  esriId.getCredential(info.portalUrl + "/sharing")
+            IdentityManager.checkSignInStatus(info.portalUrl).then(
+                function() {
+                    console.log("Signed in");
+                    initApplication();
+                }
+            ).catch(
+                function() {
+                    console.log("Not signed in");
+                    IdentityManager.getCredential(info.portalUrl);
+                }
+            );
   
     const userInfo = esriId.credentials[0].userId;
     
