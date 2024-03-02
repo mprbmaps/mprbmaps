@@ -6,7 +6,7 @@
 <title>Work Order Dashboard</title>
 <style>
   #viewDiv {
-    height: 400px;
+    height: 800px;
     width: 100%;
   }
 </style>
@@ -32,10 +32,9 @@ require([
     });
     IdentityManager.registerOAuthInfos([info]);
 
-    IdentityManager.checkSignInStatus(info.portalUrl + "/sharing" ).then(
+    IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(
         function() {
             console.log("Signed in");
-            // initApplication(); // Ensure this function is defined if you need it
             const userInfo = IdentityManager.credentials[0].userId;
 
             const map = new Map({
@@ -60,34 +59,26 @@ require([
 
             map.add(featureLayer);
 
-          // Editor widget configuration
+            // Editor widget configuration
             const editor = new Editor({
                 view: view,
-                // Optionally, limit the Editor to certain layers
                 layerInfos: [{
                     layer: featureLayer,
-                    // Additional configuration for editing can be defined here
                 }]
             });
 
             // Add the Editor to the top-right corner of the view
             view.ui.add(editor, "top-right");
-        }
 
-            featureLayer.definitionExpression = `assignedto = '${userInfo}'`; // Apply filter directly
+            // Apply filter directly within the promise after user info is available
+            featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
         }
     ).catch(
-        function() {
-            console.log("Not signed in");
-            IdentityManager.getCredential(info.portalUrl + "/sharing").then(function() {
-                // Handle successful credential acquisition
-            }).catch(function(error) {
-                // Handle errors, such as user cancellation
-                console.error("Error getting credentials: ", error);
-            });
+        function(error) {
+            console.log("Not signed in", error);
+            IdentityManager.getCredential(info.portalUrl + "/sharing");
         }
     );
-
 });
 </script>
 </body>
