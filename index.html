@@ -89,30 +89,30 @@ require([
             // Add the Editor to the top-right corner of the view
             view.ui.add(editor, "top-right");
 
-            // Apply filter directly within the promise after user info is available
-            featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
+            // Correctly applying template literals with backticks
+featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
 
-            view.when(() => {
-                featureLayer.queryFeatures({
-                    where: "assignedto = '${userInfo}'",
-                    returnGeometry: true,
-                    outFields: ["*"]
-                }).then(function(results) {
-                    const sidePanel = document.getElementById("sidePanel");
-                    results.features.forEach(function(feature) {
-                        const div = document.createElement("div");
-                        div.classList.add("feature-item");
-                        div.textContent = `Work Order ID: ${feature.attributes.WorkOrderID}`;
-                        div.onclick = function() {
-                            view.goTo({
-                                target: feature.geometry,
-                                zoom: 17
-                            });
-                        };
-                        sidePanel.appendChild(div);
-                    });
+view.when(() => {
+    featureLayer.queryFeatures({
+        where: `assignedto = '${userInfo}'`, // Corrected to use backticks for template literal
+        returnGeometry: true,
+        outFields: ["*"]
+    }).then(function(results) {
+        const sidePanel = document.getElementById("sidePanel");
+        results.features.forEach(function(feature) {
+            const div = document.createElement("div");
+            div.classList.add("feature-item");
+            div.textContent = `Work Order ID: ${feature.attributes.WorkOrderID}`;
+            div.onclick = function() {
+                view.goTo({
+                    target: feature.geometry,
+                    zoom: 17
                 });
-            });
+            };
+            sidePanel.appendChild(div);
+        });
+    });
+});
         }
     ).catch(
         function(error) {
