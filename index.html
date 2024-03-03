@@ -121,43 +121,23 @@ require([
                         featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
                             const attachments = attachmentResults[feature.attributes.OBJECTID];
                             if (attachments && attachments.length > 0) {
-                                const carousel = document.createElement("div");
                                 attachments.forEach((attachment, index) => {
+                                    // Create an anchor element for each attachment
+                                    const link = document.createElement("a");
+                                    link.href = attachment.url;
+                                    link.target = "_blank"; // Open in a new tab
+                                    link.style.display = "block"; // Display as block for vertical stacking
+
+                                    // Create an img element for the attachment
                                     const img = document.createElement("img");
                                     img.src = attachment.url;
                                     img.style.maxWidth = "100%";
-                                    img.style.display = index === 0 ? "block" : "none";
-                                    carousel.appendChild(img);
+                                    img.style.display = "block"; // Ensure the image is displayed
+
+                                    // Append the img to the anchor, and then append the anchor to the div
+                                    link.appendChild(img);
+                                    div.appendChild(link);
                                 });
-
-                                if (attachments.length > 1) {
-                                    const prevButton = document.createElement("button");
-                                    prevButton.textContent = "<";
-                                    const nextButton = document.createElement("button");
-                                    nextButton.textContent = ">";
-                                    carousel.appendChild(prevButton);
-                                    carousel.appendChild(nextButton);
-
-                                    let currentIndex = 0;
-                                    const images = carousel.querySelectorAll("img");
-                                    const updateImageVisibility = () => {
-                                        images.forEach((img, index) => {
-                                            img.style.display = index === currentIndex ? "block" : "none";
-                                        });
-                                    };
-
-                                    prevButton.onclick = () => {
-                                        currentIndex = (currentIndex - 1 + attachments.length) % attachments.length;
-                                        updateImageVisibility();
-                                    };
-
-                                    nextButton.onclick = () => {
-                                        currentIndex = (currentIndex + 1) % attachments.length;
-                                        updateImageVisibility();
-                                    };
-                                }
-
-                                div.appendChild(carousel);
                             } else {
                                 div.innerHTML += "<p>No attachments found.</p>";
                             }
