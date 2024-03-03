@@ -61,6 +61,7 @@ require([
     IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
         console.log("Signed in");
         const userInfo = IdentityManager.credentials[0].userId;
+        const userName = IdentityManager.credentials[0].userFullName;
         console.log("User Info:", userInfo);
 
         const map = new Map({ basemap: "streets" });
@@ -94,13 +95,13 @@ require([
             featureLayer.queryFeatures({
                 where: `assignedto = '${userInfo}'`,
                 returnGeometry: true,
-                outFields: ["OBJECTID", "status", "assignedto"]
+                outFields: ["OBJECTID", "status", userName]
             }).then(function(results) {
                 const sidePanel = document.getElementById("sidePanel");
                 results.features.forEach(function(feature) {
                     const div = document.createElement("div");
                     div.classList.add("feature-item");
-                    div.innerHTML = `Work Order ID: ${feature.attributes.OBJECTID}<br>Status: ${feature.attributes.status}<br>Assigned To: ${feature.attributes.assignedto}`;
+                    div.innerHTML = `Work Order ID: ${feature.attributes.OBJECTID}<br>Status: ${feature.attributes.status}<br>Assigned To: userName`;
 
                     div.onclick = function() {
                         view.goTo({
