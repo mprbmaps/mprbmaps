@@ -49,8 +49,9 @@ require([
   "esri/layers/FeatureLayer",
   "esri/widgets/Editor",
   "esri/identity/OAuthInfo",
-  "esri/identity/IdentityManager"
-], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager) {
+  "esri/identity/IdentityManager",
+  "esri/rest/support/AttachmentQuery" // Make sure to include AttachmentQuery module
+], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery) {
     var info = new OAuthInfo({
         appId: "ti3fi1FqvHE2Hhyw",
         popup: false
@@ -58,9 +59,7 @@ require([
     IdentityManager.registerOAuthInfos([info]);
 
     IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
-        console.log("Signed in");
         const userInfo = IdentityManager.credentials[0].userId;
-        console.log("User Info:", userInfo);
 
         const map = new Map({ basemap: "streets" });
         const view = new MapView({
@@ -87,19 +86,34 @@ require([
                 returnGeometry: true,
                 outFields: ["OBJECTID", "status", "assignedto"]
             }).then(function(results) {
-                console.log("Features found:", results.features.length);
                 const sidePanel = document.getElementById("sidePanel");
-                if (results.features.length === 0) {
-                    sidePanel.innerHTML += '<p>No matching work orders found.</p>';
-                    return;
-                }
                 results.features.forEach(function(feature) {
-                    // Simplified for initial testing - just list feature details without attachments
                     const div = document.createElement("div");
                     div.classList.add("feature-item");
                     div.innerHTML = `Work Order ID: ${feature.attributes.OBJECTID}<br>Status: ${feature.attributes.status}<br>Assigned To: ${feature.attributes.assignedto}`;
-                    div.onclick = function() { view.goTo({ target: feature.geometry, zoom: 17 }); };
                     sidePanel.appendChild(div);
+
+                    // Query for attachments
+                    const attachmentQuery = new AttachmentQuery();
+                    attachmentQuery.objectIds = [feature.attributes.OBJECTID];
+                    featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
+                        const attachments = attachmentResults[feature.attributes.OBJECTID];
+                        if (attachments && attachments.length > 0) {
+                            const attachmentsList = document.createElement("ul");
+                            attachments.forEach(function(attachment) {
+                                const attachmentItem = document.createElement("li");
+                                const attachmentLink = document.createElement("a");
+                                attachmentLink.href = attachment.url;
+                                attachmentLink.textContent = attachment.name;
+                                attachmentLink.target = "_blank"; // Open in a new tab
+                                attachmentItem.appendChild(attachmentLink);
+                                attachmentsList.appendChild(attachmentItem);
+                            });
+                            div.appendChild(attachmentsList); // Append the attachments list to the feature div
+                        } else {
+                            div.innerHTML += "<p>No attachments found.</p>";
+                        }
+                    });
                 });
             }).catch(console.error);
         });
