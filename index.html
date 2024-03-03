@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Work Order Dashboard</title>
+<link rel="stylesheet" href="https://js.arcgis.com/4.24/esri/themes/light/main.css">
 <style>
   html, body {
     height: 100%;
@@ -12,14 +13,26 @@
   }
   #viewDiv {
     height: 100%;
-    width: 100%;
+    width: calc(100% - 250px); /* Adjust width to make room for side panel */
+    position: absolute;
+    right: 0;
+  }
+  #sidePanel {
+    width: 250px; /* Width of the side panel */
+    height: 100%;
+    position: absolute;
+    left: 0;
+    overflow-y: auto; /* Enable scrolling for overflow */
+    background-color: #fff;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.5);
+    padding: 10px;
   }
 </style>
-<link rel="stylesheet" href="https://js.arcgis.com/4.24/esri/themes/light/main.css">
 <script src="https://js.arcgis.com/4.24/"></script>
 </head>
 <body>
-<div id="viewDiv"></div>
+<div id="sidePanel">Work Orders:</div> <!-- Side Panel for listing work orders -->
+<div id="viewDiv"></div> <!-- Map View -->
 
 <script>
 require([
@@ -36,10 +49,7 @@ require([
     });
     IdentityManager.registerOAuthInfos([info]);
 
-    // Append '/sharing' for checkSignInStatus and getCredential
-    var portalSharingUrl = info.portalUrl + "/sharing";
-    
-    IdentityManager.checkSignInStatus(portalSharingUrl).then(
+    IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(
         function() {
             console.log("Signed in");
             const userInfo = IdentityManager.credentials[0].userId;
@@ -81,11 +91,33 @@ require([
 
             // Apply filter directly within the promise after user info is available
             featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
+
+            view.when(() => {
+                featureLayer.queryFeatures({
+                    where: "1=1",
+                    returnGeometry: true,
+                    outFields: ["*"]
+                }).then(function(results) {
+                    const sidePanel = document.getElementById("sidePanel");
+                    results.features.forEach(function(feature) {
+                        const div = document.createElement("div");
+                        div.classList.add("feature-item");
+                        div.textContent = `Work Order ID: ${feature.attributes.WorkOrderID}`;
+                        div.onclick = function() {
+                            view.goTo({
+                                target: feature.geometry,
+                                zoom: 17
+                            });
+                        };
+                        sidePanel.appendChild(div);
+                    });
+                });
+            });
         }
     ).catch(
         function(error) {
             console.log("Not signed in", error);
-            IdentityManager.getCredential(portalSharingUrl);
+            IdentityManager.getCredential(info.portalUrl + "/sharing");
         }
     );
 });
