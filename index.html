@@ -51,8 +51,8 @@ require([
   "esri/identity/OAuthInfo",
   "esri/identity/IdentityManager",
   "esri/rest/support/AttachmentQuery",
-  "esri/portal/Portal" // Ensure Portal is listed here
-], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery, Portal) { // Include Portal in the function parameters
+  "esri/portal/Portal"
+], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery, Portal) {
     var info = new OAuthInfo({
         appId: "ti3fi1FqvHE2Hhyw",
         popup: false
@@ -60,9 +60,8 @@ require([
     IdentityManager.registerOAuthInfos([info]);
 
     IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
-        const portal = new Portal(); // Instantiate the portal
+        const portal = new Portal();
         portal.load().then(function() {
-            // Access the user's full name from the loaded portal
             const fullName = portal.user.fullName;
             console.log("Logged in user's full name:", fullName);
 
@@ -80,11 +79,11 @@ require([
             const featureLayer = new FeatureLayer({
                 url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0",
                 outFields: ["*"],
-                popupEnabled: false // Correctly disable popups for this feature layer
+                popupEnabled: false
             });
 
             map.add(featureLayer);
-            featureLayer.definitionExpression = `assignedto = '${userInfo}'`; // Ensure this matches your data schema
+            featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
 
             const editor = new Editor({
                 view: view,
@@ -100,13 +99,12 @@ require([
                 featureLayer.queryFeatures({
                     where: `assignedto = '${userInfo}'`,
                     returnGeometry: true,
-                    outFields: ["OBJECTID", "status", "assignedto"] // Corrected to use actual field names
+                    outFields: ["OBJECTID", "status", "assignedto"]
                 }).then(function(results) {
                     const sidePanel = document.getElementById("sidePanel");
                     results.features.forEach(function(feature) {
                         const div = document.createElement("div");
                         div.classList.add("feature-item");
-                        // Correctly use fullName within template literal
                         div.innerHTML = `Work Order ID: ${feature.attributes.OBJECTID}<br>Status: ${feature.attributes.status}<br>Assigned To: ${fullName}`;
 
                         div.onclick = function() {
@@ -121,43 +119,75 @@ require([
                         featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
                             const attachments = attachmentResults[feature.attributes.OBJECTID];
                             if (attachments && attachments.length > 0) {
-                                const carousel = document.createElement("div");
+                                const carouselContainer = document.createElement("div");
+                                carouselContainer.style.position = "relative";
+                                carouselContainer.style.width = "100%";
+                                carouselContainer.style.maxHeight = "200px";
+                                carouselContainer.style.overflow = "hidden";
+
+                                const attachmentImages = document.createElement("div");
+                                attachmentImages.style.display = "flex";
+                                attachmentImages.style.width = "100%";
+                                attachmentImages.style.position = "absolute";
+
                                 attachments.forEach((attachment, index) => {
                                     const img = document.createElement("img");
                                     img.src = attachment.url;
-                                    img.style.maxWidth = "100%";
-                                    img.style.display = index === 0 ? "block" : "none";
-                                    carousel.appendChild(img);
+                                    img.style.maxHeight = "200px";
+                                    img.style.flex = "0 0 auto";
+                                    attachmentImages.appendChild(img);
                                 });
 
-                                if (attachments.length > 1) {
-                                    const prevButton = document.createElement("button");
-                                    prevButton.textContent = "<";
-                                    const nextButton = document.createElement("button");
-                                    nextButton.textContent = ">";
-                                    carousel.appendChild(prevButton);
-                                    carousel.appendChild(nextButton);
+                                carouselContainer.appendChild(attachmentImages);
 
-                                    let currentIndex = 0;
-                                    const images = carousel.querySelectorAll("img");
-                                    const updateImageVisibility = () => {
-                                        images.forEach((img, index) => {
-                                            img.style.display = index === currentIndex ? "block" : "none";
-                                        });
-                                    };
+                                const leftArrow = document.createElement("button");
+                                leftArrow.textContent = "<";
+                                leftArrow.style.position = "absolute";
+                                leftArrow.style.top = "50%";
+                                leftArrow.style.left = "10px";
+                                leftArrow.style.transform = "translateY(-50%)";
+                                leftArrow.style.zIndex = "10";
+                                leftArrow.style.background = "none";
+                                leftArrow.style.border = "none";
+                                leftArrow.style.cursor = "pointer";
+                                leftArrow.style.color = "white";
+                                leftArrow.style.fontSize = "24px";
+                                leftArrow.style.fontWeight = "bold";
 
-                                    prevButton.onclick = () => {
-                                        currentIndex = (currentIndex - 1 + attachments.length) % attachments.length;
-                                        updateImageVisibility();
-                                    };
+                                const rightArrow = document.createElement("button");
+                                rightArrow.textContent = ">";
+                                rightArrow.style.position = "absolute";
+                                rightArrow.style.top = "50%";
+                                rightArrow.style.right = "10px";
+                                rightArrow.style.transform = "translateY(-50%)";
+                                rightArrow.style.zIndex = "10";
+                                rightArrow.style.background = "none";
+                                rightArrow.style.border = "none";
+                                rightArrow.style.cursor = "pointer";
+                                rightArrow.style.color = "white";
+                                rightArrow.style.fontSize = "24px";
+                                rightArrow.style.fontWeight = "bold";
 
-                                    nextButton.onclick = () => {
-                                        currentIndex = (currentIndex + 1) % attachments.length;
-                                        updateImageVisibility();
-                                    };
-                                }
+                                let currentIndex = 0;
+                                const scrollImages = (direction) => {
+                                    const totalImages = attachments.length;
+                                    const imageWidth = carouselContainer.offsetWidth;
+                                    currentIndex += direction;
+                                    if (currentIndex >= totalImages) {
+                                        currentIndex = 0;
+                                    } else if (currentIndex < 0) {
+                                        currentIndex = totalImages - 1;
+                                    }
+                                    attachmentImages.style.transform = `translateX(-${currentIndex * imageWidth}px)`;
+                                };
 
-                                div.appendChild(carousel);
+                                leftArrow.addEventListener("click", () => scrollImages(-1));
+                                rightArrow.addEventListener("click", () => scrollImages(1));
+
+                                carouselContainer.appendChild(leftArrow);
+                                carouselContainer.appendChild(rightArrow);
+
+                                div.appendChild(carouselContainer);
                             } else {
                                 div.innerHTML += "<p>No attachments found.</p>";
                             }
