@@ -4,27 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Work Order Dashboard</title>
-<link rel="stylesheet" href="https://js.arcgis.com/4.24/esri/themes/light/main.css">
 <style>
-  body, html, #viewDiv{
-    padding: 0;
-    margin: 0;
+  #viewDiv {
     height: 100%;
     width: 100%;
   }
-  #viewDiv {
-    height: 800px; /* Adjusted for full height; consider using percentage for consistency */
-    width: 75%;
-    position: absolute;
-    right: 0;
-  }
-  
 </style>
+<link rel="stylesheet" href="https://js.arcgis.com/4.24/esri/themes/light/main.css">
 <script src="https://js.arcgis.com/4.24/"></script>
 </head>
 <body>
-
-<div id="viewDiv"></div> <!-- Map View -->
+<div id="viewDiv"></div>
 
 <script>
 require([
@@ -34,11 +24,11 @@ require([
   "esri/widgets/Editor",
   "esri/identity/OAuthInfo",
   "esri/identity/IdentityManager",
-], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager) {
+  "esri/layers/support/FeatureFilter"
+], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, FeatureFilter) {
     var info = new OAuthInfo({
-        appId: "ti3fi1FqvHE2Hhyw", // Your actual App ID
-        popup: false,
-        portalUrl: "https://www.arcgis.com"
+        appId: "ti3fi1FqvHE2Hhyw",
+        popup: false
     });
     IdentityManager.registerOAuthInfos([info]);
 
@@ -76,13 +66,15 @@ require([
                     layer: featureLayer,
                     addEnabled: false,
                     deleteEnabled: false
+                  
                 }]
             });
 
             // Add the Editor to the top-right corner of the view
             view.ui.add(editor, "top-right");
 
-         
+            // Apply filter directly within the promise after user info is available
+            featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
         }
     ).catch(
         function(error) {
