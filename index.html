@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Work Order Dashboard</title>
 <style>
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
   #viewDiv {
     height: 100%;
     width: 100%;
@@ -31,7 +36,10 @@ require([
     });
     IdentityManager.registerOAuthInfos([info]);
 
-    IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(
+    // Append '/sharing' for checkSignInStatus and getCredential
+    var portalSharingUrl = info.portalUrl + "/sharing";
+    
+    IdentityManager.checkSignInStatus(portalSharingUrl).then(
         function() {
             console.log("Signed in");
             const userInfo = IdentityManager.credentials[0].userId;
@@ -77,7 +85,7 @@ require([
     ).catch(
         function(error) {
             console.log("Not signed in", error);
-            IdentityManager.getCredential(info.portalUrl + "/sharing");
+            IdentityManager.getCredential(portalSharingUrl);
         }
     );
 });
