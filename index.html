@@ -13,12 +13,12 @@
   }
   #viewDiv {
     height: 100%;
-    width: calc(100% - 250px);
+    width: calc(100% - 300px);
     position: absolute;
     right: 0;
   }
   #sidePanel {
-    width: 250px;
+    width: 300px;
     height: 100%;
     position: absolute;
     left: 0;
@@ -71,7 +71,7 @@ require([
         const featureLayer = new FeatureLayer({
             url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0",
             outFields: ["*"],
-            popupTemplate: { title: "Work Order {OBJECTID}", content: "Description: {details}<br>Assigned To: {assignedto}" }
+            popupTemplate: { title: "Work Order {OBJECTID}", content: "Status: {status}<br>Assigned To: {assignedto}" }
         });
 
         map.add(featureLayer);
@@ -83,7 +83,7 @@ require([
             featureLayer.queryFeatures({
                 where: `assignedto = '${userInfo}'`,
                 returnGeometry: true,
-                outFields: ["OBJECTID", "details", "assignedto"]
+                outFields: ["OBJECTID", "status", "assignedto"]
             }).then(function(results) {
                 console.log("Features found:", results.features.length);
                 const sidePanel = document.getElementById("sidePanel");
@@ -95,7 +95,7 @@ require([
                     // Simplified for initial testing - just list feature details without attachments
                     const div = document.createElement("div");
                     div.classList.add("feature-item");
-                    div.innerHTML = `Work Order ID: ${feature.attributes.OBJECTID}<br>Description: ${feature.attributes.details}<br>Assigned To: ${feature.attributes.assignedto}`;
+                    div.innerHTML = `Work Order ID: ${feature.attributes.OBJECTID}<br>Status: ${feature.attributes.status}<br>Assigned To: ${feature.attributes.assignedto}`;
                     div.onclick = function() { view.goTo({ target: feature.geometry, zoom: 17 }); };
                     sidePanel.appendChild(div);
                 });
