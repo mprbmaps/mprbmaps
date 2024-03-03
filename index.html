@@ -6,7 +6,7 @@
 <title>Work Order Dashboard</title>
 <link rel="stylesheet" href="https://js.arcgis.com/4.24/esri/themes/light/main.css">
 <style>
-  body, html, #viewDiv, #sidePanel {
+  body, html, #viewDiv{
     padding: 0;
     margin: 0;
     height: 100%;
@@ -18,21 +18,12 @@
     position: absolute;
     right: 0;
   }
-  #sidePanel {
-    width: 25%;
-    height: 100%;
-    position: absolute;
-    left: 0;
-    overflow: auto;
-    background-color: #fff;
-    box-shadow: 2px 0px 5px rgba(0,0,0,0.5);
-    padding: 10px;
-  }
+  
 </style>
 <script src="https://js.arcgis.com/4.24/"></script>
 </head>
 <body>
-<div id="sidePanel">Work Orders:</div> <!-- Side Panel for listing work orders -->
+
 <div id="viewDiv"></div> <!-- Map View -->
 
 <script>
@@ -91,19 +82,7 @@ require([
             // Add the Editor to the top-right corner of the view
             view.ui.add(editor, "top-right");
 
-            // Query FeatureLayer for work orders and populate side panel
-            featureLayer.queryFeatures({
-                where: "1=1", // Adjust this to your filter condition
-                outFields: ["WorkOrderID", "Description"],
-                returnGeometry: false
-            }).then(function(response) {
-                const sidePanel = document.getElementById("sidePanel");
-                response.features.forEach(function(feature) {
-                    const div = document.createElement("div");
-                    div.innerText = `Work Order ID: ${feature.attributes.WorkOrderID}, Description: ${feature.attributes.Description}`;
-                    sidePanel.appendChild(div);
-                });
-            });
+         
         }
     ).catch(
         function(error) {
