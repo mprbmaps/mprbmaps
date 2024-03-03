@@ -59,7 +59,6 @@ require([
     IdentityManager.registerOAuthInfos([info]);
 
     IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
-        console.log("Signed in");
         const userInfo = IdentityManager.credentials[0].userId;
 
         const map = new Map({ basemap: "streets" });
@@ -76,15 +75,12 @@ require([
             popupTemplate: { title: "Work Order {OBJECTID}", content: "Status: {status}<br>Assigned To: {assignedto}" }
         });
 
+        featureLayer.definitionExpression = `assignedto = '${userInfo}'`; // Ensure this matches your data
         map.add(featureLayer);
 
         view.ui.add(new Editor({
             view: view,
-            layerInfos: [{
-                layer: featureLayer,
-                addEnabled: false,
-                deleteEnabled: false
-            }]
+            layerInfos: [{ layer: featureLayer, addEnabled: false, deleteEnabled: false }]
         }), "top-right");
 
         view.when(() => {
@@ -98,7 +94,7 @@ require([
                     const div = document.createElement("div");
                     div.classList.add("feature-item");
                     div.innerHTML = `Work Order ID: ${feature.attributes.OBJECTID}<br>Status: ${feature.attributes.status}<br>Assigned To: ${feature.attributes.assignedto}`;
-                    
+
                     const attachmentQuery = new AttachmentQuery();
                     attachmentQuery.objectIds = [feature.attributes.OBJECTID];
                     featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
