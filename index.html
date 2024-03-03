@@ -13,19 +13,20 @@
   }
   #viewDiv {
     height: 100%;
-    width: calc(100% - 250px); /* Adjust width to make room for side panel */
+    width: calc(100% - 350px); /* Adjust width to make room for side panel */
     position: absolute;
     right: 0;
   }
   #sidePanel {
-    width: 250px; /* Width of the side panel */
+    width: 350px; /* Width of the side panel */
     height: 100%;
     position: absolute;
     left: 0;
     overflow-y: auto; /* Enable scrolling for overflow */
     background-color: #fff;
-    box-shadow: 2px 0 5px rgba(0,0,0,0.5);
+    box-shadow: 2px 0 5px rgba(0,0,0,1);
     padding: 10px;
+    z-index: 5;
   }
 </style>
 <script src="https://js.arcgis.com/4.24/"></script>
@@ -102,9 +103,9 @@ view.when(() => {
         results.features.forEach(function(feature) {
             const div = document.createElement("div");
             div.classList.add("feature-item");
-            div.textContent = `Submitted: ${feature.attributes.created_date}`;
+            
             div.textContent = `Status: ${feature.attributes.status}`;
-            div.textContent = `Resolution Date: ${feature.attributes.resolutiondt}`;
+            
             div.onclick = function() {
                 view.goTo({
                     target: feature.geometry,
