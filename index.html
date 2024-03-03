@@ -51,8 +51,8 @@ require([
   "esri/identity/OAuthInfo",
   "esri/identity/IdentityManager",
   "esri/rest/support/AttachmentQuery",
-  "esri/portal/Portal"
-], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery, Portal) {
+  "esri/portal/Portal" // Ensure Portal is listed here
+], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery, Portal) { // Include Portal in the function parameters
     var info = new OAuthInfo({
         appId: "ti3fi1FqvHE2Hhyw",
         popup: false
@@ -60,114 +60,116 @@ require([
     IdentityManager.registerOAuthInfos([info]);
 
     IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
-        // Instantiate Portal to access user information
-        var portal = new Portal();
-        // Load the portal to access properties
+        const portal = new Portal(); // Instantiate the portal
         portal.load().then(function() {
-            // Access the user's full name
+            // Access the user's full name from the loaded portal
             const fullName = portal.user.fullName;
             console.log("Logged in user's full name:", fullName);
 
             const userInfo = IdentityManager.credentials[0].userId;
             console.log("User Info:", userInfo);
 
-        const map = new Map({ basemap: "streets" });
-        const view = new MapView({
-            container: "viewDiv",
-            map: map,
-            center: [-94.305, 45.027],
-            zoom: 13
-        });
+            const map = new Map({ basemap: "streets" });
+            const view = new MapView({
+                container: "viewDiv",
+                map: map,
+                center: [-94.305, 45.027],
+                zoom: 13
+            });
 
-        const featureLayer = new FeatureLayer({
-            url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0",
-            outFields: ["*"],
-            popupEnabled: false // Disable popups for this feature layer
-});
+            const featureLayer = new FeatureLayer({
+                url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0",
+                outFields: ["*"],
+                popupEnabled: false // Correctly disable popups for this feature layer
+            });
 
-        map.add(featureLayer);
-        featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
+            map.add(featureLayer);
+            featureLayer.definitionExpression = `assignedto = '${userInfo}'`; // Ensure this matches your data schema
 
-        const editor = new Editor({
-            view: view,
-            layerInfos: [{
-                layer: featureLayer,
-                addEnabled: false,
-                deleteEnabled: false
-            }]
-        });
-        view.ui.add(editor, "top-right");
+            const editor = new Editor({
+                view: view,
+                layerInfos: [{
+                    layer: featureLayer,
+                    addEnabled: false,
+                    deleteEnabled: false
+                }]
+            });
+            view.ui.add(editor, "top-right");
 
-        view.when(() => {
-            featureLayer.queryFeatures({
-                where: `assignedto = '${userInfo}'`,
-                returnGeometry: true,
-                outFields: ["OBJECTID", "status", fullName]
-            }).then(function(results) {
-                const sidePanel = document.getElementById("sidePanel");
-                results.features.forEach(function(feature) {
-                    const div = document.createElement("div");
-                    div.classList.add("feature-item");
-                    div.innerHTML = `Work Order ID: ${feature.attributes.OBJECTID}<br>Status: ${feature.attributes.status}<br>Assigned To: fullName`;
+            view.when(() => {
+                featureLayer.queryFeatures({
+                    where: `assignedto = '${userInfo}'`,
+                    returnGeometry: true,
+                    outFields: ["OBJECTID", "status", "assignedto"] // Corrected to use actual field names
+                }).then(function(results) {
+                    const sidePanel = document.getElementById("sidePanel");
+                    results.features.forEach(function(feature) {
+                        const div = document.createElement("div");
+                        div.classList.add("feature-item");
+                        // Correctly use fullName within template literal
+                        div.innerHTML = `Work Order ID: ${feature.attributes.OBJECTID}<br>Status: ${feature.attributes.status}<br>Assigned To: ${fullName}`;
 
-                    div.onclick = function() {
-                        view.goTo({
-                            target: feature.geometry,
-                            zoom: 17
-                        }).then(() => {
-                            alert('Click the feature on the map to begin editing.');
-                        });
-                    };
-
-                    const attachmentQuery = new AttachmentQuery();
-                    attachmentQuery.objectIds = [feature.attributes.OBJECTID];
-                    featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
-                        const attachments = attachmentResults[feature.attributes.OBJECTID];
-                        if (attachments && attachments.length > 0) {
-                            const carousel = document.createElement("div");
-                            attachments.forEach((attachment, index) => {
-                                const img = document.createElement("img");
-                                img.src = attachment.url;
-                                img.style.maxWidth = "100%";
-                                img.style.display = index === 0 ? "block" : "none";
-                                carousel.appendChild(img);
+                        div.onclick = function() {
+                            view.goTo({
+                                target: feature.geometry,
+                                zoom: 17
+                            }).then(() => {
+                                alert('Click the feature on the map to begin editing.');
                             });
+                        };
 
-                            if (attachments.length > 1) {
-                                const prevButton = document.createElement("button");
-                                prevButton.textContent = "<";
-                                const nextButton = document.createElement("button");
-                                nextButton.textContent = ">";
-                                carousel.appendChild(prevButton);
-                                carousel.appendChild(nextButton);
+                        const attachmentQuery = new AttachmentQuery();
+                        attachmentQuery.objectIds = [feature.attributes.OBJECTID];
+                        featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
+                            const attachments = attachmentResults[feature.attributes.OBJECTID];
+                            if (attachments && attachments.length > 0) {
+                                const carousel = document.createElement("div");
+                                attachments.forEach((attachment, index) => {
+                                    const img = document.createElement("img");
+                                    img.src = attachment.url;
+                                    img.style.maxWidth = "100%";
+                                    img.style.display = index === 0 ? "block" : "none";
+                                    carousel.appendChild(img);
+                                });
 
-                                let currentIndex = 0;
-                                const images = carousel.querySelectorAll("img");
-                                const updateImageVisibility = () => {
-                                    images.forEach((img, index) => {
-                                        img.style.display = index === currentIndex ? "block" : "none";
-                                    });
-                                };
+                                if (attachments.length > 1) {
+                                    const prevButton = document.createElement("button");
+                                    prevButton.textContent = "<";
+                                    const nextButton = document.createElement("button");
+                                    nextButton.textContent = ">";
+                                    carousel.appendChild(prevButton);
+                                    carousel.appendChild(nextButton);
 
-                                prevButton.onclick = () => {
-                                    currentIndex = (currentIndex - 1 + attachments.length) % attachments.length;
-                                    updateImageVisibility();
-                                };
+                                    let currentIndex = 0;
+                                    const images = carousel.querySelectorAll("img");
+                                    const updateImageVisibility = () => {
+                                        images.forEach((img, index) => {
+                                            img.style.display = index === currentIndex ? "block" : "none";
+                                        });
+                                    };
 
-                                nextButton.onclick = () => {
-                                    currentIndex = (currentIndex + 1) % attachments.length;
-                                    updateImageVisibility();
-                                };
+                                    prevButton.onclick = () => {
+                                        currentIndex = (currentIndex - 1 + attachments.length) % attachments.length;
+                                        updateImageVisibility();
+                                    };
+
+                                    nextButton.onclick = () => {
+                                        currentIndex = (currentIndex + 1) % attachments.length;
+                                        updateImageVisibility();
+                                    };
+                                }
+
+                                div.appendChild(carousel);
+                            } else {
+                                div.innerHTML += "<p>No attachments found.</p>";
                             }
-
-                            div.appendChild(carousel);
-                        } else {
-                            div.innerHTML += "<p>No attachments found.</p>";
-                        }
-                        sidePanel.appendChild(div);
+                            sidePanel.appendChild(div);
+                        });
                     });
-                });
-            }).catch(console.error);
+                }).catch(console.error);
+            });
+        }).catch(function(error) {
+            console.error("Error loading the portal:", error);
         });
     }).catch(function(error) {
         console.error("Error during sign-in:", error);
