@@ -50,7 +50,7 @@ require([
   "esri/widgets/Editor",
   "esri/identity/OAuthInfo",
   "esri/identity/IdentityManager",
-  "esri/rest/support/AttachmentQuery" // Make sure to include AttachmentQuery module
+  "esri/rest/support/AttachmentQuery"
 ], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery) {
     var info = new OAuthInfo({
         appId: "ti3fi1FqvHE2Hhyw",
@@ -59,6 +59,7 @@ require([
     IdentityManager.registerOAuthInfos([info]);
 
     IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+        console.log("Signed in");
         const userInfo = IdentityManager.credentials[0].userId;
 
         const map = new Map({ basemap: "streets" });
@@ -76,9 +77,15 @@ require([
         });
 
         map.add(featureLayer);
-        featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
 
-        view.ui.add(new Editor({ view: view, layerInfos: [{ layer: featureLayer, addEnabled: false, deleteEnabled: false }] }), "top-right");
+        view.ui.add(new Editor({
+            view: view,
+            layerInfos: [{
+                layer: featureLayer,
+                addEnabled: false,
+                deleteEnabled: false
+            }]
+        }), "top-right");
 
         view.when(() => {
             featureLayer.queryFeatures({
@@ -91,28 +98,53 @@ require([
                     const div = document.createElement("div");
                     div.classList.add("feature-item");
                     div.innerHTML = `Work Order ID: ${feature.attributes.OBJECTID}<br>Status: ${feature.attributes.status}<br>Assigned To: ${feature.attributes.assignedto}`;
-                    sidePanel.appendChild(div);
-
-                    // Query for attachments
+                    
                     const attachmentQuery = new AttachmentQuery();
                     attachmentQuery.objectIds = [feature.attributes.OBJECTID];
                     featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
                         const attachments = attachmentResults[feature.attributes.OBJECTID];
                         if (attachments && attachments.length > 0) {
-                            const attachmentsList = document.createElement("ul");
-                            attachments.forEach(function(attachment) {
-                                const attachmentItem = document.createElement("li");
-                                const attachmentLink = document.createElement("a");
-                                attachmentLink.href = attachment.url;
-                                attachmentLink.textContent = attachment.name;
-                                attachmentLink.target = "_blank"; // Open in a new tab
-                                attachmentItem.appendChild(attachmentLink);
-                                attachmentsList.appendChild(attachmentItem);
+                            const carousel = document.createElement("div");
+                            attachments.forEach((attachment, index) => {
+                                const img = document.createElement("img");
+                                img.src = attachment.url;
+                                img.style.maxWidth = "100%";
+                                img.style.display = index === 0 ? "block" : "none";
+                                carousel.appendChild(img);
                             });
-                            div.appendChild(attachmentsList); // Append the attachments list to the feature div
+
+                            if (attachments.length > 1) {
+                                const prevButton = document.createElement("button");
+                                prevButton.textContent = "<";
+                                const nextButton = document.createElement("button");
+                                nextButton.textContent = ">";
+                                carousel.appendChild(prevButton);
+                                carousel.appendChild(nextButton);
+
+                                let currentIndex = 0;
+                                const images = carousel.querySelectorAll("img");
+                                const updateImageVisibility = () => {
+                                    images.forEach((img, index) => {
+                                        img.style.display = index === currentIndex ? "block" : "none";
+                                    });
+                                };
+
+                                prevButton.onclick = () => {
+                                    currentIndex = (currentIndex - 1 + attachments.length) % attachments.length;
+                                    updateImageVisibility();
+                                };
+
+                                nextButton.onclick = () => {
+                                    currentIndex = (currentIndex + 1) % attachments.length;
+                                    updateImageVisibility();
+                                };
+                            }
+
+                            div.appendChild(carousel);
                         } else {
                             div.innerHTML += "<p>No attachments found.</p>";
                         }
+                        sidePanel.appendChild(div);
                     });
                 });
             }).catch(console.error);
