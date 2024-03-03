@@ -13,27 +13,31 @@
   }
   #viewDiv {
     height: 100%;
-    width: calc(100% - 350px); /* Adjust width to make room for side panel */
+    width: calc(100% - 250px);
     position: absolute;
     right: 0;
   }
   #sidePanel {
-    width: 350px; /* Width of the side panel */
+    width: 250px;
     height: 100%;
     position: absolute;
     left: 0;
-    overflow-y: auto; /* Enable scrolling for overflow */
-    background-color: #fff;
-    box-shadow: 2px 0 5px rgba(0,0,0,1);
+    overflow-y: auto;
+    background-color: lightgray; /* Light gray background for the side panel */
     padding: 10px;
-    z-index: 5;
+  }
+  .feature-item {
+    background-color: white; /* White background for each feature tile */
+    margin-bottom: 5px;
+    padding: 5px;
+    cursor: pointer;
   }
 </style>
 <script src="https://js.arcgis.com/4.24/"></script>
 </head>
 <body>
-<div id="sidePanel">Work Orders:</div> <!-- Side Panel for listing work orders -->
-<div id="viewDiv"></div> <!-- Map View -->
+<div id="sidePanel">Work Orders:</div>
+<div id="viewDiv"></div>
 
 <script>
 require([
@@ -43,9 +47,10 @@ require([
   "esri/widgets/Editor",
   "esri/identity/OAuthInfo",
   "esri/identity/IdentityManager",
-], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager) {
+  "esri/rest/support/AttachmentQuery"
+], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery) {
     var info = new OAuthInfo({
-        appId: "ti3fi1FqvHE2Hhyw", // Replace with your actual App ID
+        appId: "ti3fi1FqvHE2Hhyw",
         popup: false
     });
     IdentityManager.registerOAuthInfos([info]);
@@ -53,8 +58,6 @@ require([
     IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(
         function() {
             console.log("Signed in");
-            const userInfo = IdentityManager.credentials[0].userId;
-
             const map = new Map({
                 basemap: "streets"
             });
@@ -77,52 +80,57 @@ require([
 
             map.add(featureLayer);
 
-            // Editor widget configuration
             const editor = new Editor({
                 view: view,
                 layerInfos: [{
                     layer: featureLayer,
-                    addEnabled: false, // Disable adding new features
-                    deleteEnabled: false // Disable deleting existing features
+                    addEnabled: false,
+                    deleteEnabled: false
                 }]
             });
 
-            // Add the Editor to the top-right corner of the view
             view.ui.add(editor, "top-right");
+            featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
 
-            // Correctly applying template literals with backticks
-featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
-
-view.when(() => {
-    featureLayer.queryFeatures({
-        where: `assignedto = '${userInfo}'`, // Corrected to use backticks for template literal
-        returnGeometry: true,
-        outFields: ["*"]
-    }).then(function(results) {
-        const sidePanel = document.getElementById("sidePanel");
-        results.features.forEach(function(feature) {
-            const div = document.createElement("div");
-            div.classList.add("feature-item");
-            
-            div.textContent = `Status: ${feature.attributes.status}`;
-            
-            div.onclick = function() {
-                view.goTo({
-                    target: feature.geometry,
-                    zoom: 17
+            view.when(() => {
+                featureLayer.queryFeatures({
+                    where: "assignedto = '${userInfo}'",
+                    returnGeometry: true,
+                    outFields: ["WorkOrderID", "Description", "assignedto"]
+                }).then(function(results) {
+                    const sidePanel = document.getElementById("sidePanel");
+                    results.features.forEach(function(feature) {
+                        const attachmentQuery = new AttachmentQuery();
+                        attachmentQuery.objectIds = [feature.attributes.OBJECTID];
+                        featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
+                            const div = document.createElement("div");
+                            div.classList.add("feature-item");
+                            let content = `Work Order ID: ${feature.attributes.WorkOrderID}<br>`;
+                            content += `Description: ${feature.attributes.Description}<br>`;
+                            content += `Assigned To: ${feature.attributes.assignedto}<br>`;
+                            const attachments = attachmentResults[feature.attributes.OBJECTID];
+                            if (attachments && attachments.length > 0) {
+                                content += "Attachments:<br>";
+                                attachments.forEach(function(attachment) {
+                                    content += `<a href="${attachment.url}" target="_blank">${attachment.name}</a><br>`;
+                                });
+                            }
+                            div.innerHTML = content;
+                            div.onclick = function() {
+                                view.goTo({                                    target: feature.geometry,
+                                    zoom: 17
+                                });
+                            };
+                            sidePanel.appendChild(div);
+                        });
+                    });
                 });
-            };
-            sidePanel.appendChild(div);
-        });
+            });
+        }
+    ).catch(function(error) {
+        console.log("Not signed in", error);
+        IdentityManager.getCredential(info.portalUrl + "/sharing");
     });
-});
-        }
-    ).catch(
-        function(error) {
-            console.log("Not signed in", error);
-            IdentityManager.getCredential(info.portalUrl + "/sharing");
-        }
-    );
 });
 </script>
 </body>
