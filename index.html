@@ -90,11 +90,13 @@ require([
             });
 
             view.ui.add(editor, "top-right");
-            featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
+            // Correctly set the definitionExpression using a template literal
+        featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
 
-            view.when(() => {
-                featureLayer.queryFeatures({
-                    where: "assignedto = '${userInfo}'",
+        view.when(() => {
+            // Correctly set the where clause using a template literal
+            featureLayer.queryFeatures({
+                    where: `assignedto = '${userInfo}'`,
                     returnGeometry: true,
                     outFields: ["WorkOrderID", "Description", "assignedto"]
                 }).then(function(results) {
