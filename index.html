@@ -136,86 +136,86 @@ require([
                         div.classList.add("feature-item");
                         div.innerHTML = `Work Order ID: ${feature.attributes.OBJECTID}<br>Status: ${feature.attributes.status}<br>Assigned To: ${fullName}`;
 
-                        div.onclick = function() {view.goTo({
-                            target: feature.geometry,
-                            zoom: 17
-                        });
-                    };
-
-                    const attachmentQuery = new AttachmentQuery();
-                    attachmentQuery.objectIds = [feature.attributes.OBJECTID];
-                    featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
-                        const attachments = attachmentResults[feature.attributes.OBJECTID];
-                        if (attachments && attachments.length > 0) {
-                            const attachmentsContainer = document.createElement("div");
-                            attachmentsContainer.className = "attachments-container";
-
-                            const leftArrow = document.createElement("button");
-                            leftArrow.innerHTML = "&lt;"; // Left arrow symbol
-                            leftArrow.className = "attachment-arrow left-arrow";
-
-                            const rightArrow = document.createElement("button");
-                            rightArrow.innerHTML = "&gt;"; // Right arrow symbol
-                            rightArrow.className = "attachment-arrow right-arrow";
-
-                            const attachmentsWrapper = document.createElement("div");
-                            attachmentsWrapper.className = "attachments-wrapper";
-
-                            attachments.forEach((attachment, index) => {
-                                const link = document.createElement("a");
-                                link.href = attachment.url;
-                                link.target = "_blank";
-                                link.className = "attachment-item";
-
-                                const img = document.createElement("img");
-                                img.src = attachment.url;
-                                img.style.maxWidth = "100%";
-                                img.style.display = "block";
-
-                                link.appendChild(img);
-                                attachmentsWrapper.appendChild(link);
+                        div.onclick = function() {
+                            view.goTo({
+                                target: feature.geometry,
+                                zoom: 17
                             });
+                        };
 
-                            attachmentsContainer.appendChild(leftArrow);
-                            attachmentsContainer.appendChild(attachmentsWrapper);
-                            attachmentsContainer.appendChild(rightArrow);
+                        const attachmentQuery = new AttachmentQuery();
+                        attachmentQuery.objectIds = [feature.attributes.OBJECTID];
+                        featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
+                            const attachments = attachmentResults[feature.attributes.OBJECTID];
+                            if (attachments && attachments.length > 0) {
+                                const attachmentsContainer = document.createElement("div");
+                                attachmentsContainer.className = "attachments-container";
 
-                            div.appendChild(attachmentsContainer);
+                                const leftArrow = document.createElement("button");
+                                leftArrow.innerHTML = "&lt;";
+                                leftArrow.className = "attachment-arrow left-arrow";
 
-                            // Implement scrolling functionality
-                            let scrollAmount = 0;
-                            const maxScroll = attachmentsWrapper.scrollWidth - attachmentsWrapper.clientWidth;
+                                const rightArrow = document.createElement("button");
+                                rightArrow.innerHTML = "&gt;";
+                                rightArrow.className = "attachment-arrow right-arrow";
 
-                            leftArrow.onclick = function() {
-                                attachmentsWrapper.scrollLeft -= 100;
-                                scrollAmount -= 100;
-                                if (scrollAmount < 0) {
-                                    scrollAmount = 0;
-                                }
-                            };
+                                const attachmentsWrapper = document.createElement("div");
+                                attachmentsWrapper.className = "attachments-wrapper";
 
-                            rightArrow.onclick = function() {
-                                attachmentsWrapper.scrollLeft += 100;
-                                scrollAmount += 100;
-                                if (scrollAmount > maxScroll) {
-                                    scrollAmount = maxScroll;
-                                }
-                            };
-                        } else {
-                            div.innerHTML += "<p>No attachments found.</p>";
-                        }
-                        sidePanel.appendChild(div);
+                                attachments.forEach((attachment, index) => {
+                                    const link = document.createElement("a");
+                                    link.href = attachment.url;
+                                    link.target = "_blank";
+                                    link.className = "attachment-item";
+
+                                    const img = document.createElement("img");
+                                    img.src = attachment.url;
+                                    img.style.maxWidth = "100%";
+                                    img.style.display = "block";
+
+                                    link.appendChild(img);
+                                    attachmentsWrapper.appendChild(link);
+                                });
+
+                                attachmentsContainer.appendChild(leftArrow);
+                                attachmentsContainer.appendChild(attachmentsWrapper);
+                                attachmentsContainer.appendChild(rightArrow);
+
+                                div.appendChild(attachmentsContainer);
+
+                                let scrollAmount = 0;
+                                const maxScroll = attachmentsWrapper.scrollWidth - attachmentsWrapper.clientWidth;
+
+                                leftArrow.onclick = function() {
+                                    attachmentsWrapper.scrollLeft -= 100;
+                                    scrollAmount -= 100;
+                                    if (scrollAmount < 0) {
+                                        scrollAmount = 0;
+                                    }
+                                };
+
+                                rightArrow.onclick = function() {
+                                    attachmentsWrapper.scrollLeft += 100;
+                                    scrollAmount += 100;
+                                    if (scrollAmount > maxScroll) {
+                                        scrollAmount = maxScroll;
+                                    }
+                                };
+                            } else {
+                                div.innerHTML += "<p>No attachments found.</p>";
+                            }
+                            sidePanel.appendChild(div);
+                        });
                     });
-                });
-            }).catch(console.error);
-        });
-    }).catch(function(error) {
-        console.error("Error loading the portal:", error);
-    });
+                }).catch(console.error);
+            });
+        }).catch(function(error) {
+            console.error("Error loading the portal:", error);
+              });
 }).catch(function(error) {
     console.error("Error during sign-in:", error);
 });
-  });
+});
 </script>
   </body>
 </html>
