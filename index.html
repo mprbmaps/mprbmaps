@@ -121,22 +121,44 @@ require([
                         div.classList.add("feature-item");
                         div.innerHTML = `Work Order ID: ${feature.attributes.OBJECTID}<br>Status: ${feature.attributes.status}<br>Assigned To: ${fullName}`;
 
-                        const statusBar = document.createElement("div");
-                        statusBar.classList.add("status-bar");
-                        switch (feature.attributes.status) {
-                          case "New":
-                            statusBar.classList.add("status-new");
-                            break;
-                          case "In Progress":
-                            statusBar.classList.add("status-in-progress");
-                            break;
-                          case "Completed":
-                            statusBar.classList.add("status-completed");
-                            break;
-                          default:
-                            break;
-                        }
-                        div.appendChild(statusBar);
+                        const statusTable = `
+                            <figure class="table" style="width:100%;">
+                                <table style="border-collapse:separate;border-spacing:2px 4px;margin:0px -2px;max-width:500px;table-layout:fixed;">
+                                    <tbody>
+                                        <tr height="16">
+                                            <td style="text-align:center;width:25%;">
+                                                &nbsp;
+                                            </td>
+                                            <td style="text-align:center;width:25%;">
+                                                &nbsp;
+                                            </td>
+                                            <td style="text-align:center;width:25%;">
+                                                &nbsp;
+                                            </td>
+                                            <td style="text-align:center;width:25%;">
+                                                &nbsp;
+                                            </td>
+                                        </tr>
+                                        <tr style="text-align:center;" height="24">
+                                            <td style="font-weight:normal;padding-left:0px;text-align:center;width:25%;word-wrap:break-word;">
+                                                Submitted
+                                            </td>
+                                            <td style="font-weight:normal;padding-left:0px;text-align:center;width:25%;word-wrap:break-word;">
+                                                Received
+                                            </td>
+                                            <td style="font-weight:normal;padding-left:0px;text-align:center;width:25%;word-wrap:break-word;">
+                                                In Progress
+                                            </td>
+                                            <td style="font-weight:normal;padding-left:0px;text-align:center;width:25%;word-wrap:break-word;">
+                                                {expression/expr6}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </figure>
+                        `;
+
+                        div.innerHTML += statusTable;
 
                         div.onclick = function() {
                             view.goTo({
@@ -154,9 +176,13 @@ require([
                                     const link = document.createElement("a");
                                     link.href = attachment.url;
                                     link.target = "_blank";
+                                    link.style.display = "block";
+
                                     const img = document.createElement("img");
                                     img.src = attachment.url;
                                     img.style.maxWidth = "100%";
+                                    img.style.display = "block";
+
                                     link.appendChild(img);
                                     div.appendChild(link);
                                 });
@@ -175,6 +201,7 @@ require([
         console.error("Error during sign-in:", error);
     });
 });
+
 </script>
 </body>
 </html>
