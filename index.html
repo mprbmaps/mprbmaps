@@ -23,37 +23,32 @@
     position: absolute;
     left: 0;
     overflow-y: auto;
-    background-color: lightgray; /* Light gray background for the side panel */
+    background-color: lightgray;
     padding: 10px;
     z-index: 1;
   }
   .feature-item {
     width: 270px;
-    background-color: white; /* White background for each feature tile */
+    background-color: white;
     margin-bottom: 15px;
     padding: 15px;
     cursor: pointer;
-    position: relative; /* Needed for absolute positioning of the status tracker */
     z-index: 5;
   }
-  .status-tracker {
-    display: flex;
-    justify-content: space-around;
-    position: absolute;
-    bottom: 5px;
-    left: 0;
+  .status-bar {
+    height: 20px;
     width: 100%;
+    margin-top: 5px;
   }
-  .status-icon {
-    display: inline-block;
-    font-size: 24px;
-    color: grey; /* default color for icons */
+  .status-new {
+    background-color: blue;
   }
-  .status-icon.active.submitted { color: grey; }
-  .status-icon.active.received { color: orange; }
-  .status-icon.active.in-progress { color: blue; }
-  .status-icon.active.completed { color: green; }
-  .status-icon.active.cancelled { color: red; }
+  .status-in-progress {
+    background-color: orange;
+  }
+  .status-completed {
+    background-color: green;
+  }
 </style>
 <script src="https://js.arcgis.com/4.24/"></script>
 </head>
@@ -126,68 +121,59 @@ require([
                         div.classList.add("feature-item");
                         div.innerHTML = `Work Order ID: ${feature.attributes.OBJECTID}<br>Status: ${feature.attributes.status}<br>Assigned To: ${fullName}`;
 
-                        // Status Tracker
-                        const statusTracker = document.createElement("div");
-                                            statusTracker.classList.add("status-tracker");
-                    
-                    // Statuses
-                    const statuses = ["submitted", "received", "in-progress", "completed", "cancelled"];
-                    statuses.forEach((status) => {
-                      const statusIcon = document.createElement("span");
-                      statusIcon.classList.add("status-icon");
-                      statusIcon.innerHTML = "&#10052;"; // Snowflake icon
-
-                      // If the current feature's status matches the status, color it
-                      if (feature.attributes.status.toLowerCase().replace(/\s/g, '-') === status) {
-                        statusIcon.classList.add("active");
-                      }
-                      
-                      statusTracker.appendChild(statusIcon);
-                    });
-
-                    // Append the status tracker to the feature item
-                    div.appendChild(statusTracker);
-
-                    div.onclick = function() {
-                        view.goTo({
-                            target: feature.geometry,
-                            zoom: 17
-                        });
-                    };
-
-                    const attachmentQuery = new AttachmentQuery();
-                    attachmentQuery.objectIds = [feature.attributes.OBJECTID];
-                    featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
-                        const attachments = attachmentResults[feature.attributes.OBJECTID];
-                        if (attachments && attachments.length > 0) {
-                            attachments.forEach((attachment, index) => {
-                                const link = document.createElement("a");
-                                link.href = attachment.url;
-                                link.target = "_blank"; // Open in a new tab
-                                link.style.display = "block"; // Display as block for vertical stacking
-
-                                const img = document.createElement("img");
-                                img.src = attachment.url;
-                                img.style.maxWidth = "100%";
-                                img.style.display = "block"; // Ensure the image is displayed
-
-                                link.appendChild(img);
-                                div.appendChild(link);
-                            });
-                        } else {
-                            div.innerHTML += "<p>No attachments found.</p>";
+                        const statusBar = document.createElement("div");
+                        statusBar.classList.add("status-bar");
+                        switch (feature.attributes.status) {
+                          case "New":
+                            statusBar.classList.add("status-new");
+                            break;
+                          case "In Progress":
+                            statusBar.classList.add("status-in-progress");
+                            break;
+                          case "Completed":
+                            statusBar.classList.add("status-completed");
+                            break;
+                          default:
+                            break;
                         }
-                        sidePanel.appendChild(div);
+                        div.appendChild(statusBar);
+
+                        div.onclick = function() {
+                            view.goTo({
+                                target: feature.geometry,
+                                zoom: 17
+                            });
+                        };
+
+                        const attachmentQuery = new AttachmentQuery();
+                        attachmentQuery.objectIds = [feature.attributes.OBJECTID];
+                        featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
+                            const attachments = attachmentResults[feature.attributes.OBJECTID];
+                            if (attachments && attachments.length > 0) {
+                                attachments.forEach((attachment, index) => {
+                                    const link = document.createElement("a");
+                                    link.href = attachment.url;
+                                    link.target = "_blank";
+                                    const img = document.createElement("img");
+                                    img.src = attachment.url;
+                                    img.style.maxWidth = "100%";
+                                    link.appendChild(img);
+                                    div.appendChild(link);
+                                });
+                            } else {
+                                div.innerHTML += "<p>No attachments found.</p>";
+                            }
+                            sidePanel.appendChild(div);
+                        });
                     });
-                });
-            }).catch(console.error);
+                }).catch(console.error);
+            });
+        }).catch(function(error) {
+            console.error("Error loading the portal:", error);
         });
     }).catch(function(error) {
-        console.error("Error loading the portal:", error);
+        console.error("Error during sign-in:", error);
     });
-}).catch(function(error) {
-    console.error("Error during sign-in:", error);
-});
 });
 </script>
 </body>
