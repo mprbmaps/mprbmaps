@@ -6,34 +6,46 @@
 <title>Work Order Dashboard</title>
 <link rel="stylesheet" href="https://js.arcgis.com/4.24/esri/themes/light/main.css">
 <style>
-  html, body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-  }
-  #viewDiv {
-    height: 100%;
-    width: calc(100% - 320px);
+ html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+ }
+ #viewDiv {
+  height: 100%;
+  width: calc(100% - 320px);
+  position: absolute;
+  right: 0;
+ }
+ #sidePanel {
+  width: 300px;
+  height: 100%;
+  position: absolute;
+  left: 0;
+  overflow-y: auto;
+  background-color: lightgray; 
+  padding: 10px;
+  z-index: 1; 
+ }
+ .feature-item {
+  width: 270px;
+  background-color: white; 
+  margin-bottom: 15px;
+  padding: 15px;
+  cursor: pointer;
+  position: relative; /* To position the status indicator */
+ }
+
+ .status-indicator {
     position: absolute;
-    right: 0;
-  }
-  #sidePanel {
-    width: 300px;
-    height: 100%;
-    position: absolute;
+    bottom: 0;
     left: 0;
-    overflow-y: auto;
-    background-color: lightgray; /* Light gray background for the side panel */
-    padding: 10px;
-    z-index: 1;
+    width: 50%;
+    height: 10px;
   }
-  .feature-item {
-    width: 270px;
-    background-color: white; /* White background for each feature tile */
-    margin-bottom: 15px;
-    padding: 15px;
-    cursor: pointer;
-    z-index: 5;
+
+  .work-order-summary {
+    margin-bottom: 10px;
   }
 </style>
 <script src="https://js.arcgis.com/4.24/"></script>
@@ -44,115 +56,114 @@
 
 <script>
 require([
-  "esri/Map",
-  "esri/views/MapView",
-  "esri/layers/FeatureLayer",
-  "esri/widgets/Editor",
-  "esri/identity/OAuthInfo",
-  "esri/identity/IdentityManager",
-  "esri/rest/support/AttachmentQuery",
-  "esri/portal/Portal" // Ensure Portal is listed here
-], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery, Portal) { // Include Portal in the function parameters
-    var info = new OAuthInfo({
-        appId: "ti3fi1FqvHE2Hhyw",
-        popup: false
-    });
-    IdentityManager.registerOAuthInfos([info]);
+ "esri/Map",
+ "esri/views/MapView",
+ "esri/layers/FeatureLayer",
+ "esri/widgets/Editor",
+ "esri/identity/OAuthInfo",
+ "esri/identity/IdentityManager",
+ "esri/rest/support/AttachmentQuery",
+ "esri/portal/Portal" 
+], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery, Portal) { 
 
-    IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
-        const portal = new Portal(); // Instantiate the portal
-        portal.load().then(function() {
-            // Access the user's full name from the loaded portal
-            const fullName = portal.user.fullName;
-            console.log("Logged in user's full name:", fullName);
+   const statusColors = {
+     "New": "gray",
+     "In Progress": "orange",
+     "Completed": "green",
+     "Urgent": "red",
+     // ... more statuses 
+   };
 
-            const userInfo = IdentityManager.credentials[0].userId;
-            console.log("User Info:", userInfo);
+  var info = new OAuthInfo({
+    appId: "ti3fi1FqvHE2Hhyw",
+    popup: false
+  });
+  IdentityManager.registerOAuthInfos([info]);
 
-            const map = new Map({ basemap: "streets" });
-            const view = new MapView({
-                container: "viewDiv",
-                map: map,
-                center: [-94.305, 45.027],
-                zoom: 13
-            });
+  IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+    const portal = new Portal(); 
+    portal.load().then(function() {
+      const fullName = portal.user.fullName;
+      const userInfo = IdentityManager.credentials[0].userId; 
 
-            const featureLayer = new FeatureLayer({
-                url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0",
-                outFields: ["*"],
-                popupEnabled: false // Correctly disable popups for this feature layer
-            });
+      const map = new Map({ basemap: "streets" });
+      const view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-94.305, 45.027],
+        zoom: 13 
+      });
 
-            map.add(featureLayer);
-            featureLayer.definitionExpression = `assignedto = '${userInfo}'`; // Ensure this matches your data schema
+      const featureLayer = new FeatureLayer({
+        url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0",
+        outFields: ["*"],
+        popupEnabled: false
+      });
 
-            const editor = new Editor({
-                view: view,
-                layerInfos: [{
-                    layer: featureLayer,
-                    addEnabled: false,
-                    deleteEnabled: false
-                }]
-            });
-            view.ui.add(editor, "top-right");
+      map.add(featureLayer);
+      featureLayer.definitionExpression = `assignedto = '${userInfo}'`; 
 
-            view.when(() => {
-                featureLayer.queryFeatures({
-                    where: `assignedto = '${userInfo}'`,
-                    returnGeometry: true,
-                    outFields: ["OBJECTID", "status", "assignedto"] // Corrected to use actual field names
-                }).then(function(results) {
-                    const sidePanel = document.getElementById("sidePanel");
-                    results.features.forEach(function(feature) {
-                        const div = document.createElement("div");
-                        div.classList.add("feature-item");
-                        // Correctly use fullName within template literal
-                        div.innerHTML = `Work Order ID: ${feature.attributes.OBJECTID}<br>Status: ${feature.attributes.status}<br>Assigned To: ${fullName}`;
+      const editor = new Editor({
+        view: view,
+        layerInfos: [{
+          layer: featureLayer,
+          addEnabled: false,
+          deleteEnabled: false
+        }]
+      });
+      view.ui.add(editor, "top-right"); 
 
-                        div.onclick = function() {
-                            view.goTo({
-                                target: feature.geometry,
-                                zoom: 17
-                            });
-                        };
+      view.when(() => { 
 
-                        const attachmentQuery = new AttachmentQuery();
-                        attachmentQuery.objectIds = [feature.attributes.OBJECTID];
-                        featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
-                            const attachments = attachmentResults[feature.attributes.OBJECTID];
-                            if (attachments && attachments.length > 0) {
-                                attachments.forEach((attachment, index) => {
-                                    // Create an anchor element for each attachment
-                                    const link = document.createElement("a");
-                                    link.href = attachment.url;
-                                    link.target = "_blank"; // Open in a new tab
-                                    link.style.display = "block"; // Display as block for vertical stacking
+        featureLayer.queryFeatures({
+          where: `assignedto = '${userInfo}'`,
+          returnGeometry: true,
+          outFields: ["OBJECTID", "status", "assignedto", "address", "issue"] 
+        }).then(function(results) {
 
-                                    // Create an img element for the attachment
-                                    const img = document.createElement("img");
-                                    img.src = attachment.url;
-                                    img.style.maxWidth = "100%";
-                                    img.style.display = "block"; // Ensure the image is displayed
+          const sidePanel = document.getElementById("sidePanel"); 
 
-                                    // Append the img to the anchor, and then append the anchor to the div
-                                    link.appendChild(img);
-                                    div.appendChild(link);
-                                });
-                            } else {
-                                div.innerHTML += "<p>No attachments found.</p>";
-                            }
-                            sidePanel.appendChild(div);
-                        });
-                    });
-                }).catch(console.error);
-            });
-        }).catch(function(error) {
-            console.error("Error loading the portal:", error);
-        });
-    }).catch(function(error) {
-        console.error("Error during sign-in:", error);
-    });
-});
+          results.features.forEach(function(feature) {
+            const workOrderItemDiv = createWorkOrderItemDiv(feature);
+            sidePanel.appendChild(workOrderItemDiv); 
+          }); 
+
+        }).catch(console.error); // Error handling
+      });
+    }).catch(function(error) {
+      console.error("Error loading the portal:", error); 
+    });
+  }).catch(function(error) {
+    console.error("Error during sign-in:", error); 
+  });
+
+
+  // **** IMPORTANT: Function to Create Work Order Divs ****
+  function createWorkOrderItemDiv(feature) {
+    const workOrderItemDiv = document.createElement("div");
+    workOrderItemDiv.classList.add("feature-item");
+
+    // Status indicator
+    const statusIndicator = document.createElement("div");
+    statusIndicator.classList.add("status-indicator");
+    statusIndicator.style.backgroundColor = statusColors[feature.attributes.status];
+
+    // Work order details
+    workOrderItemDiv.innerHTML = `
+      <div class="work-order-summary"> 
+        Work Order ID: ${feature.attributes.OBJECTID} <br>
+        Address: ${feature.attributes.address} <br> 
+        Issue: ${feature.attributes.issue} <br> 
+        Assigned To: ${fullName}
+      </div>
+      ${statusIndicator.outerHTML} 
+    `;
+    // ... rest of your div creation logic ...
+
+    return workOrderItemDiv; // Ensure this exists
+  }
+
+}); 
 </script>
 </body>
 </html>
