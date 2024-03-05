@@ -75,6 +75,9 @@
     padding: 10px 15px;
     cursor: pointer;
     z-index: 10;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
   }
   .scroll-button.left {
     left: 0;
@@ -190,7 +193,8 @@ require([
 
                         div.appendChild(statusBarContainer);
 
-                        div.onclick = function() {
+                        div.onclick = function(event) {
+                            if (event.target.classList.contains("scroll-button")) return;
                             view.goTo({
                                 target: feature.geometry,
                                 zoom: 17
@@ -222,7 +226,6 @@ require([
 
                                 div.appendChild(attachmentImages);
 
-                                // Positioning scroll arrows over the first image
                                 const scrollLeftButton = document.createElement("button");
                                 scrollLeftButton.innerHTML = "&#10094;";
                                 scrollLeftButton.classList.add("scroll-button", "left");
@@ -233,12 +236,15 @@ require([
                                 scrollRightButton.classList.add("scroll-button", "right");
                                 attachmentImages.appendChild(scrollRightButton);
 
-                                scrollLeftButton.style.position = "absolute";
-                                scrollLeftButton.style.top = "50%";
-                                scrollLeftButton.style.left = "0";
-                                scrollRightButton.style.position = "absolute";
-                                scrollRightButton.style.top = "50%";
-                                scrollRightButton.style.right = "0";
+                                scrollLeftButton.addEventListener("click", function(event) {
+                                    event.stopPropagation();
+                                    attachmentImages.scrollLeft -= 100;
+                                });
+
+                                scrollRightButton.addEventListener("click", function(event) {
+                                    event.stopPropagation();
+                                    attachmentImages.scrollLeft += 100;
+                                });
                             } else {
                                 div.innerHTML += "<p>No photos found.</p>";
                             }
