@@ -23,17 +23,31 @@
     position: absolute;
     left: 0;
     overflow-y: auto;
-    background-color: lightgray; /* Light gray background for the side panel */
+    background-color: lightgray;
     padding: 10px;
     z-index: 1;
   }
   .feature-item {
     width: 270px;
-    background-color: white; /* White background for each feature tile */
+    background-color: white;
     margin-bottom: 15px;
     padding: 15px;
     cursor: pointer;
     z-index: 5;
+  }
+  .status-bar {
+    height: 10px;
+    width: 100%;
+    margin-top: 5px;
+  }
+  .status-new {
+    background-color: blue;
+  }
+  .status-in-progress {
+    background-color: orange;
+  }
+  .status-completed {
+    background-color: green;
   }
 </style>
 <script src="https://js.arcgis.com/4.24/"></script>
@@ -51,8 +65,8 @@ require([
   "esri/identity/OAuthInfo",
   "esri/identity/IdentityManager",
   "esri/rest/support/AttachmentQuery",
-  "esri/portal/Portal" // Ensure Portal is listed here
-], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery, Portal) { // Include Portal in the function parameters
+  "esri/portal/Portal"
+], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery, Portal) {
     var info = new OAuthInfo({
         appId: "ti3fi1FqvHE2Hhyw",
         popup: false
@@ -60,9 +74,8 @@ require([
     IdentityManager.registerOAuthInfos([info]);
 
     IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
-        const portal = new Portal(); // Instantiate the portal
+        const portal = new Portal();
         portal.load().then(function() {
-            // Access the user's full name from the loaded portal
             const fullName = portal.user.fullName;
             console.log("Logged in user's full name:", fullName);
 
@@ -80,11 +93,11 @@ require([
             const featureLayer = new FeatureLayer({
                 url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0",
                 outFields: ["*"],
-                popupEnabled: false // Correctly disable popups for this feature layer
+                popupEnabled: false
             });
 
             map.add(featureLayer);
-            featureLayer.definitionExpression = `assignedto = '${userInfo}'`; // Ensure this matches your data schema
+            featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
 
             const editor = new Editor({
                 view: view,
@@ -100,14 +113,30 @@ require([
                 featureLayer.queryFeatures({
                     where: `assignedto = '${userInfo}'`,
                     returnGeometry: true,
-                    outFields: ["OBJECTID", "status", "assignedto"] // Corrected to use actual field names
+                    outFields: ["OBJECTID", "status", "assignedto"]
                 }).then(function(results) {
                     const sidePanel = document.getElementById("sidePanel");
                     results.features.forEach(function(feature) {
                         const div = document.createElement("div");
                         div.classList.add("feature-item");
-                        // Correctly use fullName within template literal
                         div.innerHTML = `Work Order ID: ${feature.attributes.OBJECTID}<br>Status: ${feature.attributes.status}<br>Assigned To: ${fullName}`;
+
+                        const statusBar = document.createElement("div");
+                        statusBar.classList.add("status-bar");
+                        switch (feature.attributes.status) {
+                          case "New":
+                            statusBar.classList.add("status-new");
+                            break;
+                          case "In Progress":
+                            statusBar.classList.add("status-in-progress");
+                            break;
+                          case "Completed":
+                            statusBar.classList.add("status-completed");
+                            break;
+                          default:
+                            break;
+                        }
+                        div.appendChild(statusBar);
 
                         div.onclick = function() {
                             view.goTo({
@@ -122,19 +151,12 @@ require([
                             const attachments = attachmentResults[feature.attributes.OBJECTID];
                             if (attachments && attachments.length > 0) {
                                 attachments.forEach((attachment, index) => {
-                                    // Create an anchor element for each attachment
                                     const link = document.createElement("a");
                                     link.href = attachment.url;
-                                    link.target = "_blank"; // Open in a new tab
-                                    link.style.display = "block"; // Display as block for vertical stacking
-
-                                    // Create an img element for the attachment
+                                    link.target = "_blank";
                                     const img = document.createElement("img");
                                     img.src = attachment.url;
                                     img.style.maxWidth = "100%";
-                                    img.style.display = "block"; // Ensure the image is displayed
-
-                                    // Append the img to the anchor, and then append the anchor to the div
                                     link.appendChild(img);
                                     div.appendChild(link);
                                 });
