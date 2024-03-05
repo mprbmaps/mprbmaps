@@ -192,11 +192,6 @@ require([
                                 const attachmentImages = document.createElement("div");
                                 attachmentImages.classList.add("attachment-images");
 
-                                const scrollLeftButton = document.createElement("button");
-                                scrollLeftButton.innerHTML = "&#10094;";
-                                scrollLeftButton.classList.add("scroll-button", "left");
-                                attachmentImages.appendChild(scrollLeftButton);
-
                                 attachments.forEach((attachment, index) => {
                                     const link = document.createElement("a");
                                     link.href = attachment.url;
@@ -212,12 +207,36 @@ require([
                                     attachmentImages.appendChild(link);
                                 });
 
+                                const scrollLeftButton = document.createElement("button");
+                                scrollLeftButton.innerHTML = "&#10094;";
+                                scrollLeftButton.classList.add("scroll-button", "left");
+                                attachmentImages.appendChild(scrollLeftButton);
+
                                 const scrollRightButton = document.createElement("button");
                                 scrollRightButton.innerHTML = "&#10095;";
                                 scrollRightButton.classList.add("scroll-button", "right");
                                 attachmentImages.appendChild(scrollRightButton);
 
                                 div.appendChild(attachmentImages);
+
+                                const scrollAttachmentImages = div.querySelector(".attachment-images");
+                                const leftArrow = div.querySelector(".scroll-button.left");
+                                const rightArrow = div.querySelector(".scroll-button.right");
+
+                                let currentIndex = 0;
+                                leftArrow.addEventListener("click", function() {
+                                    if (currentIndex > 0) {
+                                        currentIndex--;
+                                        scrollAttachmentImages.scrollLeft -= scrollAttachmentImages.clientWidth;
+                                    }
+                                });
+
+                                rightArrow.addEventListener("click", function() {
+                                    if (currentIndex < attachments.length - 1) {
+                                        currentIndex++;
+                                        scrollAttachmentImages.scrollLeft += scrollAttachmentImages.clientWidth;
+                                    }
+                                });
                             } else {
                                 div.innerHTML += "<p>No photos found.</p>";
                             }
