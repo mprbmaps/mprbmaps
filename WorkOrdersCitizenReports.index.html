@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Work Order Dashboard</title>
+<link rel="stylesheet" href="https://js.arcgis.com/4.24/esri/themes/light/main.css">
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  #viewDiv {
+    height: 100%;
+    width: calc(100% - 545px);
+    position: absolute;
+    right: 0;
+  }
+  #sidePanel {
+    width: 520px;
+    height: 100%;
+    position: absolute;
+    left: 0;
+    overflow-y: auto;
+    background-color: lightgray;
+    padding: 15px;
+    z-index: 1;
+  }
+  .feature-item {
+    width: 450px;
+    background-color: white;
+    margin-bottom: 25px;
+    padding: 25px;
+    cursor: pointer;
+    z-index: 5;
+  }
+  .status-bar-container {
+    display: flex;
+    margin-top: 10px;
+    margin-bottom: 30px;
+  }
+  .status-bar {
+    flex-grow: 1;
+    height: 20px;
+    background-color: grey;
+    margin-right: 2px;
+    position: relative;
+  }
+  .status-bar:last-child {
+    margin-right: 0;
+  }
+  .status-text {
+    text-align: center;
+    font-size: 11px;
+    position: absolute;
+    width: 100%;
+    bottom: -15px;
+  }
+  .status-bar.submitted { background-color: #828181; }
+  .status-bar.received { background-color: #ebb817; }
+  .status-bar.inprogress { background-color: #1d67a3; }
+  .status-bar.completed { background-color: #5cd661; }
+  .status-bar.canceled { background-color: #d6454f; }
+</style>
+<script src="https://js.arcgis.com/4.24/"></script>
+</head>
+<body>
+<div id="sidePanel">Work Orders:</div>
+<div id="viewDiv"></div>
+
+<script>
+require([
+  "esri/Map",
+  "esri/views/MapView",
+  "esri/layers/FeatureLayer",
+  "esri/widgets/Editor",
+  "esri/identity/OAuthInfo",
+  "esri/identity/IdentityManager",
+  "esri/rest/support/AttachmentQuery",
+  "esri/portal/Portal",
+  "esri/WebMap"
+], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery, Portal, WebMap) {
+    var info = new OAuthInfo({
+        appId: "ti3fi1FqvHE2Hhyw",
+        popup: true
+    });
+    IdentityManager.registerOAuthInfos([info]);
+
+    IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+        const portal = new Portal();
+        portal.load().then(function() {
+            const fullName = portal.user.fullName;
+            console.log("Logged in user's full name:", fullName);
+
+            const userInfo = IdentityManager.credentials[0].userId;
+            console.log("User Info:", userInfo);
+
+            const webmap = new WebMap({
+        portalItem: {
+            id: "32aa25434f284e48a88fc9ff499b0fd8"
+        }
+    });
+
+    var view = new MapView({
+        container: "viewDiv",
+        map: webmap,
+        center: [-93.6324, 44.8407],
+        zoom: 13
+    });
+
+
+            const featureLayer = new FeatureLayer({
+                url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0",
+                outFields: ["*"],
+                popupEnabled: false
+            });
+
+            webmap.add(featureLayer);
+            featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
+
+            const editor = new Editor({
+                view: view,
+                layerInfos: [{
+                    layer: featureLayer,
+                    addEnabled: false,
+                    deleteEnabled: false
+                }]
+            });
+            view.ui.add(editor, "top-right");
+
+            view.when(() => {
+                featureLayer.queryFeatures({
+                    where: `assignedto = '${userInfo}'`,
+                    returnGeometry: true,
+                    outFields: ["OBJECTID", "status", "assignedto", "details", "pocfirstname", "poclastname", "pocemail", "resolutiondt", "resolution", "created_date"]
+                }).then(function(results) {
+                    const sidePanel = document.getElementById("sidePanel");
+                    results.features.forEach(function(feature) {
+                        const div = document.createElement("div");
+                        div.classList.add("feature-item");
+                        div.innerHTML = `<b>Submitted on</b>: ${new Date(feature.attributes.created_date).toLocaleString()}<br><br><b>Request ID</b>: ${feature.attributes.OBJECTID}<br><b>Assigned To</b>: ${fullName}<br><br><b>Details</b>: ${feature.attributes.details}<br><br> ${feature.attributes.pocfirstname} ${feature.attributes.poclastname}<br><a href="mailto:${feature.attributes.pocemail}">${feature.attributes.pocemail}</a><br><br><b>Resolution</b>: ${feature.attributes.resolution}<br> <b>Resolved on</b>: ${new Date(feature.attributes.resolutiondt).toLocaleString()}`;
+
+
+                        const statusBarContainer = document.createElement("div");
+                        statusBarContainer.classList.add("status-bar-container");
+
+                        const statuses = ["Submitted", "Received", "In Progress", "Completed", "Canceled"];
+                        const statusColors = {
+                            "Submitted": "submitted",
+                            "Received": "received",
+                            "In Progress": "inprogress",
+                            "Completed": "completed",
+                            "Canceled": "canceled"
+                        };
+
+                        statuses.forEach(status => {
+                          const statusBar = document.createElement("div");
+                          const statusText = document.createElement("div");
+                          statusText.classList.add("status-text");
+                          statusText.textContent = status;
+                          statusBar.appendChild(statusText);
+
+                          statusBar.classList.add("status-bar");
+                          if(feature.attributes.status === status) {
+                            statusBar.classList.add(statusColors[status]);
+                          }
+                          statusBarContainer.appendChild(statusBar);
+                        });
+
+                        div.appendChild(statusBarContainer);
+
+                        div.onclick = function() {
+                            view.goTo({
+                                target: feature.geometry,
+                                zoom: 17
+                            });
+                        };
+
+                        const attachmentQuery = new AttachmentQuery();
+                        attachmentQuery.objectIds = [feature.attributes.OBJECTID];
+                        featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
+                            const attachments = attachmentResults[feature.attributes.OBJECTID];
+                            if (attachments && attachments.length > 0) {
+                                attachments.forEach((attachment, index) => {
+                                    const link = document.createElement("a");
+                                    link.href = attachment.url;
+                                    link.target = "_blank";
+                                    link.style.display = "block";
+
+                                    const img = document.createElement("img");
+                                    img.src = attachment.url;
+                                    img.style.maxWidth = "100%";
+                                    img.style.display = "block";
+
+                                    link.appendChild(img);
+                                    div.appendChild(link);
+                                });
+                            } else {
+                                div.innerHTML += "<p>No attachments found.</p>";
+                            }
+                            sidePanel.appendChild(div);
+                        });
+                    });
+                }).catch(console.error);
+            });
+        }).catch(function(error) {
+            console.error("Error loading the portal:", error);
+        });
+    }).catch(function(error) {
+        console.error("Error during sign-in:", error);
+    });
+});
+</script>
+</body>
+</html>
