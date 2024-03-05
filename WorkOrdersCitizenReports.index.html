@@ -210,54 +210,57 @@ require([
         featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
           const attachments = attachmentResults[feature.attributes.OBJECTID];
           if (attachments && attachments.length > 0) {
-            const attachmentImages = document.createElement("div");
-            attachmentImages.classList.add("attachment-images");
+  const attachmentImages = document.createElement("div");
+  attachmentImages.classList.add("attachment-images");
 
-            const scrollContainer = document.createElement("div");
-            scrollContainer.style.position = "relative";
-            scrollContainer.style.overflowX = "hidden";
+  attachments.forEach((attachment, index) => {
+    const link = document.createElement("a");
+    link.href = attachment.url;
+    link.target = "_blank";
+    const img = document.createElement("img");
+    img.src = attachment.url;
+    if (index !== 0) { // Hide all images except the first one
+      img.style.display = "none";
+    }
+    link.appendChild(img);
+    attachmentImages.appendChild(link);
+  });
 
-            attachments.forEach((attachment, index) => {
-              const link = document.createElement("a");
-              link.href = attachment.url;
-              link.target = "_blank";
-              link.style.display = "block";
+  div.appendChild(attachmentImages);
 
-              const img = document.createElement("img");
-              img.src = attachment.url;
-              img.style.maxWidth = "100%";
-              img.style.display = "block";
+  const scrollLeftButton = document.createElement("button");
+  scrollLeftButton.innerHTML = "&#10094;";
+  scrollLeftButton.classList.add("scroll-button", "left");
 
-              link.appendChild(img);
-              attachmentImages.appendChild(link);
-            });
+  const scrollRightButton = document.createElement("button");
+  scrollRightButton.innerHTML = "&#10095;";
+  scrollRightButton.classList.add("scroll-button", "right");
 
-            scrollContainer.appendChild(attachmentImages);
-            div.appendChild(scrollContainer);
+  div.appendChild(scrollLeftButton);
+  div.appendChild(scrollRightButton);
 
-            const scrollLeftButton = document.createElement("button");
-            scrollLeftButton.innerHTML = "&#10094;";
-            scrollLeftButton.classList.add("scroll-button", "left");
-            div.appendChild(scrollLeftButton);
+  let currentImageIndex = 0;
+  const images = attachmentImages.getElementsByTagName('img');
 
-            const scrollRightButton = document.createElement("button");
-            scrollRightButton.innerHTML = "&#10095;";
-            scrollRightButton.classList.add("scroll-button", "right");
-            div.appendChild(scrollRightButton);
+  scrollLeftButton.onclick = function() {
+    if (currentImageIndex > 0) {
+      images[currentImageIndex].style.display = 'none';
+      currentImageIndex -= 1;
+      images[currentImageIndex].style.display = 'block';
+    }
+  };
 
-            scrollLeftButton.addEventListener("click", function(event) {
-              event.stopPropagation();
-              scrollContainer.scrollLeft -= 100;
-            });
-
-            scrollRightButton.addEventListener("click", function(event) {
-              event.stopPropagation();
-              scrollContainer.scrollLeft += 100;
-            });
-          } else {
-            div.innerHTML += "<p>No photos found.</p>";
-          }
-          sidePanel.appendChild(div);
+  scrollRightButton.onclick = function() {
+    if (currentImageIndex < images.length - 1) {
+      images[currentImageIndex].style.display = 'none';
+      currentImageIndex += 1;
+      images[currentImageIndex].style.display = 'block';
+    }
+  };
+} else {
+  div.innerHTML += "<p>No photos found.</p>";
+}
+sidePanel.appendChild(div);
         });
       });
     }).catch(console.error);
