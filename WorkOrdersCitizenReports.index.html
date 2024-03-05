@@ -23,7 +23,7 @@
     position: absolute;
     left: 0;
     overflow-y: auto;
-    background-color: grey;
+    background-color: darkgray;
     padding: 15px;
     z-index: 1;
   }
@@ -63,6 +63,15 @@
   .status-bar.inprogress { background-color: #1d67a3; }
   .status-bar.completed { background-color: #5cd661; }
   .status-bar.canceled { background-color: #d6454f; }
+  .attachment-images {
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .attachment-images img {
+    display: block;
+    margin-bottom: 10px;
+    max-width: 100%;
+  }
 </style>
 <script src="https://js.arcgis.com/4.24/"></script>
 </head>
@@ -98,17 +107,17 @@ require([
             console.log("User Info:", userInfo);
 
             const webmap = new WebMap({
-        portalItem: {
-            id: "32aa25434f284e48a88fc9ff499b0fd8"
-        }
-    });
+                portalItem: {
+                    id: "32aa25434f284e48a88fc9ff499b0fd8"
+                }
+            });
 
-    var view = new MapView({
-        container: "viewDiv",
-        map: webmap,
-        center: [-93.2650, 44.9778],
-        zoom: 11
-    });
+            var view = new MapView({
+                container: "viewDiv",
+                map: webmap,
+                center: [-93.2650, 44.9778],
+                zoom: 11
+            });
 
 
             const featureLayer = new FeatureLayer({
@@ -156,17 +165,17 @@ require([
                         };
 
                         statuses.forEach(status => {
-                          const statusBar = document.createElement("div");
-                          const statusText = document.createElement("div");
-                          statusText.classList.add("status-text");
-                          statusText.textContent = status;
-                          statusBar.appendChild(statusText);
+                            const statusBar = document.createElement("div");
+                            const statusText = document.createElement("div");
+                            statusText.classList.add("status-text");
+                            statusText.textContent = status;
+                            statusBar.appendChild(statusText);
 
-                          statusBar.classList.add("status-bar");
-                          if(feature.attributes.status === status) {
-                            statusBar.classList.add(statusColors[status]);
-                          }
-                          statusBarContainer.appendChild(statusBar);
+                            statusBar.classList.add("status-bar");
+                            if(feature.attributes.status === status) {
+                                statusBar.classList.add(statusColors[status]);
+                            }
+                            statusBarContainer.appendChild(statusBar);
                         });
 
                         div.appendChild(statusBarContainer);
@@ -183,6 +192,8 @@ require([
                         featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
                             const attachments = attachmentResults[feature.attributes.OBJECTID];
                             if (attachments && attachments.length > 0) {
+                                const attachmentImages = document.createElement("div");
+                                attachmentImages.classList.add("attachment-images");
                                 attachments.forEach((attachment, index) => {
                                     const link = document.createElement("a");
                                     link.href = attachment.url;
@@ -195,8 +206,9 @@ require([
                                     img.style.display = "block";
 
                                     link.appendChild(img);
-                                    div.appendChild(link);
+                                    attachmentImages.appendChild(link);
                                 });
+                                div.appendChild(attachmentImages);
                             } else {
                                 div.innerHTML += "<p>No photos found.</p>";
                             }
