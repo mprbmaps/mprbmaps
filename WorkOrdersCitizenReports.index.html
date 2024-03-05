@@ -7,100 +7,104 @@
 <link rel="stylesheet" href="https://js.arcgis.com/4.24/esri/themes/light/main.css">
 <style>
   html, body {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-}
-#viewDiv {
-  height: 100%;
-  width: calc(100% - 545px);
-  position: absolute;
-  right: 0;
-}
-#sidePanel {
-  width: 520px;
-  height: 100%;
-  position: absolute;
-  left: 0;
-  overflow-y: auto;
-  background-color: darkgray;
-  padding: 15px;
-  z-index: 1;
-}
-.feature-item {
-  width: 450px;
-  background-color: white;
-  margin-bottom: 25px;
-  padding: 25px;
-  cursor: pointer;
-  border-radius: 8px;
-  z-index: 5;
-  position: relative;
-  padding-bottom: 25px; /* Increased padding to accommodate taller images */
-}
-.status-bar-container {
-  display: flex;
-  margin-top: 10px;
-  margin-bottom: 30px;
-}
-.status-bar {
-  flex-grow: 1;
-  height: 30px;
-  background-color: grey;
-  margin-right: 2px;
-  position: relative;
-}
-.status-bar:last-child {
-  margin-right: 0;
-}
-.status-text {
-  text-align: center;
-  font-size: 12px;
-  position: absolute;
-  width: 100%;
-  bottom: -15px;
-}
-.status-bar.submitted { background-color: #828181; }
-.status-bar.received { background-color: #ebb817; }
-.status-bar.inprogress { background-color: #1d67a3; }
-.status-bar.completed { background-color: #5cd661; }
-.status-bar.canceled { background-color: #d6454f; }
-.attachment-images {
-  position: relative;
-  overflow: hidden;
-  width: 100%; /* Ensure this is set to match the feature-item width */
-  height: 400px; /* Increased height for images */
-}
-.attachment-images img {
-  width: 100%;
-  height: 100%;
-  display: none;
-position: absolute;
-top: 0;
-left: 0;
-}
-.attachment-images img:first-child {
-display: block;
-}
-.scroll-button {
-background-color: rgba(255, 255, 255, 0.5);
-border: none;
-color: black;
-font-size: 20px;
-padding: 10px 15px;
-cursor: pointer;
-z-index: 10;
-position: absolute;
-top: 75%; /* Vertically center the buttons to the image height */
-transform: translateY(-75%);
-}
-.scroll-button.left {
-left: 20px;
-}
-.scroll-button.right {
-right: 20px;
-}
-
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  #viewDiv {
+    height: 100%;
+    width: calc(100% - 545px);
+    position: absolute;
+    right: 0;
+  }
+  #sidePanel {
+    width: 520px;
+    height: 100%;
+    position: absolute;
+    left: 0;
+    overflow-y: auto;
+    background-color: darkgray;
+    padding: 15px;
+    z-index: 1;
+  }
+  .feature-item {
+    width: 450px;
+    background-color: white;
+    margin-bottom: 25px;
+    padding: 25px;
+    cursor: pointer;
+    border-radius: 8px;
+    z-index: 5;
+    position: relative;
+    padding-bottom: 25px; /* Adjust as needed */
+  }
+  .status-bar-container {
+    display: flex;
+    margin-top: 10px;
+    margin-bottom: 30px;
+  }
+  .status-bar {
+    flex-grow: 1;
+    height: 30px;
+    background-color: grey;
+    margin-right: 2px;
+    position: relative;
+  }
+  .status-bar:last-child {
+    margin-right: 0;
+  }
+  .status-text {
+    text-align: center;
+    font-size: 12px;
+    position: absolute;
+    width: 100%;
+    bottom: -15px;
+  }
+  .status-bar.submitted { background-color: #828181; }
+  .status-bar.received { background-color: #ebb817; }
+  .status-bar.inprogress { background-color: #1d67a3; }
+  .status-bar.completed { background-color: #5cd661; }
+  .status-bar.canceled { background-color: #d6454f; }
+  .attachment-images {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    height: 400px; /* Adjust as needed */
+  }
+  .attachment-images img {
+    width: 100%;
+    height: 100%;
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  .attachment-images img:first-child {
+    display: block;
+  }
+  .scroll-button {
+    background-color: rgba(255, 255, 255, 0.5);
+    border: none;
+    color: black;
+    font-size: 20px;
+    padding: 10px 15px;
+    cursor: pointer;
+    z-index: 10;
+    position: absolute;
+    top: 75%;
+    transform: translateY(-75%);
+  }
+  .scroll-button.left {
+    left: 20px;
+  }
+  .scroll-button.right {
+    right: 20px;
+  }
+  .details-text {
+    max-height: 192px; /* Adjust based on your line-height and font-size */
+    overflow-y: auto;
+    margin-bottom: 10px;
+  }
 </style>
 <script src="https://js.arcgis.com/4.24/"></script>
 </head>
@@ -177,7 +181,7 @@ require([
           results.features.forEach(function(feature) {
             const div = document.createElement("div");
             div.classList.add("feature-item");
-            div.innerHTML = `<b>Submitted on</b>: ${new Date(feature.attributes.created_date).toLocaleString()}<br><br><b>Request ID</b>: ${feature.attributes.OBJECTID}<br><b>Assigned To</b>: ${fullName}<br><br><b>Details</b>: ${feature.attributes.details}<br><br> ${feature.attributes.pocfirstname} ${feature.attributes.poclastname}<br><a href="mailto:${feature.attributes.pocemail}">${feature.attributes.pocemail}</a><br><br><b>Resolution</b>: ${feature.attributes.resolution}<br> <b>Resolved on</b>: ${new Date(feature.attributes.resolutiondt).toLocaleString()}`;
+            div.innerHTML = `<b>Submitted on</b>: ${new Date(feature.attributes.created_date).toLocaleString()}<br><br><b>Request ID</b>: ${feature.attributes.OBJECTID}<br><b>Assigned To</b>: ${fullName}<br><br><div class='details-text'><b>Details</b>: ${feature.attributes.details}</div> ${feature.attributes.pocfirstname} ${feature.attributes.poclastname}<br><a href="mailto:${feature.attributes.pocemail}">${feature.attributes.pocemail}</a><br><br><b>Resolution</b>: ${feature.attributes.resolution}<br> <b>Resolved on</b>: ${new Date(feature.attributes.resolutiondt).toLocaleString()}`;
 
             const statusBarContainer = document.createElement("div");
             statusBarContainer.classList.add("status-bar-container");
@@ -187,101 +191,100 @@ require([
               "Submitted": "submitted",
               "Received": "received",
               "In Progress": "inprogress",
-"Completed": "completed",
-"Canceled": "canceled"
-};
-        statuses.forEach(status => {
-          const statusBar = document.createElement("div");
-          const statusText = document.createElement("div");
-          statusText.classList.add("status-text");
-          statusText.textContent = status;
-          statusBar.appendChild(statusText);
+              "Completed": "completed",
+              "Canceled": "canceled"
+            };
+            statuses.forEach(status => {
+              const statusBar = document.createElement("div");
+              const statusText = document.createElement("div");
+              statusText.classList.add("status-text");
+              statusText.textContent = status;
+              statusBar.appendChild(statusText);
 
-          statusBar.classList.add("status-bar");
-          if(feature.attributes.status === status) {
-            statusBar.classList.add(statusColors[status]);
-          }
-          statusBarContainer.appendChild(statusBar);
-        });
+              statusBar.classList.add("status-bar");
+              if(feature.attributes.status === status) {
+                statusBar.classList.add(statusColors[status]);
+              }
+              statusBarContainer.appendChild(statusBar);
+            });
 
-        div.appendChild(statusBarContainer);
+            div.appendChild(statusBarContainer);
 
-        div.onclick = function(event) {
-          if (event.target.classList.contains("scroll-button")) return;
-          view.goTo({
-            target: feature.geometry,
-            zoom: 17
+            div.onclick = function(event) {
+              if (event.target.classList.contains("scroll-button")) return;
+              view.goTo({
+                target: feature.geometry,
+                zoom: 17
+              });
+            };
+
+            const attachmentQuery = new AttachmentQuery();
+            attachmentQuery.objectIds = [feature.attributes.OBJECTID];
+            featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
+              const attachments = attachmentResults[feature.attributes.OBJECTID];
+              if (attachments && attachments.length > 0) {
+                const attachmentImages = document.createElement("div");
+                attachmentImages.classList.add("attachment-images");
+
+                attachments.forEach((attachment, index) => {
+                  const link = document.createElement("a");
+                  link.href = attachment.url;
+                  link.target = "_blank";
+                  const img = document.createElement("img");
+                  img.src = attachment.url;
+                  if (index !== 0) {
+                    img.style.display = "none";
+                  }
+                  link.appendChild(img);
+                  attachmentImages.appendChild(link);
+                });
+
+                div.appendChild(attachmentImages);
+
+                const scrollLeftButton = document.createElement("button");
+                scrollLeftButton.innerHTML = "&#10094;";
+                scrollLeftButton.classList.add("scroll-button", "left");
+
+                const scrollRightButton = document.createElement("button");
+                scrollRightButton.innerHTML = "&#10095;";
+                scrollRightButton.classList.add("scroll-button", "right");
+
+                div.appendChild(scrollLeftButton);
+                div.appendChild(scrollRightButton);
+
+                let currentImageIndex = 0;
+                const images = attachmentImages.getElementsByTagName('img');
+
+                scrollLeftButton.onclick = function() {
+                  if (currentImageIndex > 0) {
+                    images[currentImageIndex].style.display = 'none';
+                    currentImageIndex -= 1;
+                    images[currentImageIndex].style.display = 'block';
+                  }
+                };
+
+                scrollRightButton.onclick = function() {
+                  if (currentImageIndex < images.length - 1) {
+                    images[currentImageIndex].style.display = 'none';
+                    currentImageIndex += 1;
+                    images[currentImageIndex].style.display = 'block';
+                  }
+                };
+              } else {
+                div.innerHTML += "<p>No photos found.</p>";
+              }
+              sidePanel.appendChild(div);
+            });
           });
-        };
-
-        const attachmentQuery = new AttachmentQuery();
-        attachmentQuery.objectIds = [feature.attributes.OBJECTID];
-        featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
-          const attachments = attachmentResults[feature.attributes.OBJECTID];
-          if (attachments && attachments.length > 0) {
-  const attachmentImages = document.createElement("div");
-  attachmentImages.classList.add("attachment-images");
-
-  attachments.forEach((attachment, index) => {
-    const link = document.createElement("a");
-    link.href = attachment.url;
-    link.target = "_blank";
-    const img = document.createElement("img");
-    img.src = attachment.url;
-    if (index !== 0) { // Hide all images except the first one
-      img.style.display = "none";
-    }
-    link.appendChild(img);
-    attachmentImages.appendChild(link);
-  });
-
-  div.appendChild(attachmentImages);
-
-  const scrollLeftButton = document.createElement("button");
-  scrollLeftButton.innerHTML = "&#10094;";
-  scrollLeftButton.classList.add("scroll-button", "left");
-
-  const scrollRightButton = document.createElement("button");
-  scrollRightButton.innerHTML = "&#10095;";
-  scrollRightButton.classList.add("scroll-button", "right");
-
-  div.appendChild(scrollLeftButton);
-  div.appendChild(scrollRightButton);
-
-  let currentImageIndex = 0;
-  const images = attachmentImages.getElementsByTagName('img');
-
-  scrollLeftButton.onclick = function() {
-    if (currentImageIndex > 0) {
-      images[currentImageIndex].style.display = 'none';
-      currentImageIndex -= 1;
-      images[currentImageIndex].style.display = 'block';
-    }
-  };
-
-  scrollRightButton.onclick = function() {
-    if (currentImageIndex < images.length - 1) {
-      images[currentImageIndex].style.display = 'none';
-      currentImageIndex += 1;
-      images[currentImageIndex].style.display = 'block';
-    }
-  };
-} else {
-  div.innerHTML += "<p>No photos found.</p>";
-}
-sidePanel.appendChild(div);
-        });
+        }).catch(console.error);
       });
-    }).catch(console.error);
-  });
-}).catch(function(error) {
-  console.error("Error loading the portal:", error);
-});
     }).catch(function(error) {
-console.error("Error during sign-in:", error);
+      console.error("Error loading the portal:", error);
+    });
+  }).catch(function(error) {
+    console.error("Error during sign-in:", error);
+  });
 });
-});
-           
 </script>
 </body>
 </html>
