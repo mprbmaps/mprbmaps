@@ -6,35 +6,60 @@
 <title>Work Order Dashboard</title>
 <link rel="stylesheet" href="https://js.arcgis.com/4.24/esri/themes/light/main.css">
 <style>
-  html, body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-  }
-  #viewDiv {
-    height: 100%;
-    width: calc(100% - 320px);
-    position: absolute;
-    right: 0;
-  }
-  #sidePanel {
-    width: 300px;
-    height: 100%;
-    position: absolute;
-    left: 0;
-    overflow-y: auto;
-    background-color: lightgray; /* Light gray background for the side panel */
-    padding: 10px;
-    z-index: 1;
-  }
-  .feature-item {
-    width: 270px;
-    background-color: white; /* White background for each feature tile */
-    margin-bottom: 15px;
-    padding: 15px;
-    cursor: pointer;
-    z-index: 5;
-  }
+ html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+ }
+ #viewDiv {
+  height: 100%;
+  width: calc(100% - 320px);
+  position: absolute;
+  right: 0;
+ }
+ #sidePanel {
+  width: 300px;
+  height: 100%;
+  position: absolute;
+  left: 0;
+  overflow-y: auto;
+  background-color: lightgray; 
+  padding: 10px;
+  z-index: 1;
+ }
+ .feature-item {
+  width: 270px;
+  background-color: white; 
+  margin-bottom: 15px;
+  padding: 15px;
+  cursor: pointer;
+  z-index: 5;
+ }
+
+ .feature-item .attachment-container {
+   position: relative;  
+   overflow: hidden;    
+ }
+
+ .feature-item .arrow-left,
+ .feature-item .arrow-right {
+   position: absolute;
+   top: 50%;
+   transform: translateY(-50%);
+   background-color: rgba(0, 0, 0, 0.5); 
+   color: white;
+   padding: 10px; 
+   cursor: pointer;
+   user-select: none; 
+ }
+
+ .feature-item .arrow-left {
+   left: 10px;
+ }
+
+ .feature-item .arrow-right {
+   right: 10px;
+ }
 </style>
 <script src="https://js.arcgis.com/4.24/"></script>
 </head>
@@ -44,115 +69,142 @@
 
 <script>
 require([
-  "esri/Map",
-  "esri/views/MapView",
-  "esri/layers/FeatureLayer",
-  "esri/widgets/Editor",
-  "esri/identity/OAuthInfo",
-  "esri/identity/IdentityManager",
-  "esri/rest/support/AttachmentQuery",
-  "esri/portal/Portal" // Ensure Portal is listed here
-], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery, Portal) { // Include Portal in the function parameters
-    var info = new OAuthInfo({
-        appId: "ti3fi1FqvHE2Hhyw",
-        popup: false
-    });
-    IdentityManager.registerOAuthInfos([info]);
+ "esri/Map",
+ "esri/views/MapView",
+ "esri/layers/FeatureLayer",
+ "esri/widgets/Editor",
+ "esri/identity/OAuthInfo",
+ "esri/identity/IdentityManager",
+ "esri/rest/support/AttachmentQuery",
+ "esri/portal/Portal" 
+], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery, Portal) { 
 
-    IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
-        const portal = new Portal(); // Instantiate the portal
-        portal.load().then(function() {
-            // Access the user's full name from the loaded portal
-            const fullName = portal.user.fullName;
-            console.log("Logged in user's full name:", fullName);
+  var info = new OAuthInfo({
+    appId: "ti3fi1FqvHE2Hhyw",
+    popup: false
+  });
+  IdentityManager.registerOAuthInfos([info]);
 
-            const userInfo = IdentityManager.credentials[0].userId;
-            console.log("User Info:", userInfo);
+  IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+    const portal = new Portal();
+    portal.load().then(function() {
+      const fullName = portal.user.fullName;
+      console.log("Logged in user's full name:", fullName);
 
-            const map = new Map({ basemap: "streets" });
-            const view = new MapView({
-                container: "viewDiv",
-                map: map,
-                center: [-94.305, 45.027],
-                zoom: 13
-            });
+      const userInfo = IdentityManager.credentials[0].userId;
+      console.log("User Info:", userInfo);
 
-            const featureLayer = new FeatureLayer({
-                url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0",
-                outFields: ["*"],
-                popupEnabled: false // Correctly disable popups for this feature layer
-            });
+      const map = new Map({ basemap: "streets" });
+      const view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-94.305, 45.027],
+        zoom: 13
+      });
 
-            map.add(featureLayer);
-            featureLayer.definitionExpression = `assignedto = '${userInfo}'`; // Ensure this matches your data schema
+      const featureLayer = new FeatureLayer({
+        url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0",
+        outFields: ["*"],
+        popupEnabled: false 
+      });
 
-            const editor = new Editor({
-                view: view,
-                layerInfos: [{
-                    layer: featureLayer,
-                    addEnabled: false,
-                    deleteEnabled: false
-                }]
-            });
-            view.ui.add(editor, "top-right");
+      map.add(featureLayer);
+      featureLayer.definitionExpression = `assignedto = '${userInfo}'`; 
 
-            view.when(() => {
-                featureLayer.queryFeatures({
-                    where: `assignedto = '${userInfo}'`,
-                    returnGeometry: true,
-                    outFields: ["OBJECTID", "status", "assignedto"] // Corrected to use actual field names
-                }).then(function(results) {
-                    const sidePanel = document.getElementById("sidePanel");
-                    results.features.forEach(function(feature) {
-                        const div = document.createElement("div");
-                        div.classList.add("feature-item");
-                        // Correctly use fullName within template literal
-                        div.innerHTML = `Work Order ID: ${feature.attributes.OBJECTID}<br>Status: ${feature.attributes.status}<br>Assigned To: ${fullName}`;
+      const editor = new Editor({
+        view: view,
+        layerInfos: [{
+          layer: featureLayer,
+          addEnabled: false,
+          deleteEnabled: false
+        }]
+      });
+      view.ui.add(editor, "top-right");
 
-                        div.onclick = function() {
-                            view.goTo({
-                                target: feature.geometry,
-                                zoom: 17
-                            });
-                        };
+      view.when(() => {
+        featureLayer.queryFeatures({
+          where: `assignedto = '${userInfo}'`,
+          returnGeometry: true,
+          outFields: ["OBJECTID", "status", "assignedto"] // Corrected to use actual field names
+        }).then(function(results) {
+          const sidePanel = document.getElementById("sidePanel");
+          results.features.forEach(function(feature) {
+            const div = document.createElement("div");
+            div.classList.add("feature-item");
 
-                        const attachmentQuery = new AttachmentQuery();
-                        attachmentQuery.objectIds = [feature.attributes.OBJECTID];
-                        featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
-                            const attachments = attachmentResults[feature.attributes.OBJECTID];
-                            if (attachments && attachments.length > 0) {
-                                attachments.forEach((attachment, index) => {
-                                    // Create an anchor element for each attachment
-                                    const link = document.createElement("a");
-                                    link.href = attachment.url;
-                                    link.target = "_blank"; // Open in a new tab
-                                    link.style.display = "block"; // Display as block for vertical stacking
+            div.innerHTML = `Work Order ID: ${feature.attributes.OBJECTID}<br>Status: ${feature.attributes.status}<br>Assigned To: ${fullName}`;
 
-                                    // Create an img element for the attachment
-                                    const img = document.createElement("img");
-                                    img.src = attachment.url;
-                                    img.style.maxWidth = "100%";
-                                    img.style.display = "block"; // Ensure the image is displayed
+            div.onclick = function() {
+              view.goTo({
+                target: feature.geometry,
+                zoom: 17
+              });
+            };
 
-                                    // Append the img to the anchor, and then append the anchor to the div
-                                    link.appendChild(img);
-                                    div.appendChild(link);
-                                });
-                            } else {
-                                div.innerHTML += "<p>No attachments found.</p>";
-                            }
-                            sidePanel.appendChild(div);
-                        });
-                    });
-                }).catch(console.error);
-            });
-        }).catch(function(error) {
-            console.error("Error loading the portal:", error);
-        });
-    }).catch(function(error) {
-        console.error("Error during sign-in:", error);
-    });
+            const attachmentQuery = new AttachmentQuery();
+            attachmentQuery.objectIds = [feature.attributes.OBJECTID];
+            featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
+              const attachments = attachmentResults[feature.attributes.OBJECTID];
+
+              if (attachments && attachments.length > 0) {
+                const attachmentContainer = document.createElement('div');
+                attachmentContainer.classList.add('attachment-container');
+                div.appendChild(attachmentContainer); 
+
+                attachments.forEach((attachment, index) => {
+                  const link = document.createElement("a");
+                  link.href = attachment.url;
+                  link.target = "_blank"; 
+                  link.style.display = "block"; 
+
+                  const img = document.createElement("img");
+                  img.src = attachment.url;
+                  img.style.maxWidth = "100%";
+                    img.style.display = "block"; 
+
+                  const leftArrow = document.createElement('div');
+                    leftArrow.classList.add('arrow-left');
+                    leftArrow.textContent = '<';
+
+                    const rightArrow = document.createElement('div');
+                    rightArrow.classList.add('arrow-right');
+                    rightArrow.textContent = '>';
+
+                    attachmentContainer.appendChild(leftArrow);
+                    attachmentContainer.appendChild(rightArrow); 
+                    attachmentContainer.appendChild(link); 
+
+                  link.appendChild(img); 
+
+                    leftArrow.addEventListener('click', () => scrollAttachments(attachmentContainer, index, -1));
+                    rightArrow.addEventListener('click', () => scrollAttachments(attachmentContainer, index, 1));
+                });
+              } else {
+                div.innerHTML += "<p>No attachments found.</p>";
+              }
+              sidePanel.appendChild(div);
+            });
+          });
+        }).catch(console.error);
+      });
+    }).catch(function(error) { 
+      console.error("Error loading the portal:", error);
+    });
+  }).catch(function(error) {
+    console.error("Error during sign-in:", error);
+  });
 });
+
+function scrollAttachments(container, currentIndex, direction) {
+  const images = container.querySelectorAll('img'); 
+  const imageWidth = images[0].offsetWidth; 
+
+  let targetIndex = currentIndex + direction;
+  if (targetIndex < 0) targetIndex = images.length - 1;
+  if (targetIndex >= images.length) targetIndex = 0;
+
+  container.scrollLeft = targetIndex * imageWidth;
+}
 </script>
 </body>
 </html>
