@@ -78,8 +78,9 @@ require([
   "esri/identity/OAuthInfo",
   "esri/identity/IdentityManager",
   "esri/rest/support/AttachmentQuery",
-  "esri/portal/Portal"
-], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery, Portal) {
+  "esri/portal/Portal",
+  "esri/WebMap"
+], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery, Portal, WebMap) {
     var info = new OAuthInfo({
         appId: "ti3fi1FqvHE2Hhyw",
         popup: true
@@ -95,13 +96,19 @@ require([
             const userInfo = IdentityManager.credentials[0].userId;
             console.log("User Info:", userInfo);
 
-            const map = new Map({ basemap: "streets" });
-            const view = new MapView({
-                container: "viewDiv",
-                map: map,
-                center: [-94.305, 45.027],
-                zoom: 13
-            });
+            const webmap = new WebMap({
+        portalItem: {
+            id: "32aa25434f284e48a88fc9ff499b0fd8"
+        }
+    });
+
+    var view = new MapView({
+        container: "viewDiv",
+        map: webmap,
+        center: [-93.6324, 44.8407],
+        zoom: 13
+    });
+
 
             const featureLayer = new FeatureLayer({
                 url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0",
