@@ -35,6 +35,7 @@
     cursor: pointer;
     border-radius: 8px;
     z-index: 5;
+    position: relative;
   }
   .status-bar-container {
     display: flex;
@@ -63,11 +64,23 @@
   .status-bar.inprogress { background-color: #1d67a3; }
   .status-bar.completed { background-color: #5cd661; }
   .status-bar.canceled { background-color: #d6454f; }
-  
-  .attachment-images img {
-    display: block;
-    margin-bottom: 10px;
-    max-width: 100%;
+  .attachment-images {
+    position: relative;
+  }
+  .scroll-button {
+    background-color: rgba(255, 255, 255, 0.5);
+    border: none;
+    color: black;
+    font-size: 20px;
+    padding: 10px 15px;
+    cursor: pointer;
+    z-index: 10;
+  }
+  .scroll-button.left {
+    left: 0;
+  }
+  .scroll-button.right {
+    right: 0;
   }
 </style>
 <script src="https://js.arcgis.com/4.24/"></script>
@@ -207,6 +220,9 @@ require([
                                     attachmentImages.appendChild(link);
                                 });
 
+                                div.appendChild(attachmentImages);
+
+                                // Positioning scroll arrows over the first image
                                 const scrollLeftButton = document.createElement("button");
                                 scrollLeftButton.innerHTML = "&#10094;";
                                 scrollLeftButton.classList.add("scroll-button", "left");
@@ -217,26 +233,12 @@ require([
                                 scrollRightButton.classList.add("scroll-button", "right");
                                 attachmentImages.appendChild(scrollRightButton);
 
-                                div.appendChild(attachmentImages);
-
-                                const scrollAttachmentImages = div.querySelector(".attachment-images");
-                                const leftArrow = div.querySelector(".scroll-button.left");
-                                const rightArrow = div.querySelector(".scroll-button.right");
-
-                                let currentIndex = 0;
-                                leftArrow.addEventListener("click", function() {
-                                    if (currentIndex > 0) {
-                                        currentIndex--;
-                                        scrollAttachmentImages.scrollLeft -= scrollAttachmentImages.clientWidth;
-                                    }
-                                });
-
-                                rightArrow.addEventListener("click", function() {
-                                    if (currentIndex < attachments.length - 1) {
-                                        currentIndex++;
-                                        scrollAttachmentImages.scrollLeft += scrollAttachmentImages.clientWidth;
-                                    }
-                                });
+                                scrollLeftButton.style.position = "absolute";
+                                scrollLeftButton.style.top = "50%";
+                                scrollLeftButton.style.left = "0";
+                                scrollRightButton.style.position = "absolute";
+                                scrollRightButton.style.top = "50%";
+                                scrollRightButton.style.right = "0";
                             } else {
                                 div.innerHTML += "<p>No photos found.</p>";
                             }
@@ -252,7 +254,6 @@ require([
         console.error("Error during sign-in:", error);
     });
 });
-
 </script>
 </body>
 </html>
