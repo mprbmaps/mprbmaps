@@ -256,18 +256,19 @@ require([
       });
   view.ui.add(editor, "top-right");
 
-  // Listen for changes to the status field
-editor.viewModel.watch("editing.feature.template.fieldInfos", function(fieldInfos) {
-    const statusField = fieldInfos.find(fieldInfo => fieldInfo.fieldName === "status");
-    if (statusField) {
-        statusField.watch("value", function(statusValue) {
-            // Get the resolutiondt field
-            const resolutionDtField = fieldInfos.find(fieldInfo => fieldInfo.fieldName === "resolutiondt");
-            if (resolutionDtField) {
-                // Set the required attribute based on the value of the status field
-                resolutionDtField.required = (statusValue === "Completed");
-            }
-        });
+  // Intercept the save operation
+editor.viewModel.on("workflow-submit", function(event) {
+    // Get the feature being edited
+    const feature = event.data.edits.featureEdits[0].feature;
+
+    // Get the value of the status field
+    const status = feature.attributes.status;
+
+    // If status is 'Completed' and resolution date is empty, prevent the save
+    if (status === 'Completed' && !feature.attributes.resolutiondt) {
+        // Display an error message or handle the situation as needed
+        console.error("Resolution Date is required for Completed status.");
+        event.preventDefault();
     }
 });
 
