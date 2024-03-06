@@ -254,32 +254,37 @@ require([
       });
 
       // Store reference to the editor widget
-      let editorWidget;
+let editorWidget;
 
-      // Add editor widget to the view
-      view.ui.add(editor, "top-right");
+// Add editor widget to the view
+view.ui.add(editor, "top-right");
 
-      // Store reference to the editor widget
-      editorWidget = editor;
+// Store reference to the editor widget after it's fully initialized
+editor.watch("view", function(value) {
+  if (value) {
+    editorWidget = editor;
+    console.log("Editor widget initialized:", editorWidget);
+  }
+});
 
-      // Intercept the save operation
-      editor.viewModel.on("workflow-submit", function(event) {
-        // Get the feature being edited
-        const feature = event.data.edits.featureEdits[0].feature;
+// Intercept the save operation
+editor.viewModel.on("workflow-submit", function(event) {
+  // Get the feature being edited
+  const feature = event.data.edits.featureEdits[0].feature;
 
-        // Get the value of the status field
-        const status = feature.attributes.status;
+  // Get the value of the status field
+  const status = feature.attributes.status;
 
-        // Get the value of the resolution date field
-        const resolutionDate = feature.attributes.resolutiondt;
+  // Get the value of the resolution date field
+  const resolutionDate = feature.attributes.resolutiondt;
 
-        // If status is 'Completed' and resolution date is empty, prevent the save
-        if (status === 'Completed' && (!resolutionDate || resolutionDate.trim() === '')) {
-          // Display an error message or handle the situation as needed
-          console.error("Resolution Date is required for Completed status.");
-          event.preventDefault();
-        }
-      });
+  // If status is 'Completed' and resolution date is empty, prevent the save
+  if (status === 'Completed' && (!resolutionDate || resolutionDate.trim() === '')) {
+    // Display an error message or handle the situation as needed
+    console.error("Resolution Date is required for Completed status.");
+    event.preventDefault();
+  }
+});
 
       view.when(() => {
         featureLayer.queryFeatures({
