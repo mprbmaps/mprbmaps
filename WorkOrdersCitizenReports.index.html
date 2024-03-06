@@ -174,8 +174,10 @@ require([
   "esri/identity/IdentityManager",
   "esri/rest/support/AttachmentQuery",
   "esri/portal/Portal",
-  "esri/WebMap"
-], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery, Portal, WebMap) {
+  "esri/WebMap",
+  "esri/widgets/FeatureForm",
+  "esri/Graphic"
+], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery, Portal, WebMap, FeatureForm, Graphic) {
   var info = new OAuthInfo({
     appId: "ti3fi1FqvHE2Hhyw",
     popup: false
@@ -253,8 +255,14 @@ require([
         allowedWorkflows: ['update'] // This line limits the widget to only updating existing features
       });
 
-      // Store reference to the editorViewModel variable
-      let editorViewModel;
+      // Store reference to the editor widget
+      let editorWidget;
+
+      // Add editor widget to the view
+      view.ui.add(editor, "top-right");
+
+      // Store reference to the editor widget
+      editorWidget = editor;
 
       // Intercept the save operation
       editor.viewModel.on("workflow-submit", function(event) {
@@ -275,48 +283,6 @@ require([
         }
       });
 
-      // Add editor widget to the view
-      view.ui.add(editor, "top-right");
-
-      // Store reference to the editor view model after it's fully initialized
-      editor.watch("view", function(value) {
-        if (value) {
-          editorViewModel = editor.viewModel;
-          console.log("Editor view model initialized:", editorViewModel);
-
-          // Attach click event handler after the editor view model is initialized
-          const sidePanel = document.getElementById("sidePanel");
-          sidePanel.onclick = function(event) {
-            handleFeatureItemClick(event);
-          };
-        }
-      });
-
-      // Function to handle feature item click
-      function handleFeatureItemClick(event) {
-        // Retrieve the clicked feature item
-        const featureItem = event.target.closest('.feature-item');
-        if (!featureItem) return; // Exit if feature item is not found
-
-        // Retrieve the corresponding feature object
-        const objectId = featureItem.getAttribute('data-object-id');
-        if (!objectId) return; // Exit if object ID is not found
-
-        // Query the feature layer to get the feature by object ID
-        featureLayer.queryFeatures({
-          objectIds: [parseInt(objectId)],
-          outFields: ["*"]
-        }).then(function(result) {
-          if (result.features.length > 0) {
-            const feature = result.features[0];
-            // Start editing the feature
-            editorViewModel.startUpdateWorkflow({ feature });
-          }
-        }).catch(function(error) {
-          console.error("Error querying feature:", error);
-        });
-      }
-
       view.when(() => {
         featureLayer.queryFeatures({
           where: `assignedto = '${userInfo}'`,
@@ -327,7 +293,6 @@ require([
           results.features.forEach(function(feature) {
             const div = document.createElement("div");
             div.classList.add("feature-item");
-            div.setAttribute('data-object-id', feature.attributes.OBJECTID);
             div.innerHTML = `<b>Submitted on</b>: ${new Date(feature.attributes.created_date).toLocaleString()}<br><br><b>Request ID</b>: ${feature.attributes.OBJECTID}<br><b>Assigned To</b>: ${fullName}<br><br><div class='details-text'><b>Details</b>: ${feature.attributes.details}</div> ${feature.attributes.pocfirstname} ${feature.attributes.poclastname}<br><a href="mailto:${feature.attributes.pocemail}">${feature.attributes.pocemail}</a><br><br><b>Resolution</b>: ${feature.attributes.resolution}<br> <b>Resolved on</b>: ${new Date(feature.attributes.resolutiondt).toLocaleString()}`;
 
             const statusBarContainer = document.createElement("div");
@@ -361,7 +326,10 @@ require([
             div.onclick = function(event) {
               if (event.target.classList.contains("scroll-button")) return;
               // Start editing the feature
-              editorViewModel.startUpdateWorkflow({ feature });
+              editorWidget.start({
+                mode: "update",
+                feature: feature
+              });
             };
 
             const attachmentQuery = new AttachmentQuery();
@@ -431,8 +399,6 @@ require([
     });
   });
 });
-
 </script>
 </body>
 </html>
-
