@@ -213,13 +213,24 @@ require([
   featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
 
   const editor = new Editor({
-    view: view,
-    layerInfos: [{
-      layer: featureLayer,
-      addEnabled: false,
-      deleteEnabled: false
-    }]
-  });
+  view: view,
+  layerInfos: [{
+    layer: featureLayer,
+    addEnabled: false,
+    deleteEnabled: false,
+    fieldConfig: [
+      {
+        name: "details", // field name
+        label: "Details" // label for the field in the editor
+      },
+      {
+        name: "status", // field name
+        label: "Status" // label for the field in the editor
+      },
+      // Add more fields as needed
+    ]
+  }]
+});
   view.ui.add(editor, "top-right");
 
   view.when(() => {
