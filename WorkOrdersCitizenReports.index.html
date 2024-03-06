@@ -256,24 +256,33 @@ require([
       });
   view.ui.add(editor, "top-right");
 
-  // Intercept the save operation
-editor.viewModel.on("workflow-submit", function(event) {
-    // Get the feature being edited
-    const feature = event.data.edits.featureEdits[0].feature;
+  // Store reference to the editor widget
+      let editorWidget;
 
-    // Get the value of the status field
-    const status = feature.attributes.status;
+      // Add editor widget to the view
+      view.ui.add(editor, "top-right");
 
-    // Get the value of the resolution date field
-    const resolutionDate = feature.attributes.resolutiondt;
+      // Store reference to the editor widget
+      editorWidget = editor;
 
-    // If status is 'Completed' and resolution date is empty, prevent the save
-    if (status === 'Completed' && (!resolutionDate || resolutionDate.trim() === '')) {
-        // Display an error message or handle the situation as needed
-        console.error("Resolution Date is required for Completed status.");
-        event.preventDefault();
-    }
-});
+      // Intercept the save operation
+      editor.viewModel.on("workflow-submit", function(event) {
+        // Get the feature being edited
+        const feature = event.data.edits.featureEdits[0].feature;
+
+        // Get the value of the status field
+        const status = feature.attributes.status;
+
+        // Get the value of the resolution date field
+        const resolutionDate = feature.attributes.resolutiondt;
+
+        // If status is 'Completed' and resolution date is empty, prevent the save
+        if (status === 'Completed' && (!resolutionDate || resolutionDate.trim() === '')) {
+          // Display an error message or handle the situation as needed
+          console.error("Resolution Date is required for Completed status.");
+          event.preventDefault();
+        }
+      });
 
   view.when(() => {
     featureLayer.queryFeatures({
