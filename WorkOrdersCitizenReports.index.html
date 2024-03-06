@@ -259,6 +259,12 @@ let editorWidget;
 // Add editor widget to the view
 view.ui.add(editor, "top-right");
 
+// Store reference to the editor widget
+let editorWidget;
+
+// Add editor widget to the view
+view.ui.add(editor, "top-right");
+
 // Store reference to the editor widget after it's fully initialized
 editor.watch("view", function(value) {
   if (value) {
@@ -269,8 +275,11 @@ editor.watch("view", function(value) {
     const sidePanel = document.getElementById("sidePanel");
     sidePanel.onclick = function(event) {
       if (!editorWidget) return; // Exit if editorWidget is not initialized yet
-
-      const feature = ...; // Get the clicked feature somehow
+      
+      // Retrieve the clicked feature object from the event target
+      const feature = event.target.feature;
+      if (!feature) return; // Exit if feature is not found
+      
       editorWidget.start({
         mode: "update",
         feature: feature
