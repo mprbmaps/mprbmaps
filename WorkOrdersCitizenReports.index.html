@@ -252,7 +252,15 @@ require([
         layerInfos: [editConfigRequests],
         allowedWorkflows: ['update'] // This line limits the widget to only updating existing features
       });
+
+  // Store reference to the editor widget
+  let editorWidget;
+
+  // Add editor widget to the view
   view.ui.add(editor, "top-right");
+
+  // Store reference to the editor widget
+  editorWidget = editor;
 
     // Intercept the save operation
 editor.viewModel.on("workflow-submit", function(event) {
@@ -314,9 +322,10 @@ editor.viewModel.on("workflow-submit", function(event) {
 
         div.onclick = function(event) {
           if (event.target.classList.contains("scroll-button")) return;
-          view.goTo({
-            target: feature.geometry,
-            zoom: 17
+          // Start editing the feature
+          editorWidget.start({
+            mode: "update",
+            feature: feature
           });
         };
 
