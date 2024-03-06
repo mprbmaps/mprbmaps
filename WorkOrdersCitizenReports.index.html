@@ -175,9 +175,8 @@ require([
   "esri/rest/support/AttachmentQuery",
   "esri/portal/Portal",
   "esri/WebMap",
-  "esri/widgets/FeatureForm",
-  "esri/Graphic"
-], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery, Portal, WebMap, FeatureForm, Graphic) {
+  "esri/widgets/Graphic",
+], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery, Portal, WebMap, Graphic) {
   var info = new OAuthInfo({
     appId: "ti3fi1FqvHE2Hhyw",
     popup: false
@@ -399,6 +398,34 @@ require([
     });
   });
 });
+
+// Define a function to handle the click event on the side panel features
+function handleFeatureItemClick(event) {
+  // Retrieve the clicked feature object from the event target
+  const feature = event.target.feature;
+  if (!feature) return; // Exit if feature is not found
+
+  // Create a new Graphic object to represent the clicked feature
+  const graphic = new Graphic();
+  graphic.attributes = feature.attributes;
+
+  // Set the layer property of the Graphic object
+  graphic.layer = featureLayer;
+
+  // Check if the current widget and the Graphic object are available
+  if (editorWidget && graphic) {
+    // Start the update workflow at the feature edit using the current widget
+    editorWidget.startUpdateWorkflowAtFeatureEdit(graphic);
+  } else {
+    console.error("Editor widget or feature is not available.");
+  }
+}
+
+// Attach click event handler to the side panel
+sidePanel.onclick = function(event) {
+  handleFeatureItemClick(event);
+};
+
 </script>
 </body>
 </html>
