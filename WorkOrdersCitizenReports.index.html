@@ -212,27 +212,24 @@ require([
   webmap.add(featureLayer);
   featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
 
-  const editor = new Editor({
-  view: view,
-  layerInfos: [{
-    layer: featureLayer,
-    addEnabled: false,
-    deleteEnabled: false,
-    fieldConfig: [
-      {
-        name: "details", // field name
-        label: "Details", // label for the field in the editor
-        editable: true
-      },
-      {
-        name: "status", // field name
-        label: "Status", // label for the field in the editor
-        editable: false
-      },
-      // Add more fields as needed
-    ]
-  }]
-});
+  const editConfigRequests = {
+      layer: featureLayer, // Replace "featureLayer" with your actual feature layer
+      formTemplate: {
+        elements: [
+          {
+            type: "field",
+            fieldName: "details",
+            label: "Details"
+          },
+          {
+            type: "field",
+            fieldName: "status",
+            label: "Status"
+          }
+          // Add more fields as needed
+        ]
+      }
+    };
   view.ui.add(editor, "top-right");
 
   view.when(() => {
