@@ -256,6 +256,21 @@ require([
       });
   view.ui.add(editor, "top-right");
 
+  // Listen for changes to the status field
+editor.viewModel.watch("editing.feature.template.fieldInfos", function(fieldInfos) {
+    const statusField = fieldInfos.find(fieldInfo => fieldInfo.fieldName === "status");
+    if (statusField) {
+        statusField.watch("value", function(statusValue) {
+            // Get the resolutiondt field
+            const resolutionDtField = fieldInfos.find(fieldInfo => fieldInfo.fieldName === "resolutiondt");
+            if (resolutionDtField) {
+                // Set the required attribute based on the value of the status field
+                resolutionDtField.required = (statusValue === "Completed");
+            }
+        });
+    }
+});
+
   view.when(() => {
     featureLayer.queryFeatures({
       where: `assignedto = '${userInfo}'`,
