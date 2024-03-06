@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Work Order Dashboard</title>
-<link rel="stylesheet" href="https://js.arcgis.com/4.24/esri/themes/light/main.css">
+<link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
 <style>
   html, body {
   height: 100%;
@@ -157,7 +157,7 @@
 
 
 </style>
-<script src="https://js.arcgis.com/4.24/"></script>
+<script src="https://js.arcgis.com/4.28/"></script>
 </head>
 <body>
 <div id="sidePanel"><b>WORK ORDERS</b>:</div>
@@ -181,18 +181,15 @@ require([
   });
   IdentityManager.registerOAuthInfos([info]);
 
-  IdentityManager.checkSignInStatus(info.portalUrl).then(
-    function() {
-      console.log("Signed in");
-      initApplication();
-    }
-  ).catch(
-    function() {
-      console.log("Not signed in");
-      IdentityManager.getCredential(info.portalUrl);
-    }
-  );
+  IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+    const portal = new Portal();
+    portal.load().then(function() {
+      const fullName = portal.user.fullName;
+      console.log("Logged in user's full name:", fullName);
 
+      const userInfo = IdentityManager.credentials[0].userId;
+      console.log("User Info:", userInfo);
+      
   const webmap = new WebMap({
     portalItem: {
       id: "32aa25434f284e48a88fc9ff499b0fd8"
