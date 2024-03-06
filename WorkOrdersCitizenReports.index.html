@@ -256,6 +256,23 @@ require([
       });
   view.ui.add(editor, "top-right");
 
+    // Function to adjust the height of the "notes" field
+      function adjustNotesFieldHeight(newHeight) {
+        view.when(function() {
+          // Wait for the Editor to be fully loaded
+          view.ui.watch("children.length", function() {
+            // Query for the textarea element by its unique attribute setup
+            var notesField = document.querySelector("textarea[name='notes']");
+            if (notesField) {
+              notesField.style.height = newHeight;
+            }
+          });
+        });
+      }
+
+      // Use the function with your desired height, for example 200px
+      adjustNotesFieldHeight("200px");
+
   // Intercept the save operation
 editor.viewModel.on("workflow-submit", function(event) {
     // Get the feature being edited
