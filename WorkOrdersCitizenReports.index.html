@@ -214,13 +214,13 @@ require([
 
       const editor = new Editor({
   view: view,
-  container: document.createElement("div"), // Optional: You can also specify a container for the Editor if needed
+  container: "editorDiv", // Assuming you have an element with the ID 'editorDiv' in your HTML
   layerInfos: [{
     layer: featureLayer,
-    fieldConfig: [ // Define which fields to display and edit
+    fieldConfig: [
       {
-        name: "status", // The actual field name from your layer
-        label: "Status" // How the field name will be displayed in the Editor
+        name: "status",
+        label: "Status"
       },
       {
         name: "publicview",
@@ -245,8 +245,10 @@ require([
     ],
     addEnabled: false,
     deleteEnabled: false,
-    updateEnabled: true // Make sure this is true to allow updates
-  }]
+    updateEnabled: true,
+    enabled: true // Ensure the widget is enabled
+  }],
+  allowedWorkflows: ['update'] // Restrict the editor to only allow updating existing features
 });
 
       view.ui.add(editor, "top-right");
