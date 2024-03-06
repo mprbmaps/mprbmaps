@@ -268,19 +268,32 @@ editor.watch("view", function(value) {
     // Attach click event handler after the editor widget is initialized
     const sidePanel = document.getElementById("sidePanel");
     sidePanel.onclick = function(event) {
-      if (!editorWidget) return; // Exit if editorWidget is not initialized yet
-      
-      // Retrieve the clicked feature object from the event target
-      const feature = event.target.feature;
-      if (!feature) return; // Exit if feature is not found
-      
-      editorWidget.start({
-        mode: "update",
-        feature: feature
-      });
+      // Check if editorWidget is defined, if not, wait for a short interval and try again
+      if (!editorWidget) {
+        setTimeout(() => {
+          if (editorWidget) {
+            handleFeatureItemClick(event);
+          }
+        }, 100);
+      } else {
+        handleFeatureItemClick(event);
+      }
     };
   }
 });
+
+// Function to handle feature item click
+function handleFeatureItemClick(event) {
+  // Retrieve the clicked feature object from the event target
+  const feature = event.target.feature;
+  if (!feature) return; // Exit if feature is not found
+
+  // Start editing the feature
+  editorWidget.start({
+    mode: "update",
+    feature: feature
+  });
+}
 
 // Intercept the save operation
 editor.viewModel.on("workflow-submit", function(event) {
