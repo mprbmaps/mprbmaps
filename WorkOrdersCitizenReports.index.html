@@ -40,7 +40,6 @@
   display: none;
 }
 
-
 #viewDiv {
   height: 100%;
   /* Use calc() to ensure that the width of viewDiv reduces as sidePanel grows in width */
@@ -170,12 +169,13 @@ require([
   "esri/views/MapView",
   "esri/layers/FeatureLayer",
   "esri/widgets/Editor",
+  "esri/widgets/DatePicker",
   "esri/identity/OAuthInfo",
   "esri/identity/IdentityManager",
   "esri/rest/support/AttachmentQuery",
   "esri/portal/Portal",
   "esri/WebMap"
-], function(Map, MapView, FeatureLayer, Editor, OAuthInfo, IdentityManager, AttachmentQuery, Portal, WebMap) {
+], function(Map, MapView, FeatureLayer, Editor, DatePicker, OAuthInfo, IdentityManager, AttachmentQuery, Portal, WebMap) {
   var info = new OAuthInfo({
     appId: "ti3fi1FqvHE2Hhyw",
     popup: true
@@ -236,8 +236,23 @@ require([
               type: "field",
               fieldName: "resolution",
               label: "Resolution"
+            },
+            // Adding DatePicker placeholder
+            {
+              type: "group",
+              label: "Resolution Date",
+              elements: [
+                {
+                  type: "custom",
+                  component: {
+                    name: "div",
+                    attributes: {
+                      class: "datepicker-placeholder"
+                    }
+                  }
+                }
+              ]
             }
-            // Removed dateTimePicker to replace with Calcite DatePicker
           ]
         }
       };
@@ -245,9 +260,23 @@ require([
       const editor = new Editor({
         view: view,
         layerInfos: [editConfigRequests],
-        allowedWorkflows: ['update'] // This line limits the widget to only updating existing features
+        allowedWorkflows: ['update'] // Limits the widget to only updating existing features
       });
-  view.ui.add(editor, "top-right");
+      view.ui.add(editor, "top-right");
+
+      // Instantiate the DatePicker widget
+      editor.when(() => {
+        const datePicker = new DatePicker({
+          container: document.createElement("div"),
+          value: new Date() // sets the initial value to today's date
+        });
+
+        // Append the DatePicker to the Editor once the Editor is ready
+        const placeholder = document.querySelector('.datepicker-placeholder');
+        if (placeholder) {
+          placeholder.appendChild(datePicker.container);
+        }
+      });
 
   view.when(() => {
     featureLayer.queryFeatures({
