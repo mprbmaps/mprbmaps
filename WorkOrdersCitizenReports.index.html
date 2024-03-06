@@ -142,16 +142,6 @@
   overflow-y: auto;
   margin-bottom: 10px;
 }
-#editorDiv {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    z-index: 99;
-    background-color: white;
-    padding: 10px;
-    border-radius: 8px;
-    box-shadow: 0 0 5px rgba(0,0,0,0.5);
-  }
 
 /* Responsive design for smaller screens */
 @media screen and (max-width: 520px) {
@@ -172,7 +162,6 @@
 <body>
 <div id="sidePanel"><b>WORK ORDERS</b>:</div>
 <div id="viewDiv"></div>
-<div id="editorDiv"></div>
 
 <script>
 require([
@@ -223,26 +212,42 @@ require([
       webmap.add(featureLayer);
       featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
 
-      var editor = new Editor({
-      view: view,
-      container: "editorDiv",
-      layerInfos: [{
-        layer: featureLayer,
-        fieldConfig: [
-          { name: "status", label: "Status" },
-          { name: "publicview", label: "Visible to Public" },
-          { name: "assignedto", label: "Assigned to" },
-          { name: "resolution", label: "Resolution" },
-          { name: "resolutiondt", label: "Resolved on" },
-          { name: "notes", label: "Notes" }
-        ],
-        addEnabled: false,
-        deleteEnabled: false,
-        updateEnabled: true,
-        enabled: true
-      }],
-      allowedWorkflows: ['update']
-    });
+      const editor = new Editor({
+  view: view,
+  container: document.createElement("div"), // Optional: You can also specify a container for the Editor if needed
+  layerInfos: [{
+    layer: featureLayer,
+    fieldConfig: [ // Define which fields to display and edit
+      {
+        name: "status", // The actual field name from your layer
+        label: "Status" // How the field name will be displayed in the Editor
+      },
+      {
+        name: "publicview",
+        label: "Visible to Public"
+      },
+      {
+        name: "assignedto",
+        label: "Assigned to"
+      },
+      {
+        name: "resolution",
+        label: "Resolution"
+      },
+      {
+        name: "resolutiondt",
+        label: "Resolved on"
+      },
+      {
+        name: "notes",
+        label: "Notes"
+      }
+    ],
+    addEnabled: false,
+    deleteEnabled: false,
+    updateEnabled: true // Make sure this is true to allow updates
+  }]
+});
 
       view.ui.add(editor, "top-right");
 
