@@ -253,34 +253,35 @@ require([
         allowedWorkflows: ['update'] // This line limits the widget to only updating existing features
       });
 
-      // Declare the editorWidget variable
-let editorWidget;
+     // Declare the editorViewModel variable
+let editorViewModel;
 
 // Add editor widget to the view
 view.ui.add(editor, "top-right");
 
-// Store reference to the editor widget after it's fully initialized
+// Store reference to the editor view model after it's fully initialized
 editor.watch("view", function(value) {
   if (value) {
-    editorWidget = editor;
-    console.log("Editor widget initialized:", editorWidget);
+    editorViewModel = editor.viewModel;
+    console.log("Editor view model initialized:", editorViewModel);
 
-    // Attach click event handler after the editor widget is initialized
+    // Attach click event handler after the editor view model is initialized
     const sidePanel = document.getElementById("sidePanel");
     sidePanel.onclick = function(event) {
-      // Check if editorWidget is defined, if not, wait for a short interval and try again
-      if (!editorWidget) {
-        setTimeout(() => {
-          if (editorWidget) {
-            handleFeatureItemClick(event);
-          }
-        }, 100);
-      } else {
-        handleFeatureItemClick(event);
-      }
+      handleFeatureItemClick(event);
     };
   }
 });
+
+// Function to handle feature item click
+function handleFeatureItemClick(event) {
+  // Retrieve the clicked feature object from the event target
+  const feature = event.target.feature;
+  if (!feature) return; // Exit if feature is not found
+
+  // Start editing the feature
+  editorViewModel.startUpdateWorkflow({ feature });
+}
 
 // Function to handle feature item click
 function handleFeatureItemClick(event) {
