@@ -179,16 +179,23 @@ require([
     appId: "ti3fi1FqvHE2Hhyw",
     popup: true
   });
-  IdentityManager.registerOAuthInfos([info]);
+  var info = new OAuthInfo({
+                appId: "ti3fi1FqvHE2Hhyw", // Your actual App ID
+                popup: false
+            });
+            IdentityManager.registerOAuthInfos([info]);
 
-  IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
-    const portal = new Portal();
-    portal.load().then(function() {
-      const fullName = portal.user.fullName;
-      console.log("Logged in user's full name:", fullName);
-
-      const userInfo = IdentityManager.credentials[0].userId;
-      console.log("User Info:", userInfo);
+            IdentityManager.checkSignInStatus(info.portalUrl).then(
+                function() {
+                    console.log("Signed in");
+                    initApplication();
+                }
+            ).catch(
+                function() {
+                    console.log("Not signed in");
+                    IdentityManager.getCredential(info.portalUrl);
+                }
+            );
 
       const webmap = new WebMap({
         portalItem: {
