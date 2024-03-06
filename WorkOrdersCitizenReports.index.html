@@ -264,8 +264,11 @@ editor.viewModel.on("workflow-submit", function(event) {
     // Get the value of the status field
     const status = feature.attributes.status;
 
+    // Get the value of the resolution date field
+    const resolutionDate = feature.attributes.resolutiondt;
+
     // If status is 'Completed' and resolution date is empty, prevent the save
-    if (status === 'Completed' && !feature.attributes.resolutiondt) {
+    if (status === 'Completed' && (!resolutionDate || resolutionDate.trim() === '')) {
         // Display an error message or handle the situation as needed
         console.error("Resolution Date is required for Completed status.");
         event.preventDefault();
