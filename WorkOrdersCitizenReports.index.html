@@ -191,29 +191,29 @@ require([
       const userInfo = IdentityManager.credentials[0].userId;
       console.log("User Info:", userInfo);
       
-  const webmap = new WebMap({
-    portalItem: {
-      id: "32aa25434f284e48a88fc9ff499b0fd8"
-    }
-  });
+      const webmap = new WebMap({
+        portalItem: {
+          id: "32aa25434f284e48a88fc9ff499b0fd8"
+        }
+      });
 
-  var view = new MapView({
-    container: "viewDiv",
-    map: webmap,
-    center: [-93.2650, 44.9778],
-    zoom: 11
-  });
+      var view = new MapView({
+        container: "viewDiv",
+        map: webmap,
+        center: [-93.2650, 44.9778],
+        zoom: 11
+      });
 
-  const featureLayer = new FeatureLayer({
-    url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0",
-    outFields: ["*"],
-    popupEnabled: false
-  });
+      const featureLayer = new FeatureLayer({
+        url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0",
+        outFields: ["*"],
+        popupEnabled: false
+      });
 
-  webmap.add(featureLayer);
-  featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
+      webmap.add(featureLayer);
+      featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
 
-  const editConfigRequests = {
+      const editConfigRequests = {
         layer: featureLayer,
         formTemplate: {
           elements: [
@@ -253,149 +253,150 @@ require([
         allowedWorkflows: ['update'] // This line limits the widget to only updating existing features
       });
 
-  // Store reference to the editor widget
-  let editorWidget;
+      // Store reference to the editor widget
+      let editorWidget;
 
-  // Add editor widget to the view
-  view.ui.add(editor, "top-right");
+      // Add editor widget to the view
+      view.ui.add(editor, "top-right");
 
-  // Store reference to the editor widget
-  editorWidget = editor;
+      // Store reference to the editor widget
+      editorWidget = editor;
 
-    // Intercept the save operation
-editor.viewModel.on("workflow-submit", function(event) {
-    // Get the feature being edited
-    const feature = event.data.edits.featureEdits[0].feature;
+      // Intercept the save operation
+      editor.viewModel.on("workflow-submit", function(event) {
+        // Get the feature being edited
+        const feature = event.data.edits.featureEdits[0].feature;
 
-    // Get the value of the status field
-    const status = feature.attributes.status;
+        // Get the value of the status field
+        const status = feature.attributes.status;
 
-    // Get the value of the resolution date field
-    const resolutionDate = feature.attributes.resolutiondt;
+        // Get the value of the resolution date field
+        const resolutionDate = feature.attributes.resolutiondt;
 
-    // If status is 'Completed' and resolution date is empty, prevent the save
-    if (status === 'Completed' && (!resolutionDate || resolutionDate.trim() === '')) {
-        // Display an error message or handle the situation as needed
-        console.error("Resolution Date is required for Completed status.");
-        event.preventDefault();
-    }
-});
+        // If status is 'Completed' and resolution date is empty, prevent the save
+        if (status === 'Completed' && (!resolutionDate || resolutionDate.trim() === '')) {
+          // Display an error message or handle the situation as needed
+          console.error("Resolution Date is required for Completed status.");
+          event.preventDefault();
+        }
+      });
 
-  view.when(() => {
-    featureLayer.queryFeatures({
-      where: `assignedto = '${userInfo}'`,
-      returnGeometry: true,
-      outFields: ["OBJECTID", "status", "assignedto", "details", "pocfirstname", "poclastname", "pocemail", "resolutiondt", "resolution", "created_date"]
-    }).then(function(results) {
-      const sidePanel = document.getElementById("sidePanel");
-      results.features.forEach(function(feature) {
-        const div = document.createElement("div");
-        div.classList.add("feature-item");
-        div.innerHTML = `<b>Submitted on</b>: ${new Date(feature.attributes.created_date).toLocaleString()}<br><br><b>Request ID</b>: ${feature.attributes.OBJECTID}<br><b>Assigned To</b>: ${fullName}<br><br><div class='details-text'><b>Details</b>: ${feature.attributes.details}</div> ${feature.attributes.pocfirstname} ${feature.attributes.poclastname}<br><a href="mailto:${feature.attributes.pocemail}">${feature.attributes.pocemail}</a><br><br><b>Resolution</b>: ${feature.attributes.resolution}<br> <b>Resolved on</b>: ${new Date(feature.attributes.resolutiondt).toLocaleString()}`;
+      view.when(() => {
+        featureLayer.queryFeatures({
+          where: `assignedto = '${userInfo}'`,
+          returnGeometry: true,
+          outFields: ["OBJECTID", "status", "assignedto", "details", "pocfirstname", "poclastname", "pocemail", "resolutiondt", "resolution", "created_date"]
+        }).then(function(results) {
+          const sidePanel = document.getElementById("sidePanel");
+          results.features.forEach(function(feature) {
+            const div = document.createElement("div");
+            div.classList.add("feature-item");
+            div.innerHTML = `<b>Submitted on</b>: ${new Date(feature.attributes.created_date).toLocaleString()}<br><br><b>Request ID</b>: ${feature.attributes.OBJECTID}<br><b>Assigned To</b>: ${fullName}<br><br><div class='details-text'><b>Details</b>: ${feature.attributes.details}</div> ${feature.attributes.pocfirstname} ${feature.attributes.poclastname}<br><a href="mailto:${feature.attributes.pocemail}">${feature.attributes.pocemail}</a><br><br><b>Resolution</b>: ${feature.attributes.resolution}<br> <b>Resolved on</b>: ${new Date(feature.attributes.resolutiondt).toLocaleString()}`;
 
-        const statusBarContainer = document.createElement("div");
-        statusBarContainer.classList.add("status-bar-container");
+            const statusBarContainer = document.createElement("div");
+            statusBarContainer.classList.add("status-bar-container");
 
-        const statuses = ["Submitted", "Received", "In Progress", "Completed", "Canceled"];
-        const statusColors = {
-          "Submitted": "submitted",
-          "Received": "received",
-          "In Progress": "inprogress",
-          "Completed": "completed",
-          "Canceled": "canceled"
-        };
-        statuses.forEach(status => {
-          const statusBar = document.createElement("div");
-          const statusText = document.createElement("div");
-          statusText.classList.add("status-text");
-          statusText.textContent = status;
-          statusBar.appendChild(statusText);
+            const statuses = ["Submitted", "Received", "In Progress", "Completed", "Canceled"];
+            const statusColors = {
+              "Submitted": "submitted",
+              "Received": "received",
+              "In Progress": "inprogress",
+              "Completed": "completed",
+              "Canceled": "canceled"
+            };
+            statuses.forEach(status => {
+              const statusBar = document.createElement("div");
+              const statusText = document.createElement("div");
+              statusText.classList.add("status-text");
+              statusText.textContent = status;
+              statusBar.appendChild(statusText);
 
-          statusBar.classList.add("status-bar");
-          if(feature.attributes.status === status) {
-            statusBar.classList.add(statusColors[status]);
-          }
-          statusBarContainer.appendChild(statusBar);
-        });
-
-        div.appendChild(statusBarContainer);
-
-        div.onclick = function(event) {
-          if (event.target.classList.contains("scroll-button")) return;
-          // Start editing the feature
-          editorWidget.start({
-            mode: "update",
-            feature: feature
-          });
-        };
-
-        const attachmentQuery = new AttachmentQuery();
-        attachmentQuery.objectIds = [feature.attributes.OBJECTID];
-        featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
-          const attachments = attachmentResults[feature.attributes.OBJECTID];
-          if (attachments && attachments.length > 0) {
-            const attachmentImages = document.createElement("div");
-            attachmentImages.classList.add("attachment-images");
-
-            attachments.forEach((attachment, index) => {
-              const link = document.createElement("a");
-              link.href = attachment.url;
-              link.target = "_blank";
-              const img = document.createElement("img");
-              img.src = attachment.url;
-              if (index !== 0) {
-                img.style.display = "none";
+              statusBar.classList.add("status-bar");
+              if(feature.attributes.status === status) {
+                statusBar.classList.add(statusColors[status]);
               }
-              link.appendChild(img);
-              attachmentImages.appendChild(link);
+              statusBarContainer.appendChild(statusBar);
             });
 
-            div.appendChild(attachmentImages);
+            div.appendChild(statusBarContainer);
 
-            const scrollLeftButton = document.createElement("button");
-            scrollLeftButton.innerHTML = "&#10094;";
-            scrollLeftButton.classList.add("scroll-button", "left");
-
-            const scrollRightButton = document.createElement("button");
-            scrollRightButton.innerHTML = "&#10095;";
-            scrollRightButton.classList.add("scroll-button", "right");
-
-            div.appendChild(scrollLeftButton);
-            div.appendChild(scrollRightButton);
-
-            let currentImageIndex = 0;
-            const images = attachmentImages.getElementsByTagName('img');
-
-            scrollLeftButton.onclick = function() {
-              if (currentImageIndex > 0) {
-                images[currentImageIndex].style.display = 'none';
-                currentImageIndex -= 1;
-                images[currentImageIndex].style.display = 'block';
-              }
+            div.onclick = function(event) {
+              if (event.target.classList.contains("scroll-button")) return;
+              // Start editing the feature
+              editorWidget.start({
+                mode: "update",
+                feature: feature
+              });
             };
 
-            scrollRightButton.onclick = function() {
-              if (currentImageIndex < images.length - 1) {
-                images[currentImageIndex].style.display = 'none';
-                currentImageIndex += 1;
-                images[currentImageIndex].style.display = 'block';
+            const attachmentQuery = new AttachmentQuery();
+            attachmentQuery.objectIds = [feature.attributes.OBJECTID];
+            featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
+              const attachments = attachmentResults[feature.attributes.OBJECTID];
+              if (attachments && attachments.length > 0) {
+                const attachmentImages = document.createElement("div");
+                attachmentImages.classList.add("attachment-images");
+
+                attachments.forEach((attachment, index) => {
+                  const link = document.createElement("a");
+                  link.href = attachment.url;
+                  link.target = "_blank";
+                  const img = document.createElement("img");
+                  img.src = attachment.url;
+                  if (index !== 0) {
+                    img.style.display = "none";
+                  }
+                  link.appendChild(img);
+                  attachmentImages.appendChild(link);
+                });
+
+                div.appendChild(attachmentImages);
+
+                const scrollLeftButton = document.createElement("button");
+                scrollLeftButton.innerHTML = "&#10094;";
+                scrollLeftButton.classList.add("scroll-button", "left");
+
+                const scrollRightButton = document.createElement("button");
+                scrollRightButton.innerHTML = "&#10095;";
+                scrollRightButton.classList.add("scroll-button", "right");
+
+                div.appendChild(scrollLeftButton);
+                div.appendChild(scrollRightButton);
+
+                let currentImageIndex = 0;
+                const images = attachmentImages.getElementsByTagName('img');
+
+                scrollLeftButton.onclick = function() {
+                  if (currentImageIndex > 0) {
+                    images[currentImageIndex].style.display = 'none';
+                    currentImageIndex -= 1;
+                    images[currentImageIndex].style.display = 'block';
+                  }
+                };
+
+                scrollRightButton.onclick = function() {
+                  if (currentImageIndex < images.length - 1) {
+                    images[currentImageIndex].style.display = 'none';
+                    currentImageIndex += 1;
+                    images[currentImageIndex].style.display = 'block';
+                  }
+                };
+              } else {
+                div.innerHTML += "<p>No photos found.</p>";
               }
-            };
-          } else {
-            div.innerHTML += "<p>No photos found.</p>";
-          }
-          sidePanel.appendChild(div);
+              sidePanel.appendChild(div);
             });
           });
         }).catch(console.error);
+      }).catch(function(error) {
+        console.error("Error loading the portal:", error);
       });
     }).catch(function(error) {
-      console.error("Error loading the portal:", error);
+      console.error("Error during sign-in:", error);
     });
-  }).catch(function(error) {
-    console.error("Error during sign-in:", error);
   });
 });
 </script>
 </body>
 </html>
+
