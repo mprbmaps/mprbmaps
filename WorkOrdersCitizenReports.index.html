@@ -206,17 +206,11 @@ require([
     zoom: 11
   });
 
-  const featureLayer = new FeatureLayer({
-    url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0",
-    outFields: ["*"],
-    popupEnabled: false
-  });
-
-  webmap.add(featureLayer);
+  
   featureLayer.definitionExpression = `assignedto = '${userInfo}'`;
 
   const editConfigRequests = {
-        layer: featureLayer,
+        layer: webmap.layers.find(layer => layer.title === "Snow/Ice Requests"), // Assuming the layer title is Snow/Ice Requests"
         formTemplate: {
           elements: [
             {
