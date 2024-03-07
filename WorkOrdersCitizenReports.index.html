@@ -206,193 +206,183 @@ require([
     zoom: 11
   });
 
-  
-  webmap.layers.forEach(layer => {
-  if (layer.title === "Snow/Ice Requests") { // Adjust the title as needed
-    layer.definitionExpression = `assignedto = '${userInfo}'`;
-  }
-});
-  const editConfigRequests = {
-        layer: webmap.layers.find(layer => layer.title === "Snow/Ice Requests"), // Assuming the layer title is Snow/Ice Requests"
-        formTemplate: {
-          elements: [
-            {
-              type: "field",
-              fieldName: "status",
-              label: "Status"
-            },
-            {
-              type: "field",
-              fieldName: "notes",
-              label: "Notes"
-            },
-            {
-              type: "field",
-              fieldName: "assignedto",
-              label: "Assigned to"
-            },
-            {
-              type: "field",
-              fieldName: "resolution",
-              label: "Resolution"
-            },
-            {
-              type: "field",
-              fieldName: "resolutiondt",
-              label: "Resolved on"
+  let snowIceRequestsLayer;
+
+  webmap.when(() => {
+    snowIceRequestsLayer = webmap.layers.find(layer => layer.title === "Snow/Ice Requests");
+
+    const editConfigRequests = {
+      layer: snowIceRequestsLayer,
+      formTemplate: {
+        elements: [
+          {
+            type: "field",
+            fieldName: "status",
+            label: "Status"
+          },
+          {
+            type: "field",
+            fieldName: "notes",
+            label: "Notes"
+          },
+          {
+            type: "field",
+            fieldName: "assignedto",
+            label: "Assigned to"
+          },
+          {
+            type: "field",
+            fieldName: "resolution",
+            label: "Resolution"
+          },
+          {
+            type: "field",
+            fieldName: "resolutiondt",
+            label: "Resolved on"
+          }
+        ]
+      }
+    };
+
+    const editor = new Editor({
+      view: view,
+      layerInfos: [editConfigRequests],
+      allowedWorkflows: ['update'] // This line limits the widget to only updating existing features
+    });
+
+    view.ui.add(editor, "top-right");
+
+    let editorWidget;
+
+    view.ui.add(editor, "top-right");
+
+    editorWidget = editor;
+
+    editor.viewModel.on("workflow-submit", function(event) {
+      const feature = event.data.edits.featureEdits[0].feature;
+      const status = feature.attributes.status;
+      const resolutionDate = feature.attributes.resolutiondt;
+      if (status === 'Completed' && (!resolutionDate || resolutionDate.trim() === '')) {
+        console.error("Resolution Date is required for Completed status.");
+        event.preventDefault();
+      }
+    });
+
+    view.when(() => {
+      snowIceRequestsLayer.queryFeatures({
+        where: `assignedto = '${userInfo}'`,
+        returnGeometry: true,
+        outFields: ["OBJECTID", "status", "assignedto", "details", "pocfirstname", "poclastname", "pocemail", "resolutiondt", "resolution", "created_date"]
+      }).then(function(results) {
+        const sidePanel = document.getElementById("sidePanel");
+        results.features.forEach(function(feature) {
+          const div = document.createElement("div");
+          div.classList.add("feature-item");
+          div.innerHTML = `<b>Submitted on</b>: ${new Date(feature.attributes.created_date).toLocaleString()}<br><br><b>Request ID</b>: ${feature.attributes.OBJECTID}<br><b>Assigned To</b>: ${fullName}<br><br><div class='details-text'><b>Details</b>: ${feature.attributes.details}</div> ${feature.attributes.pocfirstname} ${feature.attributes.poclastname}<br><a href="mailto:${feature.attributes.pocemail}">${feature.attributes.pocemail}</a><br><br><b>Resolution</b>: ${feature.attributes.resolution}<br> <b>Resolved on</b>: ${new Date(feature.attributes.resolutiondt).toLocaleString()}`;
+
+          const statusBarContainer = document.createElement("div");
+          statusBarContainer.classList.add("status-bar-container");
+
+          const statuses = ["Submitted", "Received", "In Progress", "Completed", "Canceled"];
+          const statusColors = {
+            "Submitted": "submitted",
+            "Received": "received",
+            "In Progress": "inprogress",
+            "Completed": "completed",
+            "Canceled": "canceled"
+          };
+          statuses.forEach(status => {
+            const statusBar = document.createElement("div");
+            const statusText = document.createElement("div");
+            statusText.classList.add("status-text");
+            statusText.textContent = status;
+            statusBar.appendChild(statusText);
+
+            statusBar.classList.add("status-bar");
+            if(feature.attributes.status === status) {
+              statusBar.classList.add(statusColors[status]);
             }
-          ]
-        }
-      };
+            statusBarContainer.appendChild(statusBar);
+          });
 
-      const editor = new Editor({
-        view: view,
-        layerInfos: [editConfigRequests],
-        allowedWorkflows: ['update'] // This line limits the widget to only updating existing features
-      });
-  view.ui.add(editor, "top-right");
+          div.appendChild(statusBarContainer);
 
-  // Store reference to the editor widget
-      let editorWidget;
+          div.onclick = function(event) {
+            if (event.target.classList.contains("scroll-button")) return;
+            view.goTo({
+              target: feature.geometry,
+              zoom: 17
+            });
+          };
 
-      // Add editor widget to the view
-      view.ui.add(editor, "top-right");
+          const attachmentQuery = new AttachmentQuery();
+          attachmentQuery.objectIds = [feature.attributes.OBJECTID];
+          snowIceRequestsLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
+            const attachments = attachmentResults[feature.attributes.OBJECTID];
+            if (attachments && attachments.length > 0) {
+              const attachmentImages = document.createElement("div");
+              attachmentImages.classList.add("attachment-images");
 
-      // Store reference to the editor widget
-      editorWidget = editor;
+              attachments.forEach((attachment, index) => {
+                const link = document.createElement("a");
+                link.href = attachment.url;
+                link.target = "_blank";
+                const img = document.createElement("img");
+                img.src = attachment.url;
+                if (index !== 0) {
+                  img.style.display = "none";
+                }
+                link.appendChild(img);
+                attachmentImages.appendChild(link);
+              });
 
-      // Intercept the save operation
-      editor.viewModel.on("workflow-submit", function(event) {
-        // Get the feature being edited
-        const feature = event.data.edits.featureEdits[0].feature;
+              div.appendChild(attachmentImages);
 
-        // Get the value of the status field
-        const status = feature.attributes.status;
+              const scrollLeftButton = document.createElement("button");
+              scrollLeftButton.innerHTML = "&#10094;";
+              scrollLeftButton.classList.add("scroll-button", "left");
 
-        // Get the value of the resolution date field
-        const resolutionDate = feature.attributes.resolutiondt;
+              const scrollRightButton = document.createElement("button");
+              scrollRightButton.innerHTML = "&#10095;";
+              scrollRightButton.classList.add("scroll-button", "right");
 
-        // If status is 'Completed' and resolution date is empty, prevent the save
-        if (status === 'Completed' && (!resolutionDate || resolutionDate.trim() === '')) {
-          // Display an error message or handle the situation as needed
-          console.error("Resolution Date is required for Completed status.");
-          event.preventDefault();
-        }
-      });
+              div.appendChild(scrollLeftButton);
+              div.appendChild(scrollRightButton);
 
-  view.when(() => {
-    featureLayer.queryFeatures({
-      where: `assignedto = '${userInfo}'`,
-      returnGeometry: true,
-      outFields: ["OBJECTID", "status", "assignedto", "details", "pocfirstname", "poclastname", "pocemail", "resolutiondt", "resolution", "created_date"]
-    }).then(function(results) {
-      const sidePanel = document.getElementById("sidePanel");
-      results.features.forEach(function(feature) {
-        const div = document.createElement("div");
-        div.classList.add("feature-item");
-        div.innerHTML = `<b>Submitted on</b>: ${new Date(feature.attributes.created_date).toLocaleString()}<br><br><b>Request ID</b>: ${feature.attributes.OBJECTID}<br><b>Assigned To</b>: ${fullName}<br><br><div class='details-text'><b>Details</b>: ${feature.attributes.details}</div> ${feature.attributes.pocfirstname} ${feature.attributes.poclastname}<br><a href="mailto:${feature.attributes.pocemail}">${feature.attributes.pocemail}</a><br><br><b>Resolution</b>: ${feature.attributes.resolution}<br> <b>Resolved on</b>: ${new Date(feature.attributes.resolutiondt).toLocaleString()}`;
+              let currentImageIndex = 0;
+              const images = attachmentImages.getElementsByTagName('img');
 
-        const statusBarContainer = document.createElement("div");
-        statusBarContainer.classList.add("status-bar-container");
+              scrollLeftButton.onclick = function() {
+                if (currentImageIndex > 0) {
+                  images[currentImageIndex].style.display = 'none';
+                  currentImageIndex -= 1;
+                  images[currentImageIndex].style.display = 'block';
+                }
+              };
 
-        const statuses = ["Submitted", "Received", "In Progress", "Completed", "Canceled"];
-        const statusColors = {
-          "Submitted": "submitted",
-          "Received": "received",
-          "In Progress": "inprogress",
-          "Completed": "completed",
-          "Canceled": "canceled"
-        };
-        statuses.forEach(status => {
-          const statusBar = document.createElement("div");
-          const statusText = document.createElement("div");
-          statusText.classList.add("status-text");
-          statusText.textContent = status;
-          statusBar.appendChild(statusText);
-
-          statusBar.classList.add("status-bar");
-          if(feature.attributes.status === status) {
-            statusBar.classList.add(statusColors[status]);
-          }
-          statusBarContainer.appendChild(statusBar);
+              scrollRightButton.onclick = function() {
+                if (currentImageIndex < images.length - 1) {
+                  images[currentImageIndex].style.display = 'none';
+                  currentImageIndex += 1;
+                  images[currentImageIndex].style.display = 'block';
+                }
+              };
+            } else {
+              div.innerHTML += "<p>No photos found.</p>";
+            }
+            sidePanel.appendChild(div);
+          });
         });
-
-        div.appendChild(statusBarContainer);
-
-        div.onclick = function(event) {
-          if (event.target.classList.contains("scroll-button")) return;
-          view.goTo({
-            target: feature.geometry,
-            zoom: 17
-          });
-        };
-
-        const attachmentQuery = new AttachmentQuery();
-        attachmentQuery.objectIds = [feature.attributes.OBJECTID];
-        featureLayer.queryAttachments(attachmentQuery).then(function(attachmentResults) {
-          const attachments = attachmentResults[feature.attributes.OBJECTID];
-          if (attachments && attachments.length > 0) {
-            const attachmentImages = document.createElement("div");
-            attachmentImages.classList.add("attachment-images");
-
-            attachments.forEach((attachment, index) => {
-              const link = document.createElement("a");
-              link.href = attachment.url;
-              link.target = "_blank";
-              const img = document.createElement("img");
-              img.src = attachment.url;
-              if (index !== 0) {
-                img.style.display = "none";
-              }
-              link.appendChild(img);
-              attachmentImages.appendChild(link);
-            });
-
-            div.appendChild(attachmentImages);
-
-            const scrollLeftButton = document.createElement("button");
-            scrollLeftButton.innerHTML = "&#10094;";
-            scrollLeftButton.classList.add("scroll-button", "left");
-
-            const scrollRightButton = document.createElement("button");
-            scrollRightButton.innerHTML = "&#10095;";
-            scrollRightButton.classList.add("scroll-button", "right");
-
-            div.appendChild(scrollLeftButton);
-            div.appendChild(scrollRightButton);
-
-            let currentImageIndex = 0;
-            const images = attachmentImages.getElementsByTagName('img');
-
-            scrollLeftButton.onclick = function() {
-              if (currentImageIndex > 0) {
-                images[currentImageIndex].style.display = 'none';
-                currentImageIndex -= 1;
-                images[currentImageIndex].style.display = 'block';
-              }
-            };
-
-            scrollRightButton.onclick = function() {
-              if (currentImageIndex < images.length - 1) {
-                images[currentImageIndex].style.display = 'none';
-                currentImageIndex += 1;
-                images[currentImageIndex].style.display = 'block';
-              }
-            };
-          } else {
-            div.innerHTML += "<p>No photos found.</p>";
-          }
-          sidePanel.appendChild(div);
-            });
-          });
-        }).catch(console.error);
+      }).catch(function(error) {
+        console.error("Error loading features:", error);
       });
     }).catch(function(error) {
-      console.error("Error loading the portal:", error);
+      console.error("Error loading view:", error);
     });
-  }).catch(function(error) {
-    console.error("Error during sign-in:", error);
   });
+}).catch(function(error) {
+  console.error("Error during sign-in:", error);
+});
 });
 </script>
 </body>
