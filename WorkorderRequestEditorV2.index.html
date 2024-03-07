@@ -162,6 +162,23 @@
 <div id="sidePanel"><b>WORK ORDERS</b>:</div>
 <div id="viewDiv"></div>
 
+<!-- Edit form container -->
+<div id="editFormContainer" style="display: none; padding: 20px; background-color: #fff; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 1px solid #ccc; border-radius: 5px;">
+  <h3>Edit Feature</h3>
+  <form id="editForm">
+    <input type="hidden" id="featureId">
+    <label for="assignedto">Assigned To:</label><br>
+    <input type="text" id="assignedto" name="assignedto" required><br>
+    <label for="resolution">Resolution:</label><br>
+    <input type="text" id="resolution" name="resolution" required><br>
+    <label for="resolutiondt">Resolved on:</label><br>
+    <input type="date" id="resolutiondt" name="resolutiondt" required><br>
+    <label for="photo">Attach Photo:</label><br>
+    <input type="file" id="photo" name="photo"><br><br>
+    <input type="submit" value="Submit">
+  </form>
+</div>
+
 <script>
 (function() {
   require([
@@ -337,6 +354,20 @@
                 editIcon.addEventListener("click", function() {
                   console.log("Edit feature", feature.attributes.OBJECTID);
                   // Open edit form logic here
+                  const editFormContainer = document.getElementById("editFormContainer");
+                  const featureIdInput = document.getElementById("featureId");
+                  const assignedToInput = document.getElementById("assignedto");
+                  const resolutionInput = document.getElementById("resolution");
+                  const resolutionDtInput = document.getElementById("resolutiondt");
+
+                  // Populate form fields with current feature attributes
+                  featureIdInput.value = feature.attributes.OBJECTID;
+                  assignedToInput.value = feature.attributes.assignedto;
+                  resolutionInput.value = feature.attributes.resolution;
+                  resolutionDtInput.value = feature.attributes.resolutiondt;
+
+                  // Show the edit form
+                  editFormContainer.style.display = "block";
                 });
                 div.appendChild(editIcon);
 
