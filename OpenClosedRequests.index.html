@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Requests Map</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="stylesheet" href="https://js.arcgis.com/4.24/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.24/"></script>
+    <style>
+        html, body, #viewDiv {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            height: 100%;
+            box-sizing: border-box;
+            position: relative;
+            overflow-y: auto;
+            overflow-x: hidden; /* Disable horizontal scrollbar */
+        }
+        .tab {
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            margin-right: 0rem;
+            background-color: transparent; /* Remove background color */
+            border: 1px solid transparent; /* Remove border */
+            border-bottom: none; /* Remove bottom border */
+            color: #4a5568; /* Change text color */
+            position: relative;
+            z-index: 500;
+            flex-grow: 1; /* Expand to fill available space */
+            border-right: 1px solid #ddd; /* Example border */
+            text-align: center;
+        }
+        .tabs {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+        }
+        .tab.active {
+            border-color: #4299e1; /* Add blue border color */
+            color: #4299e1; /* Change text color */
+            background: #ffffff;
+            z-index: 100;
+        }
+        .request-list {
+            display: none;
+        }
+        .request-list.active {
+            display: block;
+        }
+        .request-item {
+            background: white;
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+        }
+        .request-item img {
+            max-width: 100%;
+            border-radius: 0.25rem;
+        }
+        .request-item.active {
+            background-color: #e2e8f0;
+            outline: 1px solid #2292C3;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.9);
+        }
+        .modal-content {
+            margin: auto;
+            display: block;
+            width: 80%;
+            max-width: 700px;
+        }
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .arrow {
+            cursor: pointer;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 24px;
+            color: #fff;
+            background-color: rgba(0,0,0,0.5);
+            padding: 10px;
+        }
+        .arrow-left {
+            left: 10px;
+        }
+        .arrow-right {
+            right: 10px;
+        }
+        .attachment-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            overflow-x: hidden; /* Disable horizontal scrollbar */
+            overflow-y: hidden; /* Disable vertical scrollbar */
+        }
+        .attachment-img {
+            display: none;
+            max-width: 100%;
+        }
+        .attachment-img:first-child {
+            display: block;
+        }
+        .notes {
+            max-height: calc(5 * 1.5em); /* Set max-height to five lines */
+            overflow-y: scroll; /* Enable vertical scrollbar */
+            margin: 0; /* Remove any margin */
+            padding: 0; /* Remove any padding */
+        }
+    </style>
+</head>
+<body>
+    <div class="flex h-full">
+        <div class="w-1/4 p-4 sidebar bg-gray-200">
+            <div class="tabs">
+                <div class="tab active" id="openRequestsTab">Open Requests</div>
+                <div class="tab" id="closedRequestsTab">Closed Requests</div>
+            </div>
+            <div class="request-list active" id="openRequestsStack"></div>
+            <div class="request-list" id="closedRequestsStack"></div>
+        </div>
+        <div id="viewDiv" class="w-3/4"></div>   
+    </div>
+    <div id="myModal" class="modal">
+        <span class="close">&times;</span>
+        <img class="modal-content" id="img01">
+    </div>
+    <script>
+document.addEventListener("DOMContentLoaded", function () {
+    const openRequestsTab = document.getElementById("openRequestsTab");
+    const closedRequestsTab = document.getElementById("closedRequestsTab");
+    const openRequestsStack = document.getElementById("openRequestsStack");
+    const closedRequestsStack = document.getElementById("closedRequestsStack");
+
+    openRequestsTab.addEventListener("click", function () {
+        openRequestsTab.classList.add("active");
+        closedRequestsTab.classList.remove("active");
+        openRequestsStack.classList.add("active");
+        closedRequestsStack.classList.remove("active");
+    });
+
+    closedRequestsTab.addEventListener("click", function () {
+        closedRequestsTab.classList.add("active");
+        openRequestsTab.classList.remove("active");
+        closedRequestsStack.classList.add("active");
+        openRequestsStack.classList.remove("active");
+    });
+});
+
+require([
+    "esri/Map",
+    "esri/views/MapView",
+    "esri/layers/FeatureLayer",
+    "esri/Graphic",
+    "esri/layers/GraphicsLayer",
+    "esri/WebMap"
+], function(Map, MapView, FeatureLayer, Graphic, GraphicsLayer, WebMap) {
+    const webmap = new WebMap({
+        portalItem: {
+            id: "32aa25434f284e48a88fc9ff499b0fd8"
+        }
+    });
+
+    var view = new MapView({
+        container: "viewDiv",
+        map: webmap,
+        center: [-93.6324, 44.8407],
+        zoom: 13
+    });
+
+    var graphicsLayer = new GraphicsLayer();
+    webmap.add(graphicsLayer);
+
+    var featureLayer = new FeatureLayer({
+        url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Requests_email_submissions_public/FeatureServer/0"
+    });
+
+    view.map.add(featureLayer);
+
+    var highlightSymbol = {
+        type: "simple-marker",
+        style: "circle",
+        color: [255, 255, 0, 0.4],
+        size: "30px",
+        outline: {
+            color: [255, 255, 0],
+            width: 3
+        }
+    };
+
+    function highlightFeature(objectId) {
+        featureLayer.queryFeatures({
+            objectIds: [objectId],
+            returnGeometry: true,
+            outFields: ["*"],
+            outSpatialReference: view.spatialReference
+        }).then(function(results) {
+            graphicsLayer.removeAll();
+            var feature = results.features[0];
+            var activeFeatureGraphic = new Graphic({
+                geometry: feature.geometry,
+                symbol: highlightSymbol
+            });
+            graphicsLayer.add(activeFeatureGraphic);
+        });
+    }
+
+    view.when(function() {
+        featureLayer.queryFeatures({
+            where: "1=1",
+            outFields: ["*"],
+            orderByFields: ["created_date DESC"],
+            returnGeometry: true
+        }).then(function(results) {
+            var features = results.features;
+            var openRequestsStack = document.getElementById("openRequestsStack");
+            var closedRequestsStack = document.getElementById("closedRequestsStack");
+            var hasOpenRequests = false;
+
+            features.forEach(function(feature) {
+                var attributes = feature.attributes;
+                var requestDiv = document.createElement("div");
+                requestDiv.className = "request-item";
+                requestDiv.setAttribute("data-objectid", attributes.OBJECTID);
+                requestDiv.innerHTML = `
+<h3 class="font-bold">${attributes.reqtype}</h3>
+<p>Status: ${attributes.status}</p>
+<p>Resolved On: ${new Date(attributes.resolutiondt).toLocaleString()}</p>
+<div class="notes">
+    <p>${attributes.details}</p>
+</div>
+`;
+                if (attributes.status === "Completed" || attributes.status === "Canceled") {
+                    closedRequestsStack.appendChild(requestDiv);
+                } else {
+                    openRequestsStack.appendChild(requestDiv);
+                    hasOpenRequests = true;
+                }
+
+                requestDiv.onclick = function() {
+                    document.querySelectorAll('.request-item').forEach(function(item) {
+                        item.classList.remove('active');
+                    });
+                    requestDiv.classList.add('active');
+                    view.goTo({
+                        target: feature.geometry,
+                        zoom: 17
+                    });
+                    highlightFeature(attributes.OBJECTID);
+                };
+
+                // Attachments handling moved inside the forEach loop
+                featureLayer.queryAttachments({
+                    objectIds: [attributes.OBJECTID]
+                }).then(function(attachmentResults) {
+                    var attachmentInfos = attachmentResults[attributes.OBJECTID];
+                    var attachmentContainer = document.createElement("div");
+                    attachmentContainer.className = "attachment-container";
+
+                    if (attachmentInfos && attachmentInfos.length > 0) {
+                        attachmentInfos.forEach(function(attachmentInfo, index) {
+                            var img = document.createElement("img");
+                            img.src = attachmentInfo.url;
+                            img.alt = `Attachment for ${attributes.reqtype}`;
+                            img.className = "attachment-img";
+                            if(index === 0) img.style.display = "block"; // Only show the first image
+                            img.ondblclick = function() { showModal(img.src); };
+                            attachmentContainer.appendChild(img);
+                        });
+                    } else {
+                        var noAttachmentMsg = document.createElement("p");
+                        noAttachmentMsg.textContent = "No attachments found for this feature.";
+                        attachmentContainer.appendChild(noAttachmentMsg);
+                    }
+
+                    if(attachmentInfos && attachmentInfos.length > 1) {
+                        var leftArrow = document.createElement('div');
+                        leftArrow.classList.add('arrow', 'arrow-left');
+                        leftArrow.innerHTML = '&lt;';
+                        leftArrow.onclick = function() { scrollAttachment(attachmentContainer, -1); };
+                        attachmentContainer.appendChild(leftArrow);
+
+                        var rightArrow = document.createElement('div');
+                        rightArrow.classList.add('arrow', 'arrow-right');
+                        rightArrow.innerHTML = '&gt;';
+                        rightArrow.onclick = function() { scrollAttachment(attachmentContainer, 1); };
+                        attachmentContainer.appendChild(rightArrow);
+                    }
+
+                    requestDiv.appendChild(attachmentContainer);
+                });
+            });
+
+            if (!hasOpenRequests) {
+    var noOpenRequestsMsg = document.createElement("div");
+    noOpenRequestsMsg.textContent = "No Current Open Requests";
+    noOpenRequestsMsg.className = "request-item";
+    // Add an inline style for top margin or padding
+    noOpenRequestsMsg.style.marginTop = "50px"; // Adjust the value as needed
+    openRequestsStack.appendChild(noOpenRequestsMsg);
+}
+        });
+    });
+
+    function showModal(src) {
+        var modal = document.getElementById("myModal");
+        var modalImg = document.getElementById("img01");
+        var span = document.getElementsByClassName("close")[0];
+
+        modal.style.display = "block";
+        modalImg.src = src;
+
+        span.onclick = function() { 
+            modal.style.display = "none";
+        }
+    }
+
+    function scrollAttachment(container, direction) {
+        var images = container.getElementsByClassName("attachment-img");
+        var currentIndex = Array.from(images).findIndex(image => image.style.display === "block");
+        var newIndex = currentIndex + direction;
+
+        if(newIndex >= 0 && newIndex < images.length) {
+            images[currentIndex].style.display = "none";
+            images[newIndex].style.display = "block";
+        }
+    }
+});
+</script>
+
+</body>
+</html>
