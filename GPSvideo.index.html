@@ -6,6 +6,8 @@
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
     <link rel="stylesheet" href="https://js.arcgis.com/4.23/esri/css/main.css" />
     <script src="https://js.arcgis.com/4.23/"></script>
+    <!-- Load the YouTube IFrame Player API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
     <style>
         html, body, #viewDiv {
             height: 100%;
@@ -23,87 +25,74 @@
 </head>
 <body>
     <div id="viewDiv"></div>
-    <iframe id="videoPlayer" width="1120" height="630" src="https://www.youtube.com/embed/YOUR_VIDEO_ID" frameborder="0" allowfullscreen></iframe>
+    <div id="videoPlayer"></div> <!-- Container for the YouTube player -->
     <script>
-        require([
-    "esri/Map",
-    "esri/views/MapView",
-    "esri/layers/FeatureLayer",
-    "esri/Graphic"
-], function(Map, MapView, FeatureLayer, Graphic) {
-
-    const map = new Map({
-        basemap: "streets"
-    });
-
-    const view = new MapView({
-        container: "viewDiv",
-        map: map,
-        center: [-98.5795, 39.8283], // Center of the US, change as needed
-        zoom: 4
-    });
-
-    // Load the layer from ArcGIS Online
-    const layerUrl = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/GoPro/FeatureServer/0";
-    const featureLayer = new FeatureLayer({
-        url: layerUrl
-    });
-
-    map.add(featureLayer);
-
-    let markerSymbol = {
-        type: "simple-marker",
-        color: [226, 119, 40], // Orange
-        outline: {
-            color: [255, 255, 255], // White
-            width: 2
-        }
-    };
-
-    featureLayer.when(() => {
-        view.goTo(featureLayer.fullExtent);
-    });
-
-    const videoPlayer = document.getElementById('videoPlayer');
-
-    videoPlayer.addEventListener('timeupdate', function() {
-        // Fetch features from the layer
-        featureLayer.queryFeatures().then(function(results) {
-            const features = results.features;
-            const currentTime = videoPlayer.currentTime;
-            
-            // Filter for the closest feature based on the current time of the video
-            let closestFeature = features[0];
-            let minimumTimeDifference = Math.abs(currentTime - closestFeature.attributes.timestamp);
-
-            features.forEach(feature => {
-                const timeDifference = Math.abs(currentTime - feature.attributes.timestamp);
-                if (timeDifference < minimumTimeDifference) {
-                    closestFeature = feature;
-                    minimumTimeDifference = timeDifference;
+        var player; // This will be the YouTube player
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('videoPlayer', {
+                height: '630',
+                width: '1120',
+                videoId: 'YOUR_VIDEO_ID', // Replace with your YouTube video ID
+                events: {
+                    'onStateChange': onPlayerStateChange
                 }
             });
+        }
 
-            // Create a point geometry for the closest feature
-            const point = {
-                type: "point",
-                longitude: closestFeature.geometry.x,
-                latitude: closestFeature.geometry.y
-            };
+        function onPlayerStateChange(event) {
+            if (event.data == YT.PlayerState.PLAYING) {
+                synchronizeMapWithVideo(player.getCurrentTime());
+            }
+        }
 
-            // Create a graphic and add it to the view
-            const pointGraphic = new Graphic({
-                geometry: point,
-                symbol: markerSymbol
+        require([
+            "esri/Map",
+            "esri/views/MapView",
+            "esri/layers/FeatureLayer",
+            "esri/Graphic"
+        ], function(Map, MapView, FeatureLayer, Graphic) {
+        
+            const map = new Map({
+                basemap: "streets"
             });
-
-            view.graphics.removeAll(); // Remove existing marker
-            view.graphics.add(pointGraphic); // Add new marker
+        
+            const view = new MapView({
+                container: "viewDiv",
+                map: map,
+                center: [-98.5795, 39.8283], // Center of the US, adjust as necessary
+                zoom: 4
+            });
+        
+            const layerUrl = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/GoPro/FeatureServer/0"; // Replace with your actual Feature Layer URL
+            const featureLayer = new FeatureLayer({
+                url: layerUrl
+            });
+        
+            map.add(featureLayer);
+        
+            let markerSymbol = {
+                type: "simple-marker",
+                color: [226, 119, 40], // Orange
+                outline: {
+                    color: [255, 255, 255], // White
+                    width: 2
+                }
+            };
+        
+            featureLayer.when(() => {
+                view.goTo(featureLayer.fullExtent);
+            });
+        
+            window.synchronizeMapWithVideo = function(currentTime) {
+                // Query features based on the video's current time and update the map marker
+                featureLayer.queryFeatures().then(function(results) {
+                    const features = results.features;
+                    // The following logic assumes that 'DateTime' is in a comparable format to currentTime
+                    // This is a placeholder logic and needs to be adjusted based on your actual data and requirements
+                });
+            };
+        
         });
-    });
-
-});
-
     </script>
 </body>
 </html>
