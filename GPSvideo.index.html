@@ -30,8 +30,10 @@
 
 #attachmentImageContainer {
     position: relative;
-    width: 100%;
-    height: 300px; /* Set a fixed height for the image container */
+    width: calc(100% - 80px); /* 80px is an arbitrary margin value */
+    height: 300px; /* Adjust if needed */
+    margin: 40px;
+    overflow: hidden; /* This will clip the image and prevent it from overflowing */
 }
 
 #attachmentImage {
@@ -251,10 +253,11 @@
 });
 
             function updateImageScale() {
-                const attachmentImage = document.getElementById("attachmentImage");
-                attachmentImage.style.transform = `scale(${currentScale})`;
-            }
-
+    const attachmentImage = document.getElementById("attachmentImage");
+    // Center the transform origin so the image zooms in towards the center
+    attachmentImage.style.transformOrigin = 'center center';
+    attachmentImage.style.transform = `scale(${currentScale})`;
+}
             let isDragging = false;
             let startX, startY, scrollLeft, scrollTop;
 
