@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8" />
-    <title>Display FeatureLayer Attachments</title>
+    <title>FeatureLayer Attachments</title>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
     <link rel="stylesheet" href="https://js.arcgis.com/4.23/esri/css/main.css" />
     <script src="https://js.arcgis.com/4.23/"></script>
@@ -21,35 +21,68 @@
         require([
             "esri/Map",
             "esri/views/MapView",
-            "esri/layers/FeatureLayer",
-            "esri/widgets/Popup"
-        ], function(Map, MapView, FeatureLayer, Popup) {
-        
+            "esri/layers/FeatureLayer"
+        ], function(Map, MapView, FeatureLayer) {
+
             const map = new Map({
                 basemap: "streets-vector"
             });
-        
+
             const view = new MapView({
                 container: "viewDiv",
                 map: map,
-                center: [-98.5795, 39.8283], // Adjust as necessary
+                center: [-98.5795, 39.8283],
                 zoom: 4
             });
-        
+
             const featureLayer = new FeatureLayer({
-                url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/GoPro/FeatureServer/0",
-                outFields: ["*"], // Fetch all fields
-                popupEnabled: true,
-                popupTemplate: {
-                    // Define how to display attachments in the popup
-                    title: "{Name}", // Adjust based on the actual field you want for the title
-                    content: [{
-                        type: "attachments"
-                    }]
+                url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/GoPro/FeatureServer/0"
+            });
+
+            map.add(featureLayer);
+
+            let lastClickedFeatureObjectId;
+
+            // Listen for single click events to show attachment
+            view.on("click", (event) => {
+                view.hitTest(event).then((response) => {
+                    const feature = response.results.find((result) => result.graphic.layer === featureLayer)?.graphic;
+                    if (feature) {
+                        lastClickedFeatureObjectId = feature.attributes.OBJECTID;
+                        featureLayer.queryAttachments({
+                            objectIds: [feature.attributes.OBJECTID]
+                        }).then((attachments) => {
+                            const attachmentInfos = attachments[feature.attributes.OBJECTID];
+                            if (attachmentInfos && attachmentInfos.length > 0) {
+                                const firstAttachmentUrl = attachmentInfos[0].url;
+                                // Display the first attachment as an image in a popup
+                                view.popup.open({
+                                    title: "Attachment",
+                                    content: `<img src="${firstAttachmentUrl}" style="width: 100%;" />`,
+                                    location: event.mapPoint
+                                });
+                            }
+                        });
+                    }
+                });
+            });
+
+            // Listen for double click events to open full image
+            view.on("double-click", (event) => {
+                event.stopPropagation(); // Prevent map zoom
+                if (lastClickedFeatureObjectId !== undefined) {
+                    featureLayer.queryAttachments({
+                        objectIds: [lastClickedFeatureObjectId]
+                    }).then((attachments) => {
+                        const attachmentInfos = attachments[lastClickedFeatureObjectId];
+                        if (attachmentInfos && attachmentInfos.length > 0) {
+                            const firstAttachmentUrl = attachmentInfos[0].url;
+                            // Open the first attachment in a new tab/window
+                            window.open(firstAttachmentUrl, '_blank');
+                        }
+                    });
                 }
             });
-        
-            map.add(featureLayer);
         });
     </script>
 </body>
