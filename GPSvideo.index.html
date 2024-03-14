@@ -29,31 +29,25 @@
         }
 
         #attachmentImageContainer {
-            position: relative;
-            width: 100%; /* Adjust the width as necessary */
-            height: 300px; /* Adjust the height as necessary */
-            margin: 10px;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 10px;
-            box-sizing: border-box;
-        }
+    position: relative;
+    width: 620px; /* 600px + 10px padding on each side */
+    height: 420px; /* 400px + 10px padding on top and bottom */
+    margin: 10px;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    box-sizing: border-box;
+}
 
         #attachmentImage {
-            max-width: 100%;
-            max-height: 100%;
-            width: auto;
-            height: auto;
-            object-fit: contain;
-            cursor: grab;
-            user-select: none;
-            position: absolute;
-            transition: transform 0.2s;
-            object-fit: contain;
-            margin: 10px;
-        }
+    width: 600px; /* Set the width of the image */
+    height: 400px; /* Set the height of the image */
+    object-fit: contain; /* This will ensure the aspect ratio is maintained */
+    cursor: grab;
+    user-select: none;
+}
 
         .zoom-buttons {
             position: absolute;
@@ -255,6 +249,14 @@
 
 var currentScale = 1; // Global scale factor
 
+function resetImageSize() {
+    const attachmentImage = document.getElementById("attachmentImage");
+    attachmentImage.style.width = "600px";
+    attachmentImage.style.height = "400px";
+    currentScale = 1; // Reset the scale
+    updateImageScale(); // Update the scale transform
+}
+
 function updateImageScale() {
     const attachmentImage = document.getElementById("attachmentImage");
     attachmentImage.style.transformOrigin = 'center center';
@@ -262,7 +264,7 @@ function updateImageScale() {
 }
 
 document.getElementById("zoomIn").addEventListener("click", function(event) {
-    event.stopPropagation(); // Prevent event from bubbling to other elements
+    event.stopPropagation();
     if (currentScale < 5) {
         currentScale *= 1.2;
         updateImageScale();
@@ -270,8 +272,8 @@ document.getElementById("zoomIn").addEventListener("click", function(event) {
 });
 
 document.getElementById("zoomOut").addEventListener("click", function(event) {
-    event.stopPropagation(); // Prevent event from bubbling to other elements
-    if (currentScale > 0.2) {
+    event.stopPropagation();
+    if (currentScale > 0.5) { // Set a minimum scale limit to prevent the image from being too small
         currentScale /= 1.2;
         updateImageScale();
     }
