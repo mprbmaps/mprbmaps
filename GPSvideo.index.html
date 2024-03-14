@@ -309,6 +309,26 @@ document.getElementById("attachmentImage").addEventListener("mousemove", functio
     startX = mouseX;
     startY = mouseY;
 });
+document.getElementById("attachmentImage").addEventListener("load", function() {
+    // Get the natural dimensions of the image
+    var naturalWidth = this.naturalWidth;
+    var naturalHeight = this.naturalHeight;
+
+    // Set the dimensions of the container
+    var container = document.getElementById("attachmentImageContainer");
+    container.style.width = naturalWidth + 'px';
+    container.style.height = naturalHeight + 'px';
+    
+    // Apply padding if needed - this assumes padding is desired on all sides equally
+    var padding = 10; // This should match your CSS padding value
+    container.style.padding = padding + 'px';
+    container.style.boxSizing = 'border-box';
+    
+    // Update the image's max-width and max-height to take padding into account
+    var image = document.getElementById("attachmentImage");
+    image.style.maxWidth = (naturalWidth - padding * 2) + 'px';
+    image.style.maxHeight = (naturalHeight - padding * 2) + 'px';
+});
 
 
     </script>
