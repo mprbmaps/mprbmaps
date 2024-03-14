@@ -105,27 +105,39 @@
             let currentIndex = -1;
 
             function queryAndSortFeatures() {
-                featureLayer.queryFeatures({
-                    where: "1=1",
-                    orderByFields: ["OBJECTID ASC"]
-                }).then(function(results) {
-                    sortedFeatures = results.features;
-                    console.log("Features are loaded and sorted by OBJECTID.");
-                }).catch(function(error) {
-                    console.error("Error loading or sorting features:", error);
-                });
-            }
+    featureLayer.queryFeatures({
+        where: "1=1",
+        orderByFields: ["OBJECTID ASC"],
+        returnGeometry: true, // Ensure geometries are returned
+        outFields: ["*"] // Fetch all fields
+    }).then(function(results) {
+        sortedFeatures = results.features;
+        console.log("Features are loaded and sorted by OBJECTID. Total features:", sortedFeatures.length);
+    }).catch(function(error) {
+        console.error("Error loading or sorting features:", error);
+    });
+}
 
-            view.on("click", function(event) {
+// Ensure this function is called after the feature layer is fully loaded
+featureLayer.when(() => {
+    queryAndSortFeatures();
+});
+
+view.on("click", function(event) {
     view.hitTest(event).then(function(response) {
         const result = response.results.find(result => result.graphic.layer === featureLayer);
-        if (result && result.graphic) {
-            const clickedFeatureObjectId = result.graphic.attributes.OBJECTID;
-            currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === clickedFeatureObjectId);
+        if (result) {
+            console.log("Feature clicked:", result.graphic.attributes);
+            const clickedObjectId = result.graphic.attributes.OBJECTID;
+            
+            // Attempt to find the clicked feature in sortedFeatures by OBJECTID
+            currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === clickedObjectId);
             if (currentIndex !== -1) {
                 showFeature(currentIndex);
             } else {
-                console.log("Feature not found in sorted features. OBJECTID:", clickedFeatureObjectId);
+                console.log("Feature not found in sorted features. OBJECTID:", clickedObjectId);
+                // Additional log for diagnostic purposes
+                console.log("Sorted Features ObjectIDs:", sortedFeatures.map(f => f.attributes.OBJECTID));
             }
         }
     });
