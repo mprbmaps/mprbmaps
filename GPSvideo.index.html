@@ -8,73 +8,76 @@
     <script src="https://js.arcgis.com/4.28/"></script>
     <style>
         html, body, #viewDiv {
-    height: 100%;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-}
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
 
-#attachmentWindow {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    z-index: 10;
-    background: white;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    width: 600px; /* This sets the width of the attachment window. Adjust as necessary. */
-    display: none; /* Initially hide the attachment window */
-    overflow: hidden; /* Hide overflow content */
-}
+        #attachmentWindow {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+            background: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 600px; /* This sets the width of the attachment window. Adjust as necessary. */
+            display: none; /* Initially hide the attachment window */
+            overflow: hidden; /* Hide overflow content */
+        }
 
-#attachmentImageContainer {
-    position: relative;
-    width: calc(100% - 80px); /* 80px is an arbitrary margin value */
-    height: 300px; /* Adjust if needed */
-    margin: 10px;
-    overflow: hidden; /* This will clip the image and prevent it from overflowing */
-}
+        #attachmentImageContainer {
+            position: relative;
+            width: calc(100% - 80px); /* 80px is an arbitrary margin value */
+            height: 300px; /* Adjust if needed */
+            margin: 10px;
+            overflow: hidden; /* This will clip the image and prevent it from overflowing */
+        }
 
-#attachmentImage {
-    width: 100%; /* Make the image take the full width of its container */
-    height: 100%; /* Make the image take the full height of its container */
-    object-fit: cover; /* Cover the area without white spaces, may crop some parts */
-    cursor: grab;
-    user-select: none;
-    position: absolute;
-    transition: transform 0.2s;
-}
+        #attachmentImage {
+            width: 100%; /* Make the image take the full width of its container */
+            height: 100%; /* Make the image take the full height of its container */
+            object-fit: cover; /* Cover the area without white spaces, may crop some parts */
+            cursor: grab;
+            user-select: none;
+            position: absolute;
+            transition: transform 0.2s;
+        }
 
-.zoom-buttons {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    z-index: 20;
-    display: flex;
-    flex-direction: column;
-}
+        .zoom-buttons {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+        }
 
-.nav-button {
-    margin: 5px;
-    padding: 5px 20px; /* Increase horizontal padding */
-    min-width: 100px; /* Set a minimum width */
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 16px; /* Optional: Adjust font size if necessary */
-    display: inline-block; /* Ensure that the min-width is respected */
-    text-align: center; /* Center the text inside the button */
-}
+        .nav-button, .zoom-button {
+            margin: 5px;
+            padding: 5px 20px; /* Increase horizontal padding */
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px; /* Optional: Adjust font size if necessary */
+            display: inline-block; /* Ensure that the min-width is respected */
+            text-align: center; /* Center the text inside the button */
+        }
 
+        /* New class for zoom buttons to customize their size separately */
+        .zoom-button {
+            padding: 10px 25px; /* Adjust padding for larger buttons */
+            font-size: 20px; /* Larger font size for zoom buttons */
+        }
 
-.nav-button:disabled {
-    background-color: #cccccc;
-    cursor: not-allowed;
-}
-
+        .nav-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -83,8 +86,8 @@
         <div id="attachmentImageContainer">
             <img id="attachmentImage" src="" alt="Attachment Image" />
             <div class="zoom-buttons">
-                <button id="zoomIn" class="nav-button">+</button>
-                <button id="zoomOut" class="nav-button">-</button>
+                <button id="zoomIn" class="nav-button zoom-button">+</button>
+                <button id="zoomOut" class="nav-button zoom-button">-</button>
             </div>
         </div>
         <button id="prevFeature" class="nav-button">Back</button>
