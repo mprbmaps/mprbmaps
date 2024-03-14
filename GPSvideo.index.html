@@ -169,15 +169,22 @@
                                 attachmentWindow.innerHTML += `<br><button id="prevFeature" class="nav-button">Back</button>`;
                                 attachmentWindow.innerHTML += `<button id="nextFeature" class="nav-button">Next</button>`;
                                 attachmentWindow.style.display = "block";
+                                document.getElementById("prevFeature").addEventListener("click", function() {
+                                    if (currentIndex > 0) {
+                                        showFeature(currentIndex - 1);
+                                    }
+                                });
+                                document.getElementById("nextFeature").addEventListener("click", function() {
+                                    if (currentIndex < sortedFeatures.length - 1) {
+                                        showFeature(currentIndex + 1);
+                                    }
+                                });
                             } else {
                                 attachmentWindow.innerHTML = "No attachments found.";
                                 attachmentWindow.style.display = "block";
                             }
                         }).catch(function(error) {
                             console.error("Error querying attachments:", error);
-                            const attachmentWindow = document.getElementById("attachmentWindow");
-                            attachmentWindow.innerHTML = "Error loading attachments.";
-                            attachmentWindow.style.display = "block";
                         });
                     }
 
