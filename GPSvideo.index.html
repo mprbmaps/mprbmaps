@@ -37,6 +37,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            padding-right: 10px;
         }
 
         #attachmentImage {
@@ -262,19 +263,21 @@
 }
 
 
-        document.getElementById("zoomIn").addEventListener("click", function() {
-            if (currentScale < 5) {
-                currentScale *= 1.2;
-                updateImageScale();
-            }
-        });
+        document.getElementById("zoomIn").addEventListener("click", function(event) {
+    event.stopPropagation(); // Prevent the mousedown event from bubbling to the image
+    if (currentScale < 5) {
+        currentScale *= 1.2;
+        updateImageScale();
+    }
+});
 
-        document.getElementById("zoomOut").addEventListener("click", function() {
-            if (currentScale > 0.2) {
-                currentScale /= 1.2;
-                updateImageScale();
-            }
-        });
+        document.getElementById("zoomOut").addEventListener("click", function(event) {
+    event.stopPropagation(); // Prevent the mousedown event from bubbling to the image
+    if (currentScale > 0.2) {
+        currentScale /= 1.2;
+        updateImageScale();
+    }
+});
 
         let isDragging = false;
         let startX, startY;
