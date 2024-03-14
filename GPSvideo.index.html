@@ -118,21 +118,15 @@
 
             view.on("click", function(event) {
     view.hitTest(event).then(function(response) {
-        console.log("Hit test results:", response);
-
-        // Assuming the feature layer is the first in the results array
         const result = response.results.find(result => result.graphic.layer === featureLayer);
         if (result && result.graphic) {
-            console.log("Feature clicked:", result.graphic.attributes); // Log attributes to confirm correct feature is identified
-
-            currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === result.graphic.attributes.OBJECTID);
+            const clickedFeatureObjectId = result.graphic.attributes.OBJECTID;
+            currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === clickedFeatureObjectId);
             if (currentIndex !== -1) {
                 showFeature(currentIndex);
             } else {
-                console.log("Feature not found in sorted features.");
+                console.log("Feature not found in sorted features. OBJECTID:", clickedFeatureObjectId);
             }
-        } else {
-            console.log("No feature from the expected layer was clicked.");
         }
     });
 });
