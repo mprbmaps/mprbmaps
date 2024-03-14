@@ -37,7 +37,8 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            padding-right: 10px;
+            padding-right: 20px;
+            box-sizing: border-box;
         }
 
         #attachmentImage {
@@ -264,7 +265,7 @@
 
 
         document.getElementById("zoomIn").addEventListener("click", function(event) {
-    event.stopPropagation(); // Prevent the mousedown event from bubbling to the image
+    event.stopPropagation(); // Prevent event from bubbling to other elements
     if (currentScale < 5) {
         currentScale *= 1.2;
         updateImageScale();
@@ -272,7 +273,7 @@
 });
 
         document.getElementById("zoomOut").addEventListener("click", function(event) {
-    event.stopPropagation(); // Prevent the mousedown event from bubbling to the image
+    event.stopPropagation(); // Prevent event from bubbling to other elements
     if (currentScale > 0.2) {
         currentScale /= 1.2;
         updateImageScale();
@@ -284,8 +285,8 @@
 
         document.getElementById("attachmentImage").addEventListener("mousedown", function(e) {
             isDragging = true;
-            startX = e.pageX - this.offsetLeft;
-            startY = e.pageY - this.offsetTop;
+            startX = e.clientX - this.getBoundingClientRect().left;
+            startY = e.clientY - this.getBoundingClientRect().top;
             this.style.cursor = "grabbing";
         });
 
