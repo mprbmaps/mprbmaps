@@ -23,23 +23,25 @@
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
-            width: 600px; /* This sets the width of the attachment window. Adjust as necessary. */
-            display: none; /* Initially hide the attachment window */
-            overflow: hidden; /* Hide overflow content */
+            width: 600px;
+            display: none;
+            overflow: hidden;
         }
 
         #attachmentImageContainer {
             position: relative;
-            width: calc(100% - 80px); /* 80px is an arbitrary margin value */
-            height: 300px; /* Adjust if needed */
+            width: calc(100% - 80px); /* Adjust the width as necessary */
+            height: 300px; /* Adjust the height as necessary */
             margin: 10px;
-            overflow: hidden; /* This will clip the image and prevent it from overflowing */
+            overflow: hidden;
         }
 
         #attachmentImage {
-            width: 100%; /* Make the image take the full width of its container */
-            height: 100%; /* Make the image take the full height of its container */
-            object-fit: cover; /* Cover the area without white spaces, may crop some parts */
+            max-width: none;
+            max-height: none;
+            width: auto;
+            height: auto;
+            object-fit: contain;
             cursor: grab;
             user-select: none;
             position: absolute;
@@ -55,23 +57,17 @@
             flex-direction: column;
         }
 
-        .nav-button, .zoom-button {
+        .nav-button {
             margin: 5px;
-            padding: 5px 20px; /* Increase horizontal padding */
+            padding: 5px 10px; /* Adjust padding as necessary */
             background-color: #007bff;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 16px; /* Optional: Adjust font size if necessary */
-            display: inline-block; /* Ensure that the min-width is respected */
-            text-align: center; /* Center the text inside the button */
-        }
-
-        /* New class for zoom buttons to customize their size separately */
-        .zoom-button {
-            padding: 10px 25px; /* Adjust padding for larger buttons */
-            font-size: 20px; /* Larger font size for zoom buttons */
+            font-size: 12px; /* Adjust font-size as necessary */
+            display: inline-block;
+            text-align: center;
         }
 
         .nav-button:disabled {
@@ -86,8 +82,8 @@
         <div id="attachmentImageContainer">
             <img id="attachmentImage" src="" alt="Attachment Image" />
             <div class="zoom-buttons">
-                <button id="zoomIn" class="nav-button zoom-button">+</button>
-                <button id="zoomOut" class="nav-button zoom-button">-</button>
+                <button id="zoomIn" class="nav-button">+</button>
+                <button id="zoomOut" class="nav-button">-</button>
             </div>
         </div>
         <button id="prevFeature" class="nav-button">Back</button>
@@ -95,208 +91,207 @@
     </div>
     <script>
         require([
-    "esri/WebMap",
-    "esri/views/MapView",
-    "esri/layers/FeatureLayer",
-    "esri/Graphic",
-    "esri/identity/OAuthInfo",
-    "esri/identity/IdentityManager"
-], function(WebMap, MapView, FeatureLayer, Graphic, OAuthInfo, IdentityManager) {
-    var info = new OAuthInfo({
-        appId: "ti3fi1FqvHE2Hhyw", // Your App ID
-        popup: true
-    });
-    IdentityManager.registerOAuthInfos([info]);
-
-    IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
-        console.log("Signed in successfully");
-        displayMap();
-    }).catch(function(error) {
-        console.error("Sign-in failed: ", error);
-        displayMap(); // Attempt to display the map regardless of sign-in status
-    });
-
-    function displayMap() {
-        var webmap = new WebMap({
-            portalItem: {
-                id: "a11d663a981947b99aac7ff05437758f" // Your WebMap ID
-            }
-        });
-
-        var view = new MapView({
-            container: "viewDiv",
-            map: webmap
-        });
-
-        var featureLayer;
-
-        webmap.when(function() {
-            console.log("WebMap loaded");
-
-            featureLayer = new FeatureLayer({
-                url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/GoPro/FeatureServer/0",
-                outFields: ["*"]
+            "esri/WebMap",
+            "esri/views/MapView",
+            "esri/layers/FeatureLayer",
+            "esri/Graphic",
+            "esri/identity/OAuthInfo",
+            "esri/identity/IdentityManager"
+        ], function(WebMap, MapView, FeatureLayer, Graphic, OAuthInfo, IdentityManager) {
+            var info = new OAuthInfo({
+                appId: "ti3fi1FqvHE2Hhyw", // Your App ID
+                popup: true
             });
+            IdentityManager.registerOAuthInfos([info]);
 
-            view.map.add(featureLayer); // Add the feature layer to the map
-
-            featureLayer.when(function() {
-                console.log("Feature layer loaded successfully.");
-                queryAndSortFeatures();
+            IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+                console.log("Signed in successfully");
+                displayMap();
             }).catch(function(error) {
-                console.error("Error loading feature layer:", error);
+                console.error("Sign-in failed: ", error);
+                displayMap(); // Attempt to display the map regardless of sign-in status
             });
 
-            let sortedFeatures = [];
-            let currentIndex = -1;
-
-            function queryAndSortFeatures() {
-                featureLayer.queryFeatures({
-                    where: "1=1",
-                    orderByFields: ["OBJECTID ASC"],
-                    returnGeometry: true,
-                    outFields: ["*"]
-                }).then(function(results) {
-                    sortedFeatures = results.features;
-                    console.log("Features are loaded and sorted by OBJECTID. Total features:", sortedFeatures.length);
-                }).catch(function(error) {
-                    console.error("Error loading or sorting features:", error);
-                });
-            }
-
-            view.on("click", function(event) {
-                view.hitTest(event).then(function(response) {
-                    const result = response.results.find(result => result.graphic.layer === featureLayer);
-                    if (result) {
-                        console.log("Feature clicked:", result.graphic.attributes);
-                        const clickedObjectId = result.graphic.attributes.OBJECTID;
-                        
-                        currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === clickedObjectId);
-                        if (currentIndex !== -1) {
-                            showFeature(currentIndex);
-                        } else {
-                            console.log("Feature not found in sorted features. OBJECTID:", clickedObjectId);
-                            console.log("Sorted Features ObjectIDs:", sortedFeatures.map(f => f.attributes.OBJECTID));
-                        }
-                    }
-                });
-            });
-
-            function showFeature(index) {
-                const feature = sortedFeatures[index];
-                console.log("Showing feature:", feature.attributes);
-
-                const highlightGraphic = new Graphic({
-                    geometry: feature.geometry,
-                    symbol: {
-                        type: "simple-marker",
-                        color: [255, 255, 0, 0.6],
-                        size: "20px",
-                        outline: {
-                            color: "#FF0000",
-                            width: 2
-                        }
+            function displayMap() {
+                var webmap = new WebMap({
+                    portalItem: {
+                        id: "a11d663a981947b99aac7ff05437758f" // Your WebMap ID
                     }
                 });
 
-                view.graphics.removeAll();
-                view.graphics.add(highlightGraphic);
-
-                featureLayer.queryAttachments({
-                    objectIds: [feature.attributes.OBJECTID]
-                }).then(function(attachments) {
-                    const attachmentInfos = attachments[feature.attributes.OBJECTID];
-                    const attachmentWindow = document.getElementById("attachmentWindow");
-                    if (attachmentInfos && attachmentInfos.length > 0) {
-                        const firstAttachmentUrl = attachmentInfos[0].url;
-                        document.getElementById("attachmentImage").src = firstAttachmentUrl;
-                        attachmentWindow.style.display = "block";
-                    } else {
-                        attachmentWindow.style.display = "none";
-                    }
-                }).catch(function(error) {
-                    console.error("Error querying attachments:", error);
+                var view = new MapView({
+                    container: "viewDiv",
+                    map: webmap
                 });
 
-                view.whenLayerView(featureLayer).then(function(layerView) {
-                    view.goTo({
-                        target: feature.geometry,
-                        centerOffset: [0, 1 * view.height],
-                        scale: view.scale,
-                        duration: 500
+                var featureLayer;
+
+                webmap.when(function() {
+                    console.log("WebMap loaded");
+
+                    featureLayer = new FeatureLayer({
+                        url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/GoPro/FeatureServer/0",
+                        outFields: ["*"]
                     });
+
+                    view.map.add(featureLayer); // Add the feature layer to the map
+
+                    featureLayer.when(function() {
+                        console.log("Feature layer loaded successfully.");
+                        queryAndSortFeatures();
+                    }).catch(function(error) {
+                        console.error("Error loading feature layer:", error);
+                    });
+
+                    let sortedFeatures = [];
+                    let currentIndex = -1;
+
+                    function queryAndSortFeatures() {
+                        featureLayer.queryFeatures({
+                            where: "1=1",
+                            orderByFields: ["OBJECTID ASC"],
+                            returnGeometry: true,
+                            outFields: ["*"]
+                        }).then(function(results) {
+                            sortedFeatures = results.features;
+                            console.log("Features are loaded and sorted by OBJECTID. Total features:", sortedFeatures.length);
+                        }).catch(function(error) {
+                            console.error("Error loading or sorting features:", error);
+                        });
+                    }
+
+                    view.on("click", function(event) {
+                        view.hitTest(event).then(function(response) {
+                            const result = response.results.find(result => result.graphic.layer === featureLayer);
+                            if (result) {
+                                console.log("Feature clicked:", result.graphic.attributes);
+                                const clickedObjectId = result.graphic.attributes.OBJECTID;
+                                
+                                currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === clickedObjectId);
+                                if (currentIndex !== -1) {
+                                    showFeature(currentIndex);
+                                } else {
+                                    console.log("Feature not found in sorted features. OBJECTID:", clickedObjectId);
+                                }
+                            }
+                        });
+                    });
+
+                    function showFeature(index) {
+                        const feature = sortedFeatures[index];
+                        console.log("Showing feature:", feature.attributes);
+
+                        const highlightGraphic = new Graphic({
+                            geometry: feature.geometry,
+                            symbol: {
+                                type: "simple-marker",
+                                color: [255, 255, 0, 0.6],
+                                size: "20px",
+                                outline: {
+                                    color: "#FF0000",
+                                    width: 2
+                                }
+                            }
+                        });
+
+                        view.graphics.removeAll();
+                        view.graphics.add(highlightGraphic);
+
+                        featureLayer.queryAttachments({
+                            objectIds: [feature.attributes.OBJECTID]
+                        }).then(function(attachments) {
+                            const attachmentInfos = attachments[feature.attributes.OBJECTID];
+                            const attachmentWindow = document.getElementById("attachmentWindow");
+                            if (attachmentInfos && attachmentInfos.length > 0) {
+                                const firstAttachmentUrl = attachmentInfos[0].url;
+                                document.getElementById("attachmentImage").src = firstAttachmentUrl;
+                                attachmentWindow.style.display = "block";
+                            } else {
+                                attachmentWindow.style.display = "none";
+                            }
+                        }).catch(function(error) {
+                            console.error("Error querying attachments:", error);
+                        });
+
+                        view.whenLayerView(featureLayer).then(function(layerView) {
+                            view.goTo({
+                                target: feature.geometry,
+                                scale: view.scale * 2 // Zoom in closer
+                            });
+                        });
+                    }
+
+                    document.getElementById("prevFeature").addEventListener("click", function() {
+                        if (currentIndex > 0) {
+                            showFeature(--currentIndex);
+                        }
+                    });
+
+                    document.getElementById("nextFeature").addEventListener("click", function() {
+                        if (currentIndex < sortedFeatures.length - 1) {
+                            showFeature(++currentIndex);
+                        }
+                    });
+                }).catch(function(error) {
+                    console.error("Error loading WebMap:", error);
                 });
             }
-
-            document.getElementById("prevFeature").addEventListener("click", function() {
-                if (currentIndex > 0) {
-                    showFeature(--currentIndex);
-                }
-            });
-
-            document.getElementById("nextFeature").addEventListener("click", function() {
-                if (currentIndex < sortedFeatures.length - 1) {
-                    showFeature(++currentIndex);
-                }
-            });
-
-            var currentScale = 1; // Global scale factor
-
-            document.getElementById("zoomIn").addEventListener("click", function() {
-    if (currentScale < 5) { // Set a maximum scale limit
-        currentScale *= 1.2; // Increase scale
-        updateImageScale();
-    }
-});
-
-            document.getElementById("zoomOut").addEventListener("click", function() {
-    if (currentScale > 0.2) { // Set a minimum scale limit
-        currentScale /= 1.2; // Decrease scale
-        updateImageScale();
-    }
-});
-
-            function updateImageScale() {
-    const attachmentImage = document.getElementById("attachmentImage");
-    // Center the transform origin so the image zooms in towards the center
-    attachmentImage.style.transformOrigin = 'center center';
-    attachmentImage.style.transform = `scale(${currentScale})`;
-}
-            let isDragging = false;
-            let startX, startY, scrollLeft, scrollTop;
-
-            document.getElementById("attachmentImage").addEventListener("mousedown", function(e) {
-                isDragging = true;
-                startX = e.clientX;
-                startY = e.clientY;
-                scrollLeft = this.scrollLeft;
-                scrollTop = this.scrollTop;
-                this.style.cursor = "grabbing";
-            });
-
-            document.getElementById("attachmentImage").addEventListener("mouseleave", function() {
-                isDragging = false;
-                this.style.cursor = "grab";
-            });
-
-            document.getElementById("attachmentImage").addEventListener("mouseup", function() {
-                isDragging = false;
-                this.style.cursor = "grab";
-            });
-
-            document.getElementById("attachmentImage").addEventListener("mousemove", function(e) {
-                if (!isDragging) return;
-                e.preventDefault();
-                const deltaX = e.clientX - startX;
-                const deltaY = e.clientY - startY;
-                this.scrollLeft = scrollLeft - deltaX;
-                this.scrollTop = scrollTop - deltaY;
-            });
-        }).catch(function(error) {
-            console.error("Error loading WebMap:", error);
         });
-    }
-});
+
+        var currentScale = 1; // Global scale factor
+
+        function updateImageScale() {
+            const attachmentImage = document.getElementById("attachmentImage");
+            attachmentImage.style.transformOrigin = 'center center';
+            attachmentImage.style.transform = `scale(${currentScale})`;
+        }
+
+        document.getElementById("zoomIn").addEventListener("click", function() {
+            if (currentScale < 5) {
+                currentScale *= 1.2;
+                updateImageScale();
+            }
+        });
+
+        document.getElementById("zoomOut").addEventListener("click", function() {
+            if (currentScale > 0.2) {
+                currentScale /= 1.2;
+                updateImageScale();
+            }
+        });
+
+        let isDragging = false;
+        let startX, startY;
+
+        document.getElementById("attachmentImage").addEventListener("mousedown", function(e) {
+            isDragging = true;
+            startX = e.pageX - this.offsetLeft;
+            startY = e.pageY - this.offsetTop;
+            this.style.cursor = "grabbing";
+        });
+
+        document.getElementById("attachmentImage").addEventListener("mouseleave", function() {
+            isDragging = false;
+            this.style.cursor = "grab";
+        });
+
+        document.getElementById("attachmentImage").addEventListener("mouseup", function() {
+            isDragging = false;
+            this.style.cursor = "grab";
+        });
+
+        document.getElementById("attachmentImage").addEventListener("mousemove", function(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            const mouseX = e.pageX - this.parentElement.offsetLeft;
+            const mouseY = e.pageY - this.parentElement.offsetTop;
+            const deltaX = (mouseX - startX) / currentScale;
+            const deltaY = (mouseY - startY) / currentScale;
+            this.style.left = `${this.offsetLeft + deltaX}px`;
+            this.style.top = `${this.offsetTop + deltaY}px`;
+            startX = mouseX;
+            startY = mouseY;
+        });
 
     </script>
 </body>
