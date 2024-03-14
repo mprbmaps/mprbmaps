@@ -196,6 +196,11 @@
                                 });
                             }
                         });
+
+                        // Ensure that the view's spatial reference is defined before enabling panning and zooming
+                        view.when(function() {
+                            enablePanningAndZooming();
+                        });
                     }
 
                     document.getElementById("prevFeature").addEventListener("click", function() {
@@ -211,8 +216,10 @@
                     });
 
                     // Add event listener for mouse wheel events on the attachment image
-                    const attachmentImage = document.getElementById("attachmentImage");
-                    attachmentImage.addEventListener("wheel", handleWheelEvent);
+                    function enablePanningAndZooming() {
+                        const attachmentImage = document.getElementById("attachmentImage");
+                        attachmentImage.addEventListener("wheel", handleWheelEvent);
+                    }
 
                     // Define a function to handle mouse wheel events
                     function handleWheelEvent(event) {
