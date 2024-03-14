@@ -52,16 +52,39 @@ require([
   "esri/Map",
   "esri/views/MapView",
   "esri/layers/FeatureLayer",
-  "esri/Graphic"
-], function(Map, MapView, FeatureLayer, Graphic) {
+  "esri/Graphic",
+    "esri/identity/OAuthInfo",
+    "esri/identity/IdentityManager"
+], function(Map, MapView, FeatureLayer, Graphic, OAuthInfo, IdentityManager) {
 
+var info = new OAuthInfo({
+      appId: "ti3fi1FqvHE2Hhyw",
+      popup: false
+    });
+    IdentityManager.registerOAuthInfos([info]);
+
+    IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+      const portal = new Portal();
+      portal.load().then(function() {
+        const fullName = portal.user.fullName;
+        console.log("Logged in user's full name:", fullName);
+
+        const userInfo = IdentityManager.credentials[0].userId;
+        console.log("User Info:", userInfo);
+        
+        const webmap = new WebMap({
+          portalItem: {
+            id: "26fa8127137c4240885b5b64345e7993"
+          }
+        });
+    
   const map = new Map({
     basemap: "streets-vector"
   });
 
   const view = new MapView({
     container: "viewDiv",
-    map: map,
+    map: webmap,
     center: [-98.5795, 39.8283],
     zoom: 4
   });
