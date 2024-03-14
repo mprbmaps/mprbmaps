@@ -85,8 +85,6 @@
             map: webmap
         });
 
-        let sortedFeatures = []; // Moved declaration here for broader scope
-
         webmap.when(function() {
             console.log("WebMap loaded");
 
@@ -95,114 +93,112 @@
                 outFields: ["*"]
             });
 
-            view.map.add(featureLayer); 
+            view.map.add(featureLayer);
 
-            featureLayer.when(function() {
+            featureLayer.load().then(function() {
                 console.log("Feature layer loaded successfully.");
-                queryAndSortFeatures(featureLayer); // Adjusted call
+                queryAndSortFeatures(featureLayer);
             }).catch(function(error) {
                 console.error("Error loading feature layer:", error);
+            });
+
+            function queryAndSortFeatures(featureLayer) {
+                featureLayer.queryFeatures({
+                    where: "1=1",
+                    orderByFields: ["OBJECTID ASC"],
+                    returnGeometry: true,
+                    outFields: ["*"]
+                }).then(function(results) {
+                    sortedFeatures = results.features;
+                    console.log("Features are loaded and sorted by OBJECTID. Total features:", sortedFeatures.length);
+                }).catch(function(error) {
+                    console.error("Error loading or sorting features:", error);
+                });
+            }
+
+            let sortedFeatures = [];
+
+            view.on("click", function(event) {
+                view.hitTest(event).then(function(response) {
+                    const result = response.results.find(result => result.graphic.layer === featureLayer);
+                    if (result) {
+                        let currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === result.graphic.attributes.OBJECTID);
+                        if (currentIndex !== -1) {
+                            showFeature(view, featureLayer, sortedFeatures, currentIndex);
+                        } else {
+                            console.log("Feature not found in sorted features. OBJECTID:", result.graphic.attributes.OBJECTID);
+                        }
+                    }
+                });
             });
         }).catch(function(error) {
             console.error("Error loading WebMap:", error);
         });
+    }
 
-        function queryAndSortFeatures(featureLayer) {
-            featureLayer.queryFeatures({
-                where: "1=1",
-                orderByFields: ["OBJECTID ASC"],
-                returnGeometry: true,
-                outFields: ["*"]
-            }).then(function(results) {
-                sortedFeatures = results.features;
-                console.log("Features are loaded and sorted by OBJECTID. Total features:", sortedFeatures.length);
-                console.log("OBJECTIDs in sortedFeatures:", sortedFeatures.map(f => f.attributes.OBJECTID));
-            }).catch(function(error) {
-                console.error("Error loading or sorting features:", error);
-            });
-        }
-
-        view.on("click", function(event) {
-            view.hitTest(event).then(function(response) {
-                console.log("Hit test results:", response);
-                const result = response.results.find(result => result.graphic.layer === featureLayer);
-                if (result) {
-                    console.log("Feature clicked:", result.graphic.attributes);
-                    const clickedObjectId = result.graphic.attributes.OBJECTID;
-                    console.log("Looking for OBJECTID in sortedFeatures:", clickedObjectId);
-
-                    let currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === clickedObjectId);
-                    if (currentIndex !== -1) {
-                        console.log("Found OBJECTID at index:", currentIndex);
-                        showFeature(view, featureLayer, sortedFeatures, currentIndex);
-                    } else {
-                        console.log("Feature not found in sorted features. OBJECTID:", clickedObjectId);
-                    }
+    function showFeature(view, featureLayer, sortedFeatures, currentIndex) {
+        const feature = sortedFeatures[currentIndex];
+        const highlightGraphic = new Graphic({
+            geometry: feature.geometry,
+            symbol: {
+                type: "simple-marker",
+                color: [255, 255, 0, 0.6],
+                size: "20px",
+                outline: {
+                    color: "#FF0000",
+                    width: 2
                 }
-            });
+            }
         });
 
-        function showFeature(view, featureLayer, sortedFeatures, currentIndex) {
-            const feature = sortedFeatures[currentIndex];
-            if (!feature) return;
+        view.graphics.removeAll();
+        view.graphics.add(highlightGraphic);
 
-            const highlightGraphic = new Graphic({
-                geometry: feature.geometry,
-                symbol: {
-                    type: "simple-marker",
-                    color: [255, 255, 0, 0.6],
-                    size: "20px",
-                    outline: {
-                        color: "#FF0000",
-                        width: 2
-                    }
-                }
-            });
-
-            view.graphics.removeAll();
-            view.graphics.add(highlightGraphic);
-
-            featureLayer.queryAttachments({
-                objectIds: [feature.attributes.OBJECTID]
-            }).then(function(attachments) {
-                console.log("Attachments for feature:", attachments);
-                const attachmentWindow = document.getElementById("attachmentWindow");
-                attachmentWindow.innerHTML = ''; // Clear previous content
-                if (attachments[feature.attributes.OBJECTID] && attachments[feature.attributes.OBJECTID].length > 0) {
-                    const firstAttachmentUrl = attachments[feature.attributes.OBJECTID][0].url;
-                    attachmentWindow.innerHTML += `<img src="${firstAttachmentUrl}" style="width: 100%;" /><br>`;
-                } else {
-                    attachmentWindow.innerHTML += "No attachments found.<br>";
-                }
-                updateNavigationButtons(view, featureLayer, sortedFeatures, currentIndex);
-                attachmentWindow.style.display = "block";
-            }).catch(function(error) {
-                console.error("Error querying attachments:", error);
-            });
-        }
-
-        function updateNavigationButtons(view, featureLayer, sortedFeatures, currentIndex) {
+        featureLayer.queryAttachments({
+            objectIds: [feature.attributes.OBJECTID]
+        }).then(function(attachments) {
+            const attachmentInfos = attachments[feature.attributes.OBJECTID];
             const attachmentWindow = document.getElementById("attachmentWindow");
-            attachmentWindow.innerHTML += '<br>'; // Ensure buttons are on a new line
+            attachmentWindow.innerHTML = ''; // Clear previous content
+            if (attachmentInfos && attachmentInfos.length > 0) {
+                const firstAttachmentUrl = attachmentInfos[0].url;
+                attachmentWindow.innerHTML += `<img src="${firstAttachmentUrl}" style="width: 100%;" />`;
+                attachmentWindow.style.display = "block";
+            } else {
+                attachmentWindow.innerHTML = "No attachments found.";
+                attachmentWindow.style.display = "block";
+            }
+
+            // Update navigation buttons
             const prevButton = document.createElement("button");
-            prevButton.className = "nav-button";
             prevButton.textContent = "Back";
+            prevButton.className = "nav-button";
             prevButton.disabled = currentIndex <= 0;
             prevButton.onclick = () => {
-                if (currentIndex > 0) showFeature(view, featureLayer, sortedFeatures, --currentIndex);
+                if (currentIndex > 0) {
+                    showFeature(view, featureLayer, sortedFeatures, --currentIndex);
+                }
             };
 
             const nextButton = document.createElement("button");
-            nextButton.className = "nav-button";
             nextButton.textContent = "Next";
+            nextButton.className = "nav-button";
             nextButton.disabled = currentIndex >= sortedFeatures.length - 1;
             nextButton.onclick = () => {
-                if (currentIndex < sortedFeatures.length - 1) showFeature(view, featureLayer, sortedFeatures, ++currentIndex);
+                if (currentIndex < sortedFeatures.length - 1) {
+                    showFeature(view, featureLayer, sortedFeatures, ++currentIndex);
+                }
             };
 
+            // Make sure to clear previous buttons before appending new ones
+            while (attachmentWindow.firstChild) {
+                attachmentWindow.removeChild(attachmentWindow.firstChild);
+            }
             attachmentWindow.appendChild(prevButton);
             attachmentWindow.appendChild(nextButton);
-        }
+        }).catch(function(error) {
+            console.error("Error querying attachments:", error);
+        });
     }
 });
 
