@@ -60,7 +60,7 @@
     esriConfig.portalUrl = "https://www.arcgis.com";
 
     var info = new OAuthInfo({
-        appId: "ti3fi1FqvHE2Hhyw", // Replace with your actual App ID
+        appId: "ti3fi1FqvHE2Hhyw",
         popup: true
     });
     IdentityManager.registerOAuthInfos([info]);
@@ -70,13 +70,13 @@
         displayMap();
     }).catch(function(error) {
         console.error("Sign-in failed: ", error);
-        displayMap(); // Attempt to display the map regardless of sign-in status
+        displayMap();
     });
 
     function displayMap() {
         var webmap = new WebMap({
             portalItem: {
-                id: "a11d663a981947b99aac7ff05437758f" // Your WebMap ID
+                id: "a11d663a981947b99aac7ff05437758f"
             }
         });
 
@@ -93,13 +93,12 @@
                 outFields: ["*"]
             });
 
-            view.map.add(featureLayer); // Add the feature layer to the map
+            view.map.add(featureLayer); 
 
             let sortedFeatures = [];
             let currentIndex = -1;
 
-            // Ensure featureLayer is loaded before querying and sorting
-            featureLayer.when(function() {
+            featureLayer.load().then(function() {
                 console.log("Feature layer loaded successfully.");
                 queryAndSortFeatures(featureLayer, sortedFeatures);
             }).catch(function(error) {
@@ -115,6 +114,7 @@
                 }).then(function(results) {
                     sortedFeatures = results.features;
                     console.log("Features are loaded and sorted by OBJECTID. Total features:", sortedFeatures.length);
+                    console.log(sortedFeatures.map(f => f.attributes.OBJECTID)); // Log for debugging
                 }).catch(function(error) {
                     console.error("Error loading or sorting features:", error);
                 });
@@ -122,13 +122,17 @@
 
             view.on("click", function(event) {
                 view.hitTest(event).then(function(response) {
+                    console.log("Hit test results:", response);
                     const result = response.results.find(result => result.graphic.layer === featureLayer);
                     if (result) {
                         console.log("Feature clicked:", result.graphic.attributes);
                         const clickedObjectId = result.graphic.attributes.OBJECTID;
-                        
+                        console.log("Looking for OBJECTID in sortedFeatures:", clickedObjectId);
+
+                        console.log("OBJECTIDs in sortedFeatures:", sortedFeatures.map(f => f.attributes.OBJECTID));
                         currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === clickedObjectId);
                         if (currentIndex !== -1) {
+                            console.log("Found OBJECTID at index:", currentIndex);
                             showFeature(view, featureLayer, sortedFeatures, currentIndex);
                         } else {
                             console.log("Feature not found in sorted features. OBJECTID:", clickedObjectId);
@@ -137,89 +141,70 @@
                 });
             });
 
-            view.on("double-click", function(event) {
-                event.stopPropagation(); // Prevent map zoom
-                if (currentIndex !== -1) {
-                    const feature = sortedFeatures[currentIndex];
-                    featureLayer.queryAttachments({
-                        objectIds: [feature.attributes.OBJECTID]
-                    }).then(function(attachments) {
-                        const attachmentInfos = attachments[feature.attributes.OBJECTID];
-                        if (attachmentInfos && attachmentInfos.length > 0) {
-                            const firstAttachmentUrl = attachmentInfos[0].url;
-                            window.open(firstAttachmentUrl, '_blank'); // Open the attachment in a new tab/window
+            function showFeature(view, featureLayer, sortedFeatures, currentIndex) {
+                const feature = sortedFeatures[currentIndex];
+                if (!feature) return;
+                
+                const highlightGraphic = new Graphic({
+                    geometry: feature.geometry,
+                    symbol: {
+                        type: "simple-marker",
+                        color: [255, 255, 0, 0.6],
+                        size: "20px",
+                        outline: {
+                            color: "#FF0000",
+                            width: 2
                         }
-                    }).catch(function(error) {
-                        console.error("Error opening attachment:", error);
-                    });
-                }
-            });
+                    }
+                });
+
+                view.graphics.removeAll();
+                view.graphics.add(highlightGraphic);
+
+                featureLayer.queryAttachments({
+                    objectIds: [feature.attributes.OBJECTID]
+                }).then(function(attachments) {
+                    console.log("Attachments for feature:", attachments);
+                    const attachmentWindow = document.getElementById("attachmentWindow");
+                    attachmentWindow.innerHTML = ''; // Clear previous content
+                    if (attachments[feature.attributes.OBJECTID] && attachments[feature.attributes.OBJECTID].length > 0) {
+                        const firstAttachmentUrl = attachments[feature.attributes.OBJECTID][0].url;
+                        attachmentWindow.innerHTML += `<img src="${firstAttachmentUrl}" style="width: 100%;" /><br>`;
+                    } else {
+                        attachmentWindow.innerHTML += "No attachments found.<br>";
+                    }
+                    updateNavigationButtons(view, featureLayer, sortedFeatures, currentIndex);
+                    attachmentWindow.style.display = "block";
+                }).catch(function(error) {
+                    console.error("Error querying attachments:", error);
+                });
+            }
+
+            function updateNavigationButtons(view, featureLayer, sortedFeatures, currentIndex) {
+                const attachmentWindow = document.getElementById("attachmentWindow");
+                attachmentWindow.innerHTML += '<br>'; // Ensure buttons are on a new line
+                const prevButton = document.createElement("button");
+                prevButton.className = "nav-button";
+                prevButton.textContent = "Back";
+                prevButton.disabled = currentIndex <= 0;
+                prevButton.onclick = () => {
+                    if (currentIndex > 0) showFeature(view, featureLayer, sortedFeatures, --currentIndex);
+                };
+
+                const nextButton = document.createElement("button");
+                nextButton.className = "nav-button";
+                nextButton.textContent = "Next";
+                nextButton.disabled = currentIndex >= sortedFeatures.length - 1;
+                nextButton.onclick = () => {
+                    if (currentIndex < sortedFeatures.length - 1) showFeature(view, featureLayer, sortedFeatures, ++currentIndex);
+                };
+
+                attachmentWindow.appendChild(prevButton);
+                attachmentWindow.appendChild(nextButton);
+            }
         }).catch(function(error) {
             console.error("Error loading WebMap:", error);
         });
-    }
-
-    function showFeature(view, featureLayer, sortedFeatures, currentIndex) {
-        const feature = sortedFeatures[currentIndex];
-        if (!feature) return;
-
-        const highlightGraphic = new Graphic({
-            geometry: feature.geometry,
-            symbol: {
-                type: "simple-marker", // Adjust based on your geometry type
-                color: [255, 255, 0, 0.6],
-                size: "20px",
-                outline: {
-                    color: "#FF0000",
-                    width: 2
-                }
-            }
-        });
-
-        view.graphics.removeAll();
-        view.graphics.add(highlightGraphic);
-
-        featureLayer.queryAttachments({
-            objectIds: [feature.attributes.OBJECTID]
-        }).then(function(attachments) {
-            console.log("Attachments for feature:", attachments);
-            const attachmentWindow = document.getElementById("attachmentWindow");
-            attachmentWindow.innerHTML = ''; // Clear previous content
-            if (attachments[feature.attributes.OBJECTID] && attachments[feature.attributes.OBJECTID].length > 0) {
-                const firstAttachmentUrl = attachments[feature.attributes.OBJECTID][0].url;
-                attachmentWindow.innerHTML += `<img src="${firstAttachmentUrl}" style="width: 100%;" /><br>`;
-            } else {
-                attachmentWindow.innerHTML += "No attachments found.<br>";
-            }
-
-            // Create and append navigation buttons
-            updateNavigationButtons(view, featureLayer, sortedFeatures, currentIndex);
-            attachmentWindow.style.display = "block";
-        }).catch(function(error) {
-            console.error("Error querying attachments:", error);
-        });
-    }
-
-    function updateNavigationButtons(view, featureLayer, sortedFeatures, currentIndex) {
-        const attachmentWindow = document.getElementById("attachmentWindow");
-        const prevButton = document.createElement("button");
-        prevButton.className = "nav-button";
-        prevButton.textContent = "Back";
-        prevButton.disabled = currentIndex <= 0;
-        prevButton.onclick = () => {
-            if (currentIndex > 0) showFeature(view, featureLayer, sortedFeatures, --currentIndex);
-        };
-
-        const nextButton = document.createElement("button");
-        nextButton.className = "nav-button";
-        nextButton.textContent = "Next";
-        nextButton.disabled = currentIndex >= sortedFeatures.length - 1;
-        nextButton.onclick = () => {
-            if (currentIndex < sortedFeatures.length - 1) showFeature(view, featureLayer, sortedFeatures, ++currentIndex);
-        };
-
-        attachmentWindow.appendChild(prevButton);
-        attachmentWindow.appendChild(nextButton);
     }
 });
 
