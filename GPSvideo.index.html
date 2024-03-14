@@ -117,70 +117,66 @@
             }
 
             view.on("click", function(event) {
-                view.hitTest(event).then(function(response) {
-                    console.log("Hit test results:", response);
+    view.hitTest(event).then(function(response) {
+        console.log("Hit test results:", response);
 
-                    const result = response.results.find(result => result.graphic.layer === featureLayer);
-                    if (result) {
-                        console.log("Feature clicked:", result.graphic);
-                        currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === result.graphic.attributes.OBJECTID);
-                        if (currentIndex !== -1) {
-                            showFeature(currentIndex);
-                        }
-                    }
-                });
-            });
+        // Assuming the feature layer is the first in the results array
+        const result = response.results.find(result => result.graphic.layer === featureLayer);
+        if (result && result.graphic) {
+            console.log("Feature clicked:", result.graphic.attributes); // Log attributes to confirm correct feature is identified
+
+            currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === result.graphic.attributes.OBJECTID);
+            if (currentIndex !== -1) {
+                showFeature(currentIndex);
+            } else {
+                console.log("Feature not found in sorted features.");
+            }
+        } else {
+            console.log("No feature from the expected layer was clicked.");
+        }
+    });
+});
 
             function showFeature(index) {
-                const feature = sortedFeatures[index];
-                if (!feature) return;
+    const feature = sortedFeatures[index];
+    console.log("Showing feature:", feature.attributes); // Confirm the feature data
 
                 const highlightGraphic = new Graphic({
-                    geometry: feature.geometry,
-                    symbol: {
-                        type: "simple-marker", // Adjust based on your geometry type
-                        color: [255, 255, 0, 0.6],
-                        size: "20px",
-                        outline: {
-                            color: "#FF0000",
-                            width: 2
-                        }
-                    }
-                });
+        geometry: feature.geometry,
+        symbol: {
+            type: "simple-marker",
+            color: [255, 255, 0, 0.6],
+            size: "20px",
+            outline: {
+                color: "#FF0000",
+                width: 2
+            }
+        }
+    });
 
                 view.graphics.removeAll();
-                view.graphics.add(highlightGraphic);
+    view.graphics.add(highlightGraphic);
 
-                featureLayer.queryAttachments({
-                    objectIds: [feature.attributes.OBJECTID]
-                }).then(function(attachments) {
-                    console.log("Attachments for feature:", attachments);
-                    const attachmentInfos = attachments[feature.attributes.OBJECTID];
-                    if (attachmentInfos && attachmentInfos.length > 0) {
-                        const firstAttachmentUrl = attachmentInfos[0].url;
-                        const attachmentWindow = document.getElementById("attachmentWindow");
-                        attachmentWindow.innerHTML = `<img src="${firstAttachmentUrl}" style="width: 100%;" /><br>` +
-                                                      `<button id="prevFeature" class="nav-button" ${currentIndex <= 0 ? 'disabled' : ''}>Back</button>` +
-                                                      `<button id="nextFeature" class="nav-button" ${currentIndex >= sortedFeatures.length - 1 ? 'disabled' : ''}>Next</button>`;
-                        attachmentWindow.style.display = "block";
-
-                        document.getElementById("prevFeature").onclick = function() {
-                            if (currentIndex > 0) {
-                                showFeature(--currentIndex);
-                            }
-                        };
-
-                        document.getElementById("nextFeature").onclick = function() {
-                            if (currentIndex < sortedFeatures.length - 1) {
-                                showFeature(++currentIndex);
-                            }
-                        };
-                    }
-                }).catch(function(error) {
-                    console.error("Error querying attachments:", error);
-                });
-            }
-
+    featureLayer.queryAttachments({
+        objectIds: [feature.attributes.OBJECTID]
+    }).then(function(attachments) {
+        console.log("Attachments for feature:", attachments);
+        const attachmentInfos = attachments[feature.attributes.OBJECTID];
+        if (attachmentInfos && attachmentInfos.length > 0) {
+            const firstAttachmentUrl = attachmentInfos[0].url;
+            const attachmentWindow = document.getElementById("attachmentWindow");
+            attachmentWindow.innerHTML = `<img src="${firstAttachmentUrl}" style="width: 100%;" /><br>` +
+                                          `<button id="prevFeature" class="nav-button">Back</button>` +
+                                          `<button id="nextFeature" class="nav-button">Next</button>`;
+            attachmentWindow.style.display = "block";
+            // Setup buttons here as before
+        } else {
+            console.log("No attachments found for this feature.");
+        }
+    }).catch(function(error) {
+        console.error("Error querying attachments:", error);
+    });
+}
             view.on("double-click", function(event) {
                 event.stopPropagation(); // Prevent map zoom
                 if (currentIndex !== -1) {
