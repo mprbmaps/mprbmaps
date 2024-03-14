@@ -226,16 +226,22 @@
 
                     document.getElementById("zoomIn").addEventListener("click", function() {
     const attachmentImage = document.getElementById("attachmentImage");
-    const currentScale = parseFloat(attachmentImage.style.transform.match(/scale\((.*?)\)/)[1]);
-    const newScale = currentScale * 1.5; // Increase scale factor as needed
-    attachmentImage.style.transform = `scale(${newScale})`;
+    const transformValue = attachmentImage.style.transform;
+    if (transformValue && transformValue.includes("scale")) {
+        const currentScale = parseFloat(transformValue.match(/scale\((.*?)\)/)[1]);
+        const newScale = currentScale * 1.5; // Increase scale factor as needed
+        attachmentImage.style.transform = `scale(${newScale})`;
+    }
 });
 
                     document.getElementById("zoomOut").addEventListener("click", function() {
     const attachmentImage = document.getElementById("attachmentImage");
-    const currentScale = parseFloat(attachmentImage.style.transform.match(/scale\((.*?)\)/)[1]);
-    const newScale = currentScale / 1.5; // Decrease scale factor as needed
-    attachmentImage.style.transform = `scale(${newScale})`;
+    const transformValue = attachmentImage.style.transform;
+    if (transformValue && transformValue.includes("scale")) {
+        const currentScale = parseFloat(transformValue.match(/scale\((.*?)\)/)[1]);
+        const newScale = currentScale / 1.5; // Decrease scale factor as needed
+        attachmentImage.style.transform = `scale(${newScale})`;
+    }
 });
 
                     // Add panning functionality to the attachment image
