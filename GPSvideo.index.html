@@ -76,233 +76,204 @@
     </div>
     <script>
         require([
-            "esri/WebMap",
-            "esri/views/MapView",
-            "esri/layers/FeatureLayer",
-            "esri/Graphic",
-            "esri/identity/OAuthInfo",
-            "esri/identity/IdentityManager"
-        ], function(WebMap, MapView, FeatureLayer, Graphic, OAuthInfo, IdentityManager) {
-            var info = new OAuthInfo({
-                appId: "ti3fi1FqvHE2Hhyw", // Your App ID
-                popup: true
-            });
-            IdentityManager.registerOAuthInfos([info]);
+    "esri/WebMap",
+    "esri/views/MapView",
+    "esri/layers/FeatureLayer",
+    "esri/Graphic",
+    "esri/identity/OAuthInfo",
+    "esri/identity/IdentityManager"
+], function(WebMap, MapView, FeatureLayer, Graphic, OAuthInfo, IdentityManager) {
+    var info = new OAuthInfo({
+        appId: "ti3fi1FqvHE2Hhyw", // Your App ID
+        popup: true
+    });
+    IdentityManager.registerOAuthInfos([info]);
 
-            IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
-                console.log("Signed in successfully");
-                displayMap();
-            }).catch(function(error) {
-                console.error("Sign-in failed: ", error);
-                displayMap(); // Attempt to display the map regardless of sign-in status
-            });
+    IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+        console.log("Signed in successfully");
+        displayMap();
+    }).catch(function(error) {
+        console.error("Sign-in failed: ", error);
+        displayMap(); // Attempt to display the map regardless of sign-in status
+    });
 
-            function displayMap() {
-                var webmap = new WebMap({
-                    portalItem: {
-                        id: "a11d663a981947b99aac7ff05437758f" // Your WebMap ID
-                    }
-                });
-
-                var view = new MapView({
-                    container: "viewDiv",
-                    map: webmap
-                });
-
-                var featureLayer;
-
-                webmap.when(function() {
-                    console.log("WebMap loaded");
-
-                    featureLayer = new FeatureLayer({
-                        url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/GoPro/FeatureServer/0",
-                        outFields: ["*"]
-                    });
-
-                    view.map.add(featureLayer); // Add the feature layer to the map
-
-                    featureLayer.when(function() {
-                        console.log("Feature layer loaded successfully.");
-                        queryAndSortFeatures();
-                    }).catch(function(error) {
-                        console.error("Error loading feature layer:", error);
-                    });
-
-                    let sortedFeatures = [];
-                    let currentIndex = -1;
-
-                    function queryAndSortFeatures() {
-                        featureLayer.queryFeatures({
-                            where: "1=1",
-                            orderByFields: ["OBJECTID ASC"],
-                            returnGeometry: true, // Ensure geometries are returned
-                            outFields: ["*"] // Fetch all fields
-                        }).then(function(results) {
-                            sortedFeatures = results.features;
-                            console.log("Features are loaded and sorted by OBJECTID. Total features:", sortedFeatures.length);
-                        }).catch(function(error) {
-                            console.error("Error loading or sorting features:", error);
-                        });
-                    }
-
-                    view.on("click", function(event) {
-                        view.hitTest(event).then(function(response) {
-                            const result = response.results.find(result => result.graphic.layer === featureLayer);
-                            if (result) {
-                                console.log("Feature clicked:", result.graphic.attributes);
-                                const clickedObjectId = result.graphic.attributes.OBJECTID;
-                                
-                                // Attempt to find the clicked feature in sortedFeatures by OBJECTID
-                                currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === clickedObjectId);
-                                if (currentIndex !== -1) {
-                                    showFeature(currentIndex);
-                                } else {
-                                    console.log("Feature not found in sorted features. OBJECTID:", clickedObjectId);
-                                    // Additional log for diagnostic purposes
-                                    console.log("Sorted Features ObjectIDs:", sortedFeatures.map(f => f.attributes.OBJECTID));
-                                }
-                            }
-                        });
-                    });
-
-                    function showFeature(index) {
-                        const feature = sortedFeatures[index];
-                        console.log("Showing feature:", feature.attributes); // Confirm the feature data
-
-                        const highlightGraphic = new Graphic({
-                            geometry: feature.geometry,
-                            symbol: {
-                                type: "simple-marker",
-                                color: [255, 255, 0, 0.6],
-                                size: "20px",
-                                outline: {
-                                    color: "#FF0000",
-                                    width: 2
-                                }
-                            }
-                        });
-
-                        view.graphics.removeAll();
-                        view.graphics.add(highlightGraphic);
-
-                        featureLayer.queryAttachments({
-                            objectIds: [feature.attributes.OBJECTID]
-                        }).then(function(attachments) {
-                            const attachmentInfos = attachments[feature.attributes.OBJECTID];
-                            const attachmentWindow = document.getElementById("attachmentWindow");
-                            if (attachmentInfos && attachmentInfos.length > 0) {
-                                const firstAttachmentUrl = attachmentInfos[0].url;
-                                document.getElementById("attachmentImage").src = firstAttachmentUrl;
-                                attachmentWindow.style.display = "block";
-                            } else {
-                                attachmentWindow.style.display = "none";
-                            }
-                        }).catch(function(error) {
-                            console.error("Error querying attachments:", error);
-                        });
-
-                        // Recenter the map if the feature is off-screen
-                        view.whenLayerView(featureLayer).then(function(layerView) {
-                            view.goTo({
-                                target: feature.geometry,
-                                centerOffset: [0, 1 * view.height], // Offset the center to avoid covering the selected feature
-                                scale: view.scale,
-                                duration: 500
-                            });
-                        });
-                    }
-
-                    document.getElementById("prevFeature").addEventListener("click", function() {
-                        if (currentIndex > 0) {
-                            showFeature(--currentIndex);
-                        }
-                    });
-
-                    document.getElementById("nextFeature").addEventListener("click", function() {
-                        if (currentIndex < sortedFeatures.length - 1) {
-                            showFeature(++currentIndex);
-                        }
-                    });
-
-                    document.getElementById("zoomIn").addEventListener("click", function() {
-    const attachmentImage = document.getElementById("attachmentImage");
-    const attachmentImageContainer = document.getElementById("attachmentImageContainer");
-    const transformValue = attachmentImage.style.transform;
-    if (transformValue && transformValue.includes("scale")) {
-        const currentScale = parseFloat(transformValue.match(/scale\((.*?)\)/)[1]);
-        const newScale = currentScale * 1.5; // Increase scale factor as needed
-        attachmentImage.style.transform = `scale(${newScale})`;
-        // Adjust container size to fit scaled image
-        attachmentImageContainer.style.height = `${attachmentImage.clientHeight * newScale}px`;
-    }
-});
-
-                    document.getElementById("zoomOut").addEventListener("click", function() {
-    const attachmentImage = document.getElementById("attachmentImage");
-    const attachmentImageContainer = document.getElementById("attachmentImageContainer");
-    const transformValue = attachmentImage.style.transform;
-    if (transformValue && transformValue.includes("scale")) {
-        const currentScale = parseFloat(transformValue.match(/scale\((.*?)\)/)[1]);
-        const newScale = currentScale / 1.5; // Decrease scale factor as needed
-        attachmentImage.style.transform = `scale(${newScale})`;
-        // Adjust container size to fit scaled image
-        attachmentImageContainer.style.height = `${attachmentImage.clientHeight * newScale}px`;
-    }
-});
-
-                    // Add panning functionality to the attachment image
-                    let isDragging = false;
-                    let startX, startY, scrollLeft, scrollTop;
-
-                    document.getElementById("attachmentImage").addEventListener("mousedown", function(e) {
-                        isDragging = true;
-                        startX = e.clientX;
-                        startY = e.clientY;
-                        scrollLeft = this.scrollLeft;
-                        scrollTop = this.scrollTop;
-                        this.style.cursor = "grabbing"; // Change cursor to indicate grabbing
-                    });
-
-                    document.getElementById("attachmentImage").addEventListener("mouseleave", function() {
-                        isDragging = false;
-                        this.style.cursor = "grab"; // Restore cursor when mouse leaves
-                    });
-
-                    document.getElementById("attachmentImage").addEventListener("mouseup", function() {
-                        isDragging = false;
-                        this.style.cursor = "grab"; // Restore cursor when mouse is released
-                    });
-
-                    document.getElementById("attachmentImage").addEventListener("mousemove", function(e) {
-                        if (!isDragging) return;
-                        e.preventDefault();
-                        const deltaX = e.clientX - startX;
-                        const deltaY = e.clientY - startY;
-                        this.scrollLeft = scrollLeft - deltaX;
-                        this.scrollTop = scrollTop - deltaY;
-                    });
-
-                    document.getElementById("attachmentImage").addEventListener("wheel", function(e) {
-                        e.preventDefault();
-                        const scaleAmount = 0.1;
-                        let scale = 1;
-                        if (e.deltaY < 0) {
-                            scale = 1 + scaleAmount;
-                        } else {
-                            scale = 1 - scaleAmount;
-                        }
-                        const oldScrollLeft = this.scrollLeft;
-                        const oldScrollTop = this.scrollTop;
-                        this.style.transformOrigin = `${e.clientX}px ${e.clientY}px`;
-                        this.style.transform = `scale(${scale})`;
-                        this.scrollLeft = oldScrollLeft * scale + e.clientX - this.getBoundingClientRect().left;
-                        this.scrollTop = oldScrollTop * scale + e.clientY - this.getBoundingClientRect().top;
-                    });
-                }).catch(function(error) {
-                    console.error("Error loading WebMap:", error);
-                });
+    function displayMap() {
+        var webmap = new WebMap({
+            portalItem: {
+                id: "a11d663a981947b99aac7ff05437758f" // Your WebMap ID
             }
         });
+
+        var view = new MapView({
+            container: "viewDiv",
+            map: webmap
+        });
+
+        var featureLayer;
+
+        webmap.when(function() {
+            console.log("WebMap loaded");
+
+            featureLayer = new FeatureLayer({
+                url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/GoPro/FeatureServer/0",
+                outFields: ["*"]
+            });
+
+            view.map.add(featureLayer); // Add the feature layer to the map
+
+            featureLayer.when(function() {
+                console.log("Feature layer loaded successfully.");
+                queryAndSortFeatures();
+            }).catch(function(error) {
+                console.error("Error loading feature layer:", error);
+            });
+
+            let sortedFeatures = [];
+            let currentIndex = -1;
+
+            function queryAndSortFeatures() {
+                featureLayer.queryFeatures({
+                    where: "1=1",
+                    orderByFields: ["OBJECTID ASC"],
+                    returnGeometry: true,
+                    outFields: ["*"]
+                }).then(function(results) {
+                    sortedFeatures = results.features;
+                    console.log("Features are loaded and sorted by OBJECTID. Total features:", sortedFeatures.length);
+                }).catch(function(error) {
+                    console.error("Error loading or sorting features:", error);
+                });
+            }
+
+            view.on("click", function(event) {
+                view.hitTest(event).then(function(response) {
+                    const result = response.results.find(result => result.graphic.layer === featureLayer);
+                    if (result) {
+                        console.log("Feature clicked:", result.graphic.attributes);
+                        const clickedObjectId = result.graphic.attributes.OBJECTID;
+                        
+                        currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === clickedObjectId);
+                        if (currentIndex !== -1) {
+                            showFeature(currentIndex);
+                        } else {
+                            console.log("Feature not found in sorted features. OBJECTID:", clickedObjectId);
+                            console.log("Sorted Features ObjectIDs:", sortedFeatures.map(f => f.attributes.OBJECTID));
+                        }
+                    }
+                });
+            });
+
+            function showFeature(index) {
+                const feature = sortedFeatures[index];
+                console.log("Showing feature:", feature.attributes);
+
+                const highlightGraphic = new Graphic({
+                    geometry: feature.geometry,
+                    symbol: {
+                        type: "simple-marker",
+                        color: [255, 255, 0, 0.6],
+                        size: "20px",
+                        outline: {
+                            color: "#FF0000",
+                            width: 2
+                        }
+                    }
+                });
+
+                view.graphics.removeAll();
+                view.graphics.add(highlightGraphic);
+
+                featureLayer.queryAttachments({
+                    objectIds: [feature.attributes.OBJECTID]
+                }).then(function(attachments) {
+                    const attachmentInfos = attachments[feature.attributes.OBJECTID];
+                    const attachmentWindow = document.getElementById("attachmentWindow");
+                    if (attachmentInfos && attachmentInfos.length > 0) {
+                        const firstAttachmentUrl = attachmentInfos[0].url;
+                        document.getElementById("attachmentImage").src = firstAttachmentUrl;
+                        attachmentWindow.style.display = "block";
+                    } else {
+                        attachmentWindow.style.display = "none";
+                    }
+                }).catch(function(error) {
+                    console.error("Error querying attachments:", error);
+                });
+
+                view.whenLayerView(featureLayer).then(function(layerView) {
+                    view.goTo({
+                        target: feature.geometry,
+                        centerOffset: [0, 1 * view.height],
+                        scale: view.scale,
+                        duration: 500
+                    });
+                });
+            }
+
+            document.getElementById("prevFeature").addEventListener("click", function() {
+                if (currentIndex > 0) {
+                    showFeature(--currentIndex);
+                }
+            });
+
+            document.getElementById("nextFeature").addEventListener("click", function() {
+                if (currentIndex < sortedFeatures.length - 1) {
+                    showFeature(++currentIndex);
+                }
+            });
+
+            var currentScale = 1; // Global scale factor
+
+            document.getElementById("zoomIn").addEventListener("click", function() {
+                currentScale *= 1.2; // Increase scale
+                updateImageScale();
+            });
+
+            document.getElementById("zoomOut").addEventListener("click", function() {
+                currentScale /= 1.2; // Decrease scale
+                updateImageScale();
+            });
+
+            function updateImageScale() {
+                const attachmentImage = document.getElementById("attachmentImage");
+                attachmentImage.style.transform = `scale(${currentScale})`;
+            }
+
+            let isDragging = false;
+            let startX, startY, scrollLeft, scrollTop;
+
+            document.getElementById("attachmentImage").addEventListener("mousedown", function(e) {
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                scrollLeft = this.scrollLeft;
+                scrollTop = this.scrollTop;
+                this.style.cursor = "grabbing";
+            });
+
+            document.getElementById("attachmentImage").addEventListener("mouseleave", function() {
+                isDragging = false;
+                this.style.cursor = "grab";
+            });
+
+            document.getElementById("attachmentImage").addEventListener("mouseup", function() {
+                isDragging = false;
+                this.style.cursor = "grab";
+            });
+
+            document.getElementById("attachmentImage").addEventListener("mousemove", function(e) {
+                if (!isDragging) return;
+                e.preventDefault();
+                const deltaX = e.clientX - startX;
+                const deltaY = e.clientY - startY;
+                this.scrollLeft = scrollLeft - deltaX;
+                this.scrollTop = scrollTop - deltaY;
+            });
+        }).catch(function(error) {
+            console.error("Error loading WebMap:", error);
+        });
+    }
+});
+
     </script>
 </body>
 </html>
