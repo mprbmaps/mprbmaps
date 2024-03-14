@@ -24,9 +24,16 @@
             border-radius: 4px;
             max-width: 800px;
             display: none; /* Initially hide the attachment window */
+            overflow: hidden; /* Hide overflow content */
         }
         #attachmentImage {
             width: 100%; /* Ensure the attachment image fills the attachment window */
+            cursor: grab; /* Set cursor to grab for panning */
+            user-select: none; /* Disable text selection */
+            position: relative; /* Position relative for absolute positioning */
+            left: 0;
+            top: 0;
+            transition: transform 0.2s; /* Add smooth transition */
         }
         .nav-button {
             margin: 5px;
@@ -179,12 +186,15 @@
 
                         // Recenter the map if the feature is off-screen
                         view.whenLayerView(featureLayer).then(function(layerView) {
-                            view.goTo({
-                                target: feature.geometry,
-                                centerOffset: [0, 1 * view.height], // Offset the center to avoid covering the selected feature
-                                scale: view.scale,
-                                duration: 500
-                            });
+                            const screenGeometry = view.toScreen(feature.geometry);
+                            if (!view.extent.contains(screenGeometry)) {
+                                view.goTo({
+                                    target: feature.geometry,
+                                    centerOffset: [0, 1 * view.height], // Offset the center to avoid covering the selected feature
+                                    scale: view.scale,
+                                    duration: 500
+                                });
+                            }
                         });
                     }
 
@@ -199,6 +209,34 @@
                             showFeature(++currentIndex);
                         }
                     });
+
+                    // Add event listener for mouse wheel events on the attachment image
+                    const attachmentImage = document.getElementById("attachmentImage");
+                    attachmentImage.addEventListener("wheel", handleWheelEvent);
+
+                    // Define a function to handle mouse wheel events
+                    function handleWheelEvent(event) {
+                        event.preventDefault(); // Prevent the default behavior of scrolling the entire page
+
+                        // Calculate the new scale based on the direction of the mouse wheel movement
+                        const delta = event.deltaY;
+                        const scaleFactor = delta > 0 ? 0.9 : 1.1;
+
+                        // Update the scale of the attachment image
+                        const currentScale = parseFloat(attachmentImage.style.transform.replace("scale(", "").replace(")", ""));
+                        const newScale = currentScale ? currentScale * scaleFactor : scaleFactor;
+                        attachmentImage.style.transform = `scale(${newScale})`;
+
+                        // Adjust the position of the image to keep the center of the image under the mouse cursor
+                        const rect = attachmentImage.getBoundingClientRect();
+                        const mouseX = event.clientX - rect.left;
+                        const mouseY = event.clientY - rect.top;
+                        const dx = (mouseX / rect.width) * (1 - scaleFactor) * attachmentImage.width;
+                        const dy = (mouseY / rect.height) * (1 - scaleFactor) * attachmentImage.height;
+                        attachmentImage.style.transformOrigin = `${mouseX}px ${mouseY}px`;
+                        attachmentImage.style.left = `${parseFloat(attachmentImage.style.left) - dx}px`;
+                        attachmentImage.style.top = `${parseFloat(attachmentImage.style.top) - dy}px`;
+                    }
                 }).catch(function(error) {
                     console.error("Error loading WebMap:", error);
                 });
