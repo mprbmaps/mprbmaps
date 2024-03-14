@@ -53,13 +53,14 @@
   "esri/layers/FeatureLayer",
   "esri/Graphic",
   "esri/identity/OAuthInfo",
-  "esri/identity/IdentityManager"
-], function(WebMap, MapView, FeatureLayer, Graphic, OAuthInfo, IdentityManager) {
+  "esri/identity/IdentityManager",
+  "esri/config"
+], function(WebMap, MapView, FeatureLayer, Graphic, OAuthInfo, IdentityManager, esriConfig) {
 
-    
+    esriConfig.portalUrl = "https://www.arcgis.com";
 
     var info = new OAuthInfo({
-        appId: "ti3fi1FqvHE2Hhyw", // Your App ID
+        appId: "ti3fi1FqvHE2Hhyw", // Replace with your actual App ID
         popup: true
     });
     IdentityManager.registerOAuthInfos([info]);
@@ -69,13 +70,13 @@
         displayMap();
     }).catch(function(error) {
         console.error("Sign-in failed: ", error);
-        displayMap(); // Attempt to display the map regardless of sign-in status
+        displayMap();
     });
 
     function displayMap() {
         var webmap = new WebMap({
             portalItem: {
-                id: "a11d663a981947b99aac7ff05437758f" // Your WebMap ID
+                id: "a11d663a981947b99aac7ff05437758f" // Replace with your actual WebMap ID
             }
         });
 
@@ -93,118 +94,127 @@
             });
 
             view.map.add(featureLayer); // Add the feature layer to the map
-
-            featureLayer.when(function() {
-                console.log("Feature layer loaded successfully.");
-                queryAndSortFeatures();
-            }).catch(function(error) {
-                console.error("Error loading feature layer:", error);
-            });
-
-            let sortedFeatures = [];
-            let currentIndex = -1;
-
-            function queryAndSortFeatures() {
-    featureLayer.queryFeatures({
-        where: "1=1",
-        orderByFields: ["OBJECTID ASC"],
-        returnGeometry: true, // Ensure geometries are returned
-        outFields: ["*"] // Fetch all fields
-    }).then(function(results) {
-        sortedFeatures = results.features;
-        console.log("Features are loaded and sorted by OBJECTID. Total features:", sortedFeatures.length);
-    }).catch(function(error) {
-        console.error("Error loading or sorting features:", error);
-    });
-}
-
-// Ensure this function is called after the feature layer is fully loaded
-featureLayer.when(() => {
-    queryAndSortFeatures();
-});
-
-view.on("click", function(event) {
-    view.hitTest(event).then(function(response) {
-        const result = response.results.find(result => result.graphic.layer === featureLayer);
-        if (result) {
-            console.log("Feature clicked:", result.graphic.attributes);
-            const clickedObjectId = result.graphic.attributes.OBJECTID;
-            
-            // Attempt to find the clicked feature in sortedFeatures by OBJECTID
-            currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === clickedObjectId);
-            if (currentIndex !== -1) {
-                showFeature(currentIndex);
-            } else {
-                console.log("Feature not found in sorted features. OBJECTID:", clickedObjectId);
-                // Additional log for diagnostic purposes
-                console.log("Sorted Features ObjectIDs:", sortedFeatures.map(f => f.attributes.OBJECTID));
-            }
-        }
-    });
-});
-
-            function showFeature(index) {
-    const feature = sortedFeatures[index];
-    console.log("Showing feature:", feature.attributes); // Confirm the feature data
-
-                const highlightGraphic = new Graphic({
-        geometry: feature.geometry,
-        symbol: {
-            type: "simple-marker",
-            color: [255, 255, 0, 0.6],
-            size: "20px",
-            outline: {
-                color: "#FF0000",
-                width: 2
-            }
-        }
-    });
-
-                view.graphics.removeAll();
-    view.graphics.add(highlightGraphic);
-
-    featureLayer.queryAttachments({
-        objectIds: [feature.attributes.OBJECTID]
-    }).then(function(attachments) {
-        console.log("Attachments for feature:", attachments);
-        const attachmentInfos = attachments[feature.attributes.OBJECTID];
-        if (attachmentInfos && attachmentInfos.length > 0) {
-            const firstAttachmentUrl = attachmentInfos[0].url;
-            const attachmentWindow = document.getElementById("attachmentWindow");
-            attachmentWindow.innerHTML = `<img src="${firstAttachmentUrl}" style="width: 100%;" /><br>` +
-                                          `<button id="prevFeature" class="nav-button">Back</button>` +
-                                          `<button id="nextFeature" class="nav-button">Next</button>`;
-            attachmentWindow.style.display = "block";
-            // Setup buttons here as before
-        } else {
-            console.log("No attachments found for this feature.");
-        }
-    }).catch(function(error) {
-        console.error("Error querying attachments:", error);
-    });
-}
-            view.on("double-click", function(event) {
-                event.stopPropagation(); // Prevent map zoom
-                if (currentIndex !== -1) {
-                    const feature = sortedFeatures[currentIndex];
-                    featureLayer.queryAttachments({
-                        objectIds: [feature.attributes.OBJECTID]
-                    }).then(function(attachments) {
-                        const attachmentInfos = attachments[feature.attributes.OBJECTID];
-                        if (attachmentInfos && attachmentInfos.length > 0) {
-                            const firstAttachmentUrl = attachmentInfos[0].url;
-                            window.open(firstAttachmentUrl, '_blank'); // Open the attachment in a new tab/window
-                        }
-                    }).catch(function(error) {
-                        console.error("Error opening attachment:", error);
-                    });
-                }
-            });
+            initializeFeatureInteraction(featureLayer, view);
         }).catch(function(error) {
             console.error("Error loading WebMap:", error);
         });
     }
-});  
+
+    function initializeFeatureInteraction(featureLayer, view) {
+        let sortedFeatures = [];
+        let currentIndex = -1;
+
+        featureLayer.load().then(function() {
+            console.log("Feature layer loaded successfully.");
+            queryAndSortFeatures(featureLayer, sortedFeatures);
+        }).catch(function(error) {
+            console.error("Error loading feature layer:", error);
+        });
+
+        function queryAndSortFeatures(featureLayer, sortedFeatures) {
+            featureLayer.queryFeatures({
+                where: "1=1",
+                orderByFields: ["OBJECTID ASC"],
+                returnGeometry: true,
+                outFields: ["*"]
+            }).then(function(results) {
+                sortedFeatures.push(...results.features);
+                console.log("Features are loaded and sorted by OBJECTID. Total features:", sortedFeatures.length);
+            }).catch(function(error) {
+                console.error("Error loading or sorting features:", error);
+            });
+        }
+
+        setupEventHandlers(view, featureLayer, sortedFeatures, currentIndex);
+    }
+
+    function setupEventHandlers(view, featureLayer, sortedFeatures, currentIndex) {
+        view.on("click", function(event) {
+            eventHandlerForClick(event, view, featureLayer, sortedFeatures, currentIndex);
+        });
+
+        view.on("double-click", function(event) {
+            eventHandlerForDoubleClick(event, featureLayer, sortedFeatures, currentIndex);
+        });
+    }
+
+    function eventHandlerForClick(event, view, featureLayer, sortedFeatures, currentIndex) {
+        view.hitTest(event).then(function(response) {
+            const result = response.results.find(result => result.graphic.layer === featureLayer);
+            if (result) {
+                console.log("Feature clicked:", result.graphic.attributes);
+                const clickedObjectId = result.graphic.attributes.OBJECTID;
+
+                currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === clickedObjectId);
+                if (currentIndex !== -1) {
+                    showFeature(view, sortedFeatures, currentIndex);
+                } else {
+                    console.log("Feature not found in sorted features. OBJECTID:", clickedObjectId);
+                    console.log("Sorted Features ObjectIDs:", sortedFeatures.map(f => f.attributes.OBJECTID));
+                }
+            }
+        });
+    }
+
+    function eventHandlerForDoubleClick(event, featureLayer, sortedFeatures, currentIndex) {
+        event.stopPropagation(); // Prevent map zoom
+        if (currentIndex !== -1) {
+            const feature = sortedFeatures[currentIndex];
+            featureLayer.queryAttachments({
+                objectIds: [feature.attributes.OBJECTID]
+            }).then(function(attachments) {
+                const attachmentInfos = attachments[feature.attributes.OBJECTID];
+                if (attachmentInfos && attachmentInfos.length > 0) {
+                    const firstAttachmentUrl = attachmentInfos[0].url;
+                    window.open(firstAttachmentUrl, '_blank'); // Open the attachment in a new tab/window
+                }
+            }).catch(function(error) {
+                console.error("Error opening attachment:", error);
+            });
+        }
+    }
+
+    function showFeature(view, sortedFeatures, currentIndex) {
+        const feature = sortedFeatures[currentIndex];
+        console.log("Showing feature:", feature.attributes); // Confirm the feature data
+
+        const highlightGraphic = new Graphic({
+            geometry: feature.geometry,
+            symbol: {
+                type: "simple-marker",
+                color: [255, 255, 0, 0.6],
+                size: "20px",
+                outline: {
+                    color: "#FF0000",
+                    width: 2
+                }
+            }
+        });
+
+        view.graphics.removeAll();
+        view.graphics.add(highlightGraphic);
+
+        featureLayer.queryAttachments({
+            objectIds: [feature.attributes.OBJECTID]
+        }).then(function(attachments) {
+            console.log("Attachments for feature:", attachments);
+            const attachmentInfos = attachments[feature.attributes.OBJECTID];
+            if (attachmentInfos && attachmentInfos.length > 0) {
+                const firstAttachmentUrl = attachmentInfos[0].url;
+                const attachmentWindow = document.getElementById("attachmentWindow");
+                attachmentWindow.innerHTML = `<img src="${firstAttachmentUrl}" style="width: 100%;" /><br>` +
+                                              `<button id="prevFeature" class="nav-button">Back</button>` +
+                                              `<button id="nextFeature" class="nav-button">Next</button>`;
+                attachmentWindow.style.display = "block";
+                // Setup buttons here as before
+            } else {
+                console.log("No attachments found for this feature.");
+            }
+        }).catch(function(error) {
+            console.error("Error querying attachments:", error);
+        });
+    }
+});
     </script>
 </body>
 </html>
