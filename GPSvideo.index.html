@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8" />
-    <title>FeatureLayer Attachments in Custom Window</title>
+    <title>FeatureLayer Attachments with Navigation</title>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
     <link rel="stylesheet" href="https://js.arcgis.com/4.23/esri/css/main.css" />
     <script src="https://js.arcgis.com/4.23/"></script>
@@ -25,17 +25,34 @@
             border-radius: 4px;
             max-width: 300px;
         }
+        .nav-button {
+            margin: 5px;
+            padding: 5px 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .nav-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
     <div id="viewDiv"></div>
-    <div id="attachmentWindow"></div>
+    <div id="attachmentWindow">
+        <button id="prevFeature" class="nav-button">Back</button>
+        <button id="nextFeature" class="nav-button">Next</button>
+    </div>
     <script>
         require([
             "esri/Map",
             "esri/views/MapView",
-            "esri/layers/FeatureLayer"
-        ], function(Map, MapView, FeatureLayer) {
+            "esri/layers/FeatureLayer",
+            "esri/Graphic"
+        ], function(Map, MapView, FeatureLayer, Graphic) {
 
             const map = new Map({
                 basemap: "streets-vector"
@@ -49,45 +66,105 @@
             });
 
             const featureLayer = new FeatureLayer({
-                url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/GoPro/FeatureServer/0"
+                url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/GoPro/FeatureServer/0",
+                outFields: ["*"]
             });
 
             map.add(featureLayer);
 
-            let lastClickedFeatureObjectId;
+            let sortedFeatures = [];
+            let currentIndex = -1;
+
+            // Graphic for highlighting
+            let highlightGraphic = new Graphic({
+                symbol: {
+                    type: "simple-fill", // For polygons, for points use "simple-marker"
+                    color: [0, 255, 255, 0.5],
+                    outline: {
+                        color: "black",
+                        width: 2
+                    }
+                }
+            });
+
+            function queryAndSortFeatures() {
+                featureLayer.queryFeatures({
+                    where: "1=1",
+                    orderByFields: ["DateTime ASC"]
+                }).then(function(results) {
+                    sortedFeatures = results.features;
+                    console.log(sortedFeatures);
+                });
+            }
+
+            function showFeature(index) {
+                const feature = sortedFeatures[index];
+                if (!feature) return;
+
+                // Update the map highlight
+                highlightGraphic.geometry = feature.geometry;
+                view.graphics.removeAll();
+                view.graphics.add(highlightGraphic);
+
+                // Query and display attachment
+                featureLayer.queryAttachments({
+                    objectIds: [feature.attributes.OBJECTID]
+                }).then((attachments) => {
+                    const attachmentInfos = attachments[feature.attributes.OBJECTID];
+                    if (attachmentInfos && attachmentInfos.length > 0) {
+                        const firstAttachmentUrl = attachmentInfos[0].url;
+                        const attachmentWindow = document.getElementById("attachmentWindow");
+                        attachmentWindow.innerHTML = `
+                            <img src="${firstAttachmentUrl}" style="width: 100%;" />
+                            <button id="prevFeature" class="nav-button" ${currentIndex <= 0 ? '`disabled` : ''}>Back</button>
+                            <button id="nextFeature" class="nav-button" ${currentIndex >= sortedFeatures.length - 1 ? 'disabled' : ''}>Next</button>
+                        `;
+                        attachmentWindow.style.display = "block";
+
+                        document.getElementById("prevFeature").onclick = function() {
+                            if (currentIndex > 0) {
+                                showFeature(--currentIndex);
+                            }
+                        };
+
+                        document.getElementById("nextFeature").onclick = function() {
+                            if (currentIndex < sortedFeatures.length - 1) {
+                                showFeature(++currentIndex);
+                            }
+                        };
+                    }
+                });
+
+                // Center the map on the selected feature
+                view.goTo({ target: feature.geometry, zoom: 15 });
+            }
 
             view.on("click", (event) => {
                 view.hitTest(event).then((response) => {
-                    const feature = response.results.find((result) => result.graphic.layer === featureLayer)?.graphic;
-                    if (feature) {
-                        lastClickedFeatureObjectId = feature.attributes.OBJECTID;
-                        featureLayer.queryAttachments({
-                            objectIds: [feature.attributes.OBJECTID]
-                        }).then((attachments) => {
-                            const attachmentInfos = attachments[feature.attributes.OBJECTID];
-                            if (attachmentInfos && attachmentInfos.length > 0) {
-                                const firstAttachmentUrl = attachmentInfos[0].url;
-                                // Show the attachment in the custom window
-                                const attachmentWindow = document.getElementById("attachmentWindow");
-                                attachmentWindow.innerHTML = `<img src="${firstAttachmentUrl}" style="width: 100%;" />`;
-                                attachmentWindow.style.display = "block";
-                            }
-                        });
+                    const result = response.results.find((result) => result.graphic.layer === featureLayer);
+                    if (result) {
+                        const clickedFeature = result.graphic;
+                        currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === clickedFeature.attributes.OBJECTID);
+                        if (currentIndex !== -1) {
+                            showFeature(currentIndex);
+                        }
                     }
                 });
             });
 
+            queryAndSortFeatures();
+
             view.on("double-click", (event) => {
                 event.stopPropagation(); // Prevent map zoom
-                if (lastClickedFeatureObjectId !== undefined) {
+                if (currentIndex !== -1) {
+                    const feature = sortedFeatures[currentIndex];
                     featureLayer.queryAttachments({
-                        objectIds: [lastClickedFeatureObjectId]
+                        objectIds: [feature.attributes.OBJECTID]
                     }).then((attachments) => {
-                        const attachmentInfos = attachments[lastClickedFeatureObjectId];
+                        const attachmentInfos = attachments[feature.attributes.OBJECTID];
                         if (attachmentInfos && attachmentInfos.length > 0) {
                             const firstAttachmentUrl = attachmentInfos[0].url;
-                            // Open the attachment in a new tab/window
-                            window.open(firstAttachmentUrl, '_blank');
+                            window.open(firstAttachmentUrl, '_blank'); // Open the attachment in a new tab/window
                         }
                     });
                 }
