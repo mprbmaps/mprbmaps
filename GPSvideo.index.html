@@ -20,7 +20,7 @@
             z-index: 10;
             background: white;
             padding: 10px;
-            display: none;
+            display: none; /* Initially hidden */
             border: 1px solid #ccc;
             border-radius: 4px;
             max-width: 300px;
@@ -42,7 +42,11 @@
 </head>
 <body>
     <div id="viewDiv"></div>
-    <div id="attachmentWindow"></div>
+    <div id="attachmentWindow">
+        <div id="attachmentContent"></div> <!-- Container for attachment content -->
+        <button id="prevFeature" class="nav-button">Back</button>
+        <button id="nextFeature" class="nav-button">Next</button>
+    </div>
     <script>
         require([
             "esri/WebMap",
@@ -124,6 +128,7 @@
                                 currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === clickedObjectId);
                                 if (currentIndex !== -1) {
                                     showFeature(currentIndex);
+                                    document.getElementById("attachmentWindow").style.display = "block"; // Show attachment window
                                 } else {
                                     console.log("Feature not found in sorted features. OBJECTID:", clickedObjectId);
                                     // Additional log for diagnostic purposes
@@ -153,59 +158,43 @@
                         view.graphics.removeAll();
                         view.graphics.add(highlightGraphic);
 
+                        const attachmentWindow = document.getElementById("attachmentContent");
+                        attachmentWindow.innerHTML = ''; // Clear previous content
+
                         featureLayer.queryAttachments({
                             objectIds: [feature.attributes.OBJECTID]
                         }).then(function(attachments) {
                             console.log("Attachments for feature:", attachments);
                             const attachmentInfos = attachments[feature.attributes.OBJECTID];
-                            const attachmentWindow = document.getElementById("attachmentWindow");
-                            attachmentWindow.innerHTML = ''; // Clear previous content
                             if (attachmentInfos && attachmentInfos.length > 0) {
                                 // Debugging: Ensure we're getting the expected attachment URL
-                                console.log("First attachment URL:", attachmentInfos[0].url);
+                                console.log("Attachment URL:", attachmentInfos[0].url);
+
                                 const firstAttachmentUrl = attachmentInfos[0].url;
-                                // Updated to handle potential cross-origin issues with a more explicit error message
-                                attachmentWindow.innerHTML += `<img src="${firstAttachmentUrl}" style="width: 100%;" onerror="this.onerror=null;this.parentElement.innerHTML='Failed to load attachment.';">`;
-                                attachmentWindow.innerHTML += `<br><button id="prevFeature" class="nav-button">Back</button>`;
-                                attachmentWindow.innerHTML += `<button id="nextFeature" class="nav-button">Next</button>`;
-                                attachmentWindow.style.display = "block";
-                                document.getElementById("prevFeature").addEventListener('click', function() {
-                                    if (currentIndex > 0) {
-                                        showFeature(--currentIndex);
-                                    }
-                                });
-                                document.getElementById("nextFeature").addEventListener('click', function() {
-                                    if (currentIndex < sortedFeatures.length - 1) {
-                                        showFeature(++currentIndex);
-                                    }
-                                });
+                                attachmentWindow.innerHTML = `<img src="${firstAttachmentUrl}" style="width: 100%;" />`;
+                                attachmentWindow.style.display = "block"; // Show attachment content
                             } else {
                                 console.log("No attachments found for this feature.");
                                 attachmentWindow.innerHTML = "No attachments found.";
-                                attachmentWindow.style.display = "block";
+                                attachmentWindow.style.display = "block"; // Show empty attachment content
                             }
                         }).catch(function(error) {
                             console.error("Error querying attachments:", error);
                         });
                     }
 
-                    view.on("double-click", function(event) {
-                        event.stopPropagation(); // Prevent map zoom
-                        if (currentIndex !== -1) {
-                            const feature = sortedFeatures[currentIndex];
-                            featureLayer.queryAttachments({
-                                objectIds: [feature.attributes.OBJECTID]
-                            }).then(function(attachments) {
-                                const attachmentInfos = attachments[feature.attributes.OBJECTID];
-                                if (attachmentInfos && attachmentInfos.length > 0) {
-                                    const firstAttachmentUrl = attachmentInfos[0].url;
-                                    window.open(firstAttachmentUrl, '_blank'); // Open the attachment in a new tab/window
-                                }
-                            }).catch(function(error) {
-                                console.error("Error opening attachment:", error);
-                            });
+                    document.getElementById("prevFeature").addEventListener('click', function() {
+                        if (currentIndex > 0) {
+                            showFeature(--currentIndex);
                         }
                     });
+
+                    document.getElementById("nextFeature").addEventListener('click', function() {
+                        if (currentIndex < sortedFeatures.length - 1) {
+                            showFeature(++currentIndex);
+                        }
+                    });
+
                 }).catch(function(error) {
                     console.error("Error loading WebMap:", error);
                 });
