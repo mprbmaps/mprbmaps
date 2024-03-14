@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <title>FeatureLayer Attachments with Navigation</title>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-    <link rel="stylesheet" href="https://js.arcgis.com/4.23/esri/css/main.css" />
-    <script src="https://js.arcgis.com/4.23/"></script>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/css/main.css" />
+    <script src="https://js.arcgis.com/4.28/"></script>
     <style>
         html, body, #viewDiv {
             height: 100%;
@@ -47,147 +47,163 @@
         <button id="nextFeature" class="nav-button">Next</button>
     </div>
     <script>
-        require([
-          "esri/WebMap",
-          "esri/views/MapView",
-          "esri/layers/FeatureLayer",
-          "esri/Graphic",
-          "esri/identity/OAuthInfo",
-          "esri/identity/IdentityManager",
-          "esri/config"
-        ], function(WebMap, MapView, FeatureLayer, Graphic, OAuthInfo, IdentityManager, esriConfig) {
+      require([
+  "esri/WebMap",
+  "esri/views/MapView",
+  "esri/layers/FeatureLayer",
+  "esri/Graphic",
+  "esri/identity/OAuthInfo",
+  "esri/identity/IdentityManager",
+  "esri/config"
+], function(WebMap, MapView, FeatureLayer, Graphic, OAuthInfo, IdentityManager, esriConfig) {
 
-            esriConfig.portalUrl = "https://www.arcgis.com";
-            var info = new OAuthInfo({
-                appId: "ti3fi1FqvHE2Hhyw",
-                popup: true
-            });
-            IdentityManager.registerOAuthInfos([info]);
+    esriConfig.portalUrl = "https://www.arcgis.com";
 
-            IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(
-                function() {
-                    console.log("Signed in successfully");
-                    displayMap();
-                }
-            ).catch(
-                function(error) {
-                    console.log("Sign-in failed: ", error);
-                    displayMap();
-                }
-            );
+    var info = new OAuthInfo({
+        appId: "ti3fi1FqvHE2Hhyw", // Your App ID
+        popup: true
+    });
+    IdentityManager.registerOAuthInfos([info]);
 
-            function displayMap() {
-                var webmap = new WebMap({
-                    portalItem: {
-                        id: "a11d663a981947b99aac7ff05437758f"
-                    }
-                });
+    IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+        console.log("Signed in successfully");
+        displayMap();
+    }).catch(function(error) {
+        console.error("Sign-in failed: ", error);
+        displayMap(); // Attempt to display the map regardless of sign-in status
+    });
 
-                var view = new MapView({
-                    container: "viewDiv",
-                    map: webmap
-                });
-
-                var featureLayer = new FeatureLayer({
-                    url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/GoPro/FeatureServer/0"
-                });
-
-                webmap.when(function() {
-                    view.map.add(featureLayer); // Add feature layer to the map
-                    initializeFeatureNavigation();
-                });
-
-                let sortedFeatures = [];
-                let currentIndex = -1;
-
-                function initializeFeatureNavigation() {
-                    featureLayer.queryFeatures({
-                        where: "1=1",
-                        orderByFields: ["OBJECTID ASC"]
-                    }).then(function(results) {
-                        sortedFeatures = results.features;
-                        console.log("Features are loaded and sorted by OBJECTID.");
-                    });
-
-                    view.on("click", function(event) {
-                        view.hitTest(event).then(function(response) {
-                            const result = response.results.find(result => result.graphic.layer === featureLayer);
-                            if (result) {
-                                const clickedFeature = result.graphic;
-                                currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === clickedFeature.attributes.OBJECTID);
-                                if (currentIndex !== -1) {
-                                    showFeature(currentIndex);
-                                }
-                            }
-                        });
-                    });
-
-                    function showFeature(index) {
-                        const feature = sortedFeatures[index];
-                        if (!feature) return;
-
-                        const highlightGraphic = new Graphic({
-                            geometry: feature.geometry,
-                            symbol: featureLayer.renderer.symbol || {
-                                type: "simple-marker", // Fallback symbol
-                                color: [255, 255, 0, 0.6],
-                                outline: {
-                                    width: 2,
-                                    color: "black"
-                                }
-                            }
-                        });
-
-                        view.graphics.removeAll();
-                        view.graphics.add(highlightGraphic);
-
-                        featureLayer.queryAttachments({
-                            objectIds: [feature.attributes.OBJECTID]
-                        }).then(function(attachments) {
-                            const attachmentInfos = attachments[feature.attributes.OBJECTID];
-                            if (attachmentInfos && attachmentInfos.length > 0) {
-                                const firstAttachmentUrl = attachmentInfos[0].url;
-                                const attachmentWindow = document.getElementById("attachmentWindow");
-                                attachmentWindow.innerHTML = `
-                                    <img src="${firstAttachmentUrl}" style="width: 100%;" />
-                                    <button id="prevFeature" class="nav-button" ${currentIndex <= 0 ? 'disabled' : ''}>Back</button>
-                                    <button id="nextFeature" class="nav-button" ${currentIndex >= sortedFeatures.length - 1 ? 'disabled' : ''}>Next</button>
-                                `;
-                                attachmentWindow.style.display = "block";
-
-                                document.getElementById("prevFeature").onclick = function() {
-                                    if (currentIndex > 0) {
-                                        showFeature(--currentIndex);
-                                    }
-                                };
-
-                                document.getElementById("nextFeature").onclick = function() {
-                                    if (currentIndex < sortedFeatures.length - 1) {
-                                        showFeature(++currentIndex);
-                                    }
-                                };
-                            }
-                        });
-                    }
-                }
-
-                view.on("double-click", function(event) {
-                    event.stopPropagation(); // Prevent map zoom
-                    if (currentIndex !== -1) {
-                        const feature = sortedFeatures[currentIndex];
-                        featureLayer.queryAttachments({
-                            objectIds: [feature.attributes.OBJECTID]
-                        }).then(function(attachments) {
-                            const attachmentInfos = attachments[feature.attributes.OBJECTID];
-                            if (attachmentInfos && attachmentInfos.length > 0) {
-                                const firstAttachmentUrl = attachmentInfos[0].url;
-                                window.open(firstAttachmentUrl, '_blank');
-                            }
-                        });
-                    }
-                });
+    function displayMap() {
+        var webmap = new WebMap({
+            portalItem: {
+                id: "a11d663a981947b99aac7ff05437758f" // Your WebMap ID
             }
         });
+
+        var view = new MapView({
+            container: "viewDiv",
+            map: webmap
+        });
+
+        webmap.when(function() {
+            console.log("WebMap loaded");
+
+            var featureLayer = new FeatureLayer({
+                url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/GoPro/FeatureServer/0",
+                outFields: ["*"]
+            });
+
+            view.map.add(featureLayer); // Add the feature layer to the map
+
+            featureLayer.when(function() {
+                console.log("Feature layer loaded successfully.");
+                queryAndSortFeatures();
+            }).catch(function(error) {
+                console.error("Error loading feature layer:", error);
+            });
+
+            let sortedFeatures = [];
+            let currentIndex = -1;
+
+            function queryAndSortFeatures() {
+                featureLayer.queryFeatures({
+                    where: "1=1",
+                    orderByFields: ["OBJECTID ASC"]
+                }).then(function(results) {
+                    sortedFeatures = results.features;
+                    console.log("Features are loaded and sorted by OBJECTID.");
+                }).catch(function(error) {
+                    console.error("Error loading or sorting features:", error);
+                });
+            }
+
+            view.on("click", function(event) {
+                view.hitTest(event).then(function(response) {
+                    console.log("Hit test results:", response);
+
+                    const result = response.results.find(result => result.graphic.layer === featureLayer);
+                    if (result) {
+                        console.log("Feature clicked:", result.graphic);
+                        currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === result.graphic.attributes.OBJECTID);
+                        if (currentIndex !== -1) {
+                            showFeature(currentIndex);
+                        }
+                    }
+                });
+            });
+
+            function showFeature(index) {
+                const feature = sortedFeatures[index];
+                if (!feature) return;
+
+                const highlightGraphic = new Graphic({
+                    geometry: feature.geometry,
+                    symbol: {
+                        type: "simple-marker", // Adjust based on your geometry type
+                        color: [255, 255, 0, 0.6],
+                        size: "20px",
+                        outline: {
+                            color: "#FF0000",
+                            width: 2
+                        }
+                    }
+                });
+
+                view.graphics.removeAll();
+                view.graphics.add(highlightGraphic);
+
+                featureLayer.queryAttachments({
+                    objectIds: [feature.attributes.OBJECTID]
+                }).then(function(attachments) {
+                    console.log("Attachments for feature:", attachments);
+                    const attachmentInfos = attachments[feature.attributes.OBJECTID];
+                    if (attachmentInfos && attachmentInfos.length > 0) {
+                        const firstAttachmentUrl = attachmentInfos[0].url;
+                        const attachmentWindow = document.getElementById("attachmentWindow");
+                        attachmentWindow.innerHTML = `<img src="${firstAttachmentUrl}" style="width: 100%;" /><br>` +
+                                                      `<button id="prevFeature" class="nav-button" ${currentIndex <= 0 ? 'disabled' : ''}>Back</button>` +
+                                                      `<button id="nextFeature" class="nav-button" ${currentIndex >= sortedFeatures.length - 1 ? 'disabled' : ''}>Next</button>`;
+                        attachmentWindow.style.display = "block";
+
+                        document.getElementById("prevFeature").onclick = function() {
+                            if (currentIndex > 0) {
+                                showFeature(--currentIndex);
+                            }
+                        };
+
+                        document.getElementById("nextFeature").onclick = function() {
+                            if (currentIndex < sortedFeatures.length - 1) {
+                                showFeature(++currentIndex);
+                            }
+                        };
+                    }
+                }).catch(function(error) {
+                    console.error("Error querying attachments:", error);
+                });
+            }
+
+            view.on("double-click", function(event) {
+                event.stopPropagation(); // Prevent map zoom
+                if (currentIndex !== -1) {
+                    const feature = sortedFeatures[currentIndex];
+                    featureLayer.queryAttachments({
+                        objectIds: [feature.attributes.OBJECTID]
+                    }).then(function(attachments) {
+                        const attachmentInfos = attachments[feature.attributes.OBJECTID];
+                        if (attachmentInfos && attachmentInfos.length > 0) {
+                            const firstAttachmentUrl = attachmentInfos[0].url;
+                            window.open(firstAttachmentUrl, '_blank'); // Open the attachment in a new tab/window
+                        }
+                    }).catch(function(error) {
+                        console.error("Error opening attachment:", error);
+                    });
+                }
+            });
+        }).catch(function(error) {
+            console.error("Error loading WebMap:", error);
+        });
+    }
+});  
     </script>
 </body>
 </html>
