@@ -23,7 +23,7 @@
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 4px;
-    width: 600px; /* Set a minimum width for the attachment window */
+    width: 600px; /* This sets the width of the attachment window. Adjust as necessary. */
     display: none; /* Initially hide the attachment window */
     overflow: hidden; /* Hide overflow content */
 }
@@ -31,34 +31,35 @@
 #attachmentImageContainer {
     position: relative;
     width: 100%;
-    height: 300px; /* Set a fixed height */
+    height: 300px; /* Set a fixed height for the image container */
 }
 
 #attachmentImage {
-    max-width: 100%;
-    max-height: 100%;
-    cursor: grab; /* Set cursor to grab for panning */
-    user-select: none; /* Disable text selection */
-    position: absolute; /* Position absolute for overlay buttons */
-    left: 0;
-    top: 0;
-    transition: transform 0.2s; /* Add smooth transition */
-    object-fit: contain; /* Ensures the image is contained within its element */
+    width: 100%; /* Make the image take the full width of its container */
+    height: 100%; /* Make the image take the full height of its container */
+    object-fit: cover; /* Cover the area without white spaces, may crop some parts */
+    cursor: grab;
+    user-select: none;
+    position: absolute;
+    transition: transform 0.2s;
 }
 
 .zoom-buttons {
     position: absolute;
-    top: 10px; /* Position towards the top of the container */
-    right: 10px; /* Position towards the right of the container */
-    z-index: 20; /* Above the image */
+    top: 10px;
+    right: 10px;
+    z-index: 20;
     display: flex;
     flex-direction: column;
-    align-items: flex-end; /* Align buttons to the right */
 }
 
 .nav-button {
     margin: 5px;
-    padding: 5px 10px;
+    width: 30px; /* Explicit width for consistency */
+    height: 30px; /* Explicit height for consistency */
+    padding: 0; /* Adjust padding or remove it if necessary */
+    line-height: 30px; /* Align the text vertically */
+    text-align: center; /* Align the text horizontally */
     background-color: #007bff;
     color: white;
     border: none;
@@ -70,7 +71,6 @@
     background-color: #cccccc;
     cursor: not-allowed;
 }
-
 
     </style>
 </head>
@@ -237,14 +237,18 @@
             var currentScale = 1; // Global scale factor
 
             document.getElementById("zoomIn").addEventListener("click", function() {
-                currentScale *= 1.2; // Increase scale
-                updateImageScale();
-            });
+    if (currentScale < 5) { // Set a maximum scale limit
+        currentScale *= 1.2; // Increase scale
+        updateImageScale();
+    }
+});
 
             document.getElementById("zoomOut").addEventListener("click", function() {
-                currentScale /= 1.2; // Decrease scale
-                updateImageScale();
-            });
+    if (currentScale > 0.2) { // Set a minimum scale limit
+        currentScale /= 1.2; // Decrease scale
+        updateImageScale();
+    }
+});
 
             function updateImageScale() {
                 const attachmentImage = document.getElementById("attachmentImage");
