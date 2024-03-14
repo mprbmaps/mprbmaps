@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8" />
-    <title>FeatureLayer Attachments</title>
+    <title>FeatureLayer Attachments in Custom Window</title>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
     <link rel="stylesheet" href="https://js.arcgis.com/4.23/esri/css/main.css" />
     <script src="https://js.arcgis.com/4.23/"></script>
@@ -13,10 +13,23 @@
             margin: 0;
             padding: 0;
         }
+        #attachmentWindow {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+            background: white;
+            padding: 10px;
+            display: none;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            max-width: 300px;
+        }
     </style>
 </head>
 <body>
     <div id="viewDiv"></div>
+    <div id="attachmentWindow"></div>
     <script>
         require([
             "esri/Map",
@@ -43,7 +56,6 @@
 
             let lastClickedFeatureObjectId;
 
-            // Listen for single click events to show attachment
             view.on("click", (event) => {
                 view.hitTest(event).then((response) => {
                     const feature = response.results.find((result) => result.graphic.layer === featureLayer)?.graphic;
@@ -55,19 +67,16 @@
                             const attachmentInfos = attachments[feature.attributes.OBJECTID];
                             if (attachmentInfos && attachmentInfos.length > 0) {
                                 const firstAttachmentUrl = attachmentInfos[0].url;
-                                // Display the first attachment as an image in a popup
-                                view.popup.open({
-                                    title: "Attachment",
-                                    content: `<img src="${firstAttachmentUrl}" style="width: 100%;" />`,
-                                    location: event.mapPoint
-                                });
+                                // Show the attachment in the custom window
+                                const attachmentWindow = document.getElementById("attachmentWindow");
+                                attachmentWindow.innerHTML = `<img src="${firstAttachmentUrl}" style="width: 100%;" />`;
+                                attachmentWindow.style.display = "block";
                             }
                         });
                     }
                 });
             });
 
-            // Listen for double click events to open full image
             view.on("double-click", (event) => {
                 event.stopPropagation(); // Prevent map zoom
                 if (lastClickedFeatureObjectId !== undefined) {
@@ -77,7 +86,7 @@
                         const attachmentInfos = attachments[lastClickedFeatureObjectId];
                         if (attachmentInfos && attachmentInfos.length > 0) {
                             const firstAttachmentUrl = attachmentInfos[0].url;
-                            // Open the first attachment in a new tab/window
+                            // Open the attachment in a new tab/window
                             window.open(firstAttachmentUrl, '_blank');
                         }
                     });
