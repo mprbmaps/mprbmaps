@@ -26,11 +26,16 @@
             display: none; /* Initially hide the attachment window */
             overflow: hidden; /* Hide overflow content */
         }
+        #attachmentImageContainer {
+            position: relative;
+            width: 100%;
+            height: 300px; /* Adjust height as needed */
+        }
         #attachmentImage {
             width: 100%; /* Ensure the attachment image fills the attachment window */
             cursor: grab; /* Set cursor to grab for panning */
             user-select: none; /* Disable text selection */
-            position: relative; /* Position relative for absolute positioning */
+            position: absolute; /* Position absolute for overlay buttons */
             left: 0;
             top: 0;
             transition: transform 0.2s; /* Add smooth transition */
@@ -48,12 +53,24 @@
             background-color: #cccccc;
             cursor: not-allowed;
         }
+        .zoom-buttons {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 20;
+        }
     </style>
 </head>
 <body>
     <div id="viewDiv"></div>
     <div id="attachmentWindow">
-        <img id="attachmentImage" src="" alt="Attachment Image" />
+        <div id="attachmentImageContainer">
+            <img id="attachmentImage" src="" alt="Attachment Image" />
+            <div class="zoom-buttons">
+                <button id="zoomIn" class="nav-button">+</button>
+                <button id="zoomOut" class="nav-button">-</button>
+            </div>
+        </div>
         <button id="prevFeature" class="nav-button">Back</button>
         <button id="nextFeature" class="nav-button">Next</button>
     </div>
@@ -168,22 +185,29 @@
                         view.graphics.removeAll();
                         view.graphics.add(highlightGraphic);
 
-                        // Ensure that the view's spatial reference is defined before querying attachments
-                        view.when(function() {
-                            featureLayer.queryAttachments({
-                                objectIds: [feature.attributes.OBJECTID]
-                            }).then(function(attachments) {
-                                const attachmentInfos = attachments[feature.attributes.OBJECTID];
-                                const attachmentWindow = document.getElementById("attachmentWindow");
-                                if (attachmentInfos && attachmentInfos.length > 0) {
-                                    const firstAttachmentUrl = attachmentInfos[0].url;
-                                    document.getElementById("attachmentImage").src = firstAttachmentUrl;
-                                    attachmentWindow.style.display = "block";
-                                } else {
-                                    attachmentWindow.style.display = "none";
-                                }
-                            }).catch(function(error) {
-                                console.error("Error querying attachments:", error);
+                        featureLayer.queryAttachments({
+                            objectIds: [feature.attributes.OBJECTID]
+                        }).then(function(attachments) {
+                            const attachmentInfos = attachments[feature.attributes.OBJECTID];
+                            const attachmentWindow = document.getElementById("attachmentWindow");
+                            if (attachmentInfos && attachmentInfos.length > 0) {
+                                const firstAttachmentUrl = attachmentInfos[0].url;
+                                document.getElementById("attachmentImage").src = firstAttachmentUrl;
+                                attachmentWindow.style.display = "block";
+                            } else {
+                                attachmentWindow.style.display = "none";
+                            }
+                        }).catch(function(error) {
+                            console.error("Error querying attachments:", error);
+                        });
+
+                        // Recenter the map if the feature is off-screen
+                        view.whenLayerView(featureLayer).then(function(layerView) {
+                            view.goTo({
+                                target: feature.geometry,
+                                centerOffset: [0, 1 * view.height], // Offset the center to avoid covering the selected feature
+                                scale: view.scale,
+                                duration: 500
                             });
                         });
                     }
@@ -200,7 +224,25 @@
                         }
                     });
 
-                    // Add panning and zooming functionality to the attachment image
+                    document.getElementById("zoomIn").addEventListener("click", function() {
+                        const currentScale = view.scale;
+                        const newScale = currentScale * 0.5; // Adjust scale factor as needed
+                        view.goTo({
+                            scale: newScale,
+                            duration: 250
+                        });
+                    });
+
+                    document.getElementById("zoomOut").addEventListener("click", function() {
+                        const currentScale = view.scale;
+                        const newScale = currentScale * 2; // Adjust scale factor as needed
+                        view.goTo({
+                            scale: newScale,
+                            duration: 250
+                        });
+                    });
+
+                    // Add panning functionality to the attachment image
                     let isDragging = false;
                     let startX, startY, scrollLeft, scrollTop;
 
@@ -210,14 +252,17 @@
                         startY = e.clientY;
                         scrollLeft = this.scrollLeft;
                         scrollTop = this.scrollTop;
+                        this.style.cursor = "grabbing"; // Change cursor to indicate grabbing
                     });
 
                     document.getElementById("attachmentImage").addEventListener("mouseleave", function() {
                         isDragging = false;
+                        this.style.cursor = "grab"; // Restore cursor when mouse leaves
                     });
 
                     document.getElementById("attachmentImage").addEventListener("mouseup", function() {
                         isDragging = false;
+                        this.style.cursor = "grab"; // Restore cursor when mouse is released
                     });
 
                     document.getElementById("attachmentImage").addEventListener("mousemove", function(e) {
