@@ -156,43 +156,42 @@
         });
     }
 
-    function eventHandlerForDoubleClick(event, featureLayer, sortedFeatures, currentIndex) {
-        event.stopPropagation(); // Prevent map zoom
-        if (currentIndex !== -1) {
-            const feature = sortedFeatures[currentIndex];
-            featureLayer.queryAttachments({
-                objectIds: [feature.attributes.OBJECTID]
-            }).then(function(attachments) {
-                const attachmentInfos = attachments[feature.attributes.OBJECTID];
-                if (attachmentInfos && attachmentInfos.length > 0) {
-                    const firstAttachmentUrl = attachmentInfos[0].url;
-                    window.open(firstAttachmentUrl, '_blank'); // Open the attachment in a new tab/window
-                }
-            }).catch(function(error) {
-                console.error("Error opening attachment:", error);
-            });
-        }
-    }
-
-    function showFeature(view, sortedFeatures, currentIndex) {
-        const feature = sortedFeatures[currentIndex];
-        console.log("Showing feature:", feature.attributes); // Confirm the feature data
-
-        const highlightGraphic = new Graphic({
-            geometry: feature.geometry,
-            symbol: {
-                type: "simple-marker",
-                color: [255, 255, 0, 0.6],
-                size: "20px",
-                outline: {
-                    color: "#FF0000",
-                    width: 2
-                }
+    function eventHandlerForClick(event, view, featureLayer, sortedFeatures) {
+    view.hitTest(event).then(function(response) {
+        const result = response.results.find(result => result.graphic.layer === featureLayer);
+        if (result) {
+            console.log("Feature clicked:", result.graphic.attributes);
+            const clickedObjectId = result.graphic.attributes.OBJECTID;
+            
+            let currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === clickedObjectId);
+            if (currentIndex !== -1) {
+                showFeature(view, featureLayer, sortedFeatures, currentIndex);
+            } else {
+                console.log("Feature not found in sorted features. OBJECTID:", clickedObjectId);
             }
-        });
+        }
+    });
+}
 
-        view.graphics.removeAll();
-        view.graphics.add(highlightGraphic);
+function showFeature(view, featureLayer, sortedFeatures, currentIndex) {
+    const feature = sortedFeatures[currentIndex];
+    if (!feature) return;
+    
+    const highlightGraphic = new Graphic({
+        geometry: feature.geometry,
+        symbol: {
+            type: "simple-marker",
+            color: [255, 255, 0, 0.6],
+            size: "20px",
+            outline: {
+                color: "#FF0000",
+                width: 2
+            }
+        }
+    });
+
+    view.graphics.removeAll();
+    view.graphics.add(highlightGraphic);
 
         featureLayer.queryAttachments({
             objectIds: [feature.attributes.OBJECTID]
