@@ -259,10 +259,23 @@
     attachmentImage.style.transformOrigin = 'center center';
     attachmentImage.style.transform = `scale(${currentScale})`;
     // Reset position styles if previously set
-    attachmentImage.style.left = '0px';
-    attachmentImage.style.top = '0px';
-}
+    attachmentImage.style.left = '50%';
+    attachmentImage.style.top = '50%';
+    attachmentImage.style.transform = `translate(-50%, -50%) scale(${currentScale})`;
 
+    // Adjust the size of the container if needed
+    const container = document.getElementById("attachmentImageContainer");
+    if (currentScale === 1) {
+        // Reset to default if scale is 1
+        container.style.width = '100%';
+        container.style.height = 'auto';
+    } else {
+        // Adjust the container to the size of the image if scaled
+        const rect = attachmentImage.getBoundingClientRect();
+        container.style.width = `${rect.width}px`;
+        container.style.height = `${rect.height}px`;
+    }
+}
 
         document.getElementById("zoomIn").addEventListener("click", function(event) {
     event.stopPropagation(); // Prevent event from bubbling to other elements
@@ -284,11 +297,14 @@
         let startX, startY;
 
         document.getElementById("attachmentImage").addEventListener("mousedown", function(e) {
-            isDragging = true;
-            startX = e.clientX - this.getBoundingClientRect().left;
-            startY = e.clientY - this.getBoundingClientRect().top;
-            this.style.cursor = "grabbing";
-        });
+    // Check if the event's target is the image itself
+    if (e.target.id === "attachmentImage") {
+        isDragging = true;
+        startX = e.clientX - this.getBoundingClientRect().left;
+        startY = e.clientY - this.getBoundingClientRect().top;
+        this.style.cursor = "grabbing";
+    }
+});
 
         document.getElementById("attachmentImage").addEventListener("mouseleave", function() {
             isDragging = false;
