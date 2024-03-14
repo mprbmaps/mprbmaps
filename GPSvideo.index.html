@@ -227,21 +227,27 @@
                     document.getElementById("zoomIn").addEventListener("click", function() {
     const attachmentImage = document.getElementById("attachmentImage");
     const attachmentImageContainer = document.getElementById("attachmentImageContainer");
-    const currentScale = parseFloat(attachmentImage.style.transform.match(/scale\((.*?)\)/)[1]);
-    const newScale = currentScale * 1.5; // Increase scale factor as needed
-    attachmentImage.style.transform = `scale(${newScale})`;
-    // Adjust container size to fit scaled image
-    attachmentImageContainer.style.height = `${attachmentImage.clientHeight * newScale}px`;
+    const transformValue = attachmentImage.style.transform;
+    if (transformValue && transformValue.includes("scale")) {
+        const currentScale = parseFloat(transformValue.match(/scale\((.*?)\)/)[1]);
+        const newScale = currentScale * 1.5; // Increase scale factor as needed
+        attachmentImage.style.transform = `scale(${newScale})`;
+        // Adjust container size to fit scaled image
+        attachmentImageContainer.style.height = `${attachmentImage.clientHeight * newScale}px`;
+    }
 });
 
                     document.getElementById("zoomOut").addEventListener("click", function() {
     const attachmentImage = document.getElementById("attachmentImage");
     const attachmentImageContainer = document.getElementById("attachmentImageContainer");
-    const currentScale = parseFloat(attachmentImage.style.transform.match(/scale\((.*?)\)/)[1]);
-    const newScale = currentScale / 1.5; // Decrease scale factor as needed
-    attachmentImage.style.transform = `scale(${newScale})`;
-    // Adjust container size to fit scaled image
-    attachmentImageContainer.style.height = `${attachmentImage.clientHeight * newScale}px`;
+    const transformValue = attachmentImage.style.transform;
+    if (transformValue && transformValue.includes("scale")) {
+        const currentScale = parseFloat(transformValue.match(/scale\((.*?)\)/)[1]);
+        const newScale = currentScale / 1.5; // Decrease scale factor as needed
+        attachmentImage.style.transform = `scale(${newScale})`;
+        // Adjust container size to fit scaled image
+        attachmentImageContainer.style.height = `${attachmentImage.clientHeight * newScale}px`;
+    }
 });
 
                     // Add panning functionality to the attachment image
