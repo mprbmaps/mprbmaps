@@ -161,12 +161,6 @@
                         view.graphics.removeAll();
                         view.graphics.add(highlightGraphic);
 
-                        // Recenter the map if the feature is off-screen
-                        view.goTo({
-                            target: feature.geometry,
-                            centerOffset: [0, -200] // Adjust the offset as needed to avoid covering the selected feature with the attachment window
-                        });
-
                         featureLayer.queryAttachments({
                             objectIds: [feature.attributes.OBJECTID]
                         }).then(function(attachments) {
@@ -181,6 +175,16 @@
                             }
                         }).catch(function(error) {
                             console.error("Error querying attachments:", error);
+                        });
+
+                        // Recenter the map if the feature is off-screen
+                        view.whenLayerView(featureLayer).then(function(layerView) {
+                            view.goTo({
+                                target: feature.geometry,
+                                centerOffset: [0, 0.3 * view.height], // Offset the center to avoid covering the selected feature
+                                scale: view.scale,
+                                duration: 500
+                            });
                         });
                     }
 
