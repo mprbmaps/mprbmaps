@@ -168,38 +168,23 @@
                         view.graphics.removeAll();
                         view.graphics.add(highlightGraphic);
 
-                        featureLayer.queryAttachments({
-                            objectIds: [feature.attributes.OBJECTID]
-                        }).then(function(attachments) {
-                            const attachmentInfos = attachments[feature.attributes.OBJECTID];
-                            const attachmentWindow = document.getElementById("attachmentWindow");
-                            if (attachmentInfos && attachmentInfos.length > 0) {
-                                const firstAttachmentUrl = attachmentInfos[0].url;
-                                document.getElementById("attachmentImage").src = firstAttachmentUrl;
-                                attachmentWindow.style.display = "block";
-                            } else {
-                                attachmentWindow.style.display = "none";
-                            }
-                        }).catch(function(error) {
-                            console.error("Error querying attachments:", error);
-                        });
-
-                        // Recenter the map if the feature is off-screen
-                        view.whenLayerView(featureLayer).then(function(layerView) {
-                            const screenGeometry = view.toScreen(feature.geometry);
-                            if (!view.extent.contains(screenGeometry)) {
-                                view.goTo({
-                                    target: feature.geometry,
-                                    centerOffset: [0, 1 * view.height], // Offset the center to avoid covering the selected feature
-                                    scale: view.scale,
-                                    duration: 500
-                                });
-                            }
-                        });
-
-                        // Ensure that the view's spatial reference is defined before enabling panning and zooming
+                        // Ensure that the view's spatial reference is defined before querying attachments
                         view.when(function() {
-                            enablePanningAndZooming();
+                            featureLayer.queryAttachments({
+                                objectIds: [feature.attributes.OBJECTID]
+                            }).then(function(attachments) {
+                                const attachmentInfos = attachments[feature.attributes.OBJECTID];
+                                const attachmentWindow = document.getElementById("attachmentWindow");
+                                if (attachmentInfos && attachmentInfos.length > 0) {
+                                    const firstAttachmentUrl = attachmentInfos[0].url;
+                                    document.getElementById("attachmentImage").src = firstAttachmentUrl;
+                                    attachmentWindow.style.display = "block";
+                                } else {
+                                    attachmentWindow.style.display = "none";
+                                }
+                            }).catch(function(error) {
+                                console.error("Error querying attachments:", error);
+                            });
                         });
                     }
 
@@ -215,35 +200,51 @@
                         }
                     });
 
-                    // Add event listener for mouse wheel events on the attachment image
-                    function enablePanningAndZooming() {
-                        const attachmentImage = document.getElementById("attachmentImage");
-                        attachmentImage.addEventListener("wheel", handleWheelEvent);
-                    }
+                    // Add panning and zooming functionality to the attachment image
+                    let isDragging = false;
+                    let startX, startY, scrollLeft, scrollTop;
 
-                    // Define a function to handle mouse wheel events
-                    function handleWheelEvent(event) {
-                        event.preventDefault(); // Prevent the default behavior of scrolling the entire page
+                    document.getElementById("attachmentImage").addEventListener("mousedown", function(e) {
+                        isDragging = true;
+                        startX = e.clientX;
+                        startY = e.clientY;
+                        scrollLeft = this.scrollLeft;
+                        scrollTop = this.scrollTop;
+                    });
 
-                        // Calculate the new scale based on the direction of the mouse wheel movement
-                        const delta = event.deltaY;
-                        const scaleFactor = delta > 0 ? 0.9 : 1.1;
+                    document.getElementById("attachmentImage").addEventListener("mouseleave", function() {
+                        isDragging = false;
+                    });
 
-                        // Update the scale of the attachment image
-                        const currentScale = parseFloat(attachmentImage.style.transform.replace("scale(", "").replace(")", ""));
-                        const newScale = currentScale ? currentScale * scaleFactor : scaleFactor;
-                        attachmentImage.style.transform = `scale(${newScale})`;
+                    document.getElementById("attachmentImage").addEventListener("mouseup", function() {
+                        isDragging = false;
+                    });
 
-                        // Adjust the position of the image to keep the center of the image under the mouse cursor
-                        const rect = attachmentImage.getBoundingClientRect();
-                        const mouseX = event.clientX - rect.left;
-                        const mouseY = event.clientY - rect.top;
-                        const dx = (mouseX / rect.width) * (1 - scaleFactor) * attachmentImage.width;
-                        const dy = (mouseY / rect.height) * (1 - scaleFactor) * attachmentImage.height;
-                        attachmentImage.style.transformOrigin = `${mouseX}px ${mouseY}px`;
-                        attachmentImage.style.left = `${parseFloat(attachmentImage.style.left) - dx}px`;
-                        attachmentImage.style.top = `${parseFloat(attachmentImage.style.top) - dy}px`;
-                    }
+                    document.getElementById("attachmentImage").addEventListener("mousemove", function(e) {
+                        if (!isDragging) return;
+                        e.preventDefault();
+                        const deltaX = e.clientX - startX;
+                        const deltaY = e.clientY - startY;
+                        this.scrollLeft = scrollLeft - deltaX;
+                        this.scrollTop = scrollTop - deltaY;
+                    });
+
+                    document.getElementById("attachmentImage").addEventListener("wheel", function(e) {
+                        e.preventDefault();
+                        const scaleAmount = 0.1;
+                        let scale = 1;
+                        if (e.deltaY < 0) {
+                            scale = 1 + scaleAmount;
+                        } else {
+                            scale = 1 - scaleAmount;
+                        }
+                        const oldScrollLeft = this.scrollLeft;
+                        const oldScrollTop = this.scrollTop;
+                        this.style.transformOrigin = `${e.clientX}px ${e.clientY}px`;
+                        this.style.transform = `scale(${scale})`;
+                        this.scrollLeft = oldScrollLeft * scale + e.clientX - this.getBoundingClientRect().left;
+                        this.scrollTop = oldScrollTop * scale + e.clientY - this.getBoundingClientRect().top;
+                    });
                 }).catch(function(error) {
                     console.error("Error loading WebMap:", error);
                 });
