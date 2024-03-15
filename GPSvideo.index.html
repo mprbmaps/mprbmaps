@@ -381,29 +381,23 @@
     const imageWidth = attachmentImage.naturalWidth * currentScale;
     const imageHeight = attachmentImage.naturalHeight * currentScale;
 
-    // Calculate the effective image width and height considering the scale
-    const effectiveImageWidth = attachmentImage.offsetWidth;
-    const effectiveImageHeight = attachmentImage.offsetHeight;
+    // Calculate the amount of whitespace in the container
+    const horizontalWhitespace = Math.max(containerWidth - imageWidth, 0);
+    const verticalWhitespace = Math.max(containerHeight - imageHeight, 0);
 
-    // Calculate the maximum scale to fit the image inside the container
-    const maxScaleWidth = containerWidth / imageWidth;
-    const maxScaleHeight = containerHeight / imageHeight;
-    const maxScale = Math.min(maxScaleWidth, maxScaleHeight);
+    // Check if there is any whitespace in the container
+    if (horizontalWhitespace > 0 || verticalWhitespace > 0) {
+        // If there is whitespace, recenter the image at a scale of 1.2
+        const newScale = 1.2;
+        const newLeft = (containerWidth - imageWidth * newScale) / 2;
+        const newTop = (containerHeight - imageHeight * newScale) / 2;
 
-    // Check if the effective image width or height is less than the container width or height, or if the current scale is at the maximum scale
-    if ((effectiveImageWidth <= containerWidth && effectiveImageHeight <= containerHeight) || currentScale === maxScale) {
-        console.log("Image is filling the container or already at maximum scale. No need to recenter.");
-        return;
+        attachmentImage.style.transform = `scale(${newScale})`;
+        attachmentImage.style.left = `${newLeft}px`;
+        attachmentImage.style.top = `${newTop}px`;
+    } else {
+        console.log("Image is filling the container. No need to recenter.");
     }
-
-    // If not filling the container, recenter the image at a scale of 1.2 or the maximum scale, whichever is smaller
-    const newScale = Math.min(1.2, maxScale);
-    const newLeft = (containerWidth - effectiveImageWidth * newScale) / 2;
-    const newTop = (containerHeight - effectiveImageHeight * newScale) / 2;
-
-    attachmentImage.style.transform = `scale(${newScale})`;
-    attachmentImage.style.left = `${newLeft}px`;
-    attachmentImage.style.top = `${newTop}px`;
 }
 
     </script>
