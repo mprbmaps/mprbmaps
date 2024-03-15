@@ -304,31 +304,26 @@ function resetImageSize() {
     const attachmentImageContainer = document.getElementById("attachmentImageContainer");
     const containerWidth = attachmentImageContainer.offsetWidth;
     const containerHeight = attachmentImageContainer.offsetHeight;
-    
-    // Calculate the initial scale factor to fit the image within the container
-    const scaleX = containerWidth / attachmentImage.naturalWidth;
-    const scaleY = containerHeight / attachmentImage.naturalHeight;
-    const initialScale = Math.min(scaleX, scaleY);
-    
-    // Set initial dimensions of the image based on the scale
-    const initialWidth = attachmentImage.naturalWidth * initialScale;
-    const initialHeight = attachmentImage.naturalHeight * initialScale;
-    
-    // Apply initial dimensions to the image
-    attachmentImage.style.width = initialWidth + 'px';
-    attachmentImage.style.height = initialHeight + 'px';
-    
-    // Set the CSS variables for initial dimensions
-    attachmentImage.style.setProperty('--initial-width', initialWidth + 'px');
-    attachmentImage.style.setProperty('--initial-height', initialHeight + 'px');
-    
-    // Set the max dimensions to prevent the image from exceeding the container size
-    attachmentImage.style.maxWidth = containerWidth + 'px';
-    attachmentImage.style.maxHeight = containerHeight + 'px';
-    
-    currentScale = initialScale;
-    updateImageScale();
+
+    if (attachmentImage.naturalWidth && attachmentImage.naturalHeight) {
+        // Calculate the initial scale factor to fit the image within the container
+        const scaleX = containerWidth / attachmentImage.naturalWidth;
+        const scaleY = containerHeight / attachmentImage.naturalHeight;
+        const initialScale = Math.min(scaleX, scaleY);
+
+        // Set initial dimensions of the image based on the scale
+        const initialWidth = attachmentImage.naturalWidth * initialScale;
+        const initialHeight = attachmentImage.naturalHeight * initialScale;
+
+        // Apply initial dimensions to the image
+        attachmentImage.style.width = initialWidth + 'px';
+        attachmentImage.style.height = initialHeight + 'px';
+
+        currentScale = initialScale; // Set the global scale variable
+        updateImageScale(); // Update the transform scale
+    }
 }
+
 
     </script>
 </body>
