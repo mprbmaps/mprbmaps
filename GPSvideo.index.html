@@ -300,8 +300,9 @@
 
 function resetImageSize() {
     const attachmentImage = document.getElementById("attachmentImage");
-    const containerWidth = document.getElementById("attachmentImageContainer").offsetWidth;
-    const containerHeight = document.getElementById("attachmentImageContainer").offsetHeight;
+    const attachmentImageContainer = document.getElementById("attachmentImageContainer");
+    const containerWidth = attachmentImageContainer.offsetWidth;
+    const containerHeight = attachmentImageContainer.offsetHeight;
     
     // Calculate the initial scale factor to fit the image within the container
     const scaleX = containerWidth / attachmentImage.naturalWidth;
@@ -310,12 +311,15 @@ function resetImageSize() {
     
     attachmentImage.style.width = containerWidth + "px";
     attachmentImage.style.height = containerHeight + "px";
-    attachmentImage.style.objectFit = "cover"; // Ensure image fills the container
-    attachmentImage.style.position = "absolute"; // Ensure consistent positioning
+    attachmentImage.style.maxWidth = "100%";
+    attachmentImage.style.maxHeight = "100%";
+    attachmentImage.style.objectFit = "cover";
+    attachmentImage.style.position = "absolute";
+    attachmentImageContainer.style.overflow = "hidden";
+    
     currentScale = initialScale;
     updateImageScale();
 }
-
 
     </script>
 </body>
