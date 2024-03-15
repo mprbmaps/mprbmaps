@@ -23,31 +23,30 @@
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
-            width: 600px;
             display: none;
             overflow: hidden;
         }
 
         #attachmentImageContainer {
-    position: relative;
-    width: 620px; /* 600px + 10px padding on each side */
-    height: 420px; /* 400px + 10px padding on top and bottom */
-    margin: 10px;
-    overflow: hidden;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 10px;
-    box-sizing: border-box;
-}
+            position: relative;
+            width: 620px; /* Width adjusted for padding */
+            height: 420px; /* Height adjusted for padding */
+            margin: 10px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            box-sizing: border-box;
+        }
 
         #attachmentImage {
-    width: 600px; /* Set the width of the image */
-    height: 400px; /* Set the height of the image */
-    object-fit: contain; /* This will ensure the aspect ratio is maintained */
-    cursor: grab;
-    user-select: none;
-}
+            width: 600px; /* Fixed width */
+            height: 400px; /* Fixed height */
+            object-fit: contain;
+            cursor: grab;
+            user-select: none;
+        }
 
         .zoom-buttons {
             position: absolute;
@@ -57,24 +56,16 @@
             display: flex;
             flex-direction: column;
         }
-        /* Adjusted zoom button styles */
-        .zoom-button {
-            padding: 5px; /* Smaller padding */
-            font-size: 14px; /* Smaller font size */
-            width: 30px; /* Fixed width for square appearance */
-            height: 30px; /* Fixed height for square appearance */
-            line-height: 30px; /* Align text vertically */
-        }
 
         .nav-button {
             margin: 5px;
-            padding: 5px 10px; /* Adjust padding as necessary */
+            padding: 5px 10px;
             background-color: #007bff;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 12px; /* Adjust font-size as necessary */
+            font-size: 12px;
             display: inline-block;
             text-align: center;
         }
@@ -91,8 +82,8 @@
         <div id="attachmentImageContainer">
             <img id="attachmentImage" src="" alt="Attachment Image" />
             <div class="zoom-buttons">
-                <button id="zoomIn" class="nav-button">+</button>
-                <button id="zoomOut" class="nav-button">-</button>
+                <button id="zoomIn" class="nav-button zoom-button">+</button>
+                <button id="zoomOut" class="nav-button zoom-button">-</button>
             </div>
         </div>
         <button id="prevFeature" class="nav-button">Back</button>
@@ -100,241 +91,223 @@
     </div>
     <script>
         require([
-    "esri/WebMap",
-    "esri/views/MapView",
-    "esri/layers/FeatureLayer",
-    "esri/Graphic",
-    "esri/identity/OAuthInfo",
-    "esri/identity/IdentityManager"
-], function(WebMap, MapView, FeatureLayer, Graphic, OAuthInfo, IdentityManager) {
-    var info = new OAuthInfo({
-        appId: "ti3fi1FqvHE2Hhyw", // Your App ID
-        popup: true
-    });
-    IdentityManager.registerOAuthInfos([info]);
-
-    IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
-        console.log("Signed in successfully");
-        displayMap();
-    }).catch(function(error) {
-        console.error("Sign-in failed: ", error);
-        displayMap(); // Attempt to display the map regardless of sign-in status
-    });
-
-    function displayMap() {
-        var webmap = new WebMap({
-            portalItem: {
-                id: "a11d663a981947b99aac7ff05437758f" // Your WebMap ID
-            }
-        });
-
-        var view = new MapView({
-            container: "viewDiv",
-            map: webmap
-        });
-
-        var featureLayer;
-
-        webmap.when(function() {
-            console.log("WebMap loaded");
-
-            featureLayer = new FeatureLayer({
-                url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/GoPro/FeatureServer/0",
-                outFields: ["*"]
+            "esri/WebMap",
+            "esri/views/MapView",
+            "esri/layers/FeatureLayer",
+            "esri/Graphic",
+            "esri/identity/OAuthInfo",
+            "esri/identity/IdentityManager"
+        ], function(WebMap, MapView, FeatureLayer, Graphic, OAuthInfo, IdentityManager) {
+            var info = new OAuthInfo({
+                appId: "ti3fi1FqvHE2Hhyw",
+                popup: true
             });
+            IdentityManager.registerOAuthInfos([info]);
 
-            view.map.add(featureLayer); // Add the feature layer to the map
-
-            featureLayer.when(function() {
-                console.log("Feature layer loaded successfully.");
-                queryAndSortFeatures();
+            IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+                console.log("Signed in successfully");
+                displayMap();
             }).catch(function(error) {
-                console.error("Error loading feature layer:", error);
+                console.error("Sign-in failed: ", error);
+                displayMap();
             });
 
-            let sortedFeatures = [];
-            let currentIndex = -1;
-
-            function queryAndSortFeatures() {
-                featureLayer.queryFeatures({
-                    where: "1=1",
-                    orderByFields: ["OBJECTID ASC"],
-                    returnGeometry: true,
-                    outFields: ["*"]
-                }).then(function(results) {
-                    sortedFeatures = results.features;
-                    console.log("Features are loaded and sorted by OBJECTID. Total features:", sortedFeatures.length);
-                }).catch(function(error) {
-                    console.error("Error loading or sorting features:", error);
-                });
-            }
-
-            view.on("click", function(event) {
-                view.hitTest(event).then(function(response) {
-                    const result = response.results.find(result => result.graphic.layer === featureLayer);
-                    if (result) {
-                        console.log("Feature clicked:", result.graphic.attributes);
-                        const clickedObjectId = result.graphic.attributes.OBJECTID;
-                        
-                        currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === clickedObjectId);
-                        if (currentIndex !== -1) {
-                            showFeature(currentIndex);
-                        } else {
-                            console.log("Feature not found in sorted features. OBJECTID:", clickedObjectId);
-                        }
-                    }
-                });
-            });
-
-            function showFeature(index) {
-                const feature = sortedFeatures[index];
-                console.log("Showing feature:", feature.attributes);
-
-                const highlightGraphic = new Graphic({
-                    geometry: feature.geometry,
-                    symbol: {
-                        type: "simple-marker",
-                        color: [255, 255, 0, 0.6],
-                        size: "20px",
-                        outline: {
-                            color: "#FF0000",
-                            width: 2
-                        }
+            function displayMap() {
+                var webmap = new WebMap({
+                    portalItem: {
+                        id: "a11d663a981947b99aac7ff05437758f"
                     }
                 });
 
-                view.graphics.removeAll();
-                view.graphics.add(highlightGraphic);
-
-                featureLayer.queryAttachments({
-                    objectIds: [feature.attributes.OBJECTID]
-                }).then(function(attachments) {
-                    const attachmentInfos = attachments[feature.attributes.OBJECTID];
-                    const attachmentWindow = document.getElementById("attachmentWindow");
-                    if (attachmentInfos && attachmentInfos.length > 0) {
-                        const firstAttachmentUrl = attachmentInfos[0].url;
-                        document.getElementById("attachmentImage").src = firstAttachmentUrl;
-                        attachmentWindow.style.display = "block";
-                    } else {
-                        attachmentWindow.style.display = "none";
-                    }
-                }).catch(function(error) {
-                    console.error("Error querying attachments:", error);
+                var view = new MapView({
+                    container: "viewDiv",
+                    map: webmap
                 });
 
-                view.whenLayerView(featureLayer).then(function(layerView) {
-                    view.goTo({
-                        target: feature.geometry,
-                        scale: view.scale * 2 // Zoom in closer
+                var featureLayer;
+
+                webmap.when(function() {
+                    console.log("WebMap loaded");
+
+                    featureLayer = new FeatureLayer({
+                        url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/GoPro/FeatureServer/0",
+                        outFields: ["*"]
                     });
+
+                    view.map.add(featureLayer);
+
+                    featureLayer.when(function() {
+                        console.log("Feature layer loaded successfully.");
+                        queryAndSortFeatures();
+                    }).catch(function(error) {
+                        console.error("Error loading feature layer:", error);
+                    });
+
+                    let sortedFeatures = [];
+                    let currentIndex = -1;
+
+                    function queryAndSortFeatures() {
+                        featureLayer.queryFeatures({
+                            where: "1=1",
+                            orderByFields: ["OBJECTID ASC"],
+                            returnGeometry: true,
+                            outFields: ["*"]
+                        }).then(function(results) {
+                            sortedFeatures = results.features;
+                            console.log("Features are loaded and sorted by OBJECTID. Total features:", sortedFeatures.length);
+                        }).catch(function(error) {
+                            console.error("Error loading or sorting features:", error);
+                        });
+                    }
+
+                    view.on("click", function(event) {
+                        view.hitTest(event).then(function(response) {
+                            const result = response.results.find(result => result.graphic.layer === featureLayer);
+                            if (result) {
+                                console.log("Feature clicked:", result.graphic.attributes);
+                                const clickedObjectId = result.graphic.attributes.OBJECTID;
+                                
+                                currentIndex = sortedFeatures.findIndex(f => f.attributes.OBJECTID === clickedObjectId);
+                                if (currentIndex !== -1) {
+                                    showFeature(currentIndex);
+                                } else {
+                                    console.log("Feature not found in sorted features. OBJECTID:", clickedObjectId);
+                                }
+                            }
+                        });
+                    });
+
+                    function showFeature(index) {
+                        const feature = sortedFeatures[index];
+                        console.log("Showing feature:", feature.attributes);
+
+                        const highlightGraphic = new Graphic({
+                            geometry: feature.geometry,
+                            symbol: {
+                                type: "simple-marker",
+                                color: [255, 255, 0, 0.6],
+                                size: "20px",
+                                outline: {
+                                    color: "#FF0000",
+                                    width: 2
+                                }
+                            }
+                        });
+
+                        view.graphics.removeAll();
+                        view.graphics.add(highlightGraphic);
+
+                        featureLayer.queryAttachments({
+                            objectIds: [feature.attributes.OBJECTID]
+                        }).then(function(attachments) {
+                            const attachmentInfos = attachments[feature.attributes.OBJECTID];
+                            const attachmentWindow = document.getElementById("attachmentWindow");
+                            if (attachmentInfos && attachmentInfos.length > 0) {
+                                const firstAttachmentUrl = attachmentInfos[0].url;
+                                document.getElementById("attachmentImage").src = firstAttachmentUrl;
+                                attachmentWindow.style.display = "block";
+                            } else {
+                                attachmentWindow.style.display = "none";
+                            }
+                        }).catch(function(error) {
+                            console.error("Error querying attachments:", error);
+                        });
+
+                        view.whenLayerView(featureLayer).then(function(layerView) {
+                            view.goTo({
+                                target: feature.geometry,
+                                scale: view.scale * 2
+                            });
+                        });
+                    }
+
+                    document.getElementById("prevFeature").addEventListener("click", function(event) {
+                        event.preventDefault(); // Stop the default behavior
+                        event.stopPropagation(); // Prevent the event from bubbling up
+                        if (currentIndex > 0) {
+                            showFeature(--currentIndex);
+                        }
+                    });
+
+                    document.getElementById("nextFeature").addEventListener("click", function(event) {
+                        event.preventDefault(); // Stop the default behavior
+                        event.stopPropagation(); // Prevent the event from bubbling up
+                        if (currentIndex < sortedFeatures.length - 1) {
+                            showFeature(++currentIndex);
+                        }
+                    });
+                }).catch(function(error) {
+                    console.error("Error loading WebMap:", error);
                 });
             }
-
-            document.getElementById("prevFeature").addEventListener("click", function(event) {
-    event.stopPropagation(); // Prevent the event from bubbling up to any parent elements
-    if (currentIndex > 0) {
-        showFeature(--currentIndex);
-    }
-});
-
-document.getElementById("nextFeature").addEventListener("click", function(event) {
-    event.stopPropagation(); // Prevent the event from bubbling up to any parent elements
-    if (currentIndex < sortedFeatures.length - 1) {
-        showFeature(++currentIndex);
-    }
-});
-        }).catch(function(error) {
-            console.error("Error loading WebMap:", error);
         });
-    }
-});
 
-var currentScale = 1; // Global scale factor
+        var currentScale = 1; // Global scale factor
 
-function resetImageSize() {
-    const attachmentImage = document.getElementById("attachmentImage");
-    attachmentImage.style.width = "600px";
-    attachmentImage.style.height = "400px";
-    currentScale = 1; // Reset the scale
-    updateImageScale(); // Update the scale transform
-}
+        function updateImageScale() {
+            const attachmentImage = document.getElementById("attachmentImage");
+            attachmentImage.style.transformOrigin = 'center center';
+            attachmentImage.style.transform = `scale(${currentScale})`;
+        }
 
-function updateImageScale() {
-    const attachmentImage = document.getElementById("attachmentImage");
-    attachmentImage.style.transformOrigin = 'center center';
-    attachmentImage.style.transform = `scale(${currentScale})`;
-}
+        document.getElementById("zoomIn").addEventListener("click", function(event) {
+            event.stopPropagation(); // Stop event bubbling
+            if (currentScale < 5) {
+                currentScale *= 1.2;
+                updateImageScale();
+            }
+        });
 
-document.getElementById("zoomIn").addEventListener("click", function(event) {
-    event.stopPropagation();
-    if (currentScale < 5) {
-        currentScale *= 1.2;
-        updateImageScale();
-    }
-});
+        document.getElementById("zoomOut").addEventListener("click", function(event) {
+            event.stopPropagation(); // Stop event bubbling
+            if (currentScale > 0.5) { // Prevent the image from being too small
+                currentScale /= 1.2;
+                updateImageScale();
+            }
+        });
 
-document.getElementById("zoomOut").addEventListener("click", function(event) {
-    event.stopPropagation();
-    if (currentScale > 0.5) { // Set a minimum scale limit to prevent the image from being too small
-        currentScale /= 1.2;
-        updateImageScale();
-    }
-});
+        let isDragging = false;
+        let startX, startY;
 
-let isDragging = false;
-let startX, startY;
+        document.getElementById("attachmentImage").addEventListener("mousedown", function(e) {
+            isDragging = true;
+            startX = e.clientX - this.getBoundingClientRect().left;
+            startY = e.clientY - this.getBoundingClientRect().top;
+            this.style.cursor = "grabbing";
+        });
 
-document.getElementById("attachmentImage").addEventListener("mousedown", function(e) {
-    isDragging = true;
-    startX = e.pageX - this.parentElement.offsetLeft;
-    startY = e.pageY - this.parentElement.offsetTop;
-    this.style.cursor = "grabbing";
-});
+        document.getElementById("attachmentImage").addEventListener("mouseleave", function() {
+            isDragging = false;
+            this.style.cursor = "grab";
+        });
 
-document.getElementById("attachmentImage").addEventListener("mouseleave", function() {
-    isDragging = false;
-    this.style.cursor = "grab";
-});
+        document.getElementById("attachmentImage").addEventListener("mouseup", function() {
+            isDragging = false;
+            this.style.cursor = "grab";
+        });
 
-document.getElementById("attachmentImage").addEventListener("mouseup", function() {
-    isDragging = false;
-    this.style.cursor = "grab";
-});
+        document.getElementById("attachmentImage").addEventListener("mousemove", function(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            const xDiff = e.clientX - startX;
+            const yDiff = e.clientY - startY;
+            this.style.left = (this.offsetLeft + xDiff) + 'px';
+            this.style.top = (this.offsetTop + yDiff) + 'px';
+            startX = e.clientX;
+            startY = e.clientY;
+        });
 
-document.getElementById("attachmentImage").addEventListener("mousemove", function(e) {
-    if (!isDragging) return;
-    e.preventDefault();
-    const mouseX = e.pageX - this.parentElement.offsetLeft;
-    const mouseY = e.pageY - this.parentElement.offsetTop;
-    const deltaX = (mouseX - startX) / currentScale;
-    const deltaY = (mouseY - startY) / currentScale;
-    this.style.left = `${this.offsetLeft + deltaX}px`;
-    this.style.top = `${this.offsetTop + deltaY}px`;
-    startX = mouseX;
-    startY = mouseY;
-});
-document.getElementById("attachmentImage").addEventListener("load", function() {
-    // Get the natural dimensions of the image
-    var naturalWidth = this.naturalWidth;
-    var naturalHeight = this.naturalHeight;
+        document.getElementById("attachmentImage").addEventListener("load", function() {
+            resetImageSize();
+        });
 
-    // Set the dimensions of the container
-    var container = document.getElementById("attachmentImageContainer");
-    container.style.width = naturalWidth + 'px';
-    container.style.height = naturalHeight + 'px';
-    
-    // Apply padding if needed - this assumes padding is desired on all sides equally
-    var padding = 10; // This should match your CSS padding value
-    container.style.padding = padding + 'px';
-    container.style.boxSizing = 'border-box';
-    
-    // Update the image's max-width and max-height to take padding into account
-    var image = document.getElementById("attachmentImage");
-    image.style.maxWidth = (naturalWidth - padding * 2) + 'px';
-    image.style.maxHeight = (naturalHeight - padding * 2) + 'px';
-});
-
-
+        function resetImageSize() {
+            const attachmentImage = document.getElementById("attachmentImage");
+            attachmentImage.style.width = "600px";
+            attachmentImage.style.height = "400px";
+            currentScale = 1;
+            updateImageScale();
+        }
     </script>
 </body>
 </html>
