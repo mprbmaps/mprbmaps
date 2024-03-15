@@ -374,29 +374,38 @@
         }
 
         function recenterImageIfNeeded() {
-    console.log("Recentering image...");
     const attachmentImage = document.getElementById("attachmentImage");
     const attachmentImageContainer = document.getElementById("attachmentImageContainer");
     const containerWidth = attachmentImageContainer.offsetWidth;
     const containerHeight = attachmentImageContainer.offsetHeight;
-    const imageWidth = attachmentImage.width * currentScale;
-    const imageHeight = attachmentImage.height * currentScale;
+    const imageWidth = attachmentImage.naturalWidth * currentScale;
+    const imageHeight = attachmentImage.naturalHeight * currentScale;
 
-    console.log("Container width:", containerWidth);
-    console.log("Container height:", containerHeight);
-    console.log("Image width:", imageWidth);
-    console.log("Image height:", imageHeight);
+    // Calculate the effective image width and height considering the scale
+    const effectiveImageWidth = attachmentImage.offsetWidth;
+    const effectiveImageHeight = attachmentImage.offsetHeight;
 
-    // Check if the image width or height is less than the container width or height
-    if (imageWidth < containerWidth || imageHeight < containerHeight) {
-        console.log("Image is not filling the container. Recentering...");
-        // If so, recenter the image at a scale of 1.2
-        attachmentImage.style.left = `${(containerWidth - imageWidth) / 2}px`;
-        attachmentImage.style.top = `${(containerHeight - imageHeight) / 2}px`;
-    } else {
-        console.log("Image is filling the container. No need to recenter.");
+    // Calculate the maximum scale to fit the image inside the container
+    const maxScaleWidth = containerWidth / imageWidth;
+    const maxScaleHeight = containerHeight / imageHeight;
+    const maxScale = Math.min(maxScaleWidth, maxScaleHeight);
+
+    // Check if the effective image width or height is less than the container width or height
+    if (effectiveImageWidth <= containerWidth || effectiveImageHeight <= containerHeight || currentScale === maxScale) {
+        console.log("Image is filling the container or already at maximum scale. No need to recenter.");
+        return;
     }
+
+    // If not filling the container, recenter the image at a scale of 1.2 or the maximum scale, whichever is smaller
+    const newScale = Math.min(1.2, maxScale);
+    const newLeft = (containerWidth - effectiveImageWidth * newScale) / 2;
+    const newTop = (containerHeight - effectiveImageHeight * newScale) / 2;
+
+    attachmentImage.style.transform = `scale(${newScale})`;
+    attachmentImage.style.left = `${newLeft}px`;
+    attachmentImage.style.top = `${newTop}px`;
 }
+
 
     </script>
 </body>
