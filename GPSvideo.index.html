@@ -309,13 +309,16 @@
         }, false);
 
         document.getElementById("attachmentImage").addEventListener("mouseup", function(e) {
-            if (isDragging) {
-                console.log("mouseup: Stopped dragging");
-                isDragging = false;
-            }
-            this.style.cursor = "grab"; // Revert cursor style on mouse up
-            recenterImageIfNeeded(); // Call recenter function on mouse up
-        }, false);
+    if (isDragging) {
+        console.log("mouseup: Stopped dragging");
+        isDragging = false;
+        this.style.cursor = "grab"; // Revert cursor style on mouse up
+
+        // Check if the image is not filling the container and recenter if needed
+        recenterImageIfNeeded();
+    }
+}, false);
+
 
         document.getElementById("attachmentImage").addEventListener("mouseleave", function(e) {
             if (isDragging) {
