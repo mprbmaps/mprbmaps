@@ -264,8 +264,11 @@
 
         document.getElementById("zoomOut").addEventListener("click", function(event) {
             event.stopPropagation(); // Stop event bubbling
-            if (currentScale > 1.2) { // Prevent the image from being too small
+            if (currentScale > 1.2) { // Only allow zoom-out if the current scale is greater than 1.2
                 currentScale /= 1.2;
+                updateImageScale();
+            } else {
+                currentScale = 1.2; // Reset the scale to initial value if trying to zoom out beyond initial scale
                 updateImageScale();
             }
         });
