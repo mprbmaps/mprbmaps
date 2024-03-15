@@ -287,29 +287,45 @@
     startX = e.clientX - imgRect.left; // Relative to the image's current position
     startY = e.clientY - imgRect.top; // Relative to the image's current position
     this.style.cursor = "grabbing";
+    console.log("mousedown: Started dragging");
 });
 
-        document.getElementById("attachmentImage").addEventListener("mouseleave", function() {
-            isDragging = false;
-            this.style.cursor = "grab";
-        });
+document.getElementById("attachmentImage").addEventListener("mouseleave", function() {
+    if (isDragging) {
+        console.log("mouseleave: Stopped dragging (mouse left)");
+    }
+    isDragging = false;
+    this.style.cursor = "grab";
+});
 
-        document.getElementById("attachmentImage").addEventListener("mouseup", function() {
-            isDragging = false;
-            this.style.cursor = "grab";
-        });
+document.getElementById("attachmentImage").addEventListener("mouseup", function() {
+    if (isDragging) {
+        console.log("mouseup: Stopped dragging");
+    }
+    isDragging = false;
+    this.style.cursor = "grab";
+});
 
-        ddocument.getElementById("attachmentImage").addEventListener("mousemove", function(e) {
-    if (!isDragging || currentScale <= 1.2) return; // Only allow panning if scale is greater than 1.2
+document.getElementById("attachmentImage").addEventListener("mousemove", function(e) {
+    if (!isDragging) {
+        return; // Exit if not dragging
+    }
+    if (currentScale <= 1.2) {
+        console.log("mousemove: Not panning because currentScale <= 1.2");
+        return; // Only allow panning if scale is greater than 1.2
+    }
 
     e.preventDefault();
 
     const moveX = e.clientX - startX;
     const moveY = e.clientY - startY;
 
+    console.log(`mousemove: Panning image. moveX: ${moveX}, moveY: ${moveY}, currentScale: ${currentScale}`);
+
     this.style.left = moveX + "px";
     this.style.top = moveY + "px";
 });
+
         document.getElementById("attachmentImage").addEventListener("load", function() {
             resetImageSize();
         });
