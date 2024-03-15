@@ -41,8 +41,8 @@
         }
 
         #attachmentImage {
-            width: 600px; /* Fixed width */
-            height: 400px; /* Fixed height */
+            width: var(--initial-width);
+            height: var(--initial-height);
             object-fit: contain;
             cursor: grab;
             user-select: none;
@@ -309,17 +309,18 @@ function resetImageSize() {
     const scaleY = containerHeight / attachmentImage.naturalHeight;
     const initialScale = Math.min(scaleX, scaleY);
     
-    attachmentImage.style.width = containerWidth + "px";
-    attachmentImage.style.height = containerHeight + "px";
     attachmentImage.style.maxWidth = "100%";
     attachmentImage.style.maxHeight = "100%";
-    attachmentImage.style.objectFit = "cover";
-    attachmentImage.style.position = "absolute";
     attachmentImageContainer.style.overflow = "hidden";
+    
+    // Apply width and height using CSS rules
+    attachmentImage.style.setProperty('--initial-width', containerWidth + 'px');
+    attachmentImage.style.setProperty('--initial-height', containerHeight + 'px');
     
     currentScale = initialScale;
     updateImageScale();
 }
+
 
     </script>
 </body>
