@@ -268,69 +268,70 @@
         });
 
         document.getElementById("zoomOut").addEventListener("click", function(event) {
-            event.stopPropagation(); // Stop event bubbling
-            if (currentScale > 1.2) { // Only allow zoom-out if the current scale is greater than 1.2
-                currentScale /= 1.2;
-                updateImageScale();
-            } else {
-                currentScale = 1.2; // Reset the scale to initial value if trying to zoom out beyond initial scale
-                updateImageScale();
-            }
-        });
+    event.stopPropagation(); // Stop event bubbling
+    if (currentScale > 1.2) { // Only allow zoom-out if the current scale is greater than 1.2
+        currentScale /= 1.2;
+        updateImageScale();
+    } else {
+        currentScale = 1.2; // Reset the scale to initial value if trying to zoom out beyond initial scale
+        updateImageScale();
+    }
+});
 
-        let isDragging = false;
-        let startX, startY;
+let isDragging = false;
+let startX, startY;
+let initLeft = 0, initTop = 0; // Initial image position for panning
 
-        document.getElementById("attachmentImage").addEventListener("mousedown", function(e) {
+document.getElementById("attachmentImage").addEventListener("mousedown", function(e) {
+    if (currentScale <= 1.2) return; // Only allow dragging if scale is greater than 1.2
     isDragging = true;
     var imgRect = this.getBoundingClientRect();
-    startX = e.clientX - imgRect.left; // Relative to the image's current position
-    startY = e.clientY - imgRect.top; // Relative to the image's current position
+    startX = e.clientX; // Capture the initial mouse X position
+    startY = e.clientY; // Capture the initial mouse Y position
+    initLeft = parseFloat(this.style.left || 0); // Initial left position
+    initTop = parseFloat(this.style.top || 0); // Initial top position
     this.style.cursor = "grabbing";
     console.log("mousedown: Started dragging");
 });
 
-document.getElementById("attachmentImage").addEventListener("mouseleave", function() {
-    if (isDragging) {
-        console.log("mouseleave: Stopped dragging (mouse left)");
-    }
-    isDragging = false;
-    this.style.cursor = "grab";
+document.getElementById("attachmentImage").addEventListener("mousemove", function(e) {
+    if (!isDragging) return; // Exit if not dragging
+
+    const dx = e.clientX - startX; // Calculate the difference in X
+    const dy = e.clientY - startY; // Calculate the difference in Y
+
+    // Apply the difference to the initial position
+    this.style.left = `${initLeft + dx}px`;
+    this.style.top = `${initTop + dy}px`;
+
+    console.log(`mousemove: Moving image. New position -> left: ${this.style.left}, top: ${this.style.top}`);
 });
 
 document.getElementById("attachmentImage").addEventListener("mouseup", function() {
     if (isDragging) {
         console.log("mouseup: Stopped dragging");
+        isDragging = false;
+        this.style.cursor = "grab";
+
+        // Update initial positions at the end of dragging for next drag start
+        initLeft = parseFloat(this.style.left || 0);
+        initTop = parseFloat(this.style.top || 0);
     }
-    isDragging = false;
-    this.style.cursor = "grab";
 });
 
-document.getElementById("attachmentImage").addEventListener("mousemove", function(e) {
-    if (!isDragging) {
-        return; // Exit if not dragging
+document.getElementById("attachmentImage").addEventListener("mouseleave", function() {
+    if (isDragging) {
+        console.log("mouseleave: Stopped dragging (mouse left)");
+        isDragging = false;
+        this.style.cursor = "grab";
     }
-    if (currentScale <= 1.2) {
-        console.log("mousemove: Not panning because currentScale <= 1.2");
-        return; // Only allow panning if scale is greater than 1.2
-    }
-
-    e.preventDefault();
-
-    const moveX = e.clientX - startX;
-    const moveY = e.clientY - startY;
-
-    console.log(`mousemove: Panning image. moveX: ${moveX}, moveY: ${moveY}, currentScale: ${currentScale}`);
-
-    this.style.left = moveX + "px";
-    this.style.top = moveY + "px";
 });
 
-        document.getElementById("attachmentImage").addEventListener("load", function() {
-            resetImageSize();
-        });
+document.getElementById("attachmentImage").addEventListener("load", function() {
+    resetImageSize();
+});
 
-    function resetImageSize() {
+function resetImageSize() {
     const attachmentImage = document.getElementById("attachmentImage");
     const attachmentImageContainer = document.getElementById("attachmentImageContainer");
     const containerRatio = attachmentImageContainer.offsetWidth / attachmentImageContainer.offsetHeight;
@@ -346,10 +347,23 @@ document.getElementById("attachmentImage").addEventListener("mousemove", functio
         attachmentImage.style.height = '100%';
     }
 
+    // Reset image position for new images
+    attachmentImage.style.left = '0px';
+    attachmentImage.style.top = '0px';
+    initLeft = 0;
+    initTop = 0;
+
     // Assuming you want to start with the image zoomed in at 20% more than the initial scale
-    currentScale = 1.2; // Increase this factor to start more zoomed in
+    currentScale = 1.2; // Reset to start scale
     updateImageScale();
 }
+
+function updateImageScale() {
+    const attachmentImage = document.getElementById("attachmentImage");
+    attachmentImage.style.transform = `scale(${currentScale})`;
+    console.log(`Updated image scale to: ${currentScale}`);
+}
+        
     </script>
 </body>
 </html>
