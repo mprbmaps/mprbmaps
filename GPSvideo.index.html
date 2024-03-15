@@ -309,26 +309,33 @@
         }, false);
 
         document.getElementById("attachmentImage").addEventListener("mouseup", function(e) {
-            if (isDragging) {
-                console.log("mouseup: Stopped dragging");
-                isDragging = false;
-                this.style.cursor = "grab"; // Revert cursor style on mouse up
+    if (isDragging) {
+        console.log("mouseup: Stopped dragging");
+        isDragging = false;
+        this.style.cursor = "grab"; // Revert cursor style on mouse up
 
-                // Check if the image is not filling the container and recenter if needed
-                recenterImageIfNeeded();
-            }
-        }, false);
+        // Check if the image is not filling the container and recenter if needed
+        recenterImageIfNeeded();
 
-        document.getElementById("attachmentImage").addEventListener("mouseleave", function(e) {
-            if (isDragging) {
-                console.log("mouseleave: Stopped dragging (mouse left)");
-                isDragging = false;
-                this.style.cursor = "grab"; // Ensure cursor is reset even if mouse leaves the image while dragging
+        // Calculate and log whitespace after drag
+        calculateWhiteSpace();
+    }
+}, false);
 
-                // Check if the image is not filling the container and recenter if needed
-                recenterImageIfNeeded();
-            }
-        }, false);
+document.getElementById("attachmentImage").addEventListener("mouseleave", function(e) {
+    if (isDragging) {
+        console.log("mouseleave: Stopped dragging (mouse left)");
+        isDragging = false;
+        this.style.cursor = "grab"; // Ensure cursor is reset even if mouse leaves the image while dragging
+
+        // Check if the image is not filling the container and recenter if needed
+        recenterImageIfNeeded();
+
+        // Calculate and log whitespace after drag
+        calculateWhiteSpace();
+    }
+}, false);
+
 
         document.getElementById("attachmentImage").addEventListener("mouseenter", function(e) {
             if (!isDragging) { // Only change cursor to "grab" if not currently dragging
@@ -339,6 +346,21 @@
         document.getElementById("attachmentImage").addEventListener("load", function() {
             resetImageSize();
         });
+        // Define the calculateWhiteSpace function
+function calculateWhiteSpace() {
+    const attachmentImage = document.getElementById("attachmentImage");
+    const attachmentImageContainer = document.getElementById("attachmentImageContainer");
+    const containerWidth = attachmentImageContainer.offsetWidth;
+    const containerHeight = attachmentImageContainer.offsetHeight;
+    const imageWidth = attachmentImage.width * currentScale;
+    const imageHeight = attachmentImage.height * currentScale;
+
+    const horizontalWhiteSpace = containerWidth - imageWidth;
+    const verticalWhiteSpace = containerHeight - imageHeight;
+
+    console.log(`Horizontal whitespace: ${horizontalWhiteSpace}`);
+    console.log(`Vertical whitespace: ${verticalWhiteSpace}`);
+}
 
         function resetImageSize() {
             const attachmentImage = document.getElementById("attachmentImage");
