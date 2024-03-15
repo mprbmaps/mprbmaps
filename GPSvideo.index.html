@@ -8,86 +8,87 @@
     <script src="https://js.arcgis.com/4.28/"></script>
     <style>
         html, body, #viewDiv {
-    height: 100%;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-}
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
 
-#attachmentWindow {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    z-index: 10;
-    background: white;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    display: none;
-    overflow: hidden;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); /* Add drop shadow */
-}
+        #attachmentWindow {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+            background: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            display: none;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); /* Add drop shadow */
+        }
 
-#attachmentImageContainer {
-    position: relative;
-    width: 620px;
-    height: 420px;
-    margin: 10px;
-    overflow: hidden;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 10px;
-    box-sizing: border-box;
-}
+        #attachmentImageContainer {
+            position: relative;
+            width: 620px;
+            height: 420px;
+            margin: 10px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            box-sizing: border-box;
+        }
 
-#attachmentImage {
-    position: absolute; /* Make sure the image is positioned absolutely */
-    max-width: none; /* Remove max-width */
-    max-height: none; /* Remove max-height */
-    width: 100%; /* Start with full container width */
-    height: auto; /* Maintain aspect ratio */
-    object-fit: contain;
-    cursor: grab;
-    user-select: none;
-    left: 0; /* Initialize left position */
-    top: 0; /* Initialize top position */
-}
+        #attachmentImage {
+            position: absolute; /* Make sure the image is positioned absolutely */
+            max-width: none; /* Remove max-width */
+            max-height: none; /* Remove max-height */
+            width: 100%; /* Start with full container width */
+            height: auto; /* Maintain aspect ratio */
+            object-fit: contain;
+            cursor: grab;
+            user-select: none;
+            left: 0; /* Initialize left position */
+            top: 0; /* Initialize top position */
+        }
 
-.zoom-buttons {
-    position: absolute;
-    font-size: 12px;
-    top: 10px;
-    right: 10px;
-    z-index: 20;
-    display: flex;
-    flex-direction: column;
-    
-}
-#zoomIn.zoom-button, #zoomOut.zoom-button {
-    border: 1px solid white;
-}
-.zoom-button {
-    border: 1px solid white;
-}
+        .zoom-buttons {
+            position: absolute;
+            font-size: 12px;
+            top: 10px;
+            right: 10px;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+        }
 
-.nav-button {
-    margin: 5px;
-    padding: 5px 10px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 12px;
-    display: inline-block;
-    text-align: center;
-}
+        #zoomIn.zoom-button, #zoomOut.zoom-button {
+            border: 1px solid white;
+        }
 
-.nav-button:disabled {
-    background-color: #cccccc;
-    cursor: not-allowed;
-}
+        .zoom-button {
+            border: 1px solid white;
+        }
+
+        .nav-button {
+            margin: 5px;
+            padding: 5px 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .nav-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -268,105 +269,115 @@
         });
 
         document.getElementById("zoomOut").addEventListener("click", function(event) {
-    event.stopPropagation(); // Stop event bubbling
-    if (currentScale > 1.2) { // Only allow zoom-out if the current scale is greater than 1.2
-        currentScale /= 1.2;
-        updateImageScale();
-    } else {
-        currentScale = 1.2; // Reset the scale to initial value if trying to zoom out beyond initial scale
-        updateImageScale();
-    }
-});
+            event.stopPropagation(); // Stop event bubbling
+            if (currentScale > 1.2) { // Only allow zoom-out if the current scale is greater than 1.2
+                currentScale /= 1.2;
+                updateImageScale();
+            } else {
+                currentScale = 1.2; // Reset the scale to initial value if trying to zoom out beyond initial scale
+                updateImageScale();
+            }
+        });
 
-let isDragging = false;
-let startX, startY;
-let initLeft = 0, initTop = 0; // Initial image position for panning
+        let isDragging = false;
+        let startX, startY;
+        let initLeft = 0, initTop = 0; // Initial image position for panning
 
-document.getElementById("attachmentImage").addEventListener("mousedown", function(e) {
-    e.preventDefault(); // Prevent default behavior to ensure smooth dragging
-    if (currentScale <= 1.2) return; // Only allow dragging if scale is greater than 1.2
-    isDragging = true;
-    var imgRect = this.getBoundingClientRect();
-    startX = e.clientX; // Capture the initial mouse X position
-    startY = e.clientY; // Capture the initial mouse Y position
-    initLeft = parseFloat(this.style.left || 0); // Initial left position
-    initTop = parseFloat(this.style.top || 0); // Initial top position
-    this.style.cursor = "grabbing";
-    console.log("mousedown: Started dragging");
-}, false);
+        document.getElementById("attachmentImage").addEventListener("mousedown", function(e) {
+            e.preventDefault(); // Prevent default behavior to ensure smooth dragging
+            if (currentScale <= 1.2) return; // Only allow dragging if scale is greater than 1.2
+            isDragging = true;
+            var imgRect = this.getBoundingClientRect();
+            startX = e.clientX; // Capture the initial mouse X position
+            startY = e.clientY; // Capture the initial mouse Y position
+            initLeft = parseFloat(this.style.left || 0); // Initial left position
+            initTop = parseFloat(this.style.top || 0); // Initial top position
+            this.style.cursor = "grabbing";
+            console.log("mousedown: Started dragging");
+        }, false);
 
-document.getElementById("attachmentImage").addEventListener("mousemove", function(e) {
-    if (!isDragging) return; // Exit if not dragging
+        document.getElementById("attachmentImage").addEventListener("mousemove", function(e) {
+            if (!isDragging) return; // Exit if not dragging
 
-    e.preventDefault(); // Again, prevent default to ensure smooth behavior
-    const dx = e.clientX - startX; // Calculate the difference in X
-    const dy = e.clientY - startY; // Calculate the difference in Y
+            e.preventDefault(); // Again, prevent default to ensure smooth behavior
+            const dx = e.clientX - startX; // Calculate the difference in X
+            const dy = e.clientY - startY; // Calculate the difference in Y
 
-    // Apply the difference to the initial position
-    this.style.left = `${initLeft + dx}px`;
-    this.style.top = `${initTop + dy}px`;
-}, false);
+            // Apply the difference to the initial position
+            this.style.left = `${initLeft + dx}px`;
+            this.style.top = `${initTop + dy}px`;
+        }, false);
 
-document.getElementById("attachmentImage").addEventListener("mouseup", function(e) {
-    if (isDragging) {
-        console.log("mouseup: Stopped dragging");
-        isDragging = false;
-    }
-    this.style.cursor = "grab"; // Revert cursor style on mouse up
-}, false);
+        document.getElementById("attachmentImage").addEventListener("mouseup", function(e) {
+            if (isDragging) {
+                console.log("mouseup: Stopped dragging");
+                isDragging = false;
+            }
+            this.style.cursor = "grab"; // Revert cursor style on mouse up
+            recenterImageIfNeeded(); // Call recenter function on mouse up
+        }, false);
 
-document.getElementById("attachmentImage").addEventListener("mouseleave", function(e) {
-    if (isDragging) {
-        console.log("mouseleave: Stopped dragging (mouse left)");
-        isDragging = false;
-    }
-    this.style.cursor = "grab"; // Ensure cursor is reset even if mouse leaves the image while dragging
-}, false);
+        document.getElementById("attachmentImage").addEventListener("mouseleave", function(e) {
+            if (isDragging) {
+                console.log("mouseleave: Stopped dragging (mouse left)");
+                isDragging = false;
+            }
+            this.style.cursor = "grab"; // Ensure cursor is reset even if mouse leaves the image while dragging
+            recenterImageIfNeeded(); // Call recenter function on mouse leave
+        }, false);
 
-document.getElementById("attachmentImage").addEventListener("mouseenter", function(e) {
-    if (!isDragging) { // Only change cursor to "grab" if not currently dragging
-        this.style.cursor = "grab";
-    }
-}, false);
+        document.getElementById("attachmentImage").addEventListener("mouseenter", function(e) {
+            if (!isDragging) { // Only change cursor to "grab" if not currently dragging
+                this.style.cursor = "grab";
+            }
+        }, false);
 
+        document.getElementById("attachmentImage").addEventListener("load", function() {
+            resetImageSize();
+        });
 
-document.getElementById("attachmentImage").addEventListener("load", function() {
-    resetImageSize();
-});
+        function resetImageSize() {
+            const attachmentImage = document.getElementById("attachmentImage");
+            const attachmentImageContainer = document.getElementById("attachmentImageContainer");
+            const containerRatio = attachmentImageContainer.offsetWidth / attachmentImageContainer.offsetHeight;
+            const imageRatio = attachmentImage.naturalWidth / attachmentImage.naturalHeight;
+            
+            if (imageRatio > containerRatio) {
+                // Image is wider than the container
+                attachmentImage.style.width = '100%';
+                attachmentImage.style.height = 'auto';
+            } else {
+                // Image is taller than the container
+                attachmentImage.style.width = 'auto';
+                attachmentImage.style.height = '100%';
+            }
 
-function resetImageSize() {
-    const attachmentImage = document.getElementById("attachmentImage");
-    const attachmentImageContainer = document.getElementById("attachmentImageContainer");
-    const containerRatio = attachmentImageContainer.offsetWidth / attachmentImageContainer.offsetHeight;
-    const imageRatio = attachmentImage.naturalWidth / attachmentImage.naturalHeight;
-    
-    if (imageRatio > containerRatio) {
-        // Image is wider than the container
-        attachmentImage.style.width = '100%';
-        attachmentImage.style.height = 'auto';
-    } else {
-        // Image is taller than the container
-        attachmentImage.style.width = 'auto';
-        attachmentImage.style.height = '100%';
-    }
+            // Reset image position for new images
+            attachmentImage.style.left = '0px';
+            attachmentImage.style.top = '0px';
+            initLeft = 0;
+            initTop = 0;
 
-    // Reset image position for new images
-    attachmentImage.style.left = '0px';
-    attachmentImage.style.top = '0px';
-    initLeft = 0;
-    initTop = 0;
+            // Assuming you want to start with the image zoomed in at 20% more than the initial scale
+            currentScale = 1.2; // Reset to start scale
+            updateImageScale();
+        }
 
-    // Assuming you want to start with the image zoomed in at 20% more than the initial scale
-    currentScale = 1.2; // Reset to start scale
-    updateImageScale();
-}
+        function updateImageScale() {
+            const attachmentImage = document.getElementById("attachmentImage");
+            attachmentImage.style.transform = `scale(${currentScale})`;
+            console.log(`Updated image scale to: ${currentScale}`);
+        }
 
-function updateImageScale() {
-    const attachmentImage = document.getElementById("attachmentImage");
-    attachmentImage.style.transform = `scale(${currentScale})`;
-    console.log(`Updated image scale to: ${currentScale}`);
-}
-        
+        function recenterImageIfNeeded() {
+            const attachmentImage = document.getElementById("attachmentImage");
+            const attachmentImageContainer = document.getElementById("attachmentImageContainer");
+            if (currentScale <= 1.2 && (parseFloat(attachmentImage.style.left) || 0) !== 0 && (parseFloat(attachmentImage.style.top) || 0) !== 0) {
+                attachmentImage.style.left = '0px';
+                attachmentImage.style.top = '0px';
+                console.log("Recentered image at scale 1.2");
+            }
+        }
     </script>
 </body>
 </html>
