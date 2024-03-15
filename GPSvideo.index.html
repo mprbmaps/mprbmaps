@@ -370,14 +370,23 @@
         }
 
         function recenterImageIfNeeded() {
-            const attachmentImage = document.getElementById("attachmentImage");
-            const attachmentImageContainer = document.getElementById("attachmentImageContainer");
-            if (currentScale <= 1.2 && (parseFloat(attachmentImage.style.left) || 0) !== 0 && (parseFloat(attachmentImage.style.top) || 0) !== 0) {
-                attachmentImage.style.left = '0px';
-                attachmentImage.style.top = '0px';
-                console.log("Recentered image at scale 1.2");
-            }
-        }
+    const attachmentImage = document.getElementById("attachmentImage");
+    const attachmentImageContainer = document.getElementById("attachmentImageContainer");
+    if (currentScale <= 1.2 && (parseFloat(attachmentImage.style.left) || 0) !== 0 && (parseFloat(attachmentImage.style.top) || 0) !== 0) {
+        attachmentImage.style.left = '0px';
+        attachmentImage.style.top = '0px';
+        console.log("Recentered image at scale 1.2");
+    }
+    // Check if the image width is smaller than the container width
+    if (attachmentImage.offsetWidth < attachmentImageContainer.offsetWidth) {
+        attachmentImage.style.left = `${(attachmentImageContainer.offsetWidth - attachmentImage.offsetWidth) / 2}px`;
+    }
+    // Check if the image height is smaller than the container height
+    if (attachmentImage.offsetHeight < attachmentImageContainer.offsetHeight) {
+        attachmentImage.style.top = `${(attachmentImageContainer.offsetHeight - attachmentImage.offsetHeight) / 2}px`;
+    }
+}
+
     </script>
 </body>
 </html>
