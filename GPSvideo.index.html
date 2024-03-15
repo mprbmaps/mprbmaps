@@ -377,18 +377,16 @@
     const attachmentImageContainer = document.getElementById("attachmentImageContainer");
     const containerWidth = attachmentImageContainer.offsetWidth;
     const containerHeight = attachmentImageContainer.offsetHeight;
-    const imageWidth = attachmentImage.offsetWidth;
-    const imageHeight = attachmentImage.offsetHeight;
-    const isImageScrolled = imageWidth > containerWidth || imageHeight > containerHeight;
-    
-    // Check if the image is scrolled and not filling the container
-    if (isImageScrolled && currentScale <= 1.2) {
-        attachmentImage.style.left = `${Math.max((containerWidth - imageWidth) / 2, 0)}px`;
-        attachmentImage.style.top = `${Math.max((containerHeight - imageHeight) / 2, 0)}px`;
-        console.log("Recentered image at scale 1.2");
+    const imageWidth = attachmentImage.width * currentScale;
+    const imageHeight = attachmentImage.height * currentScale;
+
+    // Check if the image width or height is less than the container width or height
+    if (imageWidth < containerWidth || imageHeight < containerHeight) {
+        // If so, recenter the image at a scale of 1.2
+        attachmentImage.style.left = `${(containerWidth - imageWidth) / 2}px`;
+        attachmentImage.style.top = `${(containerHeight - imageHeight) / 2}px`;
     }
 }
-
 
     </script>
 </body>
