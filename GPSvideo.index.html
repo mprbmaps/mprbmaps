@@ -30,8 +30,8 @@
 
 #attachmentImageContainer {
     position: relative;
-    width: 620px; /* Width adjusted for padding */
-    height: 420px; /* Height adjusted for padding */
+    width: 620px;
+    height: 420px;
     margin: 10px;
     overflow: hidden;
     display: flex;
@@ -42,12 +42,16 @@
 }
 
 #attachmentImage {
-    max-width: 100%;
-    max-height: 100%;
+    position: absolute; /* Make sure the image is positioned absolutely */
+    max-width: none; /* Remove max-width */
+    max-height: none; /* Remove max-height */
+    width: 100%; /* Start with full container width */
+    height: auto; /* Maintain aspect ratio */
     object-fit: contain;
     cursor: grab;
     user-select: none;
-    /* Remove the width and height properties since you will set them in JS */
+    left: 0; /* Initialize left position */
+    top: 0; /* Initialize top position */
 }
 
 .zoom-buttons {
@@ -278,11 +282,12 @@
         let startX, startY;
 
         document.getElementById("attachmentImage").addEventListener("mousedown", function(e) {
-            isDragging = true;
-            startX = e.clientX - this.getBoundingClientRect().left;
-            startY = e.clientY - this.getBoundingClientRect().top;
-            this.style.cursor = "grabbing";
-        });
+    isDragging = true;
+    var imgRect = this.getBoundingClientRect();
+    startX = e.clientX - imgRect.left; // Relative to the image's current position
+    startY = e.clientY - imgRect.top; // Relative to the image's current position
+    this.style.cursor = "grabbing";
+});
 
         document.getElementById("attachmentImage").addEventListener("mouseleave", function() {
             isDragging = false;
@@ -294,45 +299,17 @@
             this.style.cursor = "grab";
         });
 
-        document.getElementById("attachmentImage").addEventListener("mousemove", function(e) {
-    // Check if the image is scaled enough for panning and if the drag operation is active
+        ddocument.getElementById("attachmentImage").addEventListener("mousemove", function(e) {
     if (!isDragging || currentScale <= 1.2) return; // Only allow panning if scale is greater than 1.2
 
     e.preventDefault();
 
-    // Calculate the difference in mouse movement
-    const xDiff = e.clientX - startX;
-    const yDiff = e.clientY - startY;
+    const moveX = e.clientX - startX;
+    const moveY = e.clientY - startY;
 
-    // Calculate the potentially new position
-    let newLeft = this.offsetLeft + xDiff;
-    let newTop = this.offsetTop + yDiff;
-
-    // Get container dimensions
-    const containerRect = this.parentElement.getBoundingClientRect();
-    // Get scaled image dimensions
-    const scaledWidth = this.offsetWidth * currentScale;
-    const scaledHeight = this.offsetHeight * currentScale;
-
-    // Check boundaries to prevent the image from panning out of the container
-    const leftBoundary = containerRect.width - scaledWidth;
-    const topBoundary = containerRect.height - scaledHeight;
-
-    // Apply boundaries
-    if (newLeft > 0) newLeft = 0;
-    if (newTop > 0) newTop = 0;
-    if (newLeft < leftBoundary) newLeft = leftBoundary;
-    if (newTop < topBoundary) newTop = topBoundary;
-
-    // Apply the new position
-    this.style.left = newLeft + 'px';
-    this.style.top = newTop + 'px';
-
-    // Update start positions for next movement
-    startX = e.clientX;
-    startY = e.clientY;
+    this.style.left = moveX + "px";
+    this.style.top = moveY + "px";
 });
-
         document.getElementById("attachmentImage").addEventListener("load", function() {
             resetImageSize();
         });
