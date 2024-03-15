@@ -302,28 +302,21 @@
 function resetImageSize() {
     const attachmentImage = document.getElementById("attachmentImage");
     const attachmentImageContainer = document.getElementById("attachmentImageContainer");
-    const containerWidth = attachmentImageContainer.offsetWidth;
-    const containerHeight = attachmentImageContainer.offsetHeight;
-
-    if (attachmentImage.naturalWidth && attachmentImage.naturalHeight) {
-        // Calculate the initial scale factor to fit the image within the container
-        const scaleX = containerWidth / attachmentImage.naturalWidth;
-        const scaleY = containerHeight / attachmentImage.naturalHeight;
-        const initialScale = Math.min(scaleX, scaleY);
-
-        // Set initial dimensions of the image based on the scale
-        const initialWidth = attachmentImage.naturalWidth * initialScale;
-        const initialHeight = attachmentImage.naturalHeight * initialScale;
-
-        // Apply initial dimensions to the image
-        attachmentImage.style.width = initialWidth + 'px';
-        attachmentImage.style.height = initialHeight + 'px';
-
-        currentScale = initialScale; // Set the global scale variable
-        updateImageScale(); // Update the transform scale
+    const containerRatio = attachmentImageContainer.offsetWidth / attachmentImageContainer.offsetHeight;
+    const imageRatio = attachmentImage.naturalWidth / attachmentImage.naturalHeight;
+    
+    // Depending on the aspect ratio of the image and the container,
+    // set the width or height of the image to 100%
+    if (imageRatio > containerRatio) {
+        // Image is wider than the container
+        attachmentImage.style.width = '100%';
+        attachmentImage.style.height = 'auto';
+    } else {
+        // Image is taller than the container
+        attachmentImage.style.width = 'auto';
+        attachmentImage.style.height = '100%';
     }
 }
-
 
     </script>
 </body>
