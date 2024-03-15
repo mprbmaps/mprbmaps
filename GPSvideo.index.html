@@ -297,12 +297,21 @@
         });
 
         function resetImageSize() {
-            const attachmentImage = document.getElementById("attachmentImage");
-            attachmentImage.style.width = "600px";
-            attachmentImage.style.height = "400px";
-            currentScale = 1;
-            updateImageScale();
-        }
+    const attachmentImage = document.getElementById("attachmentImage");
+    const containerWidth = document.getElementById("attachmentImageContainer").offsetWidth;
+    const containerHeight = document.getElementById("attachmentImageContainer").offsetHeight;
+    
+    // Calculate the scale factor to fit the image within the container
+    const scaleX = containerWidth / attachmentImage.naturalWidth;
+    const scaleY = containerHeight / attachmentImage.naturalHeight;
+    const scale = Math.min(scaleX, scaleY);
+    
+    attachmentImage.style.width = attachmentImage.naturalWidth * scale + "px";
+    attachmentImage.style.height = attachmentImage.naturalHeight * scale + "px";
+    currentScale = scale;
+    updateImageScale();
+}
+
     </script>
 </body>
 </html>
