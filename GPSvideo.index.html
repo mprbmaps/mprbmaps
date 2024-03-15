@@ -295,7 +295,9 @@
         });
 
         document.getElementById("attachmentImage").addEventListener("mousemove", function(e) {
-    if (!isDragging) return;
+    // Check if the image is scaled enough for panning and if the drag operation is active
+    if (!isDragging || currentScale <= 1.2) return; // Only allow panning if scale is greater than 1.2
+
     e.preventDefault();
 
     // Calculate the difference in mouse movement
@@ -331,7 +333,6 @@
     startY = e.clientY;
 });
 
-
         document.getElementById("attachmentImage").addEventListener("load", function() {
             resetImageSize();
         });
@@ -356,8 +357,6 @@
     currentScale = 1.2; // Increase this factor to start more zoomed in
     updateImageScale();
 }
-
-
     </script>
 </body>
 </html>
