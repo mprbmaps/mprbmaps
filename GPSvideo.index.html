@@ -309,18 +309,25 @@ function resetImageSize() {
     const scaleY = containerHeight / attachmentImage.naturalHeight;
     const initialScale = Math.min(scaleX, scaleY);
     
-    attachmentImage.style.maxWidth = "100%";
-    attachmentImage.style.maxHeight = "100%";
-    attachmentImageContainer.style.overflow = "hidden";
+    // Set initial dimensions of the image based on the scale
+    const initialWidth = attachmentImage.naturalWidth * initialScale;
+    const initialHeight = attachmentImage.naturalHeight * initialScale;
     
-    // Apply width and height using CSS rules
-    attachmentImage.style.setProperty('--initial-width', containerWidth + 'px');
-    attachmentImage.style.setProperty('--initial-height', containerHeight + 'px');
+    // Apply initial dimensions to the image
+    attachmentImage.style.width = initialWidth + 'px';
+    attachmentImage.style.height = initialHeight + 'px';
+    
+    // Set the CSS variables for initial dimensions
+    attachmentImage.style.setProperty('--initial-width', initialWidth + 'px');
+    attachmentImage.style.setProperty('--initial-height', initialHeight + 'px');
+    
+    // Set the max dimensions to prevent the image from exceeding the container size
+    attachmentImage.style.maxWidth = containerWidth + 'px';
+    attachmentImage.style.maxHeight = containerHeight + 'px';
     
     currentScale = initialScale;
     updateImageScale();
 }
-
 
     </script>
 </body>
