@@ -309,24 +309,25 @@
         }, false);
 
         document.getElementById("attachmentImage").addEventListener("mouseup", function(e) {
-    if (isDragging) {
-        console.log("mouseup: Stopped dragging");
-        isDragging = false;
-        this.style.cursor = "grab"; // Revert cursor style on mouse up
+            if (isDragging) {
+                console.log("mouseup: Stopped dragging");
+                isDragging = false;
+                this.style.cursor = "grab"; // Revert cursor style on mouse up
 
-        // Check if the image is not filling the container and recenter if needed
-        recenterImageIfNeeded();
-    }
-}, false);
-
+                // Check if the image is not filling the container and recenter if needed
+                recenterImageIfNeeded();
+            }
+        }, false);
 
         document.getElementById("attachmentImage").addEventListener("mouseleave", function(e) {
             if (isDragging) {
                 console.log("mouseleave: Stopped dragging (mouse left)");
                 isDragging = false;
+                this.style.cursor = "grab"; // Ensure cursor is reset even if mouse leaves the image while dragging
+
+                // Check if the image is not filling the container and recenter if needed
+                recenterImageIfNeeded();
             }
-            this.style.cursor = "grab"; // Ensure cursor is reset even if mouse leaves the image while dragging
-            recenterImageIfNeeded(); // Call recenter function on mouse leave
         }, false);
 
         document.getElementById("attachmentImage").addEventListener("mouseenter", function(e) {
@@ -373,21 +374,20 @@
         }
 
         function recenterImageIfNeeded() {
-    const attachmentImage = document.getElementById("attachmentImage");
-    const attachmentImageContainer = document.getElementById("attachmentImageContainer");
-    const containerWidth = attachmentImageContainer.offsetWidth;
-    const containerHeight = attachmentImageContainer.offsetHeight;
-    const imageWidth = attachmentImage.width * currentScale;
-    const imageHeight = attachmentImage.height * currentScale;
+            const attachmentImage = document.getElementById("attachmentImage");
+            const attachmentImageContainer = document.getElementById("attachmentImageContainer");
+            const containerWidth = attachmentImageContainer.offsetWidth;
+            const containerHeight = attachmentImageContainer.offsetHeight;
+            const imageWidth = attachmentImage.width * currentScale;
+            const imageHeight = attachmentImage.height * currentScale;
 
-    // Check if the image width or height is less than the container width or height
-    if (imageWidth < containerWidth || imageHeight < containerHeight) {
-        // If so, recenter the image at a scale of 1.2
-        attachmentImage.style.left = `${(containerWidth - imageWidth) / 2}px`;
-        attachmentImage.style.top = `${(containerHeight - imageHeight) / 2}px`;
-    }
-}
-
+            // Check if the image width or height is less than the container width or height
+            if (imageWidth < containerWidth || imageHeight < containerHeight) {
+                // If so, recenter the image at a scale of 1.2
+                attachmentImage.style.left = `${(containerWidth - imageWidth) / 2}px`;
+                attachmentImage.style.top = `${(containerHeight - imageHeight) / 2}px`;
+            }
+        }
     </script>
 </body>
 </html>
