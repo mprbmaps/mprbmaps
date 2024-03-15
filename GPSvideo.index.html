@@ -283,6 +283,7 @@ let startX, startY;
 let initLeft = 0, initTop = 0; // Initial image position for panning
 
 document.getElementById("attachmentImage").addEventListener("mousedown", function(e) {
+    e.preventDefault(); // Prevent default behavior to ensure smooth dragging
     if (currentScale <= 1.2) return; // Only allow dragging if scale is greater than 1.2
     isDragging = true;
     var imgRect = this.getBoundingClientRect();
@@ -292,40 +293,42 @@ document.getElementById("attachmentImage").addEventListener("mousedown", functio
     initTop = parseFloat(this.style.top || 0); // Initial top position
     this.style.cursor = "grabbing";
     console.log("mousedown: Started dragging");
-});
+}, false);
 
 document.getElementById("attachmentImage").addEventListener("mousemove", function(e) {
     if (!isDragging) return; // Exit if not dragging
 
+    e.preventDefault(); // Again, prevent default to ensure smooth behavior
     const dx = e.clientX - startX; // Calculate the difference in X
     const dy = e.clientY - startY; // Calculate the difference in Y
 
     // Apply the difference to the initial position
     this.style.left = `${initLeft + dx}px`;
     this.style.top = `${initTop + dy}px`;
+}, false);
 
-    console.log(`mousemove: Moving image. New position -> left: ${this.style.left}, top: ${this.style.top}`);
-});
-
-document.getElementById("attachmentImage").addEventListener("mouseup", function() {
+document.getElementById("attachmentImage").addEventListener("mouseup", function(e) {
     if (isDragging) {
         console.log("mouseup: Stopped dragging");
         isDragging = false;
-        this.style.cursor = "grab";
-
-        // Update initial positions at the end of dragging for next drag start
-        initLeft = parseFloat(this.style.left || 0);
-        initTop = parseFloat(this.style.top || 0);
     }
-});
+    this.style.cursor = "grab"; // Revert cursor style on mouse up
+}, false);
 
-document.getElementById("attachmentImage").addEventListener("mouseleave", function() {
+document.getElementById("attachmentImage").addEventListener("mouseleave", function(e) {
     if (isDragging) {
         console.log("mouseleave: Stopped dragging (mouse left)");
         isDragging = false;
+    }
+    this.style.cursor = "grab"; // Ensure cursor is reset even if mouse leaves the image while dragging
+}, false);
+
+document.getElementById("attachmentImage").addEventListener("mouseenter", function(e) {
+    if (!isDragging) { // Only change cursor to "grab" if not currently dragging
         this.style.cursor = "grab";
     }
-});
+}, false);
+
 
 document.getElementById("attachmentImage").addEventListener("load", function() {
     resetImageSize();
