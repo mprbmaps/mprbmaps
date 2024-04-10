@@ -130,35 +130,38 @@
             }
 
             window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-                if (!window.startDateTime) {
-                    console.log("Start DateTimeS not set yet.");
-                    return;
-                }
+    if (!window.startDateTime) {
+        console.log("Start DateTimeS not set yet.");
+        return;
+    }
 
-                if (window.highlight) {
-                    window.highlight.remove();
-                    window.highlight = null;
-                }
+    if (window.highlight) {
+        window.highlight.remove();
+        window.highlight = null;
+    }
 
-                var queryDateTime = new Date(window.startDateTime);
-                queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-                var queryDateTimeStr = queryDateTime.toISOString();
+    var queryDateTime = new Date(window.startDateTime);
+    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+    // Ensure the date is in ISO string format, typically accepted by ArcGIS services.
+    var queryDateTimeStr = queryDateTime.toISOString();
 
-                view.whenLayerView(featureLayer).then(function(layerView) {
-                    layerView.queryFeatures({
-                        where: "DateTimeS = TIMESTAMP '" + queryDateTimeStr + "'",
-                        returnGeometry: true,
-                        outFields: ["*"]
-                    }).then(function(results) {
-                        if (results.features.length > 0) {
-                            var feature = results.features[0];
-                            window.highlight = layerView.highlight([feature.attributes[featureLayer.objectIdField]]);
-                        }
-                    }).catch(function(error) {
-                        console.error("Error highlighting feature based on DateTimeS:", error);
-                    });
-                });
-            };
+    // Adjusting the query, assuming DateTimeS is a date field and supports ISO formatted strings
+    view.whenLayerView(featureLayer).then(function(layerView) {
+        layerView.queryFeatures({
+            where: "DateTimeS = '" + queryDateTimeStr + "'",
+            returnGeometry: true,
+            outFields: ["*"]
+        }).then(function(results) {
+            if (results.features.length > 0) {
+                var feature = results.features[0];
+                window.highlight = layerView.highlight([feature.attributes[featureLayer.objectIdField]]);
+            }
+        }).catch(function(error) {
+            console.error("Error highlighting feature based on DateTimeS:", error);
+        });
+    });
+};
+
         });
     </script>
 </body>
