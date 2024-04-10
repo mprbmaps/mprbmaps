@@ -102,35 +102,37 @@
                 });
 
                 function highlightFeatureAtTime(currentSecond) {
-                    if (!startDateTime) {
-                        console.log("Start DateTimeS not set yet.");
-                        return;
-                    }
+    if (!startDateTime) {
+        console.log("Start DateTimeS not set yet.");
+        return;
+    }
 
-                    if (highlight) {
-                        highlight.remove();
-                        highlight = null;
-                    }
+    if (highlight) {
+        highlight.remove();
+        highlight = null;
+    }
 
-                    var queryDateTime = new Date(startDateTime);
-                    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-                    var queryDateTimeStr = queryDateTime.toISOString();
+    var queryDateTime = new Date(startDateTime);
+    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+    var queryDateTimeStr = queryDateTime.toISOString();
 
-                    view.whenLayerView(featureLayer).then(function(layerView) {
-                        layerView.queryFeatures({
-                            where: "DateTimeS = TIMESTAMP '" + queryDateTimeStr + "'",
-                            returnGeometry: true,
-                            outFields: ["*"]
-                        }).then(function(results) {
-                            if (results.features.length > 0) {
-                                var feature = results.features[0];
-                                highlight = layerView.highlight(feature);
-                            }
-                        }).catch(function(error) {
-                            console.error("Error highlighting feature based on DateTimeS:", error);
-                        });
-                    });
-                }
+    view.whenLayerView(featureLayer).then(function(layerView) {
+        layerView.queryFeatures({
+            where: "DateTimeS = TIMESTAMP '" + queryDateTimeStr + "'",
+            returnGeometry: true,
+            outFields: ["*"]
+        }).then(function(results) {
+            if (results.features.length > 0) {
+                var feature = results.features[0];
+                // Ensure you're using object IDs correctly
+                highlight = layerView.highlight([feature.attributes[featureLayer.objectIdField]]);
+            }
+        }).catch(function(error) {
+            console.error("Error highlighting feature based on DateTimeS:", error);
+        });
+    });
+}
+
 
                 document.getElementById('youtubePlayer').addEventListener('timeupdate', function(e) {
                     var currentSecond = Math.floor(e.target.currentTime);
