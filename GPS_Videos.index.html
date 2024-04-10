@@ -76,37 +76,31 @@
                 });
 
                 var highlight;
+
                 function highlightFeatureAtTime(second) {
                     if (highlight) {
                         highlight.remove();
                         highlight = null;
                     }
 
-                    view.map.allLayers.forEach(layer => {
-                        if (layer.type === "feature") {
-                            layer.queryFeatures({
-                                where: `DateTime >= CURRENT_TIMESTAMP - INTERVAL '${second} seconds' AND DateTime < CURRENT_TIMESTAMP - INTERVAL '${second - 1} seconds'`,
-                                orderByFields: ["DateTime ASC"],
-                                returnGeometry: true,
-                                outFields: ["*"]
-                            }).then(function(results) {
-                                if (results.features.length > 0) {
-                                    var feature = results.features[0];
-                                    highlight = view.highlightOptions = {
-                                        layer.highlight(feature);
-                                    };
-                                }
-                            }).catch(function(error) {
-                                console.error("Error highlighting feature:", error);
-                            });
-                        }
+                    view.whenLayerView(featureLayer).then(function(layerView) {
+                        layerView.queryFeatures({
+                            where: "DateTime >= CURRENT_TIMESTAMP - INTERVAL '" + second + " seconds' AND DateTime < CURRENT_TIMESTAMP - INTERVAL '" + (second - 1) + " seconds'",
+                            returnGeometry: true,
+                            outFields: ["*"]
+                        }).then(function(results) {
+                            if (results.features.length > 0) {
+                                var feature = results.features[0];
+                                highlight = layerView.highlight(feature);
+                            }
+                        }).catch(function(error) {
+                            console.error("Error highlighting feature:", error);
+                        });
                     });
                 }
 
-                // Assuming video starts when map is ready and features are loaded
-                var videoPlayer = document.getElementById('youtubePlayer'); // Ensure this ID matches your video element
-                videoPlayer.addEventListener('timeupdate', function() {
-                    var currentSecond = Math.floor(videoPlayer.currentTime);
+                document.getElementById('youtubePlayer').addEventListener('timeupdate', function(e) {
+                    var currentSecond = Math.floor(e.target.currentTime);
                     highlightFeatureAtTime(currentSecond);
                 });
 
@@ -115,7 +109,8 @@
 
                     var featureLayer = new FeatureLayer({
                         url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/hike/FeatureServer/0",
-                        outFields: ["*"]
+                        outFields: ["*"],
+                        // Ensure this feature layer has the 'DateTime' field
                     });
                     
                     webmap.add(featureLayer);
