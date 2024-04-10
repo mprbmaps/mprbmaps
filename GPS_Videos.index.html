@@ -76,16 +76,50 @@
                 });
 
                 var highlight;
+                var startDateTime;
 
-                function highlightFeatureAtTime(second) {
+                var featureLayer = new FeatureLayer({
+                    url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/hike/FeatureServer/0",
+                    outFields: ["*"]
+                });
+
+                webmap.add(featureLayer);
+
+                featureLayer.when(() => {
+                    featureLayer.queryFeatures({
+                        where: "1=1",
+                        orderByFields: ["DateTime ASC"],
+                        returnGeometry: false,
+                        outFields: ["DateTime"],
+                        num: 1
+                    }).then(function(response) {
+                        if (response.features.length > 0) {
+                            startDateTime = response.features[0].attributes.DateTime;
+                            console.log("Start DateTime: ", startDateTime);
+                        }
+                    }).catch(function(error) {
+                        console.error("Error fetching start DateTime:", error);
+                    });
+                });
+
+                function highlightFeatureAtTime(currentSecond) {
+                    if (!startDateTime) {
+                        console.log("Start DateTime not set yet.");
+                        return;
+                    }
+
                     if (highlight) {
                         highlight.remove();
                         highlight = null;
                     }
 
+                    var queryDateTime = new Date(startDateTime);
+                    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+                    var queryDateTimeStr = queryDateTime.toISOString();
+
                     view.whenLayerView(featureLayer).then(function(layerView) {
                         layerView.queryFeatures({
-                            where: "DateTime >= CURRENT_TIMESTAMP - INTERVAL '" + second + " seconds' AND DateTime < CURRENT_TIMESTAMP - INTERVAL '" + (second - 1) + " seconds'",
+                            where: "DateTime = TIMESTAMP '" + queryDateTimeStr + "'",
                             returnGeometry: true,
                             outFields: ["*"]
                         }).then(function(results) {
@@ -102,18 +136,6 @@
                 document.getElementById('youtubePlayer').addEventListener('timeupdate', function(e) {
                     var currentSecond = Math.floor(e.target.currentTime);
                     highlightFeatureAtTime(currentSecond);
-                });
-
-                webmap.when(function() {
-                    console.log("WebMap loaded");
-
-                    var featureLayer = new FeatureLayer({
-                        url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/hike/FeatureServer/0",
-                        outFields: ["*"],
-                        // Ensure this feature layer has the 'DateTime' field
-                    });
-                    
-                    webmap.add(featureLayer);
                 });
             }
         });
