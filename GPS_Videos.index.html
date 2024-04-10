@@ -75,6 +75,41 @@
                     map: webmap
                 });
 
+                var highlight;
+                function highlightFeatureAtTime(second) {
+                    if (highlight) {
+                        highlight.remove();
+                        highlight = null;
+                    }
+
+                    view.map.allLayers.forEach(layer => {
+                        if (layer.type === "feature") {
+                            layer.queryFeatures({
+                                where: `DateTime >= CURRENT_TIMESTAMP - INTERVAL '${second} seconds' AND DateTime < CURRENT_TIMESTAMP - INTERVAL '${second - 1} seconds'`,
+                                orderByFields: ["DateTime ASC"],
+                                returnGeometry: true,
+                                outFields: ["*"]
+                            }).then(function(results) {
+                                if (results.features.length > 0) {
+                                    var feature = results.features[0];
+                                    highlight = view.highlightOptions = {
+                                        layer.highlight(feature);
+                                    };
+                                }
+                            }).catch(function(error) {
+                                console.error("Error highlighting feature:", error);
+                            });
+                        }
+                    });
+                }
+
+                // Assuming video starts when map is ready and features are loaded
+                var videoPlayer = document.getElementById('youtubePlayer'); // Ensure this ID matches your video element
+                videoPlayer.addEventListener('timeupdate', function() {
+                    var currentSecond = Math.floor(videoPlayer.currentTime);
+                    highlightFeatureAtTime(currentSecond);
+                });
+
                 webmap.when(function() {
                     console.log("WebMap loaded");
 
@@ -84,12 +119,7 @@
                     });
                     
                     webmap.add(featureLayer);
-
-                    // Additional map and layer setup can go here
                 });
-
-                // Add additional JavaScript here for video synchronization
-                // This could involve listening for map clicks, querying features, and seeking the video
             }
         });
     </script>
