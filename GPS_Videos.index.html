@@ -133,6 +133,9 @@
     if (!window.startDateTime) {
         console.error("Start DateTimeS not set yet.");
         return;
+    } else {
+        // Log to confirm startDateTime is correctly set
+        console.log("Using Start DateTimeS: ", window.startDateTime);
     }
 
     if (window.highlight) {
@@ -140,15 +143,17 @@
         window.highlight = null;
     }
 
-    // Assuming startDateTime is in the correct format, calculate the expected DateTimeS value
-    // This example assumes DateTimeS is in a "YYYY-MM-DDTHH:MM:SS" format similar to ISO but without timezone
-    // Adjust calculation here based on the actual string format and how it relates to the video timeline
     var queryDateTime = new Date(window.startDateTime);
     queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-    var queryDateTimeStr = queryDateTime.toISOString().replace('Z', ''); // Removing 'Z' if your DateTimeS doesn't include timezone information
+    var queryDateTimeStr = queryDateTime.toISOString().replace('Z', ''); // Adjust as necessary for your format
 
-    // Direct string comparison in the WHERE clause
+    // Log the video playback time and the corresponding queryDateTimeStr
+    console.log(`Video Playback Time: ${currentSecond}s, Query DateTimeS: ${queryDateTimeStr}`);
+
     view.whenLayerView(featureLayer).then(function(layerView) {
+        // Log the query being executed
+        console.log(`Executing Query: DateTimeS = '${queryDateTimeStr}'`);
+
         layerView.queryFeatures({
             where: "DateTimeS = '" + queryDateTimeStr + "'",
             returnGeometry: true,
@@ -156,7 +161,13 @@
         }).then(function(results) {
             if (results.features.length > 0) {
                 var feature = results.features[0];
+                // Log details about the feature being highlighted
+                console.log("Highlighting Feature: ", feature.attributes);
+
                 window.highlight = layerView.highlight([feature.attributes[featureLayer.objectIdField]]);
+            } else {
+                // Log when no features match the query
+                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
             }
         }).catch(function(error) {
             console.error("Error highlighting feature based on DateTimeS:", error);
@@ -164,8 +175,7 @@
     });
 };
 
-
-        });
+});
     </script>
 </body>
 </html>
