@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>FeatureLayer with Video Synchronization</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/css/main.css" />
+    <script src="https://js.arcgis.com/4.28/"></script>
+    <style>
+        html, body, #viewDiv {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        #videoWindow {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+            background: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            display: flex;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        #youtubePlayer {
+            width: 620px; /* Adjust based on your layout */
+            height: 349px; /* Adjust for 16:9 aspect ratio */
+        }
+    </style>
+</head>
+<body>
+    <div id="viewDiv"></div>
+    <div id="videoWindow">
+        <!-- Embed YouTube video using iframe -->
+        <iframe id="youtubePlayer" width="620" height="349" src="https://www.youtube.com/embed/fFFx10X7xdk" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    </div>
+    <script>
+        require([
+            "esri/WebMap",
+            "esri/views/MapView",
+            "esri/layers/FeatureLayer",
+            "esri/Graphic",
+            "esri/identity/OAuthInfo",
+            "esri/identity/IdentityManager"
+        ], function(WebMap, MapView, FeatureLayer, Graphic, OAuthInfo, IdentityManager) {
+            var info = new OAuthInfo({
+                appId: "ti3fi1FqvHE2Hhyw",
+                popup: true
+            });
+            IdentityManager.registerOAuthInfos([info]);
+
+            IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+                console.log("Signed in successfully");
+                displayMap();
+            }).catch(function(error) {
+                console.error("Sign-in failed: ", error);
+                displayMap();
+            });
+
+            function displayMap() {
+                var webmap = new WebMap({
+                    portalItem: {
+                        id: "c002bf7e1e14444d98b51fc041e54b5d"
+                    }
+                });
+
+                var view = new MapView({
+                    container: "viewDiv",
+                    map: webmap
+                });
+
+                webmap.when(function() {
+                    console.log("WebMap loaded");
+
+                    var featureLayer = new FeatureLayer({
+                        url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/GoPro/FeatureServer/0",
+                        outFields: ["*"]
+                    });
+                    
+                    webmap.add(featureLayer);
+
+                    // Additional map and layer setup can go here
+                });
+
+                // Add additional JavaScript here for video synchronization
+                // This could involve listening for map clicks, querying features, and seeking the video
+            }
+        });
+    </script>
+</body>
+</html>
