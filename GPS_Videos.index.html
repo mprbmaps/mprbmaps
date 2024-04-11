@@ -111,12 +111,18 @@
                 webmap.add(window.featureLayer);
 
                 window.featureLayer.when(() => {
-                    window.view.goTo({
-                        target: window.featureLayer.fullExtent,
-                        zoom: 18
-                    }).catch(function(error){
-                        console.error("Error zooming to feature layer extent:", error);
-                    });
+    window.featureLayer.queryExtent().then(function(result) {
+        window.view.goTo({
+            target: result.extent,
+            zoom: 18
+        }).catch(function(error){
+            console.error("Error zooming to feature layer extent:", error);
+        });
+    }).catch(function(error) {
+        console.error("Error querying feature layer extent:", error);
+    });
+});
+
 
                     window.featureLayer.queryFeatures({
                         where: "1=1",
