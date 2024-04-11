@@ -31,8 +31,8 @@
         }
 
         #youtubePlayer {
-            width: 1240px;
-            height: 700px;
+            width: 868px;
+            height: 490px;
         }
     </style>
 </head>
@@ -46,8 +46,8 @@
         var player; // YouTube Player
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
-                height: '700',
-                width: '1240',
+                height: '490',
+                width: '868',
                 videoId: 'AjSWGKzC5mE', // Replace with your video ID
                 events: {
                     'onStateChange': onPlayerStateChange
@@ -111,22 +111,29 @@
                 webmap.add(window.featureLayer);
 
                 window.featureLayer.when(() => {
-                    window.featureLayer.queryFeatures({
-                        where: "1=1",
-                        orderByFields: ["DateTimeS ASC"],
-                        returnGeometry: false,
-                        outFields: ["DateTimeS"],
-                        num: 1
-                    }).then(function(response) {
-                        if (response.features.length > 0) {
-                            window.startDateTime = response.features[0].attributes.DateTimeS;
-                            console.log("Start DateTimeS: ", window.startDateTime);
-                        }
-                    }).catch(function(error) {
-                        console.error("Error fetching start DateTimeS:", error);
-                    });
-                });
+        window.view.goTo({ // Use the goTo method to animate the view to the feature layer's extent
+            target: window.featureLayer.fullExtent, // fullExtent is the total extent of all features in the layer
+            zoom: 18 // Set the desired zoom level
+        }).catch(function(error){
+            console.error("Error zooming to feature layer extent:", error);
+        });
+
+        window.featureLayer.queryFeatures({
+            where: "1=1",
+            orderByFields: ["DateTimeS ASC"],
+            returnGeometry: false,
+            outFields: ["DateTimeS"],
+            num: 1
+        }).then(function(response) {
+            if (response.features.length > 0) {
+                window.startDateTime = response.features[0].attributes.DateTimeS;
+                console.log("Start DateTimeS: ", window.startDateTime);
             }
+        }).catch(function(error) {
+            console.error("Error fetching start DateTimeS:", error);
+        });
+    });
+}
 
             window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
                 if (!window.startDateTime) {
