@@ -55,14 +55,14 @@
         }
 
         function onPlayerStateChange(event) {
-            if (event.data == YT.PlayerState.PLAYING && window.startDateTime) {
+            if (event.data == YT.PlayerState.PLAYING && window.startDateTime) { // Ensure startDateTime is set
                 var checkTimeUpdate = function() {
                     var currentSecond = Math.floor(player.getCurrentTime());
                     if (window.highlightFeatureAtTime) {
                         highlightFeatureAtTime(currentSecond, window.featureLayer, window.view);
                     }
                     if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        setTimeout(checkTimeUpdate, 1000);
+                        setTimeout(checkTimeUpdate, 1000); // Check every second
                     }
                 };
                 checkTimeUpdate();
@@ -79,7 +79,7 @@
             "esri/symbols/SimpleMarkerSymbol"
         ], function(WebMap, MapView, FeatureLayer, OAuthInfo, IdentityManager, SimpleRenderer, SimpleMarkerSymbol) {
             var info = new OAuthInfo({
-                appId: "ti3fi1FqvHE2Hhyw",
+                appId: "ti3fi1FqvHE2Hhyw", // Your App ID
                 popup: true
             });
             IdentityManager.registerOAuthInfos([info]);
@@ -95,7 +95,7 @@
             function displayMap() {
                 var webmap = new WebMap({
                     portalItem: {
-                        id: "c002bf7e1e14444d98b51fc041e54b5d"
+                        id: "c002bf7e1e14444d98b51fc041e54b5d" // Your WebMap ID
                     }
                 });
 
@@ -105,22 +105,23 @@
                 });
 
                 window.featureLayer = new FeatureLayer({
-                    url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek/FeatureServer/0",
+                    url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek/FeatureServer/0", // Your FeatureLayer URL
                     outFields: ["*"],
                     renderer: new SimpleRenderer({
-                        symbol: new SimpleMarkerSymbol({
-                            color: "red",
-                            size: 10,
-                            outline: {
-                                color: "black",
-                                width: 0
-                            }
-                        })
-                    })
+            symbol: new SimpleMarkerSymbol({
+                color: "red", // Color of the marker, can be name, hex, rgba, etc.
+                size: 10, // Size of the symbol in pixels
+                outline: { // Outline of the symbol
+                    color: "black",
+                    width: 0
+                }
+            })
+        })
                 });
 
                 webmap.add(window.featureLayer);
 
+                // Fetch startDateTime and ensure it is set before allowing video playback
                 window.featureLayer.queryFeatures({
                     where: "1=1",
                     orderByFields: ["DateTimeS ASC"],
@@ -131,6 +132,7 @@
                     if (response.features.length > 0) {
                         window.startDateTime = response.features[0].attributes.DateTimeS;
                         console.log("Start DateTimeS set: ", window.startDateTime);
+                        // Now that startDateTime is set, you can allow video playback if it was previously blocked.
                     } else {
                         console.error("No features found to set startDateTime");
                     }
@@ -151,56 +153,58 @@
                 });
 
                 window.view.on("click", function(event) {
-                    window.view.hitTest(event).then(function(response) {
-                        if (response.results.length > 0) {
-                            var feature = response.results.filter(function(result) {
-                                return result.graphic.layer === window.featureLayer;
-                            })[0].graphic;
-                            handleFeatureInteraction(feature);
-                        }
-                    }).catch(function(error) {
-                        console.error("Error during hitTest or highlighting:", error);
-                    });
-                });
-            }
+    window.view.hitTest(event).then(function(response) {
+        if (response.results.length > 0) {
+            var feature = response.results.filter(function(result) {
+                return result.graphic.layer === window.featureLayer;
+            })[0].graphic;
 
-            function handleFeatureInteraction(feature) {
-                if (feature && feature.attributes.DateTimeS && window.startDateTime) {
-                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
-                    var videoStartTime = new Date(window.startDateTime).getTime();
-                    var timeDifference = featureTime - videoStartTime;
-                    var seekTime = timeDifference / 1000;
+            if (feature && feature.attributes.DateTimeS && window.startDateTime) {
+                // Calculate the seek time for the video
+                var featureTime = new Date(feature.attributes.DateTimeS).getTime();
+                var videoStartTime = new Date(window.startDateTime).getTime();
+                var timeDifference = featureTime - videoStartTime;
+                var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
 
-                    if (seekTime >= 0 && player && typeof player.seekTo === "function") {
+                // Ensure the seek time is not negative
+                if (seekTime >= 0) {
+                    if (player && typeof player.seekTo === "function") {
+                        console.log(`Seeking video to ${seekTime} seconds`);
                         player.seekTo(seekTime, true);
+                    } else {
+                        console.error("YouTube player is not ready.");
                     }
-
-                    window.view.whenLayerView(window.featureLayer).then(function(layerView) {
-                        if (window.highlight) {
-                            window.highlight.remove();
-                        }
-
-                        // Custom symbol for highlighting
-                        var highlightSymbol = {
-                            type: "simple-marker",
-                            style: "circle",
-                            color: "yellow",
-                            size: "20px",
-                            outline: {
-                                color: "orange",
-                                width: 2
-                            }
-                        };
-
-                        window.highlight = layerView.highlight(feature, { symbol: highlightSymbol });
-                    });
+                } else {
+                    console.error("Calculated seek time is negative, which means the feature's DateTimeS is before the video's start time.");
                 }
+
+                // Highlight the clicked feature immediately
+                window.view.whenLayerView(window.featureLayer).then(function(layerView) {
+                    if (window.highlight) {
+                        window.highlight.remove();
+                    }
+                    window.highlight = layerView.highlight(feature);
+                });
+            } else {
+                console.error("Clicked feature does not have a valid DateTimeS attribute or startDateTime is not set.");
+            }
+        }
+    }).catch(function(error) {
+        console.error("Error during hitTest or highlighting:", error);
+    });
+});
+
             }
 
             window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
                 if (!window.startDateTime) {
                     console.error("Start DateTimeS not set yet.");
                     return;
+                }
+
+                if (window.highlight) {
+                    window.highlight.remove();
+                    window.highlight = null;
                 }
 
                 var queryDateTime = new Date(window.startDateTime);
@@ -215,7 +219,7 @@
                     }).then(function(results) {
                         if (results.features.length > 0) {
                             var feature = results.features[0];
-                            handleFeatureInteraction(feature);
+                            window.highlight = layerView.highlight([feature.attributes[featureLayer.objectIdField]]);
                         } else {
                             console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
                         }
