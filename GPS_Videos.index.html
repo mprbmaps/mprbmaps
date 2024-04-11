@@ -55,7 +55,7 @@
         }
 
         function onPlayerStateChange(event) {
-            if (event.data == YT.PlayerState.PLAYING && window.startDateTime) { // Ensure startDateTime is set
+            if (event.data == YT.PlayerState.PLAYING && window.startDateTime) {
                 var checkTimeUpdate = function() {
                     var currentSecond = Math.floor(player.getCurrentTime());
                     if (window.highlightFeatureAtTime) {
@@ -108,20 +108,19 @@
                     url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek/FeatureServer/0", // Your FeatureLayer URL
                     outFields: ["*"],
                     renderer: new SimpleRenderer({
-            symbol: new SimpleMarkerSymbol({
-                color: "red", // Color of the marker, can be name, hex, rgba, etc.
-                size: 10, // Size of the symbol in pixels
-                outline: { // Outline of the symbol
-                    color: "black",
-                    width: 0
-                }
-            })
-        })
+                        symbol: new SimpleMarkerSymbol({
+                            color: "red",
+                            size: 10,
+                            outline: {
+                                color: "black",
+                                width: 0
+                            }
+                        })
+                    })
                 });
 
                 webmap.add(window.featureLayer);
 
-                // Fetch startDateTime and ensure it is set before allowing video playback
                 window.featureLayer.queryFeatures({
                     where: "1=1",
                     orderByFields: ["DateTimeS ASC"],
@@ -132,7 +131,6 @@
                     if (response.features.length > 0) {
                         window.startDateTime = response.features[0].attributes.DateTimeS;
                         console.log("Start DateTimeS set: ", window.startDateTime);
-                        // Now that startDateTime is set, you can allow video playback if it was previously blocked.
                     } else {
                         console.error("No features found to set startDateTime");
                     }
@@ -153,47 +151,34 @@
                 });
 
                 window.view.on("click", function(event) {
-    window.view.hitTest(event).then(function(response) {
-        if (response.results.length > 0) {
-            var feature = response.results.filter(function(result) {
-                return result.graphic.layer === window.featureLayer;
-            })[0].graphic;
+                    window.view.hitTest(event).then(function(response) {
+                        if (response.results.length > 0) {
+                            var feature = response.results.filter(function(result) {
+                                return result.graphic.layer === window.featureLayer;
+                            })[0].graphic;
 
-            if (feature && feature.attributes.DateTimeS && window.startDateTime) {
-                // Calculate the seek time for the video
-                var featureTime = new Date(feature.attributes.DateTimeS).getTime();
-                var videoStartTime = new Date(window.startDateTime).getTime();
-                var timeDifference = featureTime - videoStartTime;
-                var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
+                            if (feature && feature.attributes.DateTimeS && window.startDateTime) {
+                                var featureTime = new Date(feature.attributes.DateTimeS).getTime();
+                                var videoStartTime = new Date(window.startDateTime).getTime();
+                                var timeDifference = featureTime - videoStartTime;
+                                var seekTime = timeDifference / 1000;
 
-                // Ensure the seek time is not negative
-                if (seekTime >= 0) {
-                    if (player && typeof player.seekTo === "function") {
-                        console.log(`Seeking video to ${seekTime} seconds`);
-                        player.seekTo(seekTime, true);
-                    } else {
-                        console.error("YouTube player is not ready.");
-                    }
-                } else {
-                    console.error("Calculated seek time is negative, which means the feature's DateTimeS is before the video's start time.");
-                }
+                                if (seekTime >= 0 && player && typeof player.seekTo === "function") {
+                                    player.seekTo(seekTime, true);
+                                }
 
-                // Highlight the clicked feature immediately
-                window.view.whenLayerView(window.featureLayer).then(function(layerView) {
-                    if (window.highlight) {
-                        window.highlight.remove();
-                    }
-                    window.highlight = layerView.highlight(feature);
+                                window.view.whenLayerView(window.featureLayer).then(function(layerView) {
+                                    if (window.highlight) {
+                                        window.highlight.remove();
+                                    }
+                                    window.highlight = layerView.highlight(feature);
+                                });
+                            }
+                        }
+                    }).catch(function(error) {
+                        console.error("Error during hitTest or highlighting:", error);
+                    });
                 });
-            } else {
-                console.error("Clicked feature does not have a valid DateTimeS attribute or startDateTime is not set.");
-            }
-        }
-    }).catch(function(error) {
-        console.error("Error during hitTest or highlighting:", error);
-    });
-});
-
             }
 
             window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
