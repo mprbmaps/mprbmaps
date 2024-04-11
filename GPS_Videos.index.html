@@ -31,8 +31,8 @@
         }
 
         #youtubePlayer {
-            width: 607px;
-            height: 343px;
+            width: 868px;
+            height: 490px;
         }
     </style>
 </head>
@@ -46,9 +46,9 @@
         var player; // YouTube Player
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
-                height: '343',
-                width: '607',
-                videoId: 'AjSWGKzC5mE?vq=hd1440', // Replace with your video ID
+                height: '490',
+                width: '868',
+                videoId: 'AjSWGKzC5mE', // Replace with your video ID
                 events: {
                     'onStateChange': onPlayerStateChange
                 }
@@ -111,15 +111,11 @@
                 webmap.add(window.featureLayer);
 
                 window.featureLayer.when(() => {
-                    window.featureLayer.queryExtent().then(function(result) {
-                        window.view.goTo({
-                            target: result.extent,
-                            zoom: 20
-                        }).catch(function(error){
-                            console.error("Error zooming to feature layer extent:", error);
-                        });
-                    }).catch(function(error) {
-                        console.error("Error querying feature layer extent:", error);
+                    window.view.goTo({
+                        target: window.featureLayer.fullExtent,
+                        zoom: 18
+                    }).catch(function(error){
+                        console.error("Error zooming to feature layer extent:", error);
                     });
 
                     window.featureLayer.queryFeatures({
@@ -187,7 +183,7 @@
                         if (results.features.length > 0) {
                             var feature = results.features[0];
                             console.log("Highlighting Feature: ", feature.attributes);
-                            window.highlight = layerView.highlight([feature]);
+                            window.highlight = layerView.highlight([feature.attributes[featureLayer.objectIdField]]);
                         } else {
                             console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
                         }
