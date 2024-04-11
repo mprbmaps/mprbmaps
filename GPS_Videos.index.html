@@ -47,7 +47,7 @@
             player = new YT.Player('youtubePlayer', {
                 height: '343',
                 width: '607',
-                videoId: 'AjSWGKzC5mE&hd=3', // Replace with your video ID
+                videoId: 'AjSWGKzC5mE', // Replace with your video ID
                 events: {
                     'onStateChange': onPlayerStateChange
                 }
@@ -147,27 +147,41 @@
                 return result.graphic.layer === window.featureLayer;
             })[0].graphic;
 
-            if (feature) {
+            if (feature && feature.attributes.DateTimeS && window.startDateTime) {
+                // Calculate the seek time for the video
+                var featureTime = new Date(feature.attributes.DateTimeS).getTime();
+                var videoStartTime = new Date(window.startDateTime).getTime();
+                var timeDifference = featureTime - videoStartTime;
+                var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
+
+                // Ensure the seek time is not negative
+                if (seekTime >= 0) {
+                    if (player && typeof player.seekTo === "function") {
+                        console.log(`Seeking video to ${seekTime} seconds`);
+                        player.seekTo(seekTime, true);
+                    } else {
+                        console.error("YouTube player is not ready.");
+                    }
+                } else {
+                    console.error("Calculated seek time is negative, which means the feature's DateTimeS is before the video's start time.");
+                }
+
                 // Highlight the clicked feature immediately
                 window.view.whenLayerView(window.featureLayer).then(function(layerView) {
                     if (window.highlight) {
                         window.highlight.remove();
                     }
                     window.highlight = layerView.highlight(feature);
-
-                    // Synchronize video with the clicked feature if needed
-                    var featureTime = new Date(feature.attributes.DateTimeS);
-                    var videoStartTime = new Date(window.startDateTime);
-                    var timeDifference = featureTime - videoStartTime;
-                    var seekTime = timeDifference / 1000;
-                    if (player && typeof player.seekTo === "function") {
-                        player.seekTo(seekTime, true);
-                    }
                 });
+            } else {
+                console.error("Clicked feature does not have a valid DateTimeS attribute or startDateTime is not set.");
             }
         }
+    }).catch(function(error) {
+        console.error("Error during hitTest or highlighting:", error);
     });
 });
+
             }
 
             window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
