@@ -110,16 +110,19 @@
 
     webmap.add(window.featureLayer);
 
-    window.featureLayer.when(() => {
-    // Calculate the center of the feature layer's extent
-    var center = window.featureLayer.fullExtent.center;
-    // Zoom to the calculated center with a zoom level of 20
-    window.view.goTo({
-        center: center,
-        zoom: 20
-    }).catch(function(error){
-        console.error("Error zooming to feature layer extent:", error);
+    window.view.when(() => {
+    return window.featureLayer.when(() => {
+        // Calculate the center of the feature layer's extent
+        var center = window.featureLayer.fullExtent.center;
+        // Use the view's goTo method to center and zoom on the feature layer.
+        return window.view.goTo({
+            center: center,
+            zoom: 20
+        });
     });
+}).catch(function(error){
+    console.error("Error zooming to feature layer extent:", error);
+});
 
 
         window.featureLayer.queryFeatures({
