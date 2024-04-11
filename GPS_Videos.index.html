@@ -153,44 +153,46 @@
                 });
 
                 window.view.on("click", function(event) {
-                window.view.hitTest(event).then(function(response) {
-                    if (response.results.length > 0) {
-                        var feature = response.results.filter(function(result) {
-                            return result.graphic.layer === window.featureLayer;
-                        })[0].graphic;
+    window.view.hitTest(event).then(function(response) {
+        if (response.results.length > 0) {
+            var feature = response.results.filter(function(result) {
+                return result.graphic.layer === window.featureLayer;
+            })[0].graphic;
 
-                        if (feature && feature.attributes.DateTimeS && window.startDateTime) {
-                            var featureTime = new Date(feature.attributes.DateTimeS).getTime();
-                            var videoStartTime = new Date(window.startDateTime).getTime();
-                            var timeDifference = featureTime - videoStartTime;
-                            var seekTime = timeDifference / 1000;
-                            if (seekTime >= 0 && player && typeof player.seekTo === "function") {
-                                player.seekTo(seekTime, true);
-                            }
+            if (feature && feature.attributes.DateTimeS && window.startDateTime) {
+                // Calculate the seek time for the video
+                var featureTime = new Date(feature.attributes.DateTimeS).getTime();
+                var videoStartTime = new Date(window.startDateTime).getTime();
+                var timeDifference = featureTime - videoStartTime;
+                var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
 
-                            window.view.whenLayerView(window.featureLayer).then(function(layerView) {
-                                if (window.highlight) {
-                                    window.highlight.remove();
-                                }
-
-                                var highlightSymbol = {
-                                    type: "simple-marker",  // for point features
-                                    color: "yellow",  // highlight color
-                                    size: "20px",  // larger size for visibility
-                                    outline: {
-                                        color: "orange",
-                                        width: 3  // thicker outline for highlighted feature
-                                    }
-                                };
-
-                                window.highlight = layerView.highlight(feature, {
-                                    symbol: highlightSymbol
-                                });
-                            });
-                        }
+                // Ensure the seek time is not negative
+                if (seekTime >= 0) {
+                    if (player && typeof player.seekTo === "function") {
+                        console.log(`Seeking video to ${seekTime} seconds`);
+                        player.seekTo(seekTime, true);
+                    } else {
+                        console.error("YouTube player is not ready.");
                     }
+                } else {
+                    console.error("Calculated seek time is negative, which means the feature's DateTimeS is before the video's start time.");
+                }
+
+                // Highlight the clicked feature immediately
+                window.view.whenLayerView(window.featureLayer).then(function(layerView) {
+                    if (window.highlight) {
+                        window.highlight.remove();
+                    }
+                    window.highlight = layerView.highlight(feature);
                 });
-            });
+            } else {
+                console.error("Clicked feature does not have a valid DateTimeS attribute or startDateTime is not set.");
+            }
+        }
+    }).catch(function(error) {
+        console.error("Error during hitTest or highlighting:", error);
+    });
+});
 
             }
 
