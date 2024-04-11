@@ -111,15 +111,18 @@
     webmap.add(window.featureLayer);
 
     window.featureLayer.when(() => {
-        // Set the target extent to the feature layer's full extent
+        // Set the target extent to the feature layer's extent
         var targetExtent = window.featureLayer.fullExtent.clone();
+        // Set the center of the target extent to the center of the feature layer's extent
+        var center = targetExtent.center;
         // Zoom to the target extent with a zoom level of 20
         window.view.goTo({
-            target: targetExtent,
+            center: center,
             zoom: 20
         }).catch(function(error){
             console.error("Error zooming to feature layer extent:", error);
         });
+
 
         window.featureLayer.queryFeatures({
             where: "1=1",
