@@ -141,24 +141,33 @@
                 });
 
                 window.view.on("click", function(event) {
-                    window.view.hitTest(event).then(function(response) {
-                        if (response.results.length > 0) {
-                            var feature = response.results.filter(function(result) {
-                                return result.graphic.layer === window.featureLayer;
-                            })[0].graphic;
+    window.view.hitTest(event).then(function(response) {
+        if (response.results.length > 0) {
+            var feature = response.results.filter(function(result) {
+                return result.graphic.layer === window.featureLayer;
+            })[0].graphic;
 
-                            if (feature) {
-                                var featureTime = new Date(feature.attributes.DateTimeS);
-                                var videoStartTime = new Date(window.startDateTime);
-                                var timeDifference = featureTime - videoStartTime;
-                                var seekTime = timeDifference / 1000;
-                                if (player && typeof player.seekTo === "function") {
-                                    player.seekTo(seekTime, true);
-                                }
-                            }
-                        }
-                    });
+            if (feature) {
+                // Highlight the clicked feature immediately
+                window.view.whenLayerView(window.featureLayer).then(function(layerView) {
+                    if (window.highlight) {
+                        window.highlight.remove();
+                    }
+                    window.highlight = layerView.highlight(feature);
+
+                    // Synchronize video with the clicked feature if needed
+                    var featureTime = new Date(feature.attributes.DateTimeS);
+                    var videoStartTime = new Date(window.startDateTime);
+                    var timeDifference = featureTime - videoStartTime;
+                    var seekTime = timeDifference / 1000;
+                    if (player && typeof player.seekTo === "function") {
+                        player.seekTo(seekTime, true);
+                    }
                 });
+            }
+        }
+    });
+});
             }
 
             window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
