@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>FeatureLayer with Video Synchronization</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/css/main.css" />
+    <script src="https://js.arcgis.com/4.28/"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <link href="https://vjs.zencdn.net/7.21.1/video-js.css" rel="stylesheet" />
+    <script src="https://vjs.zencdn.net/7.21.1/video.min.js"></script>
+    <script src="https://unpkg.com/@videojs/vr/dist/videojs-vr.min.js"></script>
+    <style>
+        html, body, #viewDiv {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        #videoWindow {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+            background: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            display: flex;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="viewDiv"></div>
+    <div id="videoWindow">
+        <div id="player"></div>
+    </div>
+    <script>
+        var player;
+
+        function onYouTubeIframeAPIReady() {
+            var videojs = window.videojs || {};
+            videojs.YouTubeVRPlayer = videojs.getTech('YouTubeVRPlayer');
+
+            player = videojs('player', {
+                techOrder: ['youtube'],
+                sources: [{
+                    src: 'https://www.youtube.com/watch?v=EEovFU3OOlg', // Replace with your YouTube video URL
+                    type: 'video/youtube'
+                }],
+                youtube: {
+                    ytId: 'EEovFU3OOlg', // Replace with your YouTube video ID
+                    vr: true
+                },
+                plugins: {
+                    vr: {
+                        projection: '360'
+                    }
+                }
+            });
+
+            player.on('ready', onPlayerReady);
+            player.on('statechange', onPlayerStateChange);
+        }
+
+        function onPlayerReady() {
+            console.log('YouTube player is ready');
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data == YT.PlayerState.PLAYING && window.startDateTime) {
+                var checkTimeUpdate = function() {
+                    var currentSecond = Math.floor(player.currentTime());
+                    if (window.highlightFeatureAtTime) {
+                        highlightFeatureAtTime(currentSecond, window.featureLayer, window.view);
+                    }
+                    if (player.player.getPlayerState() === YT.PlayerState.PLAYING) {
+                        setTimeout(checkTimeUpdate, 1000); // Check every second
+                    }
+                };
+                checkTimeUpdate();
+            }
+        }
+
+        function onViewChanged() {
+            const coneGraphic = new arcgis.Graphic();
+            map.add(coneGraphic);
+
+            const feature = featureLayer.featureEffect.filter.items[0];
+            const geometry = feature.geometry;
+
+            const coneGeometry = arcgis.geometryEngine.geodesicBuffer(geometry, 500, "meters", true, fieldOfViewAngle / 2);
+            coneGraphic.geometry = coneGeometry;
+        }
+
+        require([
+            "esri/WebMap",
+            "esri/views/MapView",
+            "esri/layers/FeatureLayer",
+            "esri/identity/OAuthInfo",
+            "esri/identity/IdentityManager",
+            "esri/renderers/SimpleRenderer",
+            "esri/symbols/SimpleMarkerSymbol"
+        ], function(WebMap, MapView, FeatureLayer, OAuthInfo, IdentityManager, SimpleRenderer, SimpleMarkerSymbol) {
+            var info = new OAuthInfo({
+                appId: "ti3fi1FqvHE2Hhyw", // Your App ID
+                popup: true
+            });
+
+            IdentityManager.registerOAuthInfos([info]);
+
+            IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+                console.log("Signed in successfully");
+                displayMap();
+            }).catch(function(error) {
+                console.error("Sign-in failed: ", error);
+                displayMap();
+            });
+
+            function displayMap() {
+                var webmap = new WebMap({
+                    portalItem: {
+                        id: "c002bf7e1e14444d98b51fc041e54b5d" // Your WebMap ID
+                    }
+                });
+
+                window.view = new MapView({
+                    container: "viewDiv",
+                    map: webmap
+                });
+
+                window.featureLayer = new FeatureLayer({
+                    url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek/FeatureServer/0", // Your FeatureLayer URL
+                    outFields: ["*"],
+                    renderer: new SimpleRenderer({
+                        symbol: new SimpleMarkerSymbol({
+                            color: "red", // Color of the marker, can be name, hex, rgba, etc.
+                            size: 10, // Size of the symbol in pixels
+                            outline: { // Outline of the symbol
+                                color: "black",
+                                width: 0
+                            }
+                        })
+                    })
+                });
+
+                webmap.add(window.featureLayer);
+
+                // Fetch startDateTime and ensure it is set before allowing video playback
+                window.featureLayer.queryFeatures({
+                    where: "1=1",
+                    orderByFields: ["DateTimeS ASC"],
+                    returnGeometry: false,
+                    outFields: ["DateTimeS"],
+                    num: 1
+                }).then(function(response) {
+                    if (response.features.length > 0) {
+                        window.startDateTime = response.features[0].attributes.DateTimeS;
+                        console.log("Start DateTimeS set: ", window.startDateTime);
+                        // Now that startDateTime is set, you can allow video playback if it was previously blocked.
+                    } else {
+                        console.error("No features found to set startDateTime");
+                    }
+                }).catch(function(error) {
+                    console.error("Error fetching start DateTimeS:", error);
+                });
+
+                window.view.when(() => {
+                    return window.featureLayer.when(() => {
+                        var center = window.featureLayer.fullExtent.center;
+                        return window.view.goTo({
+                            center: center,
+                            zoom: 17.5
+                        });
+                    });
+                }).catch(function(error){
+                    console.error("Error zooming to feature layer extent:", error);
+                });
+
+                window.view.on("click", function(event) {
+                    window.view.hitTest(event).then(function(response) {
+                        if (response.results.length > 0) {
+                            var feature = response.results.filter(function(result) {
+                                return result.graphic.layer === window.featureLayer;
+                            })[0].graphic;
+
+                            if (feature && feature.attributes.DateTimeS && window.startDateTime) {
+                                // Calculate the seek time for the video
+                                var featureTime = new Date(feature.attributes.DateTimeS).getTime();
+                                var videoStartTime = new Date(window.startDateTime).getTime();
+                                var timeDifference = featureTime - videoStartTime;
+                                var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
+
+                                // Ensure the seek time is not negative
+                                if (seekTime >= 0) {
+                                    if (player && typeof player.seekTo === "function") {
+                                        console.log(`Seeking video to ${seekTime} seconds`);
+                                        player.seekTo(seekTime, true);
+                                    } else {
+                                        console.error("YouTube player is not ready.");
+                                    }
+                                } else {
+                                    console.error("Calculated seek time is negative, which means the feature's DateTimeS is before the video's start time.");
+                                }
+
+                                // Highlight the clicked feature immediately
+                                window.view.whenLayerView(window.featureLayer).then(function(layerView) {
+                                    if (window.highlight) {
+                                        window.highlight.remove();
+                                    }
+                                    window.highlight = layerView.highlight(feature);
+                                });
+                            } else {
+                                console.error("Clicked feature does not have a valid DateTimeS attribute or startDateTime is not set.");
+                            }
+                        }
+                    }).catch(function(error) {
+                        console.error("Error during hitTest or highlighting:", error);
+                    });
+                });
+            }
+
+            window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
+                if (!window.startDateTime) {
+                    console.error("Start DateTimeS not set yet.");
+                    return;
+                }
+
+                if (window.highlight) {
+                    window.highlight.remove();
+                    window.highlight = null;
+                }
+
+                var queryDateTime = new Date(window.startDateTime);
+                queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+                var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+
+                view.whenLayerView(featureLayer).then(function(layerView) {
+                    layerView.queryFeatures({
+                        where: "DateTimeS = '" + queryDateTimeStr + "'",
+                        returnGeometry: true,
+                        outFields: ["*"]
+                    }).then(function(results) {
+                        if (results.features.length > 0) {
+                            var feature = results.features[0];
+                            window.highlight = layerView.highlight([feature.attributes[featureLayer.objectIdField]]);
+                        } else {
+                            console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                        }
+                    }).catch(function(error) {
+                        console.error("Error highlighting feature based on DateTimeS:", error);
+                    });
+                });
+            };
+
+            player.on('vrViewChanged', onViewChanged);
+        });
+    </script>
+</body>
+</html>
