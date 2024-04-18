@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8" />
-    <title>FeatureLayer with Video Synchronization</title>
+    <title>FeatureLayer with Multiple Video Synchronization</title>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/css/main.css" />
     <script src="https://js.arcgis.com/4.28/"></script>
@@ -16,7 +16,7 @@
             padding: 0;
         }
 
-        #videoWindow {
+        .videoWindow {
             position: absolute;
             top: 20px;
             right: 20px;
@@ -28,9 +28,10 @@
             display: flex;
             overflow: hidden;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            margin-bottom: 10px;
         }
 
-        #youtubePlayer {
+        .youtubePlayer {
             width: 728px;
             height: 411px;
         }
@@ -38,30 +39,42 @@
 </head>
 <body>
     <div id="viewDiv"></div>
-    <div id="videoWindow">
-        <div id="youtubePlayer"></div>
+    <div id="videoWindow1" class="videoWindow">
+        <div id="youtubePlayer1" class="youtubePlayer"></div>
     </div>
+    <div id="videoWindow2" class="videoWindow">
+        <div id="youtubePlayer2" class="youtubePlayer"></div>
+    </div>
+    <!-- Add more divs as needed -->
     <script>
-        var player;
         function onYouTubeIframeAPIReady() {
-            player = new YT.Player('youtubePlayer', {
-                height: '411',
-                width: '728',
-                videoId: '9DhF5dLbQr4', // Replace with your video ID
-                events: {
-                    'onStateChange': onPlayerStateChange
-                }
-            });
+            window.players = {
+                player1: new YT.Player('youtubePlayer1', {
+                    height: '411',
+                    width: '728',
+                    videoId: 'EEovFU3OOlg',
+                    events: {
+                        'onStateChange': function(event) { onPlayerStateChange(event, featureLayers.featureLayer1, view); }
+                    }
+                }),
+                player2: new YT.Player('youtubePlayer2', {
+                    height: '411',
+                    width: '728',
+                    videoId: 's_kCckaYzDo',
+                    events: {
+                        'onStateChange': function(event) { onPlayerStateChange(event, featureLayers.featureLayer2, view); }
+                    }
+                })
+                // Initialize more players as needed
+            };
         }
 
-        function onPlayerStateChange(event) {
-            if (event.data == YT.PlayerState.PLAYING && window.startDateTime) { // Ensure startDateTime is set
+        function onPlayerStateChange(event, featureLayer, view) {
+            if (event.data == YT.PlayerState.PLAYING) {
                 var checkTimeUpdate = function() {
-                    var currentSecond = Math.floor(player.getCurrentTime());
-                    if (window.highlightFeatureAtTime) {
-                        highlightFeatureAtTime(currentSecond, window.featureLayer, window.view);
-                    }
-                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                    var currentSecond = Math.floor(event.target.getCurrentTime());
+                    highlightFeatureAtTime(currentSecond, featureLayer, view);
+                    if (event.target.getPlayerState() === YT.PlayerState.PLAYING) {
                         setTimeout(checkTimeUpdate, 1000); // Check every second
                     }
                 };
@@ -104,45 +117,44 @@
                     map: webmap
                 });
 
-                window.featureLayer = new FeatureLayer({
-                    url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/insta360Test/FeatureServer/9", // Your FeatureLayer URL
-                    outFields: ["*"],
-                    renderer: new SimpleRenderer({
-            symbol: new SimpleMarkerSymbol({
-                color: "red", // Color of the marker, can be name, hex, rgba, etc.
-                size: 10, // Size of the symbol in pixels
-                outline: { // Outline of the symbol
-                    color: "black",
-                    width: 0
-                }
-            })
-        })
-                });
+                window.featureLayers = {
+                    featureLayer1: new FeatureLayer({
+                        url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek/FeatureServer/0",
+                        outFields: ["*"],
+                        renderer: new SimpleRenderer({
+                            symbol: new SimpleMarkerSymbol({
+                                color: "red",
+                                size: 10,
+                                outline: {
+                                    color: "black",
+                                    width: 0
+                                }
+                            })
+                        })
+                    }),
+                    featureLayer2: new FeatureLayer({
+                        url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/insta360Test/FeatureServer/9",
+                        outFields: ["*"],
+                        renderer: new SimpleRenderer({
+                            symbol: new SimpleMarkerSymbol({
+                                color: "blue",
+                                size: 10,
+                                outline: {
+                                    color: "black",
+                                    width: 0
+                                }
+                            })
+                        })
+                    })
+                    // Add more feature layers as needed
+                };
 
-                webmap.add(window.featureLayer);
-
-                // Fetch startDateTime and ensure it is set before allowing video playback
-                window.featureLayer.queryFeatures({
-                    where: "1=1",
-                    orderByFields: ["DateTimeS ASC"],
-                    returnGeometry: false,
-                    outFields: ["DateTimeS"],
-                    num: 1
-                }).then(function(response) {
-                    if (response.features.length > 0) {
-                        window.startDateTime = response.features[0].attributes.DateTimeS;
-                        console.log("Start DateTimeS set: ", window.startDateTime);
-                        // Now that startDateTime is set, you can allow video playback if it was previously blocked.
-                    } else {
-                        console.error("No features found to set startDateTime");
-                    }
-                }).catch(function(error) {
-                    console.error("Error fetching start DateTimeS:", error);
-                });
+                Object.values(window.featureLayers).forEach(layer => webmap.add(layer));
 
                 window.view.when(() => {
-                    return window.featureLayer.when(() => {
-                        var center = window.featureLayer.fullExtent.center;
+                    var promises = Object.values(window.featureLayers).map(layer => layer.when());
+                    return Promise.all(promises).then(() => {
+                        var center = window.featureLayers.featureLayer1.fullExtent.center;
                         return window.view.goTo({
                             center: center,
                             zoom: 17.5
@@ -153,47 +165,43 @@
                 });
 
                 window.view.on("click", function(event) {
-    window.view.hitTest(event).then(function(response) {
-        if (response.results.length > 0) {
-            var feature = response.results.filter(function(result) {
-                return result.graphic.layer === window.featureLayer;
-            })[0].graphic;
+                    window.view.hitTest(event).then(function(response) {
+                        if (response.results.length > 0) {
+                            var feature = response.results.filter(function(result) {
+                                return result.graphic.layer === window.featureLayers.featureLayer1; // Update accordingly
+                            })[0].graphic;
 
-            if (feature && feature.attributes.DateTimeS && window.startDateTime) {
-                // Calculate the seek time for the video
-                var featureTime = new Date(feature.attributes.DateTimeS).getTime();
-                var videoStartTime = new Date(window.startDateTime).getTime();
-                var timeDifference = featureTime - videoStartTime;
-                var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
+                            if (feature && feature.attributes.DateTimeS && window.startDateTime) {
+                                var featureTime = new Date(feature.attributes.DateTimeS).getTime();
+                                var videoStartTime = new Date(window.startDateTime).getTime();
+                                var timeDifference = featureTime - videoStartTime;
+                                var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
 
-                // Ensure the seek time is not negative
-                if (seekTime >= 0) {
-                    if (player && typeof player.seekTo === "function") {
-                        console.log(`Seeking video to ${seekTime} seconds`);
-                        player.seekTo(seekTime, true);
-                    } else {
-                        console.error("YouTube player is not ready.");
-                    }
-                } else {
-                    console.error("Calculated seek time is negative, which means the feature's DateTimeS is before the video's start time.");
-                }
+                                if (seekTime >= 0) {
+                                    if (player1 && typeof player1.seekTo === "function") {
+                                        console.log(`Seeking video to ${seekTime} seconds`);
+                                        player1.seekTo(seekTime, true);
+                                    } else {
+                                        console.error("YouTube player is not ready.");
+                                    }
+                                } else {
+                                    console.error("Calculated seek time is negative.");
+                                }
 
-                // Highlight the clicked feature immediately
-                window.view.whenLayerView(window.featureLayer).then(function(layerView) {
-                    if (window.highlight) {
-                        window.highlight.remove();
-                    }
-                    window.highlight = layerView.highlight(feature);
+                                window.view.whenLayerView(window.featureLayers.featureLayer1).then(function(layerView) {
+                                    if (window.highlight) {
+                                        window.highlight.remove();
+                                    }
+                                    window.highlight = layerView.highlight(feature);
+                                });
+                            } else {
+                                console.error("Clicked feature does not have a valid DateTimeS attribute or startDateTime is not set.");
+                            }
+                        }
+                    }).catch(function(error) {
+                        console.error("Error during hitTest or highlighting:", error);
+                    });
                 });
-            } else {
-                console.error("Clicked feature does not have a valid DateTimeS attribute or startDateTime is not set.");
-            }
-        }
-    }).catch(function(error) {
-        console.error("Error during hitTest or highlighting:", error);
-    });
-});
-
             }
 
             window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
