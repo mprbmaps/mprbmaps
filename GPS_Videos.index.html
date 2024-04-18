@@ -52,9 +52,28 @@
                 events: {
                     'onReady': function(event) {
                         playerReady = true;
-                    }
+                    },
+                    'onStateChange': onPlayerStateChange
                 }
             });
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.CUED) {
+                player.seekTo(window.nextSeekTime, true);
+                player.playVideo();
+            }
+        }
+
+        function loadVideoById(videoId, seekTime) {
+            if (currentVideoId !== videoId) {
+                currentVideoId = videoId;
+                window.nextSeekTime = seekTime;
+                player.cueVideoById({videoId: videoId});
+            } else if (player && typeof player.seekTo === 'function') {
+                player.seekTo(seekTime, true);
+                player.playVideo();
+            }
         }
 
         require([
@@ -146,20 +165,8 @@
                                     var timeDifference = featureTime - videoStartTime;
                                     var seekTime = timeDifference / 1000;
 
-                                    if (playerReady && player && typeof player.seekTo === "function") {
-                                        if (currentVideoId !== layer.videoId) {
-                                            player.loadVideoById({videoId: layer.videoId});
-                                            currentVideoId = layer.videoId;
-                                        }
-                                        player.seekTo(seekTime, true);
-
-                                        // Highlight the clicked feature
-                                        view.whenLayerView(featureLayer).then(function(layerView) {
-                                            if (highlight) {
-                                                highlight.remove();
-                                            }
-                                            highlight = layerView.highlight(feature);
-                                        });
+                                    if (playerReady && player && typeof player.loadVideoById === "function") {
+                                        loadVideoById(layer.videoId, seekTime);
                                     } else {
                                         console.error("YouTube player is not ready.");
                                     }
@@ -177,7 +184,7 @@
             }
         });
 
-        // Highlight feature based on current video time
+        // Dynamic feature highlighting based on video time
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view, startDateTime) {
             if (!startDateTime) {
                 console.error("Start DateTimeS not set yet.");
