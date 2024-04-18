@@ -15,7 +15,6 @@
             margin: 0;
             padding: 0;
         }
-
         #videoWindow {
             position: absolute;
             top: 20px;
@@ -29,7 +28,6 @@
             overflow: hidden;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
         }
-
         #youtubePlayer {
             width: 728px;
             height: 411px;
@@ -42,31 +40,64 @@
         <div id="youtubePlayer"></div>
     </div>
     <script>
-        var player;
+        var players = {}; // Object to store multiple YouTube players
+        var layerPlayerMap = {
+            'https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek/FeatureServer/0': 'player1',
+            'https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/insta360Test/FeatureServer/9': 'player2'
+        };
+        var startDateTimeMap = {};
+
         function onYouTubeIframeAPIReady() {
-            player = new YT.Player('youtubePlayer', {
+            players['player1'] = new YT.Player('youtubePlayer', {
                 height: '411',
                 width: '728',
-                videoId: '9DhF5dLbQr4', // Replace with your video ID
+                videoId: 'EEovFU3OOlg', // Video ID for the first layer
                 events: {
-                    'onStateChange': onPlayerStateChange
+                    'onStateChange': function(event) { onPlayerStateChange(event, 'player1'); }
+                }
+            });
+            players['player2'] = new YT.Player('youtubePlayer', {
+                height: '411',
+                width: '728',
+                videoId: 's_kCckaYzDo', // Video ID for the second layer
+                events: {
+                    'onStateChange': function(event) { onPlayerStateChange(event, 'player2'); }
                 }
             });
         }
 
-        function onPlayerStateChange(event) {
-            if (event.data == YT.PlayerState.PLAYING && window.startDateTime) { // Ensure startDateTime is set
+        function onPlayerStateChange(event, playerId) {
+            if (event.data == YT.PlayerState.PLAYING && Object.keys(startDateTimeMap).length > 0) {
                 var checkTimeUpdate = function() {
-                    var currentSecond = Math.floor(player.getCurrentTime());
+                    var currentSecond = Math.floor(players[playerId].getCurrentTime());
                     if (window.highlightFeatureAtTime) {
                         highlightFeatureAtTime(currentSecond, window.featureLayer, window.view);
                     }
-                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                    if (players[playerId].getPlayerState() === YT.PlayerState.PLAYING) {
                         setTimeout(checkTimeUpdate, 1000); // Check every second
                     }
                 };
                 checkTimeUpdate();
             }
+        }
+
+        function setStartDateTime(featureLayer, layerId) {
+            featureLayer.queryFeatures({
+                where: "1=1",
+                orderByFields: ["DateTimeS ASC"],
+                returnGeometry: false,
+                outFields: ["DateTimeS"],
+                num: 1
+            }).then(function(response) {
+                if (response.features.length > 0) {
+                    startDateTimeMap[layerId] = response.features[0].attributes.DateTimeS;
+                    console.log("Start DateTimeS set for " + layerId + ": ", startDateTimeMap[layerId]);
+                } else {
+                    console.error("No features found to set startDateTime for " + layerId);
+                }
+            }).catch(function(error) {
+                console.error("Error fetching start DateTimeS for " + layerId + ":", error);
+            });
         }
 
         require([
@@ -104,45 +135,47 @@
                     map: webmap
                 });
 
-                window.featureLayer = new FeatureLayer({
-                    url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/insta360Test/FeatureServer/9", // Your FeatureLayer URL
+                var featureLayer1 = new FeatureLayer({
+                    url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek/FeatureServer/0",
                     outFields: ["*"],
                     renderer: new SimpleRenderer({
-            symbol: new SimpleMarkerSymbol({
-                color: "red", // Color of the marker, can be name, hex, rgba, etc.
-                size: 10, // Size of the symbol in pixels
-                outline: { // Outline of the symbol
-                    color: "black",
-                    width: 0
-                }
-            })
-        })
+                        symbol: new SimpleMarkerSymbol({
+                            color: "red",
+                            size: 10,
+                            outline: {
+                                color: "black",
+                                width: 0
+                            }
+                        })
+                    })
                 });
 
-                webmap.add(window.featureLayer);
-
-                // Fetch startDateTime and ensure it is set before allowing video playback
-                window.featureLayer.queryFeatures({
-                    where: "1=1",
-                    orderByFields: ["DateTimeS ASC"],
-                    returnGeometry: false,
-                    outFields: ["DateTimeS"],
-                    num: 1
-                }).then(function(response) {
-                    if (response.features.length > 0) {
-                        window.startDateTime = response.features[0].attributes.DateTimeS;
-                        console.log("Start DateTimeS set: ", window.startDateTime);
-                        // Now that startDateTime is set, you can allow video playback if it was previously blocked.
-                    } else {
-                        console.error("No features found to set startDateTime");
-                    }
-                }).catch(function(error) {
-                    console.error("Error fetching start DateTimeS:", error);
+                var featureLayer2 = new FeatureLayer({
+                    url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/insta360Test/FeatureServer/9",
+                    outFields: ["*"],
+                    renderer: new SimpleRenderer({
+                        symbol: new SimpleMarkerSymbol({
+                            color: "red",
+                            size: 10,
+                            outline: {
+                                color: "black",
+                                width: 0
+                            }
+                        })
+                    })
                 });
+
+                webmap.addMany([featureLayer1, featureLayer2]);
+
+                setStartDateTime(featureLayer1, 'layer1');
+                setStartDateTime(featureLayer2, 'layer2');
 
                 window.view.when(() => {
-                    return window.featureLayer.when(() => {
-                        var center = window.featureLayer.fullExtent.center;
+                    return Promise.all([
+                        window.featureLayer.when(),
+                        window.featureLayer.when()
+                    ]).then(() => {
+                        var center = featureLayer1.fullExtent.center;
                         return window.view.goTo({
                             center: center,
                             zoom: 17.5
@@ -153,51 +186,46 @@
                 });
 
                 window.view.on("click", function(event) {
-    window.view.hitTest(event).then(function(response) {
-        if (response.results.length > 0) {
-            var feature = response.results.filter(function(result) {
-                return result.graphic.layer === window.featureLayer;
-            })[0].graphic;
+                    window.view.hitTest(event).then(function(response) {
+                        if (response.results.length > 0) {
+                            var feature = response.results.filter(function(result) {
+                                return result.graphic.layer === featureLayer1 || result.graphic.layer === featureLayer2;
+                            })[0].graphic;
 
-            if (feature && feature.attributes.DateTimeS && window.startDateTime) {
-                // Calculate the seek time for the video
-                var featureTime = new Date(feature.attributes.DateTimeS).getTime();
-                var videoStartTime = new Date(window.startDateTime).getTime();
-                var timeDifference = featureTime - videoStartTime;
-                var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
+                            var layerUrl = feature.graphic.layer.url;
+                            var playerId = layerPlayerMap[layerUrl];
+                            var player = players[playerId];
+                            if (feature && feature.attributes.DateTimeS && startDateTimeMap[layerId] && player) {
+                                var featureTime = new Date(feature.attributes.DateTimeS).getTime();
+                                var videoStartTime = new Date(startDateTimeMap[layerId]).getTime();
+                                var timeDifference = featureTime - videoStartTime;
+                                var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
 
-                // Ensure the seek time is not negative
-                if (seekTime >= 0) {
-                    if (player && typeof player.seekTo === "function") {
-                        console.log(`Seeking video to ${seekTime} seconds`);
-                        player.seekTo(seekTime, true);
-                    } else {
-                        console.error("YouTube player is not ready.");
-                    }
-                } else {
-                    console.error("Calculated seek time is negative, which means the feature's DateTimeS is before the video's start time.");
-                }
+                                if (seekTime >= 0) {
+                                    console.log(`Seeking video to ${seekTime} seconds`);
+                                    player.seekTo(seekTime, true);
+                                } else {
+                                    console.error("Calculated seek time is negative.");
+                                }
 
-                // Highlight the clicked feature immediately
-                window.view.whenLayerView(window.featureLayer).then(function(layerView) {
-                    if (window.highlight) {
-                        window.highlight.remove();
-                    }
-                    window.highlight = layerView.highlight(feature);
+                                window.view.whenLayerView(featureLayer1).then(function(layerView) {
+                                    if (window.highlight) {
+                                        window.highlight.remove();
+                                    }
+                                    window.highlight = layerView.highlight(feature);
+                                });
+                            } else {
+                                console.error("Clicked feature does not have a valid DateTimeS attribute or player is not ready.");
+                            }
+                        }
+                    }).catch(function(error) {
+                        console.error("Error during hitTest or highlighting:", error);
+                    });
                 });
-            } else {
-                console.error("Clicked feature does not have a valid DateTimeS attribute or startDateTime is not set.");
-            }
-        }
-    }).catch(function(error) {
-        console.error("Error during hitTest or highlighting:", error);
-    });
-});
-
             }
 
             window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-                if (!window.startDateTime) {
+                if (!Object.keys(startDateTimeMap).length > 0) {
                     console.error("Start DateTimeS not set yet.");
                     return;
                 }
@@ -207,7 +235,7 @@
                     window.highlight = null;
                 }
 
-                var queryDateTime = new Date(window.startDateTime);
+                var queryDateTime = new Date(startDateTimeMap[layerId]);
                 queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
                 var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
