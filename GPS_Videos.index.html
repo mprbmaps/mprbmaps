@@ -30,7 +30,7 @@
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
         }
 
-        #youtubePlayer {
+        #youtubePlayer1, #youtubePlayer2 {
             width: 728px;
             height: 411px;
         }
@@ -39,7 +39,8 @@
 <body>
     <div id="viewDiv"></div>
     <div id="videoWindow">
-        <div id="youtubePlayer"></div>
+        <div id="youtubePlayer1"></div>
+        <div id="youtubePlayer2"></div>
     </div>
     <script>
         var players = {};
@@ -78,6 +79,47 @@
                 checkTimeUpdate();
             }
         }
+
+        window.view.on("click", function(event) {
+            window.view.hitTest(event).then(function(response) {
+                if (response.results.length > 0) {
+                    var feature = response.results.find(result => {
+                        return result.graphic && (result.graphic.layer === window.featureLayerEEovFU3OOlg || result.graphic.layer === window.featureLayers_kCckaYzDo);
+                    });
+
+                    console.log("Clicked feature:", feature.graphic);
+
+                    if (feature && feature.graphic.attributes.DateTimeS) {
+                        var playerId;
+                        if (feature.graphic.layer === window.featureLayerEEovFU3OOlg) {
+                            playerId = 'EEovFU3OOlg';
+                        } else if (feature.graphic.layer === window.featureLayers_kCckaYzDo) {
+                            playerId = 's_kCckaYzDo';
+                        }
+                        if (players[playerId] && typeof players[playerId].getPlayerState === "function") {
+                            var featureTime = new Date(feature.graphic.attributes.DateTimeS).getTime();
+                            var videoStartTime = new Date(window['startDateTime' + playerId]).getTime();
+                            var timeDifference = featureTime - videoStartTime;
+                            var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
+                            if (seekTime >= 0) {
+                                console.log(`Seeking video ${playerId} to ${seekTime} seconds`);
+                                players[playerId].seekTo(seekTime, true);
+                            } else {
+                                console.error("Calculated seek time is negative, which means the feature's DateTimeS is before the video's start time.");
+                            }
+                        } else {
+                            console.error("Player is not initialized or getPlayerState is not available.");
+                        }
+                    } else {
+                        console.error("Clicked feature does not have a valid DateTimeS attribute.");
+                    }
+                } else {
+                    console.error("No features found at clicked location.");
+                }
+            }).catch(function(error) {
+                console.error("Error during hitTest or highlighting:", error);
+            });
+        });
 
         require([
             "esri/WebMap",
@@ -197,57 +239,47 @@
                 });
 
                 window.view.on("click", function(event) {
-    // Perform a hitTest to find graphics at the click location
-    window.view.hitTest(event).then(function(response) {
-        // Check if the hitTest returned any results
-        if (response.results.length > 0) {
-            // Find the first graphic in the results that is from the specific feature layers
-            var feature = response.results.find(result => {
-                return result.graphic && (result.graphic.layer === window.featureLayerEEovFU3OOlg || result.graphic.layer === window.featureLayers_kCckaYzDo);
-            });
+                    window.view.hitTest(event).then(function(response) {
+                        if (response.results.length > 0) {
+                            var feature = response.results.map(result => result.graphic).find(graphic => {
+                                return graphic && (graphic.layer === window.featureLayerEEovFU3OOlg || graphic.layer === window.featureLayers_kCckaYzDo);
+                            });
 
-            // Log the clicked feature's graphic object for debugging
-            console.log("Clicked feature:", feature.graphic);
+                            console.log("Clicked feature:", feature);
 
-            // Check if the clicked feature has a valid DateTimeS attribute
-            if (feature && feature.graphic.attributes.DateTimeS) {
-                var playerId;
-                // Determine which YouTube player corresponds to the clicked feature
-                if (feature.graphic.layer === window.featureLayerEEovFU3OOlg) {
-                    playerId = 'EEovFU3OOlg';
-                } else if (feature.graphic.layer === window.featureLayers_kCckaYzDo) {
-                    playerId = 's_kCckaYzDo';
-                }
-                // If a player exists for the feature and is currently playing
-                if (players[playerId] && players[playerId].getPlayerState() === YT.PlayerState.PLAYING && typeof players[playerId].seekTo === "function") {
-                    // Calculate the time to seek to based on the feature's DateTimeS
-                    var featureTime = new Date(feature.graphic.attributes.DateTimeS).getTime();
-                    var videoStartTime = new Date(window['startDateTime' + playerId]).getTime();
-                    var timeDifference = featureTime - videoStartTime;
-                    var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
+                            if (feature && feature.attributes.DateTimeS) {
+                                var playerId;
+                                if (feature.graphic.layer === window.featureLayerEEovFU3OOlg) {
+                                    playerId = 'EEovFU3OOlg';
+                                } else if (feature.graphic.layer === window.featureLayers_kCckaYzDo) {
+                                    playerId = 's_kCckaYzDo';
+                                }
+                                if (players[playerId] && players[playerId].getPlayerState() === YT.PlayerState.PLAYING && typeof players[playerId].seekTo === "function") {
+                                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
+                                    var videoStartTime = new Date(window['startDateTime' + playerId]).getTime();
+                                    var timeDifference = featureTime - videoStartTime;
+                                    var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
 
-                    // Ensure the seek time is not negative
-                    if (seekTime >= 0) {
-                        console.log(`Seeking video ${playerId} to ${seekTime} seconds`);
-                        // Seek the YouTube player to the calculated time
-                        players[playerId].seekTo(seekTime, true);
-                    } else {
-                        console.error("Calculated seek time is negative, which means the feature's DateTimeS is before the video's start time.");
-                    }
-                } else {
-                    console.error("Clicked feature does not have a valid DateTimeS attribute or player is not ready.");
-                }
-            } else {
-                console.error("Clicked feature does not have a valid DateTimeS attribute.");
-            }
-        } else {
-            console.error("No features found at clicked location.");
-        }
-    }).catch(function(error) {
-        console.error("Error during hitTest or highlighting:", error);
-    });
-});
-
+                                    // Ensure the seek time is not negative
+                                    if (seekTime >= 0) {
+                                        console.log(`Seeking video ${playerId} to ${seekTime} seconds`);
+                                        players[playerId].seekTo(seekTime, true);
+                                    } else {
+                                        console.error("Calculated seek time is negative, which means the feature's DateTimeS is before the video's start time.");
+                                    }
+                                } else {
+                                    console.error("Clicked feature does not have a valid DateTimeS attribute or player is not ready.");
+                                }
+                            } else {
+                                console.error("Clicked feature does not have a valid DateTimeS attribute.");
+                            }
+                        } else {
+                            console.error("No features found at clicked location.");
+                        }
+                    }).catch(function(error) {
+                        console.error("Error during hitTest or highlighting:", error);
+                    });
+                });
 
             }
 
