@@ -82,8 +82,6 @@
                     map: webmap
                 });
 
-                var goToInProgress = false;
-
                 var layers = [
                     {
                         url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek/FeatureServer/0",
@@ -130,39 +128,19 @@
                         console.error("Error fetching start DateTimeS for " + layer.url + ":", error);
                     });
 
-                    view.when(() => {
-                        return featureLayer.when(() => {
-                            var center = featureLayer.fullExtent.center;
-                            if (!goToInProgress) {
-                                goToInProgress = true;
-                                return view.goTo({
-                                    center: center,
-                                    zoom: 18
-                                }).then(function() {
-                                    goToInProgress = false;
-                                }).catch(function(error) {
-                                    console.error("Error zooming to feature layer extent:", error);
-                                    goToInProgress = false;
-                                });
-                            }
-                        });
-                    });
-
                     view.on("click", function(event) {
-                        window.view.hitTest(event).then(function(response) {
+                        view.hitTest(event).then(function(response) {
                             if (response.results.length > 0) {
                                 var feature = response.results.filter(function(result) {
                                     return result.graphic.layer === featureLayer;
                                 })[0].graphic;
 
                                 if (feature && feature.attributes.DateTimeS && videoStartTimes[layer.url]) {
-                                    // Calculate the seek time for the video
                                     var featureTime = new Date(feature.attributes.DateTimeS).getTime();
                                     var videoStartTime = new Date(videoStartTimes[layer.url]).getTime();
                                     var timeDifference = featureTime - videoStartTime;
                                     var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
 
-                                    // Ensure the seek time is not negative
                                     if (seekTime >= 0) {
                                         if (player && typeof player.seekTo === "function") {
                                             console.log(`Seeking video to ${seekTime} seconds`);
@@ -174,12 +152,11 @@
                                         console.error("Calculated seek time is negative, which means the feature's DateTimeS is before the video's start time.");
                                     }
 
-                                    // Highlight the clicked feature immediately
-                                    window.view.whenLayerView(featureLayer).then(function(layerView) {
-                                        if (window.highlight) {
-                                            window.highlight.remove();
+                                    view.whenLayerView(featureLayer).then(function(layerView) {
+                                        if (view.highlight) {
+                                            view.highlight.remove();
                                         }
-                                        window.highlight = layerView.highlight(feature);
+                                        view.highlight = layerView.highlight(feature);
                                     });
                                 } else {
                                     console.error("Clicked feature does not have a valid DateTimeS attribute or startDateTime is not set.");
@@ -189,25 +166,26 @@
                             console.error("Error during hitTest or highlighting:", error);
                         });
                     });
-
                 });
 
-                function onPlayerStateChange(event) {
-                    // Handle player state changes if necessary
-                }
+                view.when(() => {
+                    window.view = view;
+                }).catch(error => {
+                    console.error("Failed to initialize the map view:", error);
+                });
 
                 window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-                    if (!window.startDateTime) {
-                        console.error("Start DateTimeS not set yet.");
+                    if (!videoStartTimes[layer.url]) {
+                        console.error("Start DateTimeS not set yet for the current layer.");
                         return;
                     }
 
-                    if (window.highlight) {
-                        window.highlight.remove();
-                        window.highlight = null;
+                    if (view.highlight) {
+                        view.highlight.remove();
+                        view.highlight = null;
                     }
 
-                    var queryDateTime = new Date(window.startDateTime);
+                    var queryDateTime = new Date(videoStartTimes[layer.url]);
                     queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
                     var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
@@ -219,7 +197,7 @@
                         }).then(function(results) {
                             if (results.features.length > 0) {
                                 var feature = results.features[0];
-                                window.highlight = layerView.highlight([feature.attributes[featureLayer.objectIdField]]);
+                                view.highlight = layerView.highlight([feature.attributes[featureLayer.objectIdField]]);
                             } else {
                                 console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
                             }
