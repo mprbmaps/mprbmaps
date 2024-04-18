@@ -41,6 +41,8 @@
     </div>
     <script>
         var player;
+        var videoStartTimes = {};
+
         function onYouTubeIframeAPIReady() {
             // Player initialization is handled in the map click event
         }
@@ -80,8 +82,7 @@
                     map: webmap
                 });
 
-                window.goToInProgress = false;
-                var videoStartTimes = {};
+                var goToInProgress = false;
 
                 var layers = [
                     {
@@ -132,16 +133,16 @@
                     view.when(() => {
                         return featureLayer.when(() => {
                             var center = featureLayer.fullExtent.center;
-                            if (!window.goToInProgress) {
-                                window.goToInProgress = true;
+                            if (!goToInProgress) {
+                                goToInProgress = true;
                                 return view.goTo({
                                     center: center,
                                     zoom: 18
                                 }).then(function() {
-                                    window.goToInProgress = false;
+                                    goToInProgress = false;
                                 }).catch(function(error) {
                                     console.error("Error zooming to feature layer extent:", error);
-                                    window.goToInProgress = false;
+                                    goToInProgress = false;
                                 });
                             }
                         });
@@ -159,7 +160,11 @@
                                 var timeDifference = featureTime - videoStartTime;
                                 var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
                                 if (seekTime >= 0) {
-                                    if (!player) {
+                                    if (!player || player.getVideoData().video_id !== layer.videoId) {
+                                        // Load the new video
+                                        if (player) {
+                                            player.destroy();
+                                        }
                                         player = new YT.Player('youtubePlayer', {
                                             height: '343',
                                             width: '607',
@@ -168,10 +173,9 @@
                                                 'onStateChange': onPlayerStateChange
                                             }
                                         });
-                                    } else {
-                                        console.log(`Seeking video to ${seekTime} seconds`);
-                                        player.seekTo(seekTime, true);
                                     }
+                                    console.log(`Seeking video to ${seekTime} seconds`);
+                                    player.seekTo(seekTime, true);
                                 } else {
                                     console.log(`Feature time (${feature.attributes.DateTimeS}) is before video start time (${videoStartTimes[layer.url]}). Cannot seek to negative time.`);
                                 }
@@ -182,10 +186,13 @@
                     });
                 });
 
+                function onPlayerStateChange(event) {
+                    // Handle player state changes if necessary
+                }
+
                 window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-                    var startDateTime = videoStartTimes[featureLayer.url];
-                    if (!startDateTime) {
-                        console.error("Start DateTimeS not set yet for " + featureLayer.url);
+                    if (!window.startDateTime) {
+                        console.error("Start DateTimeS not set yet.");
                         return;
                     }
 
@@ -194,7 +201,7 @@
                         window.highlight = null;
                     }
 
-                    var queryDateTime = new Date(startDateTime);
+                    var queryDateTime = new Date(window.startDateTime);
                     queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
                     var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
@@ -215,10 +222,6 @@
                         });
                     });
                 };
-
-                function onPlayerStateChange(event) {
-                    // Handle player state changes if necessary
-                }
             }
         });
     </script>
