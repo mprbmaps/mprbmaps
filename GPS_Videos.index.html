@@ -170,12 +170,17 @@
                                             width: '607',
                                             videoId: layer.videoId,
                                             events: {
-                                                'onStateChange': onPlayerStateChange
+                                                'onStateChange': onPlayerStateChange,
+                                                'onReady': function() {
+                                                    console.log(`Seeking video to ${seekTime} seconds`);
+                                                    player.seekTo(seekTime, true);
+                                                }
                                             }
                                         });
+                                    } else {
+                                        console.log(`Seeking video to ${seekTime} seconds`);
+                                        player.seekTo(seekTime, true);
                                     }
-                                    console.log(`Seeking video to ${seekTime} seconds`);
-                                    player.seekTo(seekTime, true);
                                 } else {
                                     console.log(`Feature time (${feature.attributes.DateTimeS}) is before video start time (${videoStartTimes[layer.url]}). Cannot seek to negative time.`);
                                 }
