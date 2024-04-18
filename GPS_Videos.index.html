@@ -137,47 +137,48 @@
 
                     webmap.add(featureLayer);
 
-                    featureLayer.queryFeatures({
-                        where: "1=1",
-                        orderByFields: ["DateTimeS ASC"],
-                        returnGeometry: false,
-                        outFields: ["DateTimeS"],
-                        num: 1
-                    }).then(function(response) {
-                        if (response.features.length > 0) {
-                            layer.startDateTime = response.features[0].attributes.DateTimeS;
-                            console.log("Start DateTimeS set for " + layer.url + ": ", layer.startDateTime);
-                        } else {
-                            console.error("No features found to set startDateTime for " + layer.url);
-                        }
-                    }).catch(function(error) {
-                        console.error("Error fetching start DateTimeS for " + layer.url + ":", error);
-                    });
-
-                    view.on("click", function(event) {
-                        view.hitTest(event).then(function(response) {
-                            var result = response.results.find(r => r.graphic.layer === featureLayer);
-                            if (result && result.graphic) {
-                                var feature = result.graphic;
-                                if (feature.attributes.DateTimeS && layer.startDateTime) {
-                                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
-                                    var videoStartTime = new Date(layer.startDateTime).getTime();
-                                    var timeDifference = featureTime - videoStartTime;
-                                    var seekTime = timeDifference / 1000;
-
-                                    if (playerReady && player && typeof player.loadVideoById === "function") {
-                                        loadVideoById(layer.videoId, seekTime);
-                                    } else {
-                                        console.error("YouTube player is not ready.");
-                                    }
-                                } else {
-                                    console.error("Clicked feature does not have a valid DateTimeS attribute or startDateTime is not set.");
-                                }
+                    featureLayer.when(function() {
+                        console.log(layer.url + " layer is ready.");
+                        featureLayer.queryFeatures({
+                            where: "1=1",
+                            orderByFields: ["DateTimeS ASC"],
+                            returnGeometry: false,
+                            outFields: ["DateTimeS"],
+                            num: 1
+                        }).then(function(response) {
+                            if (response.features.length > 0) {
+                                layer.startDateTime = response.features[0].attributes.DateTimeS;
+                                console.log("Start DateTimeS set for " + layer.url + ": ", layer.startDateTime);
                             } else {
-                                console.error("No valid features found at the clicked location or missing graphic on the layer.");
+                                console.error("No features found to set startDateTime for " + layer.url);
                             }
                         }).catch(function(error) {
-                            console.error("Error during hitTest or highlighting:", error);
+                            console.error("Error fetching start DateTimeS for " + layer.url + ":", error);
+                        });
+
+                        view.on("click", function(event) {
+                            view.hitTest(event).then(function(response) {
+                                var hitFeature = response.results.find(function(result) {
+                                    return result.graphic && result.graphic.layer === featureLayer;
+                                });
+
+                                if (hitFeature && hitFeature.graphic) {
+                                    var feature = hitFeature.graphic;
+                                    if (feature.attributes.DateTimeS && layer.startDateTime) {
+                                        var featureTime = new Date(feature.attributes.DateTimeS).getTime();
+                                        var videoStartTime = new Date(layer.startDateTime).getTime();
+                                        var timeDifference = featureTime - videoStartTime;
+                                        var seekTime = timeDifference / 1000;
+                                        loadVideoById(layer.videoId, seekTime);
+                                    } else {
+                                        console.error("Feature does not have a valid DateTimeS attribute.");
+                                    }
+                                } else {
+                                    console.error("No valid features found at the clicked location or missing graphic on the layer.");
+                                }
+                            }).catch(function(error) {
+                                console.error("Error during hitTest:", error);
+                            });
                         });
                     });
                 });
