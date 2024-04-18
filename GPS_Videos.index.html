@@ -45,14 +45,14 @@
     <div id="videoWindow2" class="videoWindow">
         <div id="youtubePlayer2" class="youtubePlayer"></div>
     </div>
-    <!-- Add more divs as needed -->
+    <!-- Additional players can be added similarly -->
     <script>
         function onYouTubeIframeAPIReady() {
             window.players = {
                 player1: new YT.Player('youtubePlayer1', {
                     height: '411',
                     width: '728',
-                    videoId: 'EEovFU3OOlg',
+                    videoId: 'EEovFU3OOlg', // Replace with your video ID
                     events: {
                         'onStateChange': function(event) { onPlayerStateChange(event, featureLayers.featureLayer1, view); }
                     }
@@ -60,7 +60,7 @@
                 player2: new YT.Player('youtubePlayer2', {
                     height: '411',
                     width: '728',
-                    videoId: 's_kCckaYzDo',
+                    videoId: 's_kCckaYzDo', // Replace with your video ID
                     events: {
                         'onStateChange': function(event) { onPlayerStateChange(event, featureLayers.featureLayer2, view); }
                     }
@@ -70,7 +70,7 @@
         }
 
         function onPlayerStateChange(event, featureLayer, view) {
-            if (event.data == YT.PlayerState.PLAYING) {
+            if (event.data == YT.PlayerState.PLAYING && window.startDateTime) {
                 var checkTimeUpdate = function() {
                     var currentSecond = Math.floor(event.target.getCurrentTime());
                     highlightFeatureAtTime(currentSecond, featureLayer, view);
@@ -216,7 +216,7 @@
                 }
 
                 var queryDateTime = new Date(window.startDateTime);
-                queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+                queryDateTime.setSeconds(queryDateTime.getSeconds + currentSecond);
                 var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
                 view.whenLayerView(featureLayer).then(function(layerView) {
