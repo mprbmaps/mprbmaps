@@ -56,18 +56,9 @@
         }
 
         function onPlayerStateChange(event) {
-            if (event.data == YT.PlayerState.PLAYING) {
-                checkTimeUpdate();
-            }
-        }
-
-        function checkTimeUpdate() {
-            if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                var currentSecond = Math.floor(player.getCurrentTime());
-                if (typeof highlightFeatureAtTime === "function") {
-                    highlightFeatureAtTime(currentSecond, currentVideoId);
-                }
-                setTimeout(checkTimeUpdate, 1000);
+            if (event.data == YT.PlayerState.CUED) {
+                player.seekTo(window.nextSeekTime, true);
+                player.playVideo();
             }
         }
 
