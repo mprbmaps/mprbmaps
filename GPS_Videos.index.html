@@ -45,6 +45,7 @@
         var currentVideoId = '';
         var highlights = {};
         var activeLayer = null; // To keep track of which layer's video is playing
+        var view; // Define 'view' globally
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -57,8 +58,9 @@
         }
 
         function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.PLAYING) {
-                updateHighlightsAsVideoPlays();
+            if (event.data === YT.PlayerState.CUED) {
+                player.seekTo(window.nextSeekTime, true);
+                player.playVideo();
             }
         }
 
@@ -112,7 +114,7 @@
                     }
                 });
 
-                var view = new MapView({
+                view = new MapView({
                     container: "viewDiv",
                     map: webmap
                 });
