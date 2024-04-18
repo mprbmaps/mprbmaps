@@ -43,7 +43,7 @@
         var player;
         var playerReady = false;
         var currentVideoId = '';
-        var highlights = {}; // Object to store highlights for each layer
+        var highlights = {};
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -56,9 +56,18 @@
         }
 
         function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.CUED) {
-                player.seekTo(window.nextSeekTime, true);
-                player.playVideo();
+            if (event.data == YT.PlayerState.PLAYING) {
+                checkTimeUpdate();
+            }
+        }
+
+        function checkTimeUpdate() {
+            if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                var currentSecond = Math.floor(player.getCurrentTime());
+                if (typeof highlightFeatureAtTime === "function") {
+                    highlightFeatureAtTime(currentSecond, currentVideoId);
+                }
+                setTimeout(checkTimeUpdate, 1000);
             }
         }
 
@@ -167,10 +176,13 @@
                                     var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
                                     loadVideoById(layer.videoId, seekTime);
 
-                                    // Manage highlights properly
-                                    if (highlights[layer.layerId]) {
-                                        highlights[layer.layerId].remove();
-                                    }
+                                    // Properly manage highlights
+                                    Object.keys(highlights).forEach(key => {
+                                        if (highlights[key]) {
+                                            highlights[key].remove();
+                                            highlights[key] = null;
+                                        }
+                                    });
                                     view.whenLayerView(featureLayer).then(function(layerView) {
                                         highlights[layer.layerId] = layerView.highlight(feature);
                                     });
@@ -187,6 +199,40 @@
                 });
             }
         });
+
+        // Function adjusted to be dynamic with videoId
+        window.highlightFeatureAtTime = function(currentSecond, videoId) {
+            var activeLayer = layers.find(layer => layer.videoId === videoId);
+            if (!activeLayer || !activeLayer.startDateTime) {
+                console.error("Start DateTimeS not set yet for videoId: " + videoId);
+                return;
+            }
+
+            var queryDateTime = new Date(activeLayer.startDateTime);
+            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+
+            var featureLayer = activeLayer; // Assuming you have access to the layer here
+            view.whenLayerView(featureLayer).then(function(layerView) {
+                layerView.queryFeatures({
+                    where: "DateTimeS = '" + queryDateTimeStr + "'",
+                    returnGeometry: true,
+                    outFields: ["*"]
+                }).then(function(results) {
+                    if (results.features.length > 0) {
+                        var feature = results.features[0];
+                        if (highlights[activeLayer.layerId]) {
+                            highlights[activeLayer.layerId].remove();
+                        }
+                        highlights[activeLayer.layerId] = layerView.highlight(feature);
+                    } else {
+                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                    }
+                }).catch(function(error) {
+                    console.error("Error highlighting feature based on DateTimeS:", error);
+                });
+            });
+        };
     </script>
 </body>
 </html>
