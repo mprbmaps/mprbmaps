@@ -149,46 +149,47 @@
                     });
 
                     view.on("click", function(event) {
-                        view.hitTest(event).then(function(response) {
-                            var result = response.results.filter(function(r) {
-                                return r.graphic.layer === featureLayer;
-                            })[0];
-                            if (result) {
-                                var feature = result.graphic;
-                                var featureTime = new Date(feature.attributes.DateTimeS).getTime();
-                                var videoStartTime = new Date(videoStartTimes[layer.url]).getTime();
-                                var timeDifference = featureTime - videoStartTime;
-                                var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
-                                if (seekTime >= 0) {
-                                    if (!player || player.getVideoData().video_id !== layer.videoId) {
-                                        // Load the new video
-                                        if (player) {
-                                            player.destroy();
+                        window.view.hitTest(event).then(function(response) {
+                            if (response.results.length > 0) {
+                                var feature = response.results.filter(function(result) {
+                                    return result.graphic.layer === featureLayer;
+                                })[0].graphic;
+
+                                if (feature && feature.attributes.DateTimeS && videoStartTimes[layer.url]) {
+                                    // Calculate the seek time for the video
+                                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
+                                    var videoStartTime = new Date(videoStartTimes[layer.url]).getTime();
+                                    var timeDifference = featureTime - videoStartTime;
+                                    var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
+
+                                    // Ensure the seek time is not negative
+                                    if (seekTime >= 0) {
+                                        if (player && typeof player.seekTo === "function") {
+                                            console.log(`Seeking video to ${seekTime} seconds`);
+                                            player.seekTo(seekTime, true);
+                                        } else {
+                                            console.error("YouTube player is not ready.");
                                         }
-                                        player = new YT.Player('youtubePlayer', {
-                                            height: '343',
-                                            width: '607',
-                                            videoId: layer.videoId,
-                                            events: {
-                                                'onStateChange': onPlayerStateChange,
-                                                'onReady': function() {
-                                                    console.log(`Seeking video to ${seekTime} seconds`);
-                                                    player.seekTo(seekTime, true);
-                                                }
-                                            }
-                                        });
                                     } else {
-                                        console.log(`Seeking video to ${seekTime} seconds`);
-                                        player.seekTo(seekTime, true);
+                                        console.error("Calculated seek time is negative, which means the feature's DateTimeS is before the video's start time.");
                                     }
+
+                                    // Highlight the clicked feature immediately
+                                    window.view.whenLayerView(featureLayer).then(function(layerView) {
+                                        if (window.highlight) {
+                                            window.highlight.remove();
+                                        }
+                                        window.highlight = layerView.highlight(feature);
+                                    });
                                 } else {
-                                    console.log(`Feature time (${feature.attributes.DateTimeS}) is before video start time (${videoStartTimes[layer.url]}). Cannot seek to negative time.`);
+                                    console.error("Clicked feature does not have a valid DateTimeS attribute or startDateTime is not set.");
                                 }
                             }
                         }).catch(function(error) {
                             console.error("Error during hitTest or highlighting:", error);
                         });
                     });
+
                 });
 
                 function onPlayerStateChange(event) {
@@ -196,46 +197,37 @@
                 }
 
                 window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-    if (!window.startDateTime) {
-        console.error("Start DateTimeS not set yet.");
-        return;
-    }
+                    if (!window.startDateTime) {
+                        console.error("Start DateTimeS not set yet.");
+                        return;
+                    }
 
-    if (window.highlight) {
-        window.highlight.remove();
-        window.highlight = null;
-    }
+                    if (window.highlight) {
+                        window.highlight.remove();
+                        window.highlight = null;
+                    }
 
-    var queryDateTime = new Date(window.startDateTime);
-    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+                    var queryDateTime = new Date(window.startDateTime);
+                    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+                    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
-    view.whenLayerView(featureLayer).then(function(layerView) {
-        layerView.queryFeatures({
-            where: "DateTimeS = '" + queryDateTimeStr + "'",
-            returnGeometry: true,
-            outFields: ["*"]
-        }).then(function(results) {
-            if (results.features.length > 0) {
-                var feature = results.features[0];
-                view.when(function() {
-                    return view.whenLayerView(featureLayer);
-                }).then(function() {
-                    view.when(function() {
-                        return view.whenLayerView(featureLayer);
-                    }).then(function() {
-                        window.highlight = layerView.highlight([feature]);
+                    view.whenLayerView(featureLayer).then(function(layerView) {
+                        layerView.queryFeatures({
+                            where: "DateTimeS = '" + queryDateTimeStr + "'",
+                            returnGeometry: true,
+                            outFields: ["*"]
+                        }).then(function(results) {
+                            if (results.features.length > 0) {
+                                var feature = results.features[0];
+                                window.highlight = layerView.highlight([feature.attributes[featureLayer.objectIdField]]);
+                            } else {
+                                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                            }
+                        }).catch(function(error) {
+                            console.error("Error highlighting feature based on DateTimeS:", error);
+                        });
                     });
-                });
-            } else {
-                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-            }
-        }).catch(function(error) {
-            console.error("Error highlighting feature based on DateTimeS:", error);
-        });
-    });
-};
-
+                };
             }
         });
     </script>
