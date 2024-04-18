@@ -44,6 +44,7 @@
         var playerReady = false;
         var currentVideoId = '';
         var highlights = {};
+        var activeLayer = null; // To keep track of which layer's video is playing
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -56,15 +57,23 @@
         }
 
         function onPlayerStateChange(event) {
-            if (event.data == YT.PlayerState.CUED) {
-                player.seekTo(window.nextSeekTime, true);
-                player.playVideo();
+            if (event.data === YT.PlayerState.PLAYING) {
+                updateHighlightsAsVideoPlays();
             }
         }
 
-        function loadVideoById(videoId, seekTime) {
+        function updateHighlightsAsVideoPlays() {
+            var currentSecond = Math.floor(player.getCurrentTime());
+            highlightFeatureAtTime(currentSecond);
+            if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                setTimeout(updateHighlightsAsVideoPlays, 1000); // Continuously update as the video plays
+            }
+        }
+
+        function loadVideoById(videoId, seekTime, layer) {
             if (currentVideoId !== videoId) {
                 currentVideoId = videoId;
+                activeLayer = layer; // Set the currently active layer for video synchronization
                 window.nextSeekTime = seekTime;
                 player.cueVideoById({videoId: videoId});
             } else if (player && typeof player.seekTo === 'function') {
@@ -165,15 +174,15 @@
                                     var videoStartTime = new Date(layer.startDateTime).getTime();
                                     var timeDifference = featureTime - videoStartTime;
                                     var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
-                                    loadVideoById(layer.videoId, seekTime);
+                                    loadVideoById(layer.videoId, seekTime, layer);
 
-                                    // Properly manage highlights
-                                    Object.keys(highlights).forEach(key => {
-                                        if (highlights[key]) {
-                                            highlights[key].remove();
-                                            highlights[key] = null;
+                                    // Clear all previous highlights before setting new
+                                    Object.values(highlights).forEach(h => {
+                                        if (h) {
+                                            h.remove();
                                         }
                                     });
+                                    highlights = {}; // Reset highlights object
                                     view.whenLayerView(featureLayer).then(function(layerView) {
                                         highlights[layer.layerId] = layerView.highlight(feature);
                                     });
@@ -192,10 +201,9 @@
         });
 
         // Function adjusted to be dynamic with videoId
-        window.highlightFeatureAtTime = function(currentSecond, videoId) {
-            var activeLayer = layers.find(layer => layer.videoId === videoId);
+        window.highlightFeatureAtTime = function(currentSecond) {
             if (!activeLayer || !activeLayer.startDateTime) {
-                console.error("Start DateTimeS not set yet for videoId: " + videoId);
+                console.error("Active layer or startDateTime not set.");
                 return;
             }
 
@@ -203,8 +211,7 @@
             queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
             var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
-            var featureLayer = activeLayer; // Assuming you have access to the layer here
-            view.whenLayerView(featureLayer).then(function(layerView) {
+            view.whenLayerView(activeLayer).then(function(layerView) {
                 layerView.queryFeatures({
                     where: "DateTimeS = '" + queryDateTimeStr + "'",
                     returnGeometry: true,
