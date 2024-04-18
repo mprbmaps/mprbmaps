@@ -149,16 +149,16 @@
                     });
 
                     view.on("click", function(event) {
-                        view.hitTest(event).then(function(response) {
+                        window.view.hitTest(event).then(function(response) {
                             if (response.results.length > 0) {
                                 var feature = response.results.filter(function(result) {
                                     return result.graphic.layer === featureLayer;
                                 })[0].graphic;
 
-                                if (feature && feature.attributes.DateTimeS && window.startDateTime) {
+                                if (feature && feature.attributes.DateTimeS && videoStartTimes[layer.url]) {
                                     // Calculate the seek time for the video
                                     var featureTime = new Date(feature.attributes.DateTimeS).getTime();
-                                    var videoStartTime = new Date(window.startDateTime).getTime();
+                                    var videoStartTime = new Date(videoStartTimes[layer.url]).getTime();
                                     var timeDifference = featureTime - videoStartTime;
                                     var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
 
@@ -175,7 +175,7 @@
                                     }
 
                                     // Highlight the clicked feature immediately
-                                    window.view.whenLayerView(window.featureLayer).then(function(layerView) {
+                                    window.view.whenLayerView(featureLayer).then(function(layerView) {
                                         if (window.highlight) {
                                             window.highlight.remove();
                                         }
@@ -189,6 +189,7 @@
                             console.error("Error during hitTest or highlighting:", error);
                         });
                     });
+
                 });
 
                 function onPlayerStateChange(event) {
