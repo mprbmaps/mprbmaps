@@ -196,37 +196,46 @@
                 }
 
                 window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-                    if (!window.startDateTime) {
-                        console.error("Start DateTimeS not set yet.");
-                        return;
-                    }
+    if (!window.startDateTime) {
+        console.error("Start DateTimeS not set yet.");
+        return;
+    }
 
-                    if (window.highlight) {
-                        window.highlight.remove();
-                        window.highlight = null;
-                    }
+    if (window.highlight) {
+        window.highlight.remove();
+        window.highlight = null;
+    }
 
-                    var queryDateTime = new Date(window.startDateTime);
-                    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-                    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+    var queryDateTime = new Date(window.startDateTime);
+    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
-                    view.whenLayerView(featureLayer).then(function(layerView) {
-                        layerView.queryFeatures({
-                            where: "DateTimeS = '" + queryDateTimeStr + "'",
-                            returnGeometry: true,
-                            outFields: ["*"]
-                        }).then(function(results) {
-                            if (results.features.length > 0) {
-                                var feature = results.features[0];
-                                window.highlight = layerView.highlight([feature.attributes[featureLayer.objectIdField]]);
-                            } else {
-                                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                            }
-                        }).catch(function(error) {
-                            console.error("Error highlighting feature based on DateTimeS:", error);
-                        });
+    view.whenLayerView(featureLayer).then(function(layerView) {
+        layerView.queryFeatures({
+            where: "DateTimeS = '" + queryDateTimeStr + "'",
+            returnGeometry: true,
+            outFields: ["*"]
+        }).then(function(results) {
+            if (results.features.length > 0) {
+                var feature = results.features[0];
+                view.when(function() {
+                    return view.whenLayerView(featureLayer);
+                }).then(function() {
+                    view.when(function() {
+                        return view.whenLayerView(featureLayer);
+                    }).then(function() {
+                        window.highlight = layerView.highlight([feature]);
                     });
-                };
+                });
+            } else {
+                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+            }
+        }).catch(function(error) {
+            console.error("Error highlighting feature based on DateTimeS:", error);
+        });
+    });
+};
+
             }
         });
     </script>
