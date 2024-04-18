@@ -140,30 +140,34 @@
                             var result = response.results.find(r => r.graphic.layer === featureLayer);
                             if (result && result.graphic) {
                                 var feature = result.graphic;
-                                var featureTime = new Date(feature.attributes.DateTimeS).getTime();
-                                var videoStartTime = new Date(layer.startDateTime).getTime();
-                                var timeDifference = featureTime - videoStartTime;
-                                var seekTime = timeDifference / 1000;
+                                if (feature.attributes.DateTimeS && layer.startDateTime) {
+                                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
+                                    var videoStartTime = new Date(layer.startDateTime).getTime();
+                                    var timeDifference = featureTime - videoStartTime;
+                                    var seekTime = timeDifference / 1000;
 
-                                if (playerReady && player && typeof player.seekTo === "function") {
-                                    if (currentVideoId !== layer.videoId) {
-                                        player.loadVideoById({videoId: layer.videoId});
-                                        currentVideoId = layer.videoId;
-                                    }
-                                    player.seekTo(seekTime, true);
-
-                                    // Highlight the clicked feature
-                                    view.whenLayerView(featureLayer).then(function(layerView) {
-                                        if (highlight) {
-                                            highlight.remove();
+                                    if (playerReady && player && typeof player.seekTo === "function") {
+                                        if (currentVideoId !== layer.videoId) {
+                                            player.loadVideoById({videoId: layer.videoId});
+                                            currentVideoId = layer.videoId;
                                         }
-                                        highlight = layerView.highlight(feature);
-                                    });
+                                        player.seekTo(seekTime, true);
+
+                                        // Highlight the clicked feature
+                                        view.whenLayerView(featureLayer).then(function(layerView) {
+                                            if (highlight) {
+                                                highlight.remove();
+                                            }
+                                            highlight = layerView.highlight(feature);
+                                        });
+                                    } else {
+                                        console.error("YouTube player is not ready.");
+                                    }
                                 } else {
-                                    console.error("YouTube player is not ready.");
+                                    console.error("Clicked feature does not have a valid DateTimeS attribute or startDateTime is not set.");
                                 }
                             } else {
-                                console.error("Clicked feature does not have a valid DateTimeS attribute or startDateTime is not set.");
+                                console.error("No valid features found at the clicked location or missing graphic on the layer.");
                             }
                         }).catch(function(error) {
                             console.error("Error during hitTest or highlighting:", error);
@@ -172,6 +176,40 @@
                 });
             }
         });
+
+        // Highlight feature based on current video time
+        window.highlightFeatureAtTime = function(currentSecond, featureLayer, view, startDateTime) {
+            if (!startDateTime) {
+                console.error("Start DateTimeS not set yet.");
+                return;
+            }
+
+            if (highlight) {
+                highlight.remove();
+                highlight = null;
+            }
+
+            var queryDateTime = new Date(startDateTime);
+            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+
+            view.whenLayerView(featureLayer).then(function(layerView) {
+                layerView.queryFeatures({
+                    where: "DateTimeS = '" + queryDateTimeStr + "'",
+                    returnGeometry: true,
+                    outFields: ["*"]
+                }).then(function(results) {
+                    if (results.features.length > 0) {
+                        var feature = results.features[0];
+                        highlight = layerView.highlight([feature.attributes[featureLayer.objectIdField]]);
+                    } else {
+                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                    }
+                }).catch(function(error) {
+                    console.error("Error highlighting feature based on DateTimeS:", error);
+                });
+            });
+        };
     </script>
 </body>
 </html>
