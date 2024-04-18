@@ -43,7 +43,7 @@
         var player;
         var playerReady = false;
         var currentVideoId = '';
-        var highlight;
+        var highlights = {}; // Object to store highlights for each layer
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -112,12 +112,14 @@
                     {
                         url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek/FeatureServer/0",
                         videoId: "EEovFU3OOlg",
-                        startDateTime: null
+                        startDateTime: null,
+                        layerId: "creekLayer"
                     },
                     {
                         url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/insta360Test/FeatureServer/9",
                         videoId: "s_kCckaYzDo",
-                        startDateTime: null
+                        startDateTime: null,
+                        layerId: "insta360Layer"
                     }
                 ];
 
@@ -165,11 +167,12 @@
                                     var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
                                     loadVideoById(layer.videoId, seekTime);
 
-                                    if (highlight) {
-                                        highlight.remove();
+                                    // Manage highlights properly
+                                    if (highlights[layer.layerId]) {
+                                        highlights[layer.layerId].remove();
                                     }
-                                    highlight = view.whenLayerView(featureLayer).then(function(layerView) {
-                                        return layerView.highlight(feature);
+                                    view.whenLayerView(featureLayer).then(function(layerView) {
+                                        highlights[layer.layerId] = layerView.highlight(feature);
                                     });
                                 } else {
                                     console.error("Clicked feature does not have a valid DateTimeS attribute or startDateTime is not set.");
@@ -184,40 +187,6 @@
                 });
             }
         });
-
-        // Function adjusted to be layer-specific
-        window.highlightFeatureAtTime = function(currentSecond, featureLayer, view, startDateTime) {
-            if (!startDateTime) {
-                console.error("Start DateTimeS not set yet.");
-                return;
-            }
-
-            if (highlight) {
-                highlight.remove();
-                highlight = null;
-            }
-
-            var queryDateTime = new Date(startDateTime);
-            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-
-            view.whenLayerView(featureLayer).then(function(layerView) {
-                layerView.queryFeatures({
-                    where: "DateTimeS = '" + queryDateTimeStr + "'",
-                    returnGeometry: true,
-                    outFields: ["*"]
-                }).then(function(results) {
-                    if (results.features.length > 0) {
-                        var feature = results.features[0];
-                        highlight = layerView.highlight([feature.attributes[featureLayer.objectIdField]]);
-                    } else {
-                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                    }
-                }).catch(function(error) {
-                    console.error("Error highlighting feature based on DateTimeS:", error);
-                });
-            });
-        };
     </script>
 </body>
 </html>
