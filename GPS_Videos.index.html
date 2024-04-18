@@ -80,6 +80,8 @@
                     map: webmap
                 });
 
+                window.goToInProgress = false;
+
                 var layers = [
                     {
                         url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek/FeatureServer/0",
@@ -129,13 +131,19 @@
                     view.when(() => {
                         return featureLayer.when(() => {
                             var center = featureLayer.fullExtent.center;
-                            return view.goTo({
-                                center: center,
-                                zoom: 18
-                            });
+                            if (!window.goToInProgress) {
+                                window.goToInProgress = true;
+                                return view.goTo({
+                                    center: center,
+                                    zoom: 18
+                                }).then(function() {
+                                    window.goToInProgress = false;
+                                }).catch(function(error) {
+                                    console.error("Error zooming to feature layer extent:", error);
+                                    window.goToInProgress = false;
+                                });
+                            }
                         });
-                    }).catch(function(error) {
-                        console.error("Error zooming to feature layer extent:", error);
                     });
 
                     view.on("click", function(event) {
@@ -170,7 +178,7 @@
                                         window.highlight = layerView.highlight(feature);
                                     });
                                 } else {
-                                    console.error("Calculated seek time is negative.");
+                                    console.log(`Feature time (${feature.attributes.DateTimeS}) is before video start time (${window.startDateTime}). Cannot seek to negative time.`);
                                 }
                             }
                         }).catch(function(error) {
