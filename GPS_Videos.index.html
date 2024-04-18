@@ -58,9 +58,8 @@
         }
 
         function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.CUED) {
-                player.seekTo(window.nextSeekTime, true);
-                player.playVideo();
+            if (event.data === YT.PlayerState.PLAYING) {
+                updateHighlightsAsVideoPlays();
             }
         }
 
@@ -177,17 +176,6 @@
                                     var timeDifference = featureTime - videoStartTime;
                                     var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
                                     loadVideoById(layer.videoId, seekTime, layer);
-
-                                    // Clear all previous highlights before setting new
-                                    Object.values(highlights).forEach(h => {
-                                        if (h) {
-                                            h.remove();
-                                        }
-                                    });
-                                    highlights = {}; // Reset highlights object
-                                    view.whenLayerView(featureLayer).then(function(layerView) {
-                                        highlights[layer.layerId] = layerView.highlight(feature);
-                                    });
                                 } else {
                                     console.error("Clicked feature does not have a valid DateTimeS attribute or startDateTime is not set.");
                                 }
