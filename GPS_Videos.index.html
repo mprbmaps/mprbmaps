@@ -49,43 +49,6 @@
         };
         var startDateTimeMap = {};
 
-        function onYouTubeIframeAPIReady() {
-            player = new YT.Player('youtubePlayer', {
-                height: '343',
-                width: '607',
-                events: {
-                    'onStateChange': onPlayerStateChange
-                }
-            });
-        }
-
-        function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.PLAYING) {
-                var checkTimeUpdate = function() {
-                    var currentSecond = Math.floor(player.getCurrentTime());
-                    Object.keys(featureLayers).forEach(function(layerId) {
-                        highlightFeatureAtTime(currentSecond, featureLayers[layerId], window.view);
-                    });
-                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        setTimeout(checkTimeUpdate, 1000); // Check every second
-                    }
-                };
-                checkTimeUpdate();
-            }
-        }
-
-        function clearAndHighlight(feature, layer) {
-            window.view.whenLayerView(layer).then(function(layerView) {
-                if (highlights[layer.id]) {
-                    highlights[layer.id].remove();
-                    highlights[layer.id] = null;
-                }
-                highlights[layer.id] = layerView.highlight(feature);
-            }).catch(function(error) {
-                console.error("Error in highlighting feature: ", error);
-            });
-        }
-
         require([
             "esri/WebMap",
             "esri/views/MapView",
