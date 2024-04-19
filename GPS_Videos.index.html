@@ -199,46 +199,52 @@
                 });
 
                 window.view.on("click", function(event) {
-                    window.view.hitTest(event).then(function(response) {
-                        if (response.results.length > 0) {
-                            var result = response.results[0]; // Only consider the first result
-                            var feature = result.graphic;
-                            var layer = result.graphic.layer;
+    window.view.hitTest(event).then(function(response) {
+        if (response.results.length > 0) {
+            var result = response.results[0]; // Only consider the first result
+            var feature = result.graphic;
+            var layer = result.graphic.layer;
 
-                            // Check if the clicked layer is one of the feature layers
-                            if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
-                                var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
-                                var videoId = videoMap[layerId];
-                                var layerStartDateTime = startDateTimeMap[layer.id];
+            // Check if the clicked layer is one of the feature layers
+            if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
+                var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
+                var videoId = videoMap[layerId];
+                var layerStartDateTime = startDateTimeMap[layer.id];
 
-                                if (feature.attributes.DateTimeS && layerStartDateTime) {
-                                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
-                                    var startTime = new Date(layerStartDateTime).getTime();
-                                    var timeDifference = featureTime - startTime;
-                                    var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
+                if (feature.attributes.DateTimeS && layerStartDateTime) {
+                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
+                    var startTime = new Date(layerStartDateTime).getTime();
+                    var timeDifference = featureTime - startTime;
+                    var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
 
-                                    console.log("Attempting to play video", videoId, "at", seekTime, "seconds");
+                    console.log("Attempting to play video", videoId, "at", seekTime, "seconds");
 
-                                    if (seekTime >= 0) {
-                                        if (player && typeof player.loadVideoById === "function") {
-                                            player.loadVideoById({ videoId: videoId, startSeconds: seekTime });
-                                        } else {
-                                            console.error("YouTube player is not ready or `loadVideoById` is not available.");
-                                        }
-                                    } else {
-                                        console.error("Calculated seek time is negative.");
-                                    }
-                                } else {
-                                    console.error("Missing valid DateTimeS or startDateTime is not set.");
-                                }
-
-                                clearAndHighlight(feature, layer);
-                            }
+                    if (seekTime >= 0) {
+                        if (player && typeof player.loadVideoById === "function") {
+                            player.loadVideoById({ videoId: videoId, startSeconds: seekTime });
+                        } else {
+                            console.error("YouTube player is not ready or `loadVideoById` is not available.");
                         }
-                    }).catch(function(error) {
-                        console.error("Error during hitTest:", error);
-                    });
+                    } else {
+                        console.error("Calculated seek time is negative.");
+                    }
+                } else {
+                    console.error("Missing valid DateTimeS or startDateTime is not set.");
+                }
+
+                clearAndHighlight(feature, layer);
+            } else {
+                // Clear highlights for features in other layers
+                Object.keys(featureLayers).forEach(function(layerId) {
+                    clearHighlight(featureLayers[layerId]);
                 });
+            }
+        }
+    }).catch(function(error) {
+        console.error("Error during hitTest:", error);
+    });
+});
+
 
             }
 
