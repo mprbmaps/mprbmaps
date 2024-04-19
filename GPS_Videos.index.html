@@ -210,7 +210,7 @@
         });
 
         // Function adjusted to be dynamic with videoId
-        window.highlightFeatureAtTime = function(currentSecond) {
+                window.highlightFeatureAtTime = function(currentSecond) {
             if (!activeLayer || !activeLayer.startDateTime) {
                 console.error("Active layer or startDateTime not set.");
                 return;
@@ -219,6 +219,11 @@
             var queryDateTime = new Date(activeLayer.startDateTime);
             queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
             var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+
+            if (!view || !activeLayer) {
+                console.error("View or activeLayer is not set up properly.");
+                return;
+            }
 
             view.whenLayerView(activeLayer).then(function(layerView) {
                 layerView.queryFeatures({
@@ -236,9 +241,13 @@
                         console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
                     }
                 }).catch(function(error) {
-                    console.error("Error highlighting feature based on DateTimeS:", error);
+                    console.error("Error querying features:", error);
                 });
+            }).catch(function(error) {
+                console.error("Error obtaining LayerView:", error);
             });
+        };
+
         };
     </script>
 </body>
