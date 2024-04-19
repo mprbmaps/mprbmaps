@@ -102,85 +102,83 @@
         }
 
         require([
-            "esri/WebMap",
-            "esri/views/MapView",
-            "esri/layers/FeatureLayer",
-            "esri/geometry/Extent",
-            "esri/identity/OAuthInfo",
-            "esri/identity/IdentityManager",
-            "esri/renderers/SimpleRenderer",
-            "esri/symbols/SimpleMarkerSymbol"
-        ], function(WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, SimpleMarkerSymbol) {
-            var info = new OAuthInfo({
-                appId: "ti3fi1FqvHE2Hhyw",
-                popup: true
-            });
-            IdentityManager.registerOAuthInfos([info]);
+    "esri/WebMap",
+    "esri/views/MapView",
+    "esri/layers/FeatureLayer",
+    "esri/geometry/Extent",
+    "esri/identity/OAuthInfo",
+    "esri/identity/IdentityManager",
+    "esri/renderers/SimpleRenderer",
+    "esri/symbols/PictureMarkerSymbol" // Import PictureMarkerSymbol
+], function(WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol) {
+    var info = new OAuthInfo({
+        appId: "ti3fi1FqvHE2Hhyw",
+        popup: true
+    });
+    IdentityManager.registerOAuthInfos([info]);
 
-            IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
-                console.log("Signed in successfully");
-                displayMap();
+    IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+        console.log("Signed in successfully");
+        displayMap();
+    }).catch(function(error) {
+        console.error("Sign-in failed: ", error);
+        displayMap();
+    });
+
+    function displayMap() {
+        var webmap = new WebMap({
+            portalItem: {
+                id: "c002bf7e1e14444d98b51fc041e54b5d"
+            }
+        });
+
+        window.view = new MapView({
+            container: "viewDiv",
+            map: webmap,
+            center: [-93.2650, 44.9778], // Latitude and Longitude of Minneapolis
+            zoom: 11.75  // Zoom level set to 14
+        });
+
+        var layerUrls = {
+            creek: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek/FeatureServer/0",
+            insta360Test: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/insta360Test/FeatureServer/9"
+        };
+
+        Object.keys(layerUrls).forEach(function(key) {
+            featureLayers[key] = new FeatureLayer({
+                url: layerUrls[key],
+                outFields: ["*"],
+                renderer: new SimpleRenderer({
+                    symbol: new PictureMarkerSymbol({
+                        url: "https://i.ibb.co/2FtSs09/youtube-video.png",
+                        width: "24px",
+                        height: "24px"
+                    })
+                })
+            });
+
+            webmap.add(featureLayers[key]);
+
+            featureLayers[key].queryFeatures({
+                where: "1=1",
+                orderByFields: ["DateTimeS ASC"],
+                returnGeometry: false,
+                outFields: ["DateTimeS"],
+                num: 1
+            }).then(function(response) {
+                if (response.features.length > 0) {
+                    startDateTimeMap[featureLayers[key].id] = response.features[0].attributes.DateTimeS;
+                    console.log(key + " Start DateTimeS set for " + featureLayers[key].id + ": ", startDateTimeMap[featureLayers[key].id]);
+                } else {
+                    console.error("No features found to set startDateTime for " + key);
+                }
             }).catch(function(error) {
-                console.error("Sign-in failed: ", error);
-                displayMap();
+                console.error("Error fetching start DateTimeS for " + key + ":", error);
             });
+        });
+    }
 
-            function displayMap() {
-                var webmap = new WebMap({
-                    portalItem: {
-                        id: "c002bf7e1e14444d98b51fc041e54b5d"
-                    }
-                });
-
-                window.view = new MapView({
-                    container: "viewDiv",
-                    map: webmap,
-                    center: [-93.2650, 44.9778], // Latitude and Longitude of Minneapolis
-                    zoom: 11.75  // Zoom level set to 14
-                });
-
-                var layerUrls = {
-                    creek: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek/FeatureServer/0",
-                    insta360Test: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/insta360Test/FeatureServer/9"
-                };
-
-                Object.keys(layerUrls).forEach(function(key) {
-                    featureLayers[key] = new FeatureLayer({
-                        url: layerUrls[key],
-                        outFields: ["*"],
-                        renderer: new SimpleRenderer({
-                            symbol: new SimpleMarkerSymbol({
-                                color: key === 'creek' ? "blue" : "blue",
-                                size: 12,
-                                outline: {
-                                    color: "white",
-                                    width: .25
-                                }
-                            })
-                        })
-                    });
-
-                    webmap.add(featureLayers[key]);
-
-                    featureLayers[key].queryFeatures({
-                        where: "1=1",
-                        orderByFields: ["DateTimeS ASC"],
-                        returnGeometry: false,
-                        outFields: ["DateTimeS"],
-                        num: 1
-                    }).then(function(response) {
-                        if (response.features.length > 0) {
-                            startDateTimeMap[featureLayers[key].id] = response.features[0].attributes.DateTimeS;
-                            console.log(key + " Start DateTimeS set for " + featureLayers[key].id + ": ", startDateTimeMap[featureLayers[key].id]);
-                        } else {
-                            console.error("No features found to set startDateTime for " + key);
-                        }
-                    }).catch(function(error) {
-                        console.error("Error fetching start DateTimeS for " + key + ":", error);
-                    });
-                });
-
-                window.view.on("click", function(event) {
+                   window.view.on("click", function(event) {
                     window.view.hitTest(event).then(function(response) {
                         if (response.results.length > 0) {
                             var result = response.results[0]; // Only consider the first result
