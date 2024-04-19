@@ -74,17 +74,21 @@
             }
         }
 
-        function clearAndHighlight(feature, layer) {
-            window.view.whenLayerView(layer).then(function(layerView) {
-                if (highlights[layer.id]) {
-                    highlights[layer.id].remove();
-                    highlights[layer.id] = null;
-                }
-                highlights[layer.id] = layerView.highlight(feature);
-            }).catch(function(error) {
-                console.error("Error in highlighting feature: ", error);
-            });
+        var layerHighlights = {};
+
+function clearAndHighlight(feature, layer) {
+    window.view.whenLayerView(layer).then(function(layerView) {
+        // Clear existing highlight for this specific layer
+        if (layerHighlights[layer.id]) {
+            layerHighlights[layer.id].remove();
+            layerHighlights[layer.id] = null;
         }
+        // Highlight the new feature
+        layerHighlights[layer.id] = layerView.highlight(feature);
+    }).catch(function(error) {
+        console.error("Error in highlighting feature: ", error);
+    });
+}
 
         require([
             "esri/WebMap",
@@ -219,35 +223,33 @@
     });
 });
 
+window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
+    if (!startDateTimeMap[featureLayer.id]) {
+        console.error("Start DateTimeS not set yet for " + featureLayer.id);
+        return;
+    }
+
+    var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+
+    view.whenLayerView(featureLayer).then(function(layerView) {
+        layerView.queryFeatures({
+            where: "DateTimeS = '" + queryDateTimeStr + "'",
+            returnGeometry: true,
+            outFields: ["*"]
+        }).then(function(results) {
+            if (results.features.length > 0) {
+                var feature = results.features[0];
+                clearAndHighlight(feature, featureLayer);
+            } else {
+                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
             }
-
-            window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-                if (!startDateTimeMap[featureLayer.id]) {
-                    console.error("Start DateTimeS not set yet for " + featureLayer.id);
-                    return;
-                }
-
-                var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-                queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-                var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-
-                view.whenLayerView(featureLayer).then(function(layerView) {
-                    layerView.queryFeatures({
-                        where: "DateTimeS = '" + queryDateTimeStr + "'",
-                        returnGeometry: true,
-                        outFields: ["*"]
-                    }).then(function(results) {
-                        if (results.features.length > 0) {
-                            var feature = results.features[0];
-                            clearAndHighlight(feature, featureLayer);
-                        } else {
-                            console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                        }
-                    }).catch(function(error) {
-                        console.error("Error highlighting feature based on DateTimeS:", error);
-                    });
-                });
-            };
+        }).catch(function(error) {
+            console.error("Error highlighting feature based on DateTimeS:", error);
+        });
+    });
+};
         });
     </script>
 </body>
