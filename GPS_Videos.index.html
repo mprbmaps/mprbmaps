@@ -176,8 +176,16 @@
                     if (result) {
                         var layerUrl = result.graphic.layer.url;
                         var videoId = Object.keys(videoFeatureMap).find(key => videoFeatureMap[key] === layerUrl);
-                        if (player && typeof player.loadVideoById === "function") {
-                            player.loadVideoById(videoId);
+                        console.log("Video ID to load:", videoId); // Log the video ID
+                        if (videoId && player && typeof player.loadVideoById === "function") {
+                            console.log("Loading video with ID:", videoId);
+                            player.loadVideoById({
+                                'videoId': videoId,
+                                'startSeconds': 0, // Start from the beginning of the video
+                                'suggestedQuality': 'highres' // Suggested playback quality
+                            });
+                        } else {
+                            console.error("Invalid player state or video ID.");
                         }
                     }
                 });
