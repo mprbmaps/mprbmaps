@@ -41,11 +41,10 @@
     </div>
     <script>
         var player;
-        var playerReady = false;
         var currentVideoId = '';
         var highlights = {};
-        var activeLayer = null; // To keep track of which layer's video is playing
-        var view; // Define 'view' globally
+        var activeLayer = null;
+        var view;
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -58,33 +57,61 @@
             });
         }
 
-        function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.PLAYING) {
-                updateHighlightsAsVideoPlays(); // Start updating highlights when video plays
-            } else if (event.data === YT.PlayerState.CUED) {
-                player.seekTo(window.nextSeekTime, true);
-                player.playVideo();
-            }
-        }
-
         function onPlayerReady(event) {
             playerReady = true;
         }
 
+        function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.PLAYING && activeLayer && activeLayer.startDateTime) {
+                updateHighlightsAsVideoPlays();
+            }
+        }
+
         function updateHighlightsAsVideoPlays() {
+            if (!view || !activeLayer || !activeLayer.startDateTime) {
+                console.error("View, activeLayer, or startDateTime not set up properly.");
+                return;
+            }
+
             var currentSecond = Math.floor(player.getCurrentTime());
-            highlightFeatureAtTime(currentSecond);
+            var queryDateTime = new Date(activeLayer.startDateTime);
+            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+
+            view.whenLayerView(activeLayer).then(function(layerView) {
+                layerView.queryFeatures({
+                    where: "DateTimeS = '" + queryDateTimeStr + "'",
+                    returnGeometry: true,
+                    outFields: ["*"]
+                }).then(function(results) {
+                    if (results.features.length > 0) {
+                        var feature = results.features[0];
+                        if (highlights[activeLayer.layerId]) {
+                            highlights[activeLayer.layerId].remove();
+                        }
+                        highlights[activeLayer.layerId] = layerView.highlight(feature);
+                    } else {
+                        console.log("No features found to highlight at time:", queryDateTimeStr);
+                    }
+                }).catch(function(error) {
+                    console.error("Error querying features:", error);
+                });
+            }).catch(function(error) {
+                console.error("LayerView not ready:", error);
+            });
+
             if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                setTimeout(updateHighlightsAsVideoPlays, 1000); // Continuously update as the video plays
+                setTimeout(updateHighlightsAsVideoPlays, 1000);
             }
         }
 
         function loadVideoById(videoId, seekTime, layer) {
             if (currentVideoId !== videoId) {
                 currentVideoId = videoId;
-                activeLayer = layer; // Set the currently active layer for video synchronization
-                window.nextSeekTime = seekTime;
+                activeLayer = layer;
                 player.cueVideoById({videoId: videoId});
+                player.seekTo(seekTime, true);
+                player.playVideo();
             } else if (player && typeof player.seekTo === 'function') {
                 player.seekTo(seekTime, true);
                 player.playVideo();
@@ -208,47 +235,6 @@
                 });
             }
         });
-
-        // Function adjusted to be dynamic with videoId
-                window.highlightFeatureAtTime = function(currentSecond) {
-            if (!activeLayer || !activeLayer.startDateTime) {
-                console.error("Active layer or startDateTime not set.");
-                return;
-            }
-
-            var queryDateTime = new Date(activeLayer.startDateTime);
-            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-
-            if (!view || !activeLayer) {
-                console.error("View or activeLayer is not set up properly.");
-                return;
-            }
-
-            view.whenLayerView(activeLayer).then(function(layerView) {
-                layerView.queryFeatures({
-                    where: "DateTimeS = '" + queryDateTimeStr + "'",
-                    returnGeometry: true,
-                    outFields: ["*"]
-                }).then(function(results) {
-                    if (results.features.length > 0) {
-                        var feature = results.features[0];
-                        if (highlights[activeLayer.layerId]) {
-                            highlights[activeLayer.layerId].remove();
-                        }
-                        highlights[activeLayer.layerId] = layerView.highlight(feature);
-                    } else {
-                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                    }
-                }).catch(function(error) {
-                    console.error("Error querying features:", error);
-                });
-            }).catch(function(error) {
-                console.error("Error obtaining LayerView:", error);
-            });
-        };
-
-        };
     </script>
 </body>
 </html>
