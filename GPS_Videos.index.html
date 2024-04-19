@@ -62,74 +62,47 @@
         }
 
         function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.PLAYING && activeLayer && activeLayer.startDateTime) {
+            if (event.data === YT.PlayerState.PLAYING) {
                 updateHighlightsAsVideoPlays();
             }
         }
 
         function updateHighlightsAsVideoPlays() {
-    if (!view || !activeLayer || !activeLayer.startDateTime) {
-        console.error("View, activeLayer, or startDateTime not set up properly.");
-        return;
-    }
-
-    var currentSecond = Math.floor(player.getCurrentTime());
-    var queryDateTime = new Date(activeLayer.startDateTime);
-    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-
-    if (!view.ready) {
-        console.log("View is not ready. Waiting...");
-        view.when(() => {
-            console.log("View now ready. Attempting to highlight features.");
-            updateHighlightsAsVideoPlays(); // Recursive call to retry after view is ready
-        });
-        return;
-    }
-
-    // Only attempt to get the LayerView if the view is ready
-    view.whenLayerView(activeLayer).then(function(layerView) {
-        layerView.queryFeatures({
-            where: "DateTimeS = '" + queryDateTimeStr + "'",
-            returnGeometry: true,
-            outFields: ["*"]
-        }).then(function(results) {
-            if (results.features.length > 0) {
-                var feature = results.features[0];
-                if (highlights[activeLayer.layerId]) {
-                    highlights[activeLayer.layerId].remove();
-                }
-                highlights[activeLayer.layerId] = layerView.highlight(feature);
-            } else {
-                console.log("No features found to highlight at time:", queryDateTimeStr);
+            if (!view || !activeLayer || !activeLayer.startDateTime) {
+                console.error("View, activeLayer, or startDateTime not set up properly.");
+                return;
             }
-        }).catch(function(error) {
-            console.error("Error querying features:", error);
-        });
-    }).catch(function(error) {
-        console.error("LayerView not ready, retrying:", error);
-        // Optionally add a retry mechanism or a delay before retrying
-        setTimeout(() => {
-            updateHighlightsAsVideoPlays(); // Retry after a delay
-        }, 1000);
-    });
 
-    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-        setTimeout(updateHighlightsAsVideoPlays, 1000);
-    }
-}
+            var currentSecond = Math.floor(player.getCurrentTime());
+            var queryDateTime = new Date(activeLayer.startDateTime);
+            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
+            view.whenLayerView(activeLayer).then(function(layerView) {
+                layerView.queryFeatures({
+                    where: "DateTimeS = '" + queryDateTimeStr + "'",
+                    returnGeometry: true,
+                    outFields: ["*"]
+                }).then(function(results) {
+                    if (results.features.length > 0) {
+                        var feature = results.features[0];
+                        if (highlights[activeLayer.layerId]) {
+                            highlights[activeLayer.layerId].remove();
+                        }
+                        highlights[activeLayer.layerId] = layerView.highlight(feature);
+                    } else {
+                        console.log("No features found to highlight at time:", queryDateTimeStr);
+                    }
+                }).catch(function(error) {
+                    console.error("Error querying features:", error);
+                });
+            }).catch(function(error) {
+                console.error("LayerView not ready, retrying:", error);
+                setTimeout(updateHighlightsAsVideoPlays, 1000);
+            });
 
-        function loadVideoById(videoId, seekTime, layer) {
-            if (currentVideoId !== videoId) {
-                currentVideoId = videoId;
-                activeLayer = layer;
-                player.cueVideoById({videoId: videoId});
-                player.seekTo(seekTime, true);
-                player.playVideo();
-            } else if (player && typeof player.seekTo === 'function') {
-                player.seekTo(seekTime, true);
-                player.playVideo();
+            if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                setTimeout(updateHighlightsAsVideoPlays, 1000);
             }
         }
 
