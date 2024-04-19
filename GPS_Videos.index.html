@@ -108,7 +108,6 @@
                     map: webmap
                 });
 
-                // Create and add feature layers
                 var layerUrls = {
                     creek: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek/FeatureServer/0",
                     insta360Test: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/insta360Test/FeatureServer/9"
@@ -132,7 +131,6 @@
 
                     webmap.add(featureLayers[key]);
 
-                    // Fetch startDateTime for each layer
                     featureLayers[key].queryFeatures({
                         where: "1=1",
                         orderByFields: ["DateTimeS ASC"],
@@ -141,8 +139,8 @@
                         num: 1
                     }).then(function(response) {
                         if (response.features.length > 0) {
-                            startDateTimeMap[key] = response.features[0].attributes.DateTimeS;
-                            console.log(key + " Start DateTimeS set: ", startDateTimeMap[key]);
+                            startDateTimeMap[featureLayers[key].id] = response.features[0].attributes.DateTimeS;
+                            console.log(key + " Start DateTimeS set for " + featureLayers[key].id + ": ", startDateTimeMap[featureLayers[key].id]);
                         } else {
                             console.error("No features found to set startDateTime for " + key);
                         }
@@ -171,7 +169,7 @@
                                 var feature = result.graphic;
                                 var layerName = Object.keys(featureLayers).find(key => featureLayers[key] === result.graphic.layer);
                                 var videoId = videoMap[layerName];
-                                var layerStartDateTime = startDateTimeMap[layerName];
+                                var layerStartDateTime = startDateTimeMap[featureLayers[layerName].id];
                                 if (feature && feature.attributes.DateTimeS && layerStartDateTime) {
                                     var featureTime = new Date(feature.attributes.DateTimeS).getTime();
                                     var videoStartTime = new Date(layerStartDateTime).getTime();
