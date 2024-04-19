@@ -78,49 +78,49 @@
         }
 
         function scheduleTimeUpdates() {
-            var update = function() {
-                var currentSecond = Math.floor(player.getCurrentTime());
-                console.log("Current time second: " + currentSecond);
-                Object.keys(featureLayers).forEach(function(layerId) {
-                    var featureLayer = featureLayers[layerId];
-                    if (layerId === activeLayerId) {
-                        highlightFeatureAtTime(currentSecond, featureLayer);
-                    }
-                });
-                if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
-                    setTimeout(update, 1000);
-                }
-            };
-            update();
+    var update = function() {
+        if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
+            console.log("Player is not playing; updates paused.");
+            return; // Stop updates if not playing
         }
 
-        function highlightFeatureAtTime(currentSecond, featureLayer) {
-            if (!startDateTimeMap[featureLayer.id] || player.getPlayerState() !== YT.PlayerState.PLAYING) {
-                console.error("Highlighting skipped or player not playing for layer", featureLayer.id);
-                return;
+        var currentSecond = Math.floor(player.getCurrentTime());
+        console.log("Current time second: " + currentSecond);
+        if (activeLayerId && featureLayers[activeLayerId]) { // Ensure updates are only for the active layer
+            highlightFeatureAtTime(currentSecond, featureLayers[activeLayerId]);
+        }
+
+        setTimeout(update, 1000); // Continue updating every second
+    };
+    update();
+}
+
+function highlightFeatureAtTime(currentSecond, featureLayer) {
+    if (!startDateTimeMap[featureLayer.id]) {
+        console.error("Start DateTimeS not set for layer", featureLayer.id);
+        return; // Skip if start time is not set
+    }
+
+    var layerStartTime = new Date(startDateTimeMap[featureLayer.id]).getTime();
+    var targetTime = new Date(layerStartTime + currentSecond * 1000).toISOString().replace(/\.\d+Z$/, 'Z');
+
+    window.view.whenLayerView(featureLayer).then(layerView => {
+        layerView.queryFeatures({
+            where: "DateTimeS = '" + targetTime + "'",
+            returnGeometry: true,
+            outFields: ["*"]
+        }).then(function(results) {
+            if (results.features.length > 0) {
+                var feature = results.features[0];
+                clearAndHighlight(feature, featureLayer);
+            } else {
+                console.log("No features found to highlight at time", targetTime);
             }
-
-            var layerStartTime = new Date(startDateTimeMap[featureLayer.id]).getTime();
-            var targetTime = new Date(layerStartTime + currentSecond * 1000).toISOString().replace(/\.\d+Z$/, 'Z');
-
-            window.view.whenLayerView(featureLayer).then(layerView => {
-                layerView.queryFeatures({
-                    where: "DateTimeS = '" + targetTime + "'",
-                    returnGeometry: true,
-                    outFields: ["*"]
-                }).then(function(results) {
-                    if (results.features.length > 0) {
-                        var feature = results.features[0];
-                        clearAndHighlight(feature, featureLayer);
-                    } else {
-                        console.log("No features found to highlight for DateTimeS:", targetTime);
-                        clearHighlight(featureLayer);
-                    }
-                }).catch(function(error) {
-                    console.error("Error querying features:", error);
-                });
-            });
-        }
+        }).catch(function(error) {
+            console.error("Error querying features at time", targetTime, ":", error);
+        });
+    });
+}
 
         function clearAndHighlight(feature, layer) {
             // Clear existing highlights from all layers
