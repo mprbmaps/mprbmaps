@@ -87,16 +87,24 @@
 
 
         function clearAndHighlight(feature, layer) {
-            window.view.whenLayerView(layer).then(function(layerView) {
-                if (highlights[layer.id]) {
-                    highlights[layer.id].remove();
-                    highlights[layer.id] = null;
-                }
-                highlights[layer.id] = layerView.highlight(feature);
-            }).catch(function(error) {
-                console.error("Error in highlighting feature: ", error);
-            });
+    // Clear existing highlights from all layers
+    Object.keys(highlights).forEach(function(layerId) {
+        if (highlights[layerId]) {
+            highlights[layerId].remove();
+            highlights[layerId] = null;
         }
+    });
+
+    // Set the active layer ID
+    activeLayerId = layer.id;
+
+    // Highlight the new feature on the new active layer
+    window.view.whenLayerView(layer).then(function(layerView) {
+        highlights[layer.id] = layerView.highlight(feature);
+    }).catch(function(error) {
+        console.error("Error in highlighting feature: ", error);
+    });
+}
 
         function clearHighlight(layer) {
             console.log("Clearing highlight for layer:", layer.id);
@@ -183,47 +191,46 @@
         });
     
                    window.view.on("click", function(event) {
-                    window.view.hitTest(event).then(function(response) {
-                        if (response.results.length > 0) {
-                            var result = response.results[0]; // Only consider the first result
-                            var feature = result.graphic;
-                            var layer = result.graphic.layer;
-                            activeLayerId = layer.id; // Set the active layer ID
+    window.view.hitTest(event).then(function(response) {
+        if (response.results.length > 0) {
+            var result = response.results[0]; // Only consider the first result
+            var feature = result.graphic;
+            var layer = result.graphic.layer;
 
-                            // Check if the clicked layer is one of the feature layers
-                            if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
-                                var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
-                                var videoId = videoMap[layerId];
-                                var layerStartDateTime = startDateTimeMap[layer.id];
+            // Check if the clicked layer is one of the feature layers
+            if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
+                var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
+                var videoId = videoMap[layerId];
+                var layerStartDateTime = startDateTimeMap[layer.id];
 
-                                if (feature.attributes.DateTimeS && layerStartDateTime) {
-                                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
-                                    var startTime = new Date(layerStartDateTime).getTime();
-                                    var timeDifference = featureTime - startTime;
-                                    var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
+                if (feature.attributes.DateTimeS && layerStartDateTime) {
+                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
+                    var startTime = new Date(layerStartDateTime).getTime();
+                    var timeDifference = featureTime - startTime;
+                    var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
 
-                                    console.log("Attempting to play video", videoId, "at", seekTime, "seconds");
+                    console.log("Attempting to play video", videoId, "at", seekTime, "seconds");
 
-                                    if (seekTime >= 0) {
-                                        if (player && typeof player.loadVideoById === "function") {
-                                            player.loadVideoById({ videoId: videoId, startSeconds: seekTime });
-                                        } else {
-                                            console.error("YouTube player is not ready or `loadVideoById` is not available.");
-                                        }
-                                    } else {
-                                        console.error("Calculated seek time is negative.");
-                                    }
-                                } else {
-                                    console.error("Missing valid DateTimeS or startDateTime is not set.");
-                                }
-
-                                clearAndHighlight(feature, layer);
-                            }
+                    if (seekTime >= 0) {
+                        if (player && typeof player.loadVideoById === "function") {
+                            player.loadVideoById({ videoId: videoId, startSeconds: seekTime });
+                        } else {
+                            console.error("YouTube player is not ready or `loadVideoById` is not available.");
                         }
-                    }).catch(function(error) {
-                        console.error("Error during hitTest:", error);
-                    });
-                });
+                    } else {
+                        console.error("Calculated seek time is negative.");
+                    }
+                } else {
+                    console.error("Missing valid DateTimeS or startDateTime is not set.");
+                }
+
+                clearAndHighlight(feature, layer);
+            }
+        }
+    }).catch(function(error) {
+        console.error("Error during hitTest:", error);
+    });
+});
             }
 
             window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
