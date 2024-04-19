@@ -109,12 +109,11 @@
             "esri/WebMap",
             "esri/views/MapView",
             "esri/layers/FeatureLayer",
-            "esri/geometry/Extent",
             "esri/identity/OAuthInfo",
             "esri/identity/IdentityManager",
             "esri/renderers/SimpleRenderer",
             "esri/symbols/PictureMarkerSymbol"
-        ], function(WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol) {
+        ], function(WebMap, MapView, FeatureLayer, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol) {
             var info = new OAuthInfo({
                 appId: "ti3fi1FqvHE2Hhyw",
                 popup: true
@@ -309,10 +308,10 @@
             var avg_z_times_10 = feature.graphic.attributes.avg_z_times_10;
 
             var query = feature.graphic.layer.createQuery();
-            query.geometry = feature.graphic.geometry; // Use the clicked point's geometry
-            query.spatialRelationship = "intersects"; // Adjust as needed
-            query.distance = 0.25; // Distance in miles for the query
-            query.units = "miles"; // Units for the distance
+            query.geometry = feature.graphic.geometry;
+            query.spatialRelationship = "intersects";
+            query.distance = 0.25;
+            query.units = "miles";
             query.returnGeometry = false;
             query.outFields = ["avg_z_times_10"];
 
@@ -320,7 +319,6 @@
                 var values = response.features.map(f => f.attributes.avg_z_times_10);
                 var average = values.reduce((sum, value) => sum + value, 0) / values.length;
 
-                // Chart.js to draw a horizontal bar chart
                 new Chart(canvas.getContext('2d'), {
                     type: 'horizontalBar',
                     data: {
