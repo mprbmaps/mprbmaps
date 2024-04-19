@@ -67,6 +67,19 @@
             }
         }
 
+        function loadVideoById(videoId, seekTime, layer) {
+            if (currentVideoId !== videoId) {
+                currentVideoId = videoId;
+                activeLayer = layer;
+                player.cueVideoById({videoId: videoId});
+                player.seekTo(seekTime, true);
+                player.playVideo();
+            } else if (player && typeof player.seekTo === 'function') {
+                player.seekTo(seekTime, true);
+                player.playVideo();
+            }
+        }
+
         function updateHighlightsAsVideoPlays() {
             if (!view || !activeLayer || !activeLayer.startDateTime) {
                 console.error("View, activeLayer, or startDateTime not set up properly.");
