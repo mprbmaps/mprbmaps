@@ -1,21 +1,103 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <style>
-        #resizable {
-            width: 300px;
-            height: 200px;
-            background: lightblue;
-            overflow: auto;
-            resize: both;
-            border: 1px solid;
-            padding: 20px;
-        }
-    </style>
+<meta charset="UTF-8">
+<title>Resizable Element</title>
+<style>
+    #resizable {
+        position: relative;
+        width: 300px;
+        height: 200px;
+        background: lightblue;
+        overflow: hidden;
+        resize: none; /* Turn off default resizing */
+    }
+    .resizer {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: red;
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        cursor: se-resize;
+    }
+    /* Adding additional resizers */
+    .resizer.top-left {
+        top: 0;
+        left: 0;
+        cursor: nw-resize;
+        bottom: auto;
+        right: auto;
+    }
+    .resizer.top-right {
+        top: 0;
+        right: 0;
+        cursor: ne-resize;
+        bottom: auto;
+        left: auto;
+    }
+    .resizer.bottom-left {
+        bottom: 0;
+        left: 0;
+        cursor: sw-resize;
+        top: auto;
+        right: auto;
+    }
+</style>
 </head>
 <body>
+<div id="resizable">
+    <div class="resizer top-left"></div>
+    <div class="resizer top-right"></div>
+    <div class="resizer bottom-left"></div>
+    <div class="resizer bottom-right"></div>
+</div>
+<script>
+    const resizable = document.getElementById('resizable');
+    const resizers = document.querySelectorAll('.resizer');
+    let currentResizer;
 
-<div id="resizable">Try resizing me!</div>
+    for (let resizer of resizers) {
+        resizer.addEventListener('mousedown', mousedown);
 
+        function mousedown(e) {
+            currentResizer = e.target;
+            let prevX = e.clientX;
+            let prevY = e.clientY;
+
+            window.addEventListener('mousemove', mousemove);
+            window.addEventListener('mouseup', mouseup);
+
+            function mousemove(e) {
+                const rect = resizable.getBoundingClientRect();
+                if (currentResizer.classList.contains('bottom-right')) {
+                    resizable.style.width = rect.width - (prevX - e.clientX) + 'px';
+                    resizable.style.height = rect.height - (prevY - e.clientY) + 'px';
+                } else if (currentResizer.classList.contains('bottom-left')) {
+                    resizable.style.width = rect.width + (prevX - e.clientX) + 'px';
+                    resizable.style.height = rect.height - (prevY - e.clientY) + 'px';
+                    resizable.style.left = rect.left - (prevX - e.clientX) + 'px';
+                } else if (currentResizer.classList.contains('top-right')) {
+                    resizable.style.width = rect.width - (prevX - e.clientX) + 'px';
+                    resizable.style.height = rect.height + (prevY - e.clientY) + 'px';
+                    resizable.style.top = rect.top - (prevY - e.clientY) + 'px';
+                } else if (currentResizer.classList.contains('top-left')) {
+                    resizable.style.width = rect.width + (prevX - e.clientX) + 'px';
+                    resizable.style.height = rect.height + (prevY - e.clientY) + 'px';
+                    resizable.style.top = rect.top - (prevY - e.clientY) + 'px';
+                    resizable.style.left = rect.left - (prevX - e.clientX) + 'px';
+                }
+                prevX = e.clientX;
+                prevY = e.clientY;
+            }
+
+            function mouseup() {
+                window.removeEventListener('mousemove', mousemove);
+                window.removeEventListener('mouseup', mouseup);
+            }
+        }
+    }
+</script>
 </body>
 </html>
