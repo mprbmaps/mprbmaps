@@ -52,16 +52,23 @@
                 height: '343',
                 width: '607',
                 events: {
-                    'onStateChange': onPlayerStateChange
+                    'onStateChange': onPlayerStateChange,
+                    'onReady': onPlayerReady
                 }
             });
         }
 
         function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.CUED) {
+            if (event.data === YT.PlayerState.PLAYING) {
+                updateHighlightsAsVideoPlays(); // Start updating highlights when video plays
+            } else if (event.data === YT.PlayerState.CUED) {
                 player.seekTo(window.nextSeekTime, true);
                 player.playVideo();
             }
+        }
+
+        function onPlayerReady(event) {
+            playerReady = true;
         }
 
         function updateHighlightsAsVideoPlays() {
