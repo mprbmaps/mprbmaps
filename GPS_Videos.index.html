@@ -232,11 +232,18 @@
                     console.error("Missing valid DateTimeS or startDateTime is not set.");
                 }
 
+                // Clear highlights for other layers
+                Object.keys(featureLayers).forEach(function(key) {
+                    if (key !== layerId) {
+                        clearHighlight(featureLayers[key]);
+                    }
+                });
+
                 clearAndHighlight(feature, layer);
             } else {
-                // Clear highlights for features in other layers
-                Object.keys(featureLayers).forEach(function(layerId) {
-                    clearHighlight(featureLayers[layerId]);
+                // Clear highlights for all layers if the clicked layer is not one of the feature layers
+                Object.keys(featureLayers).forEach(function(key) {
+                    clearHighlight(featureLayers[key]);
                 });
             }
         }
@@ -244,6 +251,7 @@
         console.error("Error during hitTest:", error);
     });
 });
+
 
 
             }
