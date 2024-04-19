@@ -60,26 +60,25 @@
         }
 
         function onPlayerStateChange(event) {
-    if (event.data === YT.PlayerState.PLAYING) {
-        var checkTimeUpdate = function() {
-            var currentSecond = Math.floor(player.getCurrentTime());
-            Object.keys(featureLayers).forEach(function(layerId) {
-                var featureLayer = featureLayers[layerId];
-                highlightFeatureAtTime(currentSecond, featureLayer, window.view);
-            });
-            if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                setTimeout(checkTimeUpdate, 1000); // Check every second
+            if (event.data === YT.PlayerState.PLAYING) {
+                var checkTimeUpdate = function() {
+                    var currentSecond = Math.floor(player.getCurrentTime());
+                    Object.keys(featureLayers).forEach(function(layerId) {
+                        var featureLayer = featureLayers[layerId];
+                        highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+                    });
+                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                        setTimeout(checkTimeUpdate, 1000); // Check every second
+                    }
+                };
+                checkTimeUpdate();
+            } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
+                // Clear highlights when the video is paused or ended
+                Object.keys(featureLayers).forEach(function(layerId) {
+                    clearAndHighlight(featureLayers[layerId]);
+                });
             }
-        };
-        checkTimeUpdate();
-    } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
-        // Clear highlights when the video is paused or ended
-        Object.keys(featureLayers).forEach(function(layerId) {
-            clearHighlight(featureLayers[layerId]);
-        });
-    }
-}
-
+        }
 
         function clearAndHighlight(feature, layer) {
             window.view.whenLayerView(layer).then(function(layerView) {
@@ -91,6 +90,17 @@
             }).catch(function(error) {
                 console.error("Error in highlighting feature: ", error);
             });
+            clearHighlight(layer); // Calling clearHighlight from within clearAndHighlight
+        }
+
+        // Define clearHighlight function globally
+        function clearHighlight(layer) {
+            // Implementation of clearHighlight function
+            console.log("Clearing highlight for layer:", layer.id);
+            if (highlights[layer.id]) {
+                highlights[layer.id].remove();
+                highlights[layer.id] = null;
+            }
         }
 
         require([
@@ -236,34 +246,34 @@
             }
 
             window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-    if (!startDateTimeMap[featureLayer.id]) {
-        console.error("Start DateTimeS not set yet for " + featureLayer.id);
-        return;
-    }
+                if (!startDateTimeMap[featureLayer.id]) {
+                    console.error("Start DateTimeS not set yet for " + featureLayer.id);
+                    return;
+                }
 
-    var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+                var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+                queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+                var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
-    view.whenLayerView(featureLayer).then(function(layerView) {
-        layerView.queryFeatures({
-            where: "DateTimeS = '" + queryDateTimeStr + "'",
-            returnGeometry: true,
-            outFields: ["*"]
-        }).then(function(results) {
-            if (results.features.length > 0) {
-                var feature = results.features[0];
-                clearAndHighlight(feature, featureLayer);
-            } else {
-                // Clear any existing highlight for the layer
-                clearHighlight(featureLayer);
-                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-            }
-        }).catch(function(error) {
-            console.error("Error highlighting feature based on DateTimeS:", error);
-        });
-    });
-};
+                view.whenLayerView(featureLayer).then(function(layerView) {
+                    layerView.queryFeatures({
+                        where: "DateTimeS = '" + queryDateTimeStr + "'",
+                        returnGeometry: true,
+                        outFields: ["*"]
+                    }).then(function(results) {
+                        if (results.features.length > 0) {
+                            var feature = results.features[0];
+                            clearAndHighlight(feature, featureLayer);
+                        } else {
+                            // Clear any existing highlight for the layer
+                            clearHighlight(featureLayer);
+                            console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                        }
+                    }).catch(function(error) {
+                        console.error("Error highlighting feature based on DateTimeS:", error);
+                    });
+                });
+            };
 
         });
     </script>
