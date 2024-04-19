@@ -81,43 +81,48 @@
         }
 
         function updateHighlightsAsVideoPlays() {
-            if (!view || !activeLayer || !activeLayer.startDateTime) {
-                console.error("View, activeLayer, or startDateTime not set up properly.");
-                return;
+    if (!view || !activeLayer || !activeLayer.startDateTime) {
+        console.error("View, activeLayer, or startDateTime not set up properly.");
+        return;
+    }
+
+    var currentSecond = Math.floor(player.getCurrentTime());
+    var queryDateTime = new Date(activeLayer.startDateTime);
+    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+
+    ensureLayerViewIsReady(activeLayer, function(layerView) {
+        queryAndHighlightFeatures(layerView, queryDateTimeStr);
+    });
+}
+
+function ensureLayerViewIsReady(layer, callback) {
+    view.whenLayerView(layer).then(callback).catch(error => {
+        console.log("LayerView not ready, retrying:", error.message);
+        setTimeout(() => ensureLayerViewIsReady(layer, callback), 1000);
+    });
+}
+
+function queryAndHighlightFeatures(layerView, queryDateTimeStr) {
+    layerView.queryFeatures({
+        where: "DateTimeS = '" + queryDateTimeStr + "'",
+        returnGeometry: true,
+        outFields: ["*"]
+    }).then(function(results) {
+        if (results.features.length > 0) {
+            var feature = results.features[0];
+            if (highlights[activeLayer.layerId]) {
+                highlights[activeLayer.layerId].remove();
             }
-
-            var currentSecond = Math.floor(player.getCurrentTime());
-            var queryDateTime = new Date(activeLayer.startDateTime);
-            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-
-            view.whenLayerView(activeLayer).then(function(layerView) {
-                layerView.queryFeatures({
-                    where: "DateTimeS = '" + queryDateTimeStr + "'",
-                    returnGeometry: true,
-                    outFields: ["*"]
-                }).then(function(results) {
-                    if (results.features.length > 0) {
-                        var feature = results.features[0];
-                        if (highlights[activeLayer.layerId]) {
-                            highlights[activeLayer.layerId].remove();
-                        }
-                        highlights[activeLayer.layerId] = layerView.highlight(feature);
-                    } else {
-                        console.log("No features found to highlight at time:", queryDateTimeStr);
-                    }
-                }).catch(function(error) {
-                    console.error("Error querying features:", error);
-                });
-            }).catch(function(error) {
-                console.error("LayerView not ready, retrying:", error);
-                setTimeout(updateHighlightsAsVideoPlays, 1000);
-            });
-
-            if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                setTimeout(updateHighlightsAsVideoPlays, 1000);
-            }
+            highlights[activeLayer.layerId] = layerView.highlight(feature);
+        } else {
+            console.log("No features found to highlight at time:", queryDateTimeStr);
         }
+    }).catch(function(error) {
+        console.error("Error querying features:", error);
+    });
+}
+
 
         require([
             "esri/WebMap",
