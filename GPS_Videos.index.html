@@ -258,52 +258,52 @@
             };
         });
 
-        document.addEventListener('DOMContentLoaded', function() {
-            var dragItem = document.querySelector("#videoWindow");
-            var container = document.querySelector("body");
+        <script>
+document.addEventListener('DOMContentLoaded', function() {
+    var videoWindow = document.querySelector("#videoWindow");
+    var active = false;
+    var initialX = 0;
+    var initialY = 0;
+    var xOffset = 0;
+    var yOffset = 0;
 
-            var active = false;
-            var currentX;
-            var currentY;
-            var initialX;
-            var initialY;
-            var xOffset = 0;
-            yOffset = 0;
+    document.addEventListener("mousedown", function(e) {
+        // Start dragging when the mouse is down on the video window
+        if (e.target === videoWindow || videoWindow.contains(e.target)) {
+            active = true;
+            initialX = e.clientX - xOffset;
+            initialY = e.clientY - yOffset;
+            e.preventDefault();
+        }
+    });
 
-            container.addEventListener("mousedown", dragStart, false);
-            container.addEventListener("mouseup", dragEnd, false);
-            container.addEventListener("mousemove", drag, false);
+    document.addEventListener("mousemove", function(e) {
+        if (active) {
+            // Calculate new position
+            var currentX = e.clientX - initialX;
+            var currentY = e.clientY - initialY;
 
-            function dragStart(e) {
-                if (e.target === dragItem) {
-                    active = true;
-                    initialX = e.clientX - xOffset;
-                    initialY = e.clientY - yOffset;
-                    e.preventDefault();
-                }
-            }
+            // Update offsets
+            xOffset = currentX;
+            yOffset = currentY;
 
-            function dragEnd(e) {
-                initialX = currentX;
-                initialY = currentY;
-                active = false;
-            }
+            // Apply the new position
+            videoWindow.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
+            e.preventDefault();
+        }
+    });
 
-            function drag(e) {
-                if (active) {
-                    e.preventDefault();
-                    currentX = e.clientX - initialX;
-                    currentY = e.clientY - initialY;
-                    xOffset = currentX;
-                    yOffset = currentY;
-                    setTranslate(currentX, currentY, dragItem);
-                }
-            }
+    document.addEventListener("mouseup", function(e) {
+        // Stop dragging
+        if (active) {
+            initialX = xOffset;
+            initialY = yOffset;
+            active = false;
+        }
+    });
+});
+</script>
 
-            function setTranslate(xPos, yPos, el) {
-                el.style.transform = "translate3d(" + xPos + "px, " + yPos + "px, 0)";
-            }
-        });
     </script>
 </body>
 </html>
