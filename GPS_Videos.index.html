@@ -81,48 +81,43 @@
         }
 
         function updateHighlightsAsVideoPlays() {
-    if (!view || !activeLayer || !activeLayer.startDateTime) {
-        console.error("View, activeLayer, or startDateTime not set up properly.");
-        return;
-    }
-
-    var currentSecond = Math.floor(player.getCurrentTime());
-    var queryDateTime = new Date(activeLayer.startDateTime);
-    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-
-    ensureLayerViewIsReady(activeLayer, function(layerView) {
-        queryAndHighlightFeatures(layerView, queryDateTimeStr);
-    });
-}
-
-function ensureLayerViewIsReady(layer, callback) {
-    view.whenLayerView(layer).then(callback).catch(error => {
-        console.log("LayerView not ready, retrying:", error.message);
-        setTimeout(() => ensureLayerViewIsReady(layer, callback), 1000);
-    });
-}
-
-function queryAndHighlightFeatures(layerView, queryDateTimeStr) {
-    layerView.queryFeatures({
-        where: "DateTimeS = '" + queryDateTimeStr + "'",
-        returnGeometry: true,
-        outFields: ["*"]
-    }).then(function(results) {
-        if (results.features.length > 0) {
-            var feature = results.features[0];
-            if (highlights[activeLayer.layerId]) {
-                highlights[activeLayer.layerId].remove();
+            if (!view || !activeLayer || !activeLayer.startDateTime) {
+                console.error("View, activeLayer, or startDateTime not set up properly.");
+                return;
             }
-            highlights[activeLayer.layerId] = layerView.highlight(feature);
-        } else {
-            console.log("No features found to highlight at time:", queryDateTimeStr);
-        }
-    }).catch(function(error) {
-        console.error("Error querying features:", error);
-    });
-}
 
+            var currentSecond = Math.floor(player.getCurrentTime());
+            var queryDateTime = new Date(activeLayer.startDateTime);
+            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+
+            view.whenLayerView(activeLayer).then(function(layerView) {
+                queryAndHighlightFeatures(layerView, queryDateTimeStr);
+            }).catch(function(error) {
+                console.log("LayerView not ready, retrying:", error.message);
+                setTimeout(() => updateHighlightsAsVideoPlays(), 1000);
+            });
+        }
+
+        function queryAndHighlightFeatures(layerView, queryDateTimeStr) {
+            layerView.queryFeatures({
+                where: "DateTimeS = '" + queryDateTimeStr + "'",
+                returnGeometry: true,
+                outFields: ["*"]
+            }).then(function(results) {
+                if (results.features.length > 0) {
+                    var feature = results.features[0];
+                    if (highlights[activeLayer.layerId]) {
+                        highlights[activeLayer.layerId].remove();
+                    }
+                    highlights[activeLayer.layerId] = layerView.highlight(feature);
+                } else {
+                    console.log("No features found to highlight at time:", queryDateTimeStr);
+                }
+            }).catch(function(error) {
+                console.error("Error querying features:", error);
+            });
+        }
 
         require([
             "esri/WebMap",
@@ -189,21 +184,27 @@ function queryAndHighlightFeatures(layerView, queryDateTimeStr) {
 
                     webmap.add(featureLayer);
 
-                    featureLayer.queryFeatures({
-                        where: "1=1",
-                        orderByFields: ["DateTimeS ASC"],
-                        returnGeometry: false,
-                        outFields: ["DateTimeS"],
-                        num: 1
-                    }).then(function(response) {
-                        if (response.features.length > 0) {
-                            layer.startDateTime = response.features[0].attributes.DateTimeS;
-                            console.log("Start DateTimeS set for " + layer.url + ": ", layer.startDateTime);
-                        } else {
-                            console.error("No features found to set startDateTime for " + layer.url);
-                        }
-                    }).catch(function(error) {
-                        console.error("Error fetching startDateTime for " + layer.url + ":", error);
+                    featureLayer.when(() => {
+                        return featureLayer.queryFeatures({
+                            where: "1=1",
+                            orderByFields: ["DateTimeS ASC"],
+                            returnGeometry: false,
+                            outFields: ["DateTimeS"],
+                            num: 1
+                        }).then(function(response) {
+                            if (response.features.length > 0) {
+                                layer.startDateTime = response.features[0].attributes.DateTimeS;
+                                console.log("Start DateTimeS set for " + layer.url + ": ", layer.startDateTime);
+                            } else {
+                                console.error("No features found to set startDateTime for " + layer.url);
+                            }
+                        }).catch(function(error) {
+                            console.error("Error fetching startDateTime for " + layer.url + ":", error);
+                        });
+                    });
+
+                    view.when(() => {
+                        console.log("Map and layers are fully loaded.");
                     });
 
                     view.on("click", function(event) {
@@ -225,6 +226,15 @@ function queryAndHighlightFeatures(layerView, queryDateTimeStr) {
                                         }
                                     });
                                     highlights = {}; // Reset highlights object
+                                    if (!view.ready) {
+                                        console.log("View is not ready. Waiting...");
+                                        view.when(() => {
+                                            console.log("View now ready. Attempting to highlight features.");
+                                            updateHighlightsAsVideoPlays(); // Recursive call to retry after view is ready
+                                        });
+                                        return;
+                                    }
+
                                     view.whenLayerView(featureLayer).then(function(layerView) {
                                         highlights[layer.layerId] = layerView.highlight(feature);
                                     });
