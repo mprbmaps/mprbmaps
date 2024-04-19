@@ -91,31 +91,36 @@
             queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
             var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
-            view.whenLayerView(activeLayer).then(function(layerView) {
-                queryAndHighlightFeatures(layerView, queryDateTimeStr);
-            }).catch(function(error) {
-                console.log("LayerView not ready, retrying:", error.message);
-                setTimeout(() => updateHighlightsAsVideoPlays(), 1000);
-            });
-        }
+            if (!view.ready) {
+                console.log("View is not ready. Waiting...");
+                view.when(() => {
+                    console.log("View now ready. Attempting to highlight features.");
+                    updateHighlightsAsVideoPlays(); // Recursive call to retry after view is ready
+                });
+                return;
+            }
 
-        function queryAndHighlightFeatures(layerView, queryDateTimeStr) {
-            layerView.queryFeatures({
-                where: "DateTimeS = '" + queryDateTimeStr + "'",
-                returnGeometry: true,
-                outFields: ["*"]
-            }).then(function(results) {
-                if (results.features.length > 0) {
-                    var feature = results.features[0];
-                    if (highlights[activeLayer.layerId]) {
-                        highlights[activeLayer.layerId].remove();
+            view.whenLayerView(activeLayer).then(function(layerView) {
+                layerView.queryFeatures({
+                    where: "DateTimeS = '" + queryDateTimeStr + "'",
+                    returnGeometry: true,
+                    outFields: ["*"]
+                }).then(function(results) {
+                    if (results.features.length > 0) {
+                        var feature = results.features[0];
+                        if (highlights[activeLayer.layerId]) {
+                            highlights[activeLayer.layerId].remove();
+                        }
+                        highlights[activeLayer.layerId] = layerView.highlight(feature);
+                    } else {
+                        console.log("No features found to highlight at time:", queryDateTimeStr);
                     }
-                    highlights[activeLayer.layerId] = layerView.highlight(feature);
-                } else {
-                    console.log("No features found to highlight at time:", queryDateTimeStr);
-                }
+                }).catch(function(error) {
+                    console.error("Error querying features:", error);
+                });
             }).catch(function(error) {
-                console.error("Error querying features:", error);
+                console.error("LayerView not ready, retrying:", error);
+                setTimeout(updateHighlightsAs VideoPlays, 1000);
             });
         }
 
@@ -205,6 +210,9 @@
 
                     view.when(() => {
                         console.log("Map and layers are fully loaded.");
+                        if (playerReady) {
+                            updateHighlightsAsVideoPlays();
+                        }
                     });
 
                     view.on("click", function(event) {
