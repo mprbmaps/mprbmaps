@@ -27,10 +27,21 @@
             display: flex;
             overflow: hidden;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            resize: both;
+            overflow: auto;
+        }
+        #resizeHandle {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            background: #ccc;
+            cursor: se-resize;
         }
         #youtubePlayer {
-            width: 707px;
-            height: 443px;
+            width: 707px;  /* Adjusted width */
+            height: 443px; /* Adjusted height */
         }
     </style>
 </head>
@@ -38,6 +49,7 @@
     <div id="viewDiv"></div>
     <div id="videoWindow">
         <div id="youtubePlayer"></div>
+        <div id="resizeHandle"></div> <!-- Added resize handle -->
     </div>
     <script>
         var player;
@@ -74,7 +86,6 @@
                 };
                 checkTimeUpdate();
             } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
-                // Clear highlights when the video is paused or ended
                 Object.keys(featureLayers).forEach(function(layerId) {
                     clearHighlight(featureLayers[layerId]);
                 });
@@ -136,7 +147,7 @@
                     container: "viewDiv",
                     map: webmap,
                     center: [-93.2650, 44.9778], // Latitude and Longitude of Minneapolis
-                    zoom: 11.5  // Zoom level set to 14
+                    zoom: 11.5  // Adjusted zoom level
                 });
 
                 var layerUrls = {
@@ -258,71 +269,6 @@
             };
 
         });
-        document.addEventListener('DOMContentLoaded', function() {
-    var dragItem = document.querySelector("#videoWindow");
-    var container = document.querySelector("body");
-
-    var active = false;
-    var currentX;
-    var currentY;
-    var initialX;
-    var initialY;
-    var xOffset = 0;
-    var yOffset = 0;
-
-    container.addEventListener("touchstart", dragStart, false);
-    container.addEventListener("touchend", dragEnd, false);
-    container.addEventListener("touchmove", drag, false);
-
-    container.addEventListener("mousedown", dragStart, false);
-    container.addEventListener("mouseup", dragEnd, false);
-    container.addEventListener("mousemove", drag, false);
-
-    function dragStart(e) {
-        if (e.type === "touchstart") {
-            initialX = e.touches[0].clientX - xOffset;
-            initialY = e.touches[0].clientY - yOffset;
-        } else {
-            initialX = e.clientX - xOffset;
-            initialY = e.clientY - yOffset;
-        }
-
-        if (e.target === dragItem) {
-            active = true;
-        }
-    }
-
-    function dragEnd(e) {
-        initialX = currentX;
-        initialY = currentY;
-        active = false;
-    }
-
-    function drag(e) {
-        if (active) {
-        
-            e.preventDefault();
-        
-            if (e.type === "touchmove") {
-                currentX = e.touches[0].clientX - initialX;
-                currentY = e.touches[0].clientY - initialY;
-            } else {
-                currentX = e.clientX - initialX;
-                currentY = e.clientY - initialY;
-            }
-
-            xOffset = currentX;
-            yOffset = currentY;
-
-            setTranslate(currentX, currentY, dragItem);
-        }
-    }
-
-    function setTranslate(xPos, yPos, el) {
-        el.style.transform = "translate3d(" + xPos + "px, " + yPos + "px, 0)";
-    }
-});
-
     </script>
 </body>
 </html>
