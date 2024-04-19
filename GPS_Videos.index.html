@@ -25,7 +25,7 @@
             border: 1px solid #ccc;
             border-radius: 4px;
             display: flex;
-            overflow: auto;
+            overflow: hidden;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
             resize: both; /* Allows resizing from all sides and corners */
             width: 700px; /* Initial width */
@@ -106,6 +106,14 @@
             }
         }
 
+        // Add a resize listener to the window to adjust the video iframe
+window.addEventListener('resize', function() {
+    var videoWindow = document.getElementById('videoWindow');
+    var youtubePlayer = document.getElementById('youtubePlayer');
+    youtubePlayer.style.width = videoWindow.clientWidth + 'px';
+    youtubePlayer.style.height = videoWindow.clientHeight + 'px';
+});
+        
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
             if (!startDateTimeMap[featureLayer.id]) {
                 console.error("Start DateTimeS not set yet for " + featureLayer.id);
