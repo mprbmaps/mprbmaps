@@ -21,16 +21,17 @@
             right: 20px;
             z-index: 10;
             background: white;
-            padding: 15px;
+            padding: 20px;
             border: 1px solid #ccc;
             border-radius: 4px;
             display: flex;
-            overflow: hidden;
+            overflow: auto;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            resize: both; /* Enables resizing of the video window */
         }
         #youtubePlayer {
-            width: 100%;
-            height: 100%;
+            width: 100%;  /* Responsive width */
+            height: 100%; /* Responsive height */
         }
     </style>
 </head>
@@ -42,8 +43,8 @@
     <script>
         var player;
         var featureLayers = {};
-        var highlights = {}; // Object to store highlight references per layer
-        var activeLayerId = null; // Store the ID of the currently active layer
+        var highlights = {};
+        var activeLayerId = null;
         var videoMap = {
             'creek': 'EEovFU3OOlg',
             'insta360Test': 's_kCckaYzDo'
@@ -52,8 +53,8 @@
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
-                height: '100%',
-                width: '100%',
+                height: '100%',  // Adjust to 100% to fill the container
+                width: '100%',   // Adjust to 100% to fill the container
                 events: {
                     'onStateChange': onPlayerStateChange
                 }
@@ -78,7 +79,6 @@
                     clearHighlight(featureLayers[layerId]);
                 });
             }
-            // No clear action on PAUSE to maintain highlights
         }
 
         function clearAndHighlight(feature, layer) {
@@ -100,6 +100,39 @@
                 highlights[layer.id] = null;
             }
         }
+
+        window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
+            if (!startDateTimeMap[featureLayer.id]) {
+                console.error("Start DateTimeS not set yet for " + featureLayer.id);
+                return;
+            }
+
+            if (featureLayer.id !== activeLayerId) {
+                return;  // Do not highlight if this is not the active layer
+            }
+
+            var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+
+            view.whenLayerView(featureLayer).then(function(layerView) {
+                layerView.queryFeatures({
+                    where: "DateTimeS = '" + queryDateTimeStr + "'",
+                    returnGeometry: true,
+                    outFields: ["*"]
+                }).then(function(results) {
+                    if (results.features.length > 0) {
+                        var feature = results.features[0];
+                        clearAndHighlight(feature, featureLayer);
+                    } else {
+                        clearHighlight(featureLayer);
+                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                    }
+                }).catch(function(error) {
+                    console.error("Error highlighting feature based on DateTimeS:", error);
+                });
+            });
+        };
 
         require([
             "esri/WebMap",
@@ -151,7 +184,7 @@
                         renderer: new SimpleRenderer({
                             symbol: new SimpleMarkerSymbol({
                                 color: key === 'creek' ? "red" : "red",
-                                size: 12,
+                                size: 10,
                                 outline: {
                                     color: "black",
                                     width: 0
@@ -222,39 +255,6 @@
                     });
                 });
             }
-
-            window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-                if (!startDateTimeMap[featureLayer.id]) {
-                    console.error("Start DateTimeS not set yet for " + featureLayer.id);
-                    return;
-                }
-
-                if (featureLayer.id !== activeLayerId) {
-                    return;  // Do not highlight if this is not the active layer
-                }
-
-                var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-                queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-                var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-
-                view.whenLayerView(featureLayer).then(function(layerView) {
-                    layerView.queryFeatures({
-                        where: "DateTimeS = '" + queryDateTimeStr + "'",
-                        returnGeometry: true,
-                        outFields: ["*"]
-                    }).then(function(results) {
-                        if (results.features.length > 0) {
-                            var feature = results.features[0];
-                            clearAndHighlight(feature, featureLayer);
-                        } else {
-                            clearHighlight(featureLayer);
-                            console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                        }
-                    }).catch(function(error) {
-                        console.error("Error highlighting feature based on DateTimeS:", error);
-                    });
-                });
-            };
         });
 
         document.addEventListener('DOMContentLoaded', function() {
