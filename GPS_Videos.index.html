@@ -140,36 +140,67 @@
                 Object.values(featureLayers).forEach(layer => webmap.add(layer));
 
                 window.view.on("click", function(event) {
-                    window.view.hitTest(event).then(function(response) {
-                        if (response.results.length > 0) {
-                            var result = response.results.filter(function(r) {
-                                return r.graphic.layer === featureLayers.creek || r.graphic.layer === featureLayers.insta360Test;
-                            })[0];
-                            if (result) {
-                                var feature = result.graphic;
-                                var layerName = result.graphic.layer === featureLayers.creek ? 'creek' : 'insta360Test';
-                                var videoId = videoMap[layerName];
-                                if (feature && feature.attributes.DateTimeS && window.startDateTime) {
-                                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
-                                    var videoStartTime = new Date(window.startDateTime).getTime();
-                                    var timeDifference = featureTime - videoStartTime;
-                                    var seekTime = timeDifference / 1000;
-                                    if (seekTime >= 0) {
-                                        console.log(`Seeking video to ${seekTime} seconds`);
-                                        player.loadVideoById({videoId: videoId, startSeconds: seekTime});
-                                    } else {
-                                        console.error("Calculated seek time is negative.");
-                                    }
-                                } else {
-                                    console.error("Feature missing valid DateTimeS or startDateTime not set.");
-                                }
-                            }
-                        }
-                    }).catch(function(error) {
-                        console.error("Error during hitTest:", error);
-                    });
-                });
+    window.view.hitTest(event).then(function(response) {
+        if (response.results.length > 0) {
+            var result = response.results.find(r => r.graphic.layer === featureLayers.creek || r.graphic.layer === featureLayers.insta360Test);
+            if (result) {
+                var feature = result.graphic;
+                var layerName = feature.layer === featureLayers.creek ? 'creek' : 'insta360Test';
+                var videoId = videoMap[layerName];
+                if (feature && feature.attributes.DateTimeS && window.startDateTime) {
+                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
+                    var videoStartTime = new Date(window.startDateTime).getTime();
+                    var timeDifference = featureTime - videoStartTime;
+                    var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
+                    if (seekTime >= 0) {
+                        console.log(`Seeking video to ${seekTime} seconds`);
+                        player.loadVideoById({videoId: videoId, startSeconds: seekTime});
+                    } else {
+                        console.error("Calculated seek time is negative.");
+                    }
+                } else {
+                    console.error("Feature missing valid DateTimeS or startDateTime not set.");
+                }
             }
+        }
+    }).catch(function(error) {
+        console.error("Error during hitTest:", error);
+    });
+});
+
+window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
+    if (!window.startDateTime) {
+        console.error("Start DateTimeS not set yet.");
+        return;
+    }
+
+    if (window.highlight) {
+        window.highlight.remove();
+        window.highlight = null;
+    }
+
+    var queryDateTime = new Date(window.startDateTime);
+    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+
+    view.whenLayerView(featureLayer).then(function(layerView) {
+        layerView.queryFeatures({
+            where: "DateTimeS = '" + queryDateTimeStr + "'",
+            returnGeometry: true,
+            outFields: ["*"]
+        }).then(function(results) {
+            if (results.features.length > 0) {
+                var feature = results.features[0];
+                window.highlight = layerView.highlight([feature.attributes[featureLayer.objectIdField]]);
+            } else {
+                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+            }
+        }).catch(function(error) {
+            console.error("Error highlighting feature based on DateTimeS:", error);
+        });
+    });
+};
+
         });
     </script>
 </body>
