@@ -42,6 +42,7 @@
     <script>
         var player;
         var featureLayers = {};
+        var highlights = {}; // Object to store highlight references per layer
         var videoMap = {
             'creek': 'EEovFU3OOlg',
             'insta360Test': 's_kCckaYzDo'
@@ -62,8 +63,8 @@
             if (event.data === YT.PlayerState.PLAYING) {
                 var checkTimeUpdate = function() {
                     var currentSecond = Math.floor(player.getCurrentTime());
-                    Object.values(featureLayers).forEach(function(layer) {
-                        highlightFeatureAtTime(currentSecond, layer, window.view);
+                    Object.keys(featureLayers).forEach(function(layerId) {
+                        highlightFeatureAtTime(currentSecond, featureLayers[layerId], window.view);
                     });
                     if (player.getPlayerState() === YT.PlayerState.PLAYING) {
                         setTimeout(checkTimeUpdate, 1000); // Check every second
@@ -71,6 +72,18 @@
                 };
                 checkTimeUpdate();
             }
+        }
+
+        function clearAndHighlight(feature, layer) {
+            window.view.whenLayerView(layer).then(function(layerView) {
+                if (highlights[layer.id]) {
+                    highlights[layer.id].remove();
+                    highlights[layer.id] = null;
+                }
+                highlights[layer.id] = layerView.highlight(feature);
+            }).catch(function(error) {
+                console.error("Error in highlighting feature: ", error);
+            });
         }
 
         require([
@@ -120,7 +133,7 @@
                         outFields: ["*"],
                         renderer: new SimpleRenderer({
                             symbol: new SimpleMarkerSymbol({
-                                color: key === 'creek' ? "red" : "red",
+                                color: key === 'creek' ? "red" : "blue",
                                 size: 10,
                                 outline: {
                                     color: "black",
@@ -162,7 +175,7 @@
                     if (fullExtent) {
                         window.view.goTo({
                             target: fullExtent,
-                            zoom: 17
+                            zoom: 18
                         }).catch(function(error) {
                             console.error("Error zooming to the combined extent of feature layers:", error);
                         });
@@ -177,29 +190,7 @@
                             var result = response.results.find(r => Object.values(featureLayers).includes(r.graphic.layer));
                             if (result) {
                                 var feature = result.graphic;
-                                var layerName = Object.keys(featureLayers).find(key => featureLayers[key] === result.graphic.layer);
-                                var videoId = videoMap[layerName];
-                                var layerStartDateTime = startDateTimeMap[featureLayers[layerName].id];
-                                if (feature && feature.attributes.DateTimeS && layerStartDateTime) {
-                                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
-                                    var videoStartTime = new Date(layerStartDateTime).getTime();
-                                    var timeDifference = featureTime - videoStartTime;
-                                    var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
-                                    if (seekTime >= 0) {
-                                        console.log(`Seeking video to ${seekTime} seconds`);
-                                        player.loadVideoById({videoId: videoId, startSeconds: seekTime});
-                                        window.view.whenLayerView(result.graphic.layer).then(function(layerView) {
-                                            if (window.highlight) {
-                                                window.highlight.remove();
-                                            }
-                                            window.highlight = layerView.highlight(feature);
-                                        });
-                                    } else {
-                                        console.error("Calculated seek time is negative.");
-                                    }
-                                } else {
-                                    console.error("Feature missing valid DateTimeS or startDateTime not set for " + layerName);
-                                }
+                                clearAndHighlight(feature, result.graphic.layer);
                             }
                         }
                     }).catch(function(error) {
@@ -214,11 +205,6 @@
                     return;
                 }
 
-                if (window.highlight) {
-                    window.highlight.remove();
-                    window.highlight = null;
-                }
-
                 var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
                 queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
                 var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
@@ -231,7 +217,7 @@
                     }).then(function(results) {
                         if (results.features.length > 0) {
                             var feature = results.features[0];
-                            window.highlight = layerView.highlight([feature.attributes[featureLayer.objectIdField]]);
+                            clearAndHighlight(feature, featureLayer);
                         } else {
                             console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
                         }
