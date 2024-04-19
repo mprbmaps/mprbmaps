@@ -74,21 +74,17 @@
             }
         }
 
-        var layerHighlights = {};
-
-function clearAndHighlight(feature, layer) {
-    window.view.whenLayerView(layer).then(function(layerView) {
-        // Clear existing highlight for this specific layer
-        if (layerHighlights[layer.id]) {
-            layerHighlights[layer.id].remove();
-            layerHighlights[layer.id] = null;
+        function clearAndHighlight(feature, layer) {
+            window.view.whenLayerView(layer).then(function(layerView) {
+                if (highlights[layer.id]) {
+                    highlights[layer.id].remove();
+                    highlights[layer.id] = null;
+                }
+                highlights[layer.id] = layerView.highlight(feature);
+            }).catch(function(error) {
+                console.error("Error in highlighting feature: ", error);
+            });
         }
-        // Highlight the new feature
-        layerHighlights[layer.id] = layerView.highlight(feature);
-    }).catch(function(error) {
-        console.error("Error in highlighting feature: ", error);
-    });
-}
 
         require([
             "esri/WebMap",
@@ -189,67 +185,47 @@ function clearAndHighlight(feature, layer) {
                 });
 
                 window.view.on("click", function(event) {
-    window.view.hitTest(event).then(function(response) {
-        if (response.results.length > 0) {
-            var result = response.results.find(r => Object.values(featureLayers).includes(r.graphic.layer));
-            if (result) {
-                var feature = result.graphic;
-                var layer = result.graphic.layer;
-                var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
-                var videoId = videoMap[layerId];
-                var layerStartDateTime = startDateTimeMap[layer.id];
+                    window.view.hitTest(event).then(function(response) {
+                        if (response.results.length > 0) {
+                            var result = response.results.find(r => Object.values(featureLayers).includes(r.graphic.layer));
+                            if (result) {
+                                var feature = result.graphic;
+                                clearAndHighlight(feature, result.graphic.layer);
+                            }
+                        }
+                    }).catch(function(error) {
+                        console.error("Error during hitTest:", error);
+                    });
+                });
+            }
 
-                if (feature.attributes.DateTimeS && layerStartDateTime) {
-                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
-                    var startTime = new Date(layerStartDateTime).getTime();
-                    var timeDifference = featureTime - startTime;
-                    var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
-
-                    if (seekTime >= 0) {
-                        player.loadVideoById({videoId: videoId, startSeconds: seekTime});
-                        console.log(`Seeking video to ${seekTime} seconds`);
-                    } else {
-                        console.error("Calculated seek time is negative.");
-                    }
-                } else {
-                    console.error("Missing valid DateTimeS or startDateTime is not set.");
+            window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
+                if (!startDateTimeMap[featureLayer.id]) {
+                    console.error("Start DateTimeS not set yet for " + featureLayer.id);
+                    return;
                 }
 
-                clearAndHighlight(feature, layer);
-            }
-        }
-    }).catch(function(error) {
-        console.error("Error during hitTest:", error);
-    });
-});
+                var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+                queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+                var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
-window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-    if (!startDateTimeMap[featureLayer.id]) {
-        console.error("Start DateTimeS not set yet for " + featureLayer.id);
-        return;
-    }
-
-    var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-
-    view.whenLayerView(featureLayer).then(function(layerView) {
-        layerView.queryFeatures({
-            where: "DateTimeS = '" + queryDateTimeStr + "'",
-            returnGeometry: true,
-            outFields: ["*"]
-        }).then(function(results) {
-            if (results.features.length > 0) {
-                var feature = results.features[0];
-                clearAndHighlight(feature, featureLayer);
-            } else {
-                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-            }
-        }).catch(function(error) {
-            console.error("Error highlighting feature based on DateTimeS:", error);
-        });
-    });
-};
+                view.whenLayerView(featureLayer).then(function(layerView) {
+                    layerView.queryFeatures({
+                        where: "DateTimeS = '" + queryDateTimeStr + "'",
+                        returnGeometry: true,
+                        outFields: ["*"]
+                    }).then(function(results) {
+                        if (results.features.length > 0) {
+                            var feature = results.features[0];
+                            clearAndHighlight(feature, featureLayer);
+                        } else {
+                            console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                        }
+                    }).catch(function(error) {
+                        console.error("Error highlighting feature based on DateTimeS:", error);
+                    });
+                });
+            };
         });
     </script>
 </body>
