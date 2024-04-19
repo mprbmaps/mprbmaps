@@ -60,20 +60,26 @@
         }
 
         function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.PLAYING) {
-                var checkTimeUpdate = function() {
-                    var currentSecond = Math.floor(player.getCurrentTime());
-                    Object.keys(featureLayers).forEach(function(layerId) {
-                        var featureLayer = featureLayers[layerId];
-                        highlightFeatureAtTime(currentSecond, featureLayer, window.view);
-                    });
-                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        setTimeout(checkTimeUpdate, 1000); // Check every second
-                    }
-                };
-                checkTimeUpdate();
+    if (event.data === YT.PlayerState.PLAYING) {
+        var checkTimeUpdate = function() {
+            var currentSecond = Math.floor(player.getCurrentTime());
+            Object.keys(featureLayers).forEach(function(layerId) {
+                var featureLayer = featureLayers[layerId];
+                highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+            });
+            if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                setTimeout(checkTimeUpdate, 1000); // Check every second
             }
-        }
+        };
+        checkTimeUpdate();
+    } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
+        // Clear highlights when the video is paused or ended
+        Object.keys(featureLayers).forEach(function(layerId) {
+            clearHighlight(featureLayers[layerId]);
+        });
+    }
+}
+
 
         function clearAndHighlight(feature, layer) {
             window.view.whenLayerView(layer).then(function(layerView) {
