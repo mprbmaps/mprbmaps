@@ -91,15 +91,6 @@
             queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
             var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
-            if (!view.ready) {
-                console.log("View is not ready. Waiting...");
-                view.when(() => {
-                    console.log("View now ready. Attempting to highlight features.");
-                    updateHighlightsAsVideoPlays(); // Recursive call to retry after view is ready
-                });
-                return;
-            }
-
             view.whenLayerView(activeLayer).then(function(layerView) {
                 layerView.queryFeatures({
                     where: "DateTimeS = '" + queryDateTimeStr + "'",
@@ -120,7 +111,7 @@
                 });
             }).catch(function(error) {
                 console.error("LayerView not ready, retrying:", error);
-                setTimeout(updateHighlightsAs VideoPlays, 1000);
+                setTimeout(updateHighlightsAsVideoPlays, 1000);
             });
         }
 
@@ -210,9 +201,13 @@
 
                     view.when(() => {
                         console.log("Map and layers are fully loaded.");
-                        if (playerReady) {
-                            updateHighlightsAsVideoPlays();
-                        }
+                        // Ensure that video synchronization begins only after the map and layers are fully loaded
+                        layers.forEach(layer => {
+                            if (layer.startDateTime && playerReady) {
+                                activeLayer = layer; // Set the first layer with a startDateTime as the active layer
+                                updateHighlightsAsVideoPlays();
+                            }
+                        });
                     });
 
                     view.on("click", function(event) {
@@ -226,26 +221,6 @@
                                     var timeDifference = featureTime - videoStartTime;
                                     var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
                                     loadVideoById(layer.videoId, seekTime, layer);
-
-                                    // Clear all previous highlights before setting new
-                                    Object.values(highlights).forEach(h => {
-                                        if (h) {
-                                            h.remove();
-                                        }
-                                    });
-                                    highlights = {}; // Reset highlights object
-                                    if (!view.ready) {
-                                        console.log("View is not ready. Waiting...");
-                                        view.when(() => {
-                                            console.log("View now ready. Attempting to highlight features.");
-                                            updateHighlightsAsVideoPlays(); // Recursive call to retry after view is ready
-                                        });
-                                        return;
-                                    }
-
-                                    view.whenLayerView(featureLayer).then(function(layerView) {
-                                        highlights[layer.layerId] = layerView.highlight(feature);
-                                    });
                                 } else {
                                     console.error("Clicked feature does not have a valid DateTimeS attribute or startDateTime is not set.");
                                 }
