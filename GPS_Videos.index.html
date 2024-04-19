@@ -27,11 +27,15 @@
             display: flex;
             overflow: auto;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            resize: both; /* Enables resizing of the video window */
+            resize: both; /* Allows resizing from all sides and corners */
+            width: 700px; /* Initial width */
+            height: 350px; /* Initial height */
+            min-width: 300px; /* Minimum width */
+            min-height: 150px; /* Minimum height */
         }
         #youtubePlayer {
-            width: 100%;  /* Responsive width */
-            height: 100%; /* Responsive height */
+            width: 100%;  /* Responsive width to fill the container */
+            height: 100%; /* Responsive height to fill the container */
         }
     </style>
 </head>
@@ -43,8 +47,8 @@
     <script>
         var player;
         var featureLayers = {};
-        var highlights = {};
-        var activeLayerId = null;
+        var highlights = {}; // Object to store highlight references per layer
+        var activeLayerId = null; // Store the ID of the currently active layer
         var videoMap = {
             'creek': 'EEovFU3OOlg',
             'insta360Test': 's_kCckaYzDo'
@@ -79,6 +83,7 @@
                     clearHighlight(featureLayers[layerId]);
                 });
             }
+            // No clear action on PAUSE to maintain highlights
         }
 
         function clearAndHighlight(feature, layer) {
@@ -221,7 +226,7 @@
                             var layer = result.graphic.layer;
                             activeLayerId = layer.id; // Set the active layer ID
 
-                            if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
+                            if (featureLayers.creek === layer or featureLayers.insta360Test === layer) {
                                 var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
                                 var videoId = videoMap[layerId];
                                 var layerStartDateTime = startDateTimeMap[layer.id];
@@ -265,7 +270,7 @@
             var initialX;
             var initialY;
             var xOffset = 0;
-            yOffset = 0;
+            var yOffset = 0;
 
             document.addEventListener("mousedown", function(e) {
                 if (videoWindow.contains(e.target)) {
