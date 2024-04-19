@@ -43,6 +43,7 @@
         var player;
         var featureLayers = {};
         var highlights = {}; // Object to store highlight references per layer
+        var activeLayerId = null; // Store the ID of the currently active layer
         var videoMap = {
             'creek': 'EEovFU3OOlg',
             'insta360Test': 's_kCckaYzDo'
@@ -147,7 +148,7 @@
                         outFields: ["*"],
                         renderer: new SimpleRenderer({
                             symbol: new SimpleMarkerSymbol({
-                                color: key === 'creek' ? "red" : "blue",
+                                color: key === 'creek' ? "red" : "red",
                                 size: 10,
                                 outline: {
                                     color: "black",
@@ -189,7 +190,7 @@
                     if (fullExtent) {
                         window.view.goTo({
                             target: fullExtent,
-                            zoom: 18
+                            zoom: 19
                         }).catch(function(error) {
                             console.error("Error zooming to the combined extent of feature layers:", error);
                         });
@@ -204,6 +205,7 @@
                             var result = response.results[0]; // Only consider the first result
                             var feature = result.graphic;
                             var layer = result.graphic.layer;
+                            activeLayerId = layer.id; // Set the active layer ID
 
                             // Check if the clicked layer is one of the feature layers
                             if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
@@ -248,6 +250,10 @@
                     return;
                 }
 
+                if (featureLayer.id !== activeLayerId) {
+                    return;  // Do not highlight if this is not the active layer
+                }
+
                 var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
                 queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
                 var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
@@ -262,7 +268,6 @@
                             var feature = results.features[0];
                             clearAndHighlight(feature, featureLayer);
                         } else {
-                            // Clear any existing highlight for the layer
                             clearHighlight(featureLayer);
                             console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
                         }
