@@ -73,8 +73,7 @@
                     }
                 };
                 checkTimeUpdate();
-            } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
-                // Clear highlights when the video is paused or ended
+            } else if (event.data === YT.PlayerState.PAUSED or event.data === YT.PlayerState.ENDED) {
                 Object.keys(featureLayers).forEach(function(layerId) {
                     clearHighlight(featureLayers[layerId]);
                 });
@@ -259,50 +258,42 @@
         });
 
         document.addEventListener('DOMContentLoaded', function() {
-            var dragItem = document.querySelector("#videoWindow");
-            var container = document.querySelector("body");
-
+            var videoWindow = document.querySelector("#videoWindow");
             var active = false;
             var currentX;
             var currentY;
             var initialX;
             var initialY;
             var xOffset = 0;
-            yOffset = 0;
+            var yOffset = 0;
 
-            container.addEventListener("mousedown", dragStart, false);
-            container.addEventListener("mouseup", dragEnd, false);
-            container.addEventListener("mousemove", drag, false);
-
-            function dragStart(e) {
-                if (e.target === dragItem) {
+            document.addEventListener("mousedown", function(e) {
+                if (videoWindow.contains(e.target)) {
                     active = true;
                     initialX = e.clientX - xOffset;
                     initialY = e.clientY - yOffset;
                     e.preventDefault();
                 }
-            }
+            }, false);
 
-            function dragEnd(e) {
-                initialX = currentX;
-                initialY = currentY;
-                active = false;
-            }
+            document.addEventListener("mouseup", function() {
+                if (active) {
+                    initialX = currentX;
+                    initialY = currentY;
+                    active = false;
+                }
+            }, false);
 
-            function drag(e) {
+            document.addEventListener("mousemove", function(e) {
                 if (active) {
                     e.preventDefault();
                     currentX = e.clientX - initialX;
                     currentY = e.clientY - initialY;
                     xOffset = currentX;
                     yOffset = currentY;
-                    setTranslate(currentX, currentY, dragItem);
+                    videoWindow.style.transform = "translate3d(" + xOffset + "px, " + yOffset + "px, 0)";
                 }
-            }
-
-            function setTranslate(xPos, yPos, el) {
-                el.style.transform = "translate3d(" + xPos + "px, " + yPos + "px, 0)";
-            }
+            }, false);
         });
     </script>
 </body>
