@@ -61,25 +61,30 @@
         }
 
         function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.PLAYING) {
-                var checkTimeUpdate = function() {
-                    var currentSecond = Math.floor(player.getCurrentTime());
-                    Object.keys(featureLayers).forEach(function(layerId) {
-                        var featureLayer = featureLayers[layerId];
-                        highlightFeatureAtTime(currentSecond, featureLayer, window.view);
-                    });
-                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        setTimeout(checkTimeUpdate, 1000); // Check every second
-                    }
-                };
-                checkTimeUpdate();
-            } else if (event.data === YT.PlayerState.ENDED) {
-                Object.keys(featureLayers).forEach(function(layerId) {
-                    clearHighlight(featureLayers[layerId]);
-                });
+    if (event.data === YT.PlayerState.PLAYING) {
+        var checkTimeUpdate = function() {
+            var currentSecond = Math.floor(player.getCurrentTime());
+            Object.keys(featureLayers).forEach(function(layerId) {
+                var featureLayer = featureLayers[layerId];
+                highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+            });
+            if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                setTimeout(checkTimeUpdate, 1000); // Check every second
             }
-            // No clear action on PAUSE to maintain highlights
-        }
+        };
+        checkTimeUpdate();
+    } else if (event.data === YT.PlayerState.ENDED) {
+        Object.keys(featureLayers).forEach(function(layerId) {
+            clearHighlight(featureLayers[layerId]);
+        });
+    } else if (event.data === YT.PlayerState.PAUSED) {
+        // When the video is paused, stop updating the highlight but do not clear it
+        console.log("Video paused, maintaining current highlights.");
+    } else {
+        // Optionally handle other states if needed
+    }
+}
+
 
         function clearAndHighlight(feature, layer) {
             window.view.whenLayerView(layer).then(function(layerView) {
