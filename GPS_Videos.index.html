@@ -48,6 +48,7 @@
             'insta360Test': 's_kCckaYzDo'
         };
         var startDateTimeMap = {};
+        var activeLayerId = null; // Variable to store the ID of the active layer
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -65,15 +66,22 @@
                     var currentSecond = Math.floor(player.getCurrentTime());
                     Object.keys(featureLayers).forEach(function(layerId) {
                         var featureLayer = featureLayers[layerId];
-                        highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+
+                        // Highlight features only in the active layer
+                        if (layerId === activeLayerId) {
+                            highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+                        } else {
+                            // Clear highlights for inactive layers
+                            clearHighlight(featureLayer);
+                        }
                     });
                     if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        setTimeout(checkTimeUpdate, 1000); // Check every second
+                        setTimeout(checkTimeUpdate, 1000);
                     }
                 };
                 checkTimeUpdate();
             } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
-                // Clear highlights when the video is paused or ended
+                // Clear highlights for all layers when the video is paused or ended
                 Object.keys(featureLayers).forEach(function(layerId) {
                     clearHighlight(featureLayers[layerId]);
                 });
@@ -84,15 +92,18 @@
             window.view.whenLayerView(layer).then(function(layerView) {
                 if (highlights[layer.id]) {
                     highlights[layer.id].remove();
+                    highlights[layer.id] = null;
                 }
                 highlights[layer.id] = layerView.highlight(feature);
             }).catch(function(error) {
                 console.error("Error in highlighting feature: ", error);
             });
+            clearHighlight(layer); // Calling clearHighlight from within clearAndHighlight
         }
 
         // Define clearHighlight function globally
         function clearHighlight(layer) {
+            // Implementation of clearHighlight function
             console.log("Clearing highlight for layer:", layer.id);
             if (highlights[layer.id]) {
                 highlights[layer.id].remove();
@@ -199,97 +210,78 @@
                 });
 
                 window.view.on("click", function(event) {
-    window.view.hitTest(event).then(function(response) {
-        if (response.results.length > 0) {
-            var result = response.results[0]; // Only consider the first result
-            var feature = result.graphic;
-            var layer = result.graphic.layer;
+                    window.view.hitTest(event).then(function(response) {
+                        if (response.results.length > 0) {
+                            var result = response.results[0];
+                            var feature = result.graphic;
+                            var layer = result.graphic.layer;
 
-            // Check if the clicked layer is one of the feature layers
-            if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
-                var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
-                var videoId = videoMap[layerId];
-                var layerStartDateTime = startDateTimeMap[layer.id];
+                            if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
+                                var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
+                                var videoId = videoMap[layerId];
+                                var layerStartDateTime = startDateTimeMap[layer.id];
 
-                if (feature.attributes.DateTimeS && layerStartDateTime) {
-                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
-                    var startTime = new Date(layerStartDateTime).getTime();
-                    var timeDifference = featureTime - startTime;
-                    var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
+                                if (feature.attributes.DateTimeS && layerStartDateTime) {
+                                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
+                                    var startTime = new Date(layerStartDateTime).getTime();
+                                    var timeDifference = featureTime - startTime;
+                                    var seekTime = timeDifference / 1000;
 
-                    console.log("Attempting to play video", videoId, "at", seekTime, "seconds");
+                                    if (seekTime >= 0) {
+                                        if (player && typeof player.loadVideoById === "function") {
+                                            player.loadVideoById({ videoId: videoId, startSeconds: seekTime });
+                                        } else {
+                                            console.error("YouTube player is not ready or `loadVideoById` is not available.");
+                                        }
+                                    } else {
+                                        console.error("Calculated seek time is negative.");
+                                    }
+                                } else {
+                                    console.error("Missing valid DateTimeS or startDateTime is not set.");
+                                }
 
-                    if (seekTime >= 0) {
-                        if (player && typeof player.loadVideoById === "function") {
-                            player.loadVideoById({ videoId: videoId, startSeconds: seekTime });
-                        } else {
-                            console.error("YouTube player is not ready or `loadVideoById` is not available.");
+                                clearAndHighlight(feature, layer);
+
+                                // Store the ID of the clicked layer as the active layer
+                                activeLayerId = layer.id;
+                            }
                         }
-                    } else {
-                        console.error("Calculated seek time is negative.");
-                    }
-                } else {
-                    console.error("Missing valid DateTimeS or startDateTime is not set.");
-                }
-
-                // Clear highlights for other layers
-                Object.keys(featureLayers).forEach(function(key) {
-                    if (key !== layerId) {
-                        clearHighlight(featureLayers[key]);
-                    }
+                    }).catch(function(error) {
+                        console.error("Error during hitTest:", error);
+                    });
                 });
-
-                clearAndHighlight(feature, layer);
-            } else {
-                // Clear highlights for all layers if the clicked layer is not one of the feature layers
-                Object.keys(featureLayers).forEach(function(key) {
-                    clearHighlight(featureLayers[key]);
-                });
-            }
-        }
-    }).catch(function(error) {
-        console.error("Error during hitTest:", error);
-    });
-});
-
-
 
             }
 
             window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-    if (!startDateTimeMap[featureLayer.id]) {
-        console.error("Start DateTimeS not set yet for " + featureLayer.id);
-        return;
-    }
-
-    var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-
-    view.whenLayerView(featureLayer).then(function(layerView) {
-        layerView.queryFeatures({
-            where: "DateTimeS = '" + queryDateTimeStr + "'",
-            returnGeometry: true,
-            outFields: ["*"]
-        }).then(function(results) {
-            if (results.features.length > 0) {
-                var feature = results.features[0];
-                // Check if the feature's layer matches the selected featureLayer
-                if (feature.layer === featureLayer) {
-                    clearAndHighlight(feature, featureLayer);
+                if (!startDateTimeMap[featureLayer.id]) {
+                    console.error("Start DateTimeS not set yet for " + featureLayer.id);
+                    return;
                 }
-            } else {
-                // Clear any existing highlight for the layer
-                clearHighlight(featureLayer);
-                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-            }
-        }).catch(function(error) {
-            console.error("Error highlighting feature based on DateTimeS:", error);
-        });
-    });
-};
 
+                var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+                queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+                var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
+                view.whenLayerView(featureLayer).then(function(layerView) {
+                    layerView.queryFeatures({
+                        where: "DateTimeS = '" + queryDateTimeStr + "'",
+                        returnGeometry: true,
+                        outFields: ["*"]
+                    }).then(function(results) {
+                        if (results.features.length > 0) {
+                            var feature = results.features[0];
+                            clearAndHighlight(feature, featureLayer);
+                        } else {
+                            // Clear any existing highlight for the layer
+                            clearHighlight(featureLayer);
+                            console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                        }
+                    }).catch(function(error) {
+                        console.error("Error highlighting feature based on DateTimeS:", error);
+                    });
+                });
+            };
 
         });
     </script>
