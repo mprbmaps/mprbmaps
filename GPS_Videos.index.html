@@ -48,7 +48,7 @@
             'insta360Test': 's_kCckaYzDo'
         };
         var startDateTimeMap = {};
-        var activeLayerId = null; // Variable to store the ID of the active layer
+        var activeLayerId = null; // Track the active layer
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -62,29 +62,30 @@
 
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.PLAYING) {
-                var checkTimeUpdate = function() {
-                    var currentSecond = Math.floor(player.getCurrentTime());
-                    Object.keys(featureLayers).forEach(function(layerId) {
-                        var featureLayer = featureLayers[layerId];
-
-                        // Highlight features only in the active layer
-                        if (layerId === activeLayerId) {
-                            highlightFeatureAtTime(currentSecond, featureLayer, window.view);
-                        } else {
-                            // Clear highlights for inactive layers
-                            clearHighlight(featureLayer);
-                        }
-                    });
-                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        setTimeout(checkTimeUpdate, 1000);
-                    }
-                };
-                checkTimeUpdate();
+                checkTimeUpdate(); // Call checkTimeUpdate when video is playing
             } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
-                // Clear highlights for all layers when the video is paused or ended
+                // Clear highlights when the video is paused or ended
                 Object.keys(featureLayers).forEach(function(layerId) {
                     clearHighlight(featureLayers[layerId]);
                 });
+            }
+        }
+
+        function checkTimeUpdate() {
+            var currentSecond = Math.floor(player.getCurrentTime());
+            Object.keys(featureLayers).forEach(function(layerId) {
+                var featureLayer = featureLayers[layerId];
+
+                // Highlight features only in the active layer
+                if (layerId === activeLayerId) {
+                    highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+                } else {
+                    // Clear highlights for inactive layers
+                    clearHighlight(featureLayer);
+                }
+            });
+            if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                setTimeout(checkTimeUpdate, 1000);
             }
         }
 
@@ -212,11 +213,13 @@
                 window.view.on("click", function(event) {
                     window.view.hitTest(event).then(function(response) {
                         if (response.results.length > 0) {
-                            var result = response.results[0];
+                            var result = response.results[0]; // Only consider the first result
                             var feature = result.graphic;
                             var layer = result.graphic.layer;
 
+                            // Check if the clicked layer is one of the feature layers
                             if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
+                                activeLayerId = layer.id; // Set the active layer
                                 var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
                                 var videoId = videoMap[layerId];
                                 var layerStartDateTime = startDateTimeMap[layer.id];
@@ -225,7 +228,9 @@
                                     var featureTime = new Date(feature.attributes.DateTimeS).getTime();
                                     var startTime = new Date(layerStartDateTime).getTime();
                                     var timeDifference = featureTime - startTime;
-                                    var seekTime = timeDifference / 1000;
+                                    var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
+
+                                    console.log("Attempting to play video", videoId, "at", seekTime, "seconds");
 
                                     if (seekTime >= 0) {
                                         if (player && typeof player.loadVideoById === "function") {
@@ -241,9 +246,6 @@
                                 }
 
                                 clearAndHighlight(feature, layer);
-
-                                // Store the ID of the clicked layer as the active layer
-                                activeLayerId = layer.id;
                             }
                         }
                     }).catch(function(error) {
