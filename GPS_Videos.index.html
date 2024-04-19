@@ -77,11 +77,12 @@
             "esri/WebMap",
             "esri/views/MapView",
             "esri/layers/FeatureLayer",
+            "esri/geometry/Extent",
             "esri/identity/OAuthInfo",
             "esri/identity/IdentityManager",
             "esri/renderers/SimpleRenderer",
             "esri/symbols/SimpleMarkerSymbol"
-        ], function(WebMap, MapView, FeatureLayer, OAuthInfo, IdentityManager, SimpleRenderer, SimpleMarkerSymbol) {
+        ], function(WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, SimpleMarkerSymbol) {
             var info = new OAuthInfo({
                 appId: "ti3fi1FqvHE2Hhyw",
                 popup: true
@@ -149,87 +150,96 @@
                     });
                 });
 
-                window.view.when(() => {
-                    return Promise.all(Object.values(featureLayers).map(layer => layer.when())).then(() => {
-                        var center = webmap.initialViewProperties.viewpoint.targetGeometry;
-                        return window.view.goTo({
-                            center: center,
-                            zoom: 18
-                        });
+                Promise.all(Object.values(featureLayers).map(layer => layer.when())).then(function() {
+                    var fullExtent = null;
+                    Object.values(featureLayers).forEach(layer => {
+                        if (fullExtent) {
+                            fullExtent = fullExtent.union(layer.fullExtent);
+                        } else {
+                            fullExtent = layer.fullExtent;
+                        }
                     });
-                }).catch(function(error){
-                    console.error("Error zooming to feature layer extent:", error);
+                    if (fullExtent) {
+                        window.view.goTo({
+                            target: fullExtent,
+                            zoom: 18
+                        }).catch(function(error) {
+                            console.error("Error zooming to the combined extent of feature layers:", error);
+                        });
+                    }
+                }).catch(function(error) {
+                    console.error("Error loading feature layers:", error);
                 });
 
                 window.view.on("click", function(event) {
-    window.view.hitTest(event).then(function(response) {
-        if (response.results.length > 0) {
-            var result = response.results.find(r => Object.values(featureLayers).includes(r.graphic.layer));
-            if (result) {
-                var feature = result.graphic;
-                var layerName = Object.keys(featureLayers).find(key => featureLayers[key] === result.graphic.layer);
-                var videoId = videoMap[layerName];
-                var layerStartDateTime = startDateTimeMap[featureLayers[layerName].id];
-                if (feature && feature.attributes.DateTimeS && layerStartDateTime) {
-                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
-                    var videoStartTime = new Date(layerStartDateTime).getTime();
-                    var timeDifference = featureTime - videoStartTime;
-                    var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
-                    if (seekTime >= 0) {
-                        console.log(`Seeking video to ${seekTime} seconds`);
-                        player.loadVideoById({videoId: videoId, startSeconds: seekTime});
-                        clearAndHighlight(feature, result.graphic.layer);
-                    } else {
-                        console.error("Calculated seek time is negative.");
-                    }
-                } else {
-                    console.error("Feature missing valid DateTimeS or startDateTime not set for " + layerName);
+                    window.view.hitTest(event).then(function(response) {
+                        if (response.results.length > 0) {
+                            var result = response.results.find(r => Object.values(featureLayers).includes(r.graphic.layer));
+                            if (result) {
+                                var feature = result.graphic;
+                                var layerName = Object.keys(featureLayers).find(key => featureLayers[key] === result.graphic.layer);
+                                var videoId = videoMap[layerName];
+                                var layerStartDateTime = startDateTimeMap[featureLayers[layerName].id];
+                                if (feature && feature.attributes.DateTimeS && layerStartDateTime) {
+                                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
+                                    var videoStartTime = new Date(layerStartDateTime).getTime();
+                                    var timeDifference = featureTime - videoStartTime;
+                                    var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
+                                    if (seekTime >= 0) {
+                                        console.log(`Seeking video to ${seekTime} seconds`);
+                                        player.loadVideoById({videoId: videoId, startSeconds: seekTime});
+                                        window.view.whenLayerView(result.graphic.layer).then(function(layerView) {
+                                            if (window.highlight) {
+                                                window.highlight.remove();
+                                            }
+                                            window.highlight = layerView.highlight(feature);
+                                        });
+                                    } else {
+                                        console.error("Calculated seek time is negative.");
+                                    }
+                                } else {
+                                    console.error("Feature missing valid DateTimeS or startDateTime not set for " + layerName);
+                                }
+                            }
+                        }
+                    }).catch(function(error) {
+                        console.error("Error during hitTest:", error);
+                    });
+                });
+            }
+
+            window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
+                if (!startDateTimeMap[featureLayer.id]) {
+                    console.error("Start DateTimeS not set yet for " + featureLayer.id);
+                    return;
                 }
-            }
-        }
-    }).catch(function(error) {
-        console.error("Error during hitTest:", error);
-    });
-});
 
-function clearAndHighlight(feature, layer) {
-    window.view.whenLayerView(layer).then(function(layerView) {
-        if (window.highlight) {
-            window.highlight.remove();
-            window.highlight = null;
-        }
-        window.highlight = layerView.highlight(feature);
-    });
-}
+                if (window.highlight) {
+                    window.highlight.remove();
+                    window.highlight = null;
+                }
 
-window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-    if (!startDateTimeMap[featureLayer.id]) {
-        console.error("Start DateTimeS not set yet for " + featureLayer.id);
-        return;
-    }
+                var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+                queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+                var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
-    var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-
-    view.whenLayerView(featureLayer).then(function(layerView) {
-        layerView.queryFeatures({
-            where: "DateTimeS = '" + queryDateTimeStr + "'",
-            returnGeometry: true,
-            outFields: ["*"]
-        }).then(function(results) {
-            if (results.features.length > 0) {
-                var feature = results.features[0];
-                clearAndHighlight(feature, featureLayer);
-            } else {
-                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-            }
-        }).catch(function(error) {
-            console.error("Error highlighting feature based on DateTimeS:", error);
-        });
-    });
-};
-
+                view.whenLayerView(featureLayer).then(function(layerView) {
+                    layerView.queryFeatures({
+                        where: "DateTimeS = '" + queryDateTimeStr + "'",
+                        returnGeometry: true,
+                        outFields: ["*"]
+                    }).then(function(results) {
+                        if (results.features.length > 0) {
+                            var feature = results.features[0];
+                            window.highlight = layerView.highlight([feature.attributes[featureLayer.objectIdField]]);
+                        } else {
+                            console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                        }
+                    }).catch(function(error) {
+                        console.error("Error highlighting feature based on DateTimeS:", error);
+                    });
+                });
+            };
         });
     </script>
 </body>
