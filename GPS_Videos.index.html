@@ -185,18 +185,45 @@
                 });
 
                 window.view.on("click", function(event) {
-                    window.view.hitTest(event).then(function(response) {
-                        if (response.results.length > 0) {
-                            var result = response.results.find(r => Object.values(featureLayers).includes(r.graphic.layer));
-                            if (result) {
-                                var feature = result.graphic;
-                                clearAndHighlight(feature, result.graphic.layer);
-                            }
+    window.view.hitTest(event).then(function(response) {
+        if (response.results.length > 0) {
+            var result = response.results.find(r => Object.values(featureLayers).includes(r.graphic.layer));
+            if (result) {
+                var feature = result.graphic;
+                var layer = result.graphic.layer;
+                var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
+                var videoId = videoMap[layerId];
+                var layerStartDateTime = startDateTimeMap[layer.id];
+
+                if (feature.attributes.DateTimeS && layerStartDateTime) {
+                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
+                    var startTime = new Date(layerStartDateTime).getTime();
+                    var timeDifference = featureTime - startTime;
+                    var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
+
+                    if (seekTime >= 0) {
+                        // Ensure player is loaded and ready
+                        if (player && typeof player.loadVideoById === "function") {
+                            player.loadVideoById({videoId: videoId, startSeconds: seekTime});
+                            console.log(`Seeking video to ${seekTime} seconds`);
+                        } else {
+                            console.error("YouTube player is not ready or loadVideoById is not available.");
                         }
-                    }).catch(function(error) {
-                        console.error("Error during hitTest:", error);
-                    });
-                });
+                    } else {
+                        console.error("Calculated seek time is negative.");
+                    }
+                } else {
+                    console.error("Missing valid DateTimeS or startDateTime is not set.");
+                }
+
+                clearAndHighlight(feature, layer);
+            }
+        }
+    }).catch(function(error) {
+        console.error("Error during hitTest:", error);
+    });
+});
+
             }
 
             window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
