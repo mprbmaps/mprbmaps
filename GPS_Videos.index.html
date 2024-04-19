@@ -21,21 +21,16 @@
             right: 20px;
             z-index: 10;
             background: white;
-            padding: 20px;
+            padding: 15px;
             border: 1px solid #ccc;
             border-radius: 4px;
             display: flex;
-            overflow: auto;
+            overflow: hidden;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            resize: both; /* Allows resizing from all sides and corners */
-            width: 700px; /* Initial width */
-            height: 350px; /* Initial height */
-            min-width: 300px; /* Minimum width */
-            min-height: 150px; /* Minimum height */
         }
         #youtubePlayer {
-            width: 100%;  /* Responsive width to fill the container */
-            height: 100%; /* Responsive height to fill the container */
+            width: 707px;
+            height: 443px;
         }
     </style>
 </head>
@@ -57,8 +52,8 @@
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
-                height: '100%',  // Adjust to 100% to fill the container
-                width: '100%',   // Adjust to 100% to fill the container
+                height: '443',
+                width: '707',
                 events: {
                     'onStateChange': onPlayerStateChange
                 }
@@ -78,12 +73,12 @@
                     }
                 };
                 checkTimeUpdate();
-            } else if (event.data === YT.PlayerState.ENDED) {
+            } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
+                // Clear highlights when the video is paused or ended
                 Object.keys(featureLayers).forEach(function(layerId) {
                     clearHighlight(featureLayers[layerId]);
                 });
             }
-            // No clear action on PAUSE to maintain highlights
         }
 
         function clearAndHighlight(feature, layer) {
@@ -105,39 +100,6 @@
                 highlights[layer.id] = null;
             }
         }
-
-        window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-            if (!startDateTimeMap[featureLayer.id]) {
-                console.error("Start DateTimeS not set yet for " + featureLayer.id);
-                return;
-            }
-
-            if (featureLayer.id !== activeLayerId) {
-                return;  // Do not highlight if this is not the active layer
-            }
-
-            var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-
-            view.whenLayerView(featureLayer).then(function(layerView) {
-                layerView.queryFeatures({
-                    where: "DateTimeS = '" + queryDateTimeStr + "'",
-                    returnGeometry: true,
-                    outFields: ["*"]
-                }).then(function(results) {
-                    if (results.features.length > 0) {
-                        var feature = results.features[0];
-                        clearAndHighlight(feature, featureLayer);
-                    } else {
-                        clearHighlight(featureLayer);
-                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                    }
-                }).catch(function(error) {
-                    console.error("Error highlighting feature based on DateTimeS:", error);
-                });
-            });
-        };
 
         require([
             "esri/WebMap",
@@ -174,7 +136,7 @@
                     container: "viewDiv",
                     map: webmap,
                     center: [-93.2650, 44.9778], // Latitude and Longitude of Minneapolis
-                    zoom: 11.5  // Zoom level set to 14
+                    zoom: 11.75  // Zoom level set to 14
                 });
 
                 var layerUrls = {
@@ -189,7 +151,7 @@
                         renderer: new SimpleRenderer({
                             symbol: new SimpleMarkerSymbol({
                                 color: key === 'creek' ? "red" : "red",
-                                size: 10,
+                                size: 12,
                                 outline: {
                                     color: "black",
                                     width: 0
@@ -221,11 +183,12 @@
                 window.view.on("click", function(event) {
                     window.view.hitTest(event).then(function(response) {
                         if (response.results.length > 0) {
-                            var result = response.results[0];
+                            var result = response.results[0]; // Only consider the first result
                             var feature = result.graphic;
                             var layer = result.graphic.layer;
                             activeLayerId = layer.id; // Set the active layer ID
 
+                            // Check if the clicked layer is one of the feature layers
                             if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
                                 var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
                                 var videoId = videoMap[layerId];
@@ -260,46 +223,87 @@
                     });
                 });
             }
+
+            window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
+                if (!startDateTimeMap[featureLayer.id]) {
+                    console.error("Start DateTimeS not set yet for " + featureLayer.id);
+                    return;
+                }
+
+                if (featureLayer.id !== activeLayerId) {
+                    return;  // Do not highlight if this is not the active layer
+                }
+
+                var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+                queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+                var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+
+                view.whenLayerView(featureLayer).then(function(layerView) {
+                    layerView.queryFeatures({
+                        where: "DateTimeS = '" + queryDateTimeStr + "'",
+                        returnGeometry: true,
+                        outFields: ["*"]
+                    }).then(function(results) {
+                        if (results.features.length > 0) {
+                            var feature = results.features[0];
+                            clearAndHighlight(feature, featureLayer);
+                        } else {
+                            clearHighlight(featureLayer);
+                            console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                        }
+                    }).catch(function(error) {
+                        console.error("Error highlighting feature based on DateTimeS:", error);
+                    });
+                });
+            };
         });
 
-        document.addEventListener('DOMContentLoaded', function() {
-            var videoWindow = document.querySelector("#videoWindow");
-            var active = false;
-            var currentX;
-            var currentY;
-            var initialX;
-            var initialY;
-            var xOffset = 0;
-            var yOffset = 0;
+        
+document.addEventListener('DOMContentLoaded', function() {
+    var videoWindow = document.querySelector("#videoWindow");
+    var active = false;
+    var initialX = 0;
+    var initialY = 0;
+    var xOffset = 0;
+    var yOffset = 0;
 
-            document.addEventListener("mousedown", function(e) {
-                if (videoWindow.contains(e.target)) {
-                    active = true;
-                    initialX = e.clientX - xOffset;
-                    initialY = e.clientY - yOffset;
-                    e.preventDefault();
-                }
-            }, false);
+    document.addEventListener("mousedown", function(e) {
+        // Start dragging when the mouse is down on the video window
+        if (e.target === videoWindow || videoWindow.contains(e.target)) {
+            active = true;
+            initialX = e.clientX - xOffset;
+            initialY = e.clientY - yOffset;
+            e.preventDefault();
+        }
+    });
 
-            document.addEventListener("mouseup", function() {
-                if (active) {
-                    initialX = currentX;
-                    initialY = currentY;
-                    active = false;
-                }
-            }, false);
+    document.addEventListener("mousemove", function(e) {
+        if (active) {
+            // Calculate new position
+            var currentX = e.clientX - initialX;
+            var currentY = e.clientY - initialY;
 
-            document.addEventListener("mousemove", function(e) {
-                if (active) {
-                    e.preventDefault();
-                    currentX = e.clientX - initialX;
-                    currentY = e.clientY - initialY;
-                    xOffset = currentX;
-                    yOffset = currentY;
-                    videoWindow.style.transform = "translate3d(" + xOffset + "px, " + yOffset + "px, 0)";
-                }
-            }, false);
-        });
+            // Update offsets
+            xOffset = currentX;
+            yOffset = currentY;
+
+            // Apply the new position
+            videoWindow.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
+            e.preventDefault();
+        }
+    });
+
+    document.addEventListener("mouseup", function(e) {
+        // Stop dragging
+        if (active) {
+            initialX = xOffset;
+            initialY = yOffset;
+            active = false;
+        }
+    });
+});
+
+
     </script>
 </body>
 </html>
