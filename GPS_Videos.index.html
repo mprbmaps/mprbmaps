@@ -66,119 +66,71 @@
 
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.PLAYING) {
-                var checkTimeUpdate = function() {
-                    var currentSecond = Math.floor(player.getCurrentTime());
-                    Object.keys(featureLayers).forEach(function(layerId) {
-                        var featureLayer = featureLayers[layerId];
-                        highlightFeatureAtTime(currentSecond, featureLayer, window.view);
-                    });
-                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        setTimeout(checkTimeUpdate, 1000);
-                    }
-                };
-                checkTimeUpdate();
-            } else if (event.data === YT.PlayerState.ENDED) {
-                Object.keys(featureLayers).forEach(function(layerId) {
-                    clearHighlight(featureLayers[layerId]);
-                });
-            } else if (event.data === YT.PlayerState.PAUSED) {
-                console.log("Video paused, maintaining current highlights.");
-            }
-        }
-
-        function highlightFeatureAtTime(currentSecond, featureLayer, view) {
-            // Implementation needed based on your app logic
-        }
-
-        function clearAndHighlight(feature, layer) {
-            Object.keys(highlights).forEach(function(layerId) {
-                if (highlights[layerId]) {
-                    highlights[layerId].remove();
-                    highlights[layerId] = null;
+                updateConeDuringPlayback();
+            } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
+                if(currentConeGraphic) {
+                    updateConeGraphic(currentBearing);
                 }
-            });
-            activeLayerId = layer.id;
-            window.view.whenLayerView(layer).then(function(layerView) {
-                highlights[layer.id] = layerView.highlight(feature);
-                if (feature.attributes.Bearing) {
-                    updateConeBasedOnFeature(feature);
+            }
+        }
+
+        function updateConeDuringPlayback() {
+            var updateInterval = setInterval(function() {
+                if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
+                    clearInterval(updateInterval);
+                    return;
                 }
-            }).catch(function(error) {
-                console.error("Error in highlighting feature: ", error);
-            });
+                var simulatedBearingChange = (Math.random() - 0.5) * 10; // Random change in bearing
+                currentBearing += simulatedBearingChange;
+                updateConeGraphic(currentBearing);
+            }, 1000); // Update every second
         }
 
-        function updateConeBasedOnFeature(feature) {
-    var center = feature.geometry;
-
-    // Project the center point to Web Mercator (EPSG: 3857)
-    var centerProjected = webMercatorUtils.geographicToWebMercator(center);
-
-    var bearing = parseFloat(feature.attributes.Bearing);
-    if (!isNaN(bearing)) {
-        console.log("Bearing attribute:", bearing);
-        initialBearing = bearing; // Set the initial bearing from the feature
-        createOrUpdateCone(centerProjected, initialBearing, 0); // Initially, additional bearing is zero
-    } else {
-        console.error("Invalid bearing value:", feature.attributes.Bearing);
-    }
-}
-
-
-
-
-        function createOrUpdateCone(center, initialBearing, additionalBearing) {
-    console.log("Creating or updating cone for feature with center:", center, "and initial bearing:", initialBearing, "and additional bearing:", additionalBearing);
-    
-    if (currentConeGraphic) {
-        window.view.graphics.remove(currentConeGraphic);
-    }
-    var totalBearing = initialBearing + additionalBearing;
-    var coneLength = 0.01; // Length of the cone in map units
-    var spread = 45; // Half-angle of the FOV
-
-    var startAngle = totalBearing - spread;
-    var endAngle = totalBearing + spread;
-    var points = [center];
-    for (var angle = startAngle; angle <= endAngle; angle++) {
-        var radians = angle * Math.PI / 180;
-        points.push({
-            x: center.x + coneLength * Math.cos(radians),
-            y: center.y + coneLength * Math.sin(radians)
-        });
-    }
-    points.push(center); // Close the polygon
-
-    var polygon = new Graphic({
-        geometry: {
-            type: "polygon",
-            rings: [points.map(point => [point.x, point.y])]
-        },
-        symbol: {
-            type: "simple-fill",
-            color: [255, 0, 0, 0.4], // Semi-transparent red
-            outline: {
-                color: [255, 0, 0],
-                width: 2
+        function updateConeGraphic(bearing) {
+            if (!activeLayerId || !featureLayers[activeLayerId]) return;
+            var feature = featureLayers[activeLayerId].getSelectedFeatures(); // Placeholder method
+            if (feature) {
+                var center = feature.geometry; // Assuming the feature has a geometry attribute
+                createOrUpdateCone(center, bearing);
             }
         }
-    });
 
-    window.view.graphics.add(polygon);
-    currentConeGraphic = polygon;
-}
-
-
-        function clearHighlight(layer) {
-            console.log("Clearing highlight for layer:", layer.id);
-            if (highlights[layer.id]) {
-                highlights[layer.id].remove();
-                highlights[layer.id] = null;
-            }
+        function createOrUpdateCone(center, bearing) {
             if (currentConeGraphic) {
                 window.view.graphics.remove(currentConeGraphic);
-                currentConeGraphic = null;
             }
+            var coneLength = 0.01; // Length of the cone in map units
+            var spread = 45; // Half-angle of the FOV
+
+            var startAngle = bearing - spread / 2;
+            var endAngle = bearing + spread / 2;
+            var points = [center];
+            for (var angle = startAngle; angle <= endAngle; angle++) {
+                var radians = angle * Math.PI / 180;
+                points.push({
+                    x: center.x + coneLength * Math.cos(radians),
+                    y: center.y + coneLength * Math.sin(radians)
+                });
+            }
+            points.push(center); // Close the polygon
+
+            var polygon = new Graphic({
+                geometry: {
+                    type: "polygon",
+                    rings: [points.map(point => [point.x, point.y])]
+                },
+                symbol: {
+                    type: "simple-fill",
+                    color: [255, 0, 0, 0.4], // Semi-transparent red
+                    outline: {
+                        color: [255, 0, 0],
+                        width: 2
+                    }
+                }
+            });
+
+            window.view.graphics.add(polygon);
+            currentConeGraphic = polygon;
         }
 
         require([
@@ -265,8 +217,6 @@
                             var result = response.results[0];
                             var feature = result.graphic;
                             var layer = result.graphic.layer;
-			    console.log("Clicked feature attributes:", feature.attributes);
-			    console.log("Clicked feature coordinates:", feature.geometry.toJSON());
 
                             if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
                                 var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
@@ -302,8 +252,8 @@
                     });
                 });
             }
-        
-	window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
+
+            window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
                 if (!startDateTimeMap[featureLayer.id]) {
                     console.error("Start DateTimeS not set yet for " + featureLayer.id);
                     return;
@@ -346,7 +296,7 @@
             var yOffset = 0;
 
             document.addEventListener("mousedown", function(e) {
-                if (e.target === videoWindow || videoWindow.contains(e.target)) {
+                if (e.target === videoWindow or videoWindow.contains(e.target)) {
                     active = true;
                     initialX = e.clientX - xOffset;
                     initialY = e.clientY - yOffset;
