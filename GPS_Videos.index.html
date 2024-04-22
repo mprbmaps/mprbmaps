@@ -86,6 +86,10 @@
             }
         }
 
+        function highlightFeatureAtTime(currentSecond, featureLayer, view) {
+            // Implementation needed based on your app logic
+        }
+
         function clearAndHighlight(feature, layer) {
             Object.keys(highlights).forEach(function(layerId) {
                 if (highlights[layerId]) {
@@ -108,8 +112,8 @@
                 return;
             }
             var center = feature.geometry;
-            var bearing = parseFloat(feature.attributes.Bearing); // Ensure the bearing is a float
-            initialBearing = bearing; // Update initial bearing from feature
+            var bearing = parseFloat(feature.attributes.Bearing);
+            initialBearing = bearing;
             createOrUpdateCone(center, initialBearing, currentBearing);
         }
 
@@ -118,13 +122,13 @@
                 window.view.graphics.remove(currentConeGraphic);
             }
             var totalBearing = initialBearing + additionalBearing;
-            var coneLength = 0.01; // Length of the cone in map units
-            var spread = 45; // Half-angle of the FOV
+            var coneLength = 0.01; // Adjust based on your map's scale
+            var spread = 45; // Adjust FOV spread here
 
-            var startAngle = totalBearing - spread;
-            var endAngle = totalBearing + spread;
+            var startAngle = totalBearing - spread / 2;
+            var endAngle = totalBearing + spread / 2;
             var points = [center];
-            for (var angle = startAngle; angle <= endAngle; angle++) {
+            for (var angle = startAngle; angle <= endAngle; angle += 1) {
                 var radians = angle * Math.PI / 180;
                 points.push({
                     x: center.x + coneLength * Math.cos(radians),
@@ -140,7 +144,7 @@
                 },
                 symbol: {
                     type: "simple-fill",
-                    color: [255, 0, 0, 0.4], // Semi-transparent red
+                    color: [255, 0, 0, 0.4], // Red semi-transparent
                     outline: {
                         color: [255, 0, 0],
                         width: 2
@@ -175,7 +179,7 @@
             "esri/symbols/PictureMarkerSymbol",
             "esri/Graphic"
         ], function(WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicImport) {
-            Graphic = GraphicImport; // Make Graphic available globally
+            Graphic = GraphicImport;
             var info = new OAuthInfo({
                 appId: "ti3fi1FqvHE2Hhyw",
                 popup: true
