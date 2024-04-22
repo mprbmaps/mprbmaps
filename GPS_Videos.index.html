@@ -45,7 +45,8 @@
         var highlights = {};
         var activeLayerId = null;
         var currentConeGraphic = null;
-        var currentBearing = 0;
+        var currentBearing = 0; // Current bearing adjustment based on user panning
+        var Graphic; // Declare Graphic globally to ensure it's accessible
         var videoMap = {
             'creek': 'EEovFU3OOlg',
             'insta360Test': 's_kCckaYzDo'
@@ -107,7 +108,6 @@
         }
 
         function createOrUpdateCone(center, initialBearing, additionalBearing) {
-            console.log("Graphic constructor:", Graphic); // Debugging: Check if Graphic is defined
             if (currentConeGraphic) {
                 window.view.graphics.remove(currentConeGraphic);
             }
@@ -127,25 +127,23 @@
             }
             points.push(center);
 
-            var polygon = {
-                type: "polygon",
-                rings: [points.map(point => [point.x, point.y])]
-            };
-
-            var symbol = {
-                type: "simple-fill",
-                color: [255, 0, 0, 0.4],
-                outline: {
-                    color: [255, 0, 0],
-                    width: 2
+            var polygon = new Graphic({
+                geometry: {
+                    type: "polygon",
+                    rings: [points.map(point => [point.x, point.y])]
+                },
+                symbol: {
+                    type: "simple-fill",
+                    color: [255, 0, 0, 0.4],
+                    outline: {
+                        color: [255, 0, 0],
+                        width: 2
+                    }
                 }
-            };
-
-            currentConeGraphic = new Graphic({
-                geometry: polygon,
-                symbol: symbol
             });
-            window.view.graphics.add(currentConeGraphic);
+
+            window.view.graphics.add(polygon);
+            currentConeGraphic = polygon;
         }
 
         function clearHighlight(layer) {
@@ -170,7 +168,8 @@
             "esri/renderers/SimpleRenderer",
             "esri/symbols/PictureMarkerSymbol",
             "esri/Graphic"
-        ], function(WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, Graphic) {
+        ], function(WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicImport) {
+            Graphic = GraphicImport;
             var info = new OAuthInfo({
                 appId: "ti3fi1FqvHE2Hhyw",
                 popup: true
