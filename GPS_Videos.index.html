@@ -110,15 +110,20 @@
 
         function updateConeBasedOnFeature(feature) {
     var center = feature.geometry;
+
+    // Project the center point to Web Mercator (EPSG: 3857)
+    var centerProjected = geometryEngine.project(center, { wkid: 3857 });
+
     var bearing = parseFloat(feature.attributes.Bearing);
     if (!isNaN(bearing)) {
         console.log("Bearing attribute:", bearing);
         initialBearing = bearing; // Set the initial bearing from the feature
-        createOrUpdateCone(center, initialBearing, 0); // Initially, additional bearing is zero
+        createOrUpdateCone(centerProjected, initialBearing, 0); // Initially, additional bearing is zero
     } else {
         console.error("Invalid bearing value:", feature.attributes.Bearing);
     }
 }
+
 
 
         function createOrUpdateCone(center, initialBearing, additionalBearing) {
