@@ -6,6 +6,7 @@
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/css/main.css" />
     <script src="https://js.arcgis.com/4.28/"></script>
+    <!-- YouTube IFrame API -->
     <script src="https://www.youtube.com/iframe_api"></script>
     <style>
         html, body, #viewDiv {
@@ -44,11 +45,11 @@
         var highlights = {};
         var activeLayerId = null;
         var currentConeGraphic = null;
-        var currentBearing = 0;
-        var initialBearing = 0;
-        var Graphic;
-        var startDateTimeMap = {};
-        var videoMap = {
+        var currentBearing = 0; // Current dynamic adjustment to bearing based on user interaction
+        var initialBearing = 0; // Initial bearing from the feature
+        var Graphic; // ArcGIS API Graphic object
+        var startDateTimeMap = {}; // Global variable for start datetime mapping
+        var videoMap = { // Mapping video IDs to feature types
             'creek': 'EEovFU3OOlg',
             'insta360Test': 's_kCckaYzDo'
         };
@@ -85,7 +86,7 @@
             }
         }
 
-        window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
+        function highlightFeatureAtTime(currentSecond, featureLayer, view) {
             if (!startDateTimeMap[featureLayer.id]) {
                 console.error("Start DateTimeS not set yet for " + featureLayer.id);
                 return;
@@ -116,7 +117,7 @@
                     console.error("Error highlighting feature based on DateTimeS:", error);
                 });
             });
-        };
+        }
 
         function clearAndHighlight(feature, layer) {
             Object.keys(highlights).forEach(function(layerId) {
@@ -135,14 +136,25 @@
         }
 
         function updateConeBasedOnFeature(feature) {
-            var center = feature.geometry;
-            var bearing = parseFloat(feature.attributes.bearing);
-            if (!isNaN(bearing)) {
-                initialBearing = bearing;
-                createOrUpdateCone(center, initialBearing + currentBearing, 0);
-            } else {
-                console.error("Invalid bearing value:", feature.attributes.Bearing);
-            }
+            require(["esri/geometry/projection", "esri/config"], function(projection, esriConfig) {
+                esriConfig.apiKey = "AAPK8b3bc436a0804ff1a4c60d4af391fb56peKBPwx9mGPvNmi2b49LWv234NdUhHD0p_6-ZUKEDMeZDcs2Z44nqQ7v8SM3YhMt"; // API Key
+                projection.load().then(function() {
+                    var projectedGeometry = projection.project(feature.geometry, window.view.spatialReference);
+                    if (projectedGeometry) {
+                        var bearing = parseFloat(feature.attributes.bearing);
+                        if (!isNaN(bearing)) {
+                            initialBearing = bearing;
+                            createOrUpdateCone(projectedGeometry, initialBearing, 0);
+                        } else {
+                            console.error("Invalid bearing value:", feature.attributes.bearing);
+                        }
+                    } else {
+                        console.error("Projection failed for the geometry");
+                    }
+                }).catch(function(err) {
+                    console.error("Error loading projection module:", err);
+                });
+            });
         }
 
         function createOrUpdateCone(center, initialBearing, additionalBearing) {
@@ -150,8 +162,8 @@
                 window.view.graphics.remove(currentConeGraphic);
             }
             var totalBearing = initialBearing + additionalBearing;
-            var coneLength = 0.01;
-            var spread = 45;
+            var coneLength = 0.01; // Length of the cone in map units
+            var spread = 45; // Half-angle of the FOV
 
             var startAngle = totalBearing - spread;
             var endAngle = totalBearing + spread;
@@ -163,7 +175,7 @@
                     y: center.y + coneLength * Math.sin(radians)
                 });
             }
-            points.push(center);
+            points.push(center); // Close the polygon
 
             var polygon = new Graphic({
                 geometry: {
@@ -172,7 +184,7 @@
                 },
                 symbol: {
                     type: "simple-fill",
-                    color: [255, 0, 0, 0.4],
+                    color: [255, 0, 0, 0.4], // Semi-transparent red
                     outline: {
                         color: [255, 0, 0],
                         width: 2
@@ -206,7 +218,7 @@
             "esri/symbols/PictureMarkerSymbol",
             "esri/Graphic"
         ], function(WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicImport) {
-            Graphic = GraphicImport;
+            Graphic = GraphicImport; // Make Graphic available globally
             var info = new OAuthInfo({
                 appId: "ti3fi1FqvHE2Hhyw",
                 popup: true
