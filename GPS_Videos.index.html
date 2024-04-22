@@ -109,11 +109,17 @@
         }
 
         function updateConeBasedOnFeature(feature) {
-            var center = feature.geometry;
-            var bearing = parseFloat(feature.attributes.Bearing);
-            initialBearing = bearing; // Set the initial bearing from the feature
-            createOrUpdateCone(center, initialBearing, 0); // Initially, additional bearing is zero
-        }
+    var center = feature.geometry;
+    var bearing = parseFloat(feature.attributes.Bearing);
+    if (!isNaN(bearing)) {
+        console.log("Bearing attribute:", bearing);
+        initialBearing = bearing; // Set the initial bearing from the feature
+        createOrUpdateCone(center, initialBearing, 0); // Initially, additional bearing is zero
+    } else {
+        console.error("Invalid bearing value:", feature.attributes.Bearing);
+    }
+}
+
 
         function createOrUpdateCone(center, initialBearing, additionalBearing) {
     console.log("Creating or updating cone for feature with center:", center, "and initial bearing:", initialBearing, "and additional bearing:", additionalBearing);
