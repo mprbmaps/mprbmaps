@@ -45,13 +45,9 @@
         var highlights = {};
         var activeLayerId = null;
         var currentConeGraphic = null;
-        var currentBearing = 0; // Current bearing adjustment based on user panning
-        var Graphic; // Declare Graphic globally to ensure it's accessible
-        var videoMap = {
-            'creek': 'EEovFU3OOlg',
-            'insta360Test': 's_kCckaYzDo'
-        };
-        var startDateTimeMap = {};
+        var currentBearing = 0; // Current dynamic adjustment to bearing based on user interaction
+        var initialBearing = 0; // Initial bearing from the feature
+        var Graphic; // ArcGIS API Graphic object
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -102,9 +98,14 @@
         }
 
         function updateConeBasedOnFeature(feature) {
+            if (!feature || !feature.geometry) {
+                console.log("No feature or geometry available for updating the cone.");
+                return;
+            }
             var center = feature.geometry;
-            var bearing = feature.attributes.Bearing;
-            createOrUpdateCone(center, bearing, currentBearing);
+            var bearing = parseFloat(feature.attributes.Bearing); // Ensure the bearing is a float
+            initialBearing = bearing; // Update initial bearing from feature
+            createOrUpdateCone(center, initialBearing, currentBearing);
         }
 
         function createOrUpdateCone(center, initialBearing, additionalBearing) {
@@ -112,8 +113,8 @@
                 window.view.graphics.remove(currentConeGraphic);
             }
             var totalBearing = initialBearing + additionalBearing;
-            var coneLength = 0.01;
-            var spread = 45;
+            var coneLength = 0.01; // Length of the cone in map units
+            var spread = 45; // Half-angle of the FOV
 
             var startAngle = totalBearing - spread;
             var endAngle = totalBearing + spread;
@@ -125,7 +126,7 @@
                     y: center.y + coneLength * Math.sin(radians)
                 });
             }
-            points.push(center);
+            points.push(center); // Close the polygon
 
             var polygon = new Graphic({
                 geometry: {
@@ -134,7 +135,7 @@
                 },
                 symbol: {
                     type: "simple-fill",
-                    color: [255, 0, 0, 0.4],
+                    color: [255, 0, 0, 0.4], // Semi-transparent red
                     outline: {
                         color: [255, 0, 0],
                         width: 2
@@ -169,7 +170,7 @@
             "esri/symbols/PictureMarkerSymbol",
             "esri/Graphic"
         ], function(WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicImport) {
-            Graphic = GraphicImport;
+            Graphic = GraphicImport; // Make Graphic available globally
             var info = new OAuthInfo({
                 appId: "ti3fi1FqvHE2Hhyw",
                 popup: true
