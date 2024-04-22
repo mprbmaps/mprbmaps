@@ -100,21 +100,19 @@
             activeLayerId = layer.id;
             window.view.whenLayerView(layer).then(function(layerView) {
                 highlights[layer.id] = layerView.highlight(feature);
-                updateConeBasedOnFeature(feature);
+                if (feature.attributes.Bearing) {
+                    updateConeBasedOnFeature(feature);
+                }
             }).catch(function(error) {
                 console.error("Error in highlighting feature: ", error);
             });
         }
 
         function updateConeBasedOnFeature(feature) {
-            if (!feature || !feature.geometry) {
-                console.log("No feature or geometry available for updating the cone.");
-                return;
-            }
             var center = feature.geometry;
             var bearing = parseFloat(feature.attributes.Bearing);
-            initialBearing = bearing;
-            createOrUpdateCone(center, initialBearing, currentBearing);
+            initialBearing = bearing; // Set the initial bearing from the feature
+            createOrUpdateCone(center, initialBearing, 0); // Initially, additional bearing is zero
         }
 
         function createOrUpdateCone(center, initialBearing, additionalBearing) {
@@ -122,13 +120,13 @@
                 window.view.graphics.remove(currentConeGraphic);
             }
             var totalBearing = initialBearing + additionalBearing;
-            var coneLength = 0.01; // Adjust based on your map's scale
-            var spread = 45; // Adjust FOV spread here
+            var coneLength = 0.01; // Length of the cone in map units
+            var spread = 45; // Half-angle of the FOV
 
-            var startAngle = totalBearing - spread / 2;
-            var endAngle = totalBearing + spread / 2;
+            var startAngle = totalBearing - spread;
+            var endAngle = totalBearing + spread;
             var points = [center];
-            for (var angle = startAngle; angle <= endAngle; angle += 1) {
+            for (var angle = startAngle; angle <= endAngle; angle++) {
                 var radians = angle * Math.PI / 180;
                 points.push({
                     x: center.x + coneLength * Math.cos(radians),
@@ -144,7 +142,7 @@
                 },
                 symbol: {
                     type: "simple-fill",
-                    color: [255, 0, 0, 0.4], // Red semi-transparent
+                    color: [255, 0, 0, 0.4], // Semi-transparent red
                     outline: {
                         color: [255, 0, 0],
                         width: 2
@@ -179,7 +177,7 @@
             "esri/symbols/PictureMarkerSymbol",
             "esri/Graphic"
         ], function(WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicImport) {
-            Graphic = GraphicImport;
+            Graphic = GraphicImport; // Make Graphic available globally
             var info = new OAuthInfo({
                 appId: "ti3fi1FqvHE2Hhyw",
                 popup: true
@@ -287,8 +285,8 @@
                     });
                 });
             }
-
-            window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
+        
+	window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
                 if (!startDateTimeMap[featureLayer.id]) {
                     console.error("Start DateTimeS not set yet for " + featureLayer.id);
                     return;
@@ -360,7 +358,6 @@
                 }
             });
         });
-
     </script>
 </body>
 </html>
