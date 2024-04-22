@@ -42,9 +42,9 @@
     <script>
         var player;
         var featureLayers = {};
-        var highlights = {}; // Object to store highlight references per layer
-        var activeLayerId = null; // Store the ID of the currently active layer
-        var currentConeGraphic = null; // Reference to the current cone graphic
+        var highlights = {};
+        var activeLayerId = null;
+        var currentConeGraphic = null;
         var videoMap = {
             'creek': 'EEovFU3OOlg',
             'insta360Test': 's_kCckaYzDo'
@@ -70,7 +70,7 @@
                         highlightFeatureAtTime(currentSecond, featureLayer, window.view);
                     });
                     if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        setTimeout(checkTimeUpdate, 1000); // Check every second
+                        setTimeout(checkTimeUpdate, 1000);
                     }
                 };
                 checkTimeUpdate();
@@ -84,18 +84,13 @@
         }
 
         function clearAndHighlight(feature, layer) {
-            // Clear existing highlights from all layers
             Object.keys(highlights).forEach(function(layerId) {
                 if (highlights[layerId]) {
                     highlights[layerId].remove();
                     highlights[layerId] = null;
                 }
             });
-
-            // Set the active layer ID
             activeLayerId = layer.id;
-
-            // Highlight the new feature on the new active layer
             window.view.whenLayerView(layer).then(function(layerView) {
                 highlights[layer.id] = layerView.highlight(feature);
                 updateConeBasedOnFeature(feature);
@@ -105,18 +100,18 @@
         }
 
         function updateConeBasedOnFeature(feature) {
-            var center = feature.geometry; // Assuming the feature geometry is a point with longitude and latitude
-            var bearing = feature.attributes.Bearing; // Assuming 'Bearing' field exists and holds the bearing information
-            createOrUpdateCone(center, bearing, 0); // No additional bearing from video panning yet
+            var center = feature.geometry;
+            var bearing = feature.attributes.Bearing;
+            createOrUpdateCone(center, bearing, 0);
         }
 
         function createOrUpdateCone(center, initialBearing, additionalBearing) {
             if (currentConeGraphic) {
-                window.view.graphics.remove(currentConeGraphic); // Remove the old graphic
+                window.view.graphics.remove(currentConeGraphic);
             }
             var totalBearing = initialBearing + additionalBearing;
-            var coneLength = 0.01; // Length of the cone in map units
-            var spread = 45; // Half-angle of the cone
+            var coneLength = 0.01;
+            var spread = 45;
 
             var startAngle = totalBearing - spread;
             var endAngle = totalBearing + spread;
@@ -136,7 +131,7 @@
             };
 
             var symbol = {
-                type: "simple-fill", // autocasts as new SimpleFillSymbol()
+                type: "simple-fill",
                 color: [255, 0, 0, 0.4],
                 outline: {
                     color: [255, 0, 0],
@@ -158,7 +153,7 @@
                 highlights[layer.id] = null;
             }
             if (currentConeGraphic) {
-                window.view.graphics.remove(currentConeGraphic); // Remove the cone when clearing highlights
+                window.view.graphics.remove(currentConeGraphic);
                 currentConeGraphic = null;
             }
         }
@@ -171,7 +166,7 @@
             "esri/identity/OAuthInfo",
             "esri/identity/IdentityManager",
             "esri/renderers/SimpleRenderer",
-            "esri/symbols/PictureMarkerSymbol", // Import PictureMarkerSymbol
+            "esri/symbols/PictureMarkerSymbol",
             "esri/Graphic"
         ], function(WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, Graphic) {
             var info = new OAuthInfo({
@@ -198,8 +193,8 @@
                 window.view = new MapView({
                     container: "viewDiv",
                     map: webmap,
-                    center: [-93.2650, 44.9778], // Latitude and Longitude of Minneapolis
-                    zoom: 11.75  // Zoom level set to 14
+                    center: [-93.2650, 44.9778],
+                    zoom: 11.75
                 });
 
                 var layerUrls = {
@@ -243,11 +238,10 @@
                 window.view.on("click", function(event) {
                     window.view.hitTest(event).then(function(response) {
                         if (response.results.length > 0) {
-                            var result = response.results[0]; // Only consider the first result
+                            var result = response.results[0];
                             var feature = result.graphic;
                             var layer = result.graphic.layer;
 
-                            // Check if the clicked layer is one of the feature layers
                             if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
                                 var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
                                 var videoId = videoMap[layerId];
@@ -257,7 +251,7 @@
                                     var featureTime = new Date(feature.attributes.DateTimeS).getTime();
                                     var startTime = new Date(layerStartDateTime).getTime();
                                     var timeDifference = featureTime - startTime;
-                                    var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
+                                    var seekTime = timeDifference / 1000;
 
                                     console.log("Attempting to play video", videoId, "at", seekTime, "seconds");
 
@@ -290,7 +284,7 @@
                 }
 
                 if (featureLayer.id !== activeLayerId) {
-                    return;  // Do not highlight if this is not the active layer
+                    return;
                 }
 
                 var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
@@ -326,7 +320,6 @@
             var yOffset = 0;
 
             document.addEventListener("mousedown", function(e) {
-                // Start dragging when the mouse is down on the video window
                 if (e.target === videoWindow || videoWindow.contains(e.target)) {
                     active = true;
                     initialX = e.clientX - xOffset;
@@ -337,22 +330,18 @@
 
             document.addEventListener("mousemove", function(e) {
                 if (active) {
-                    // Calculate new position
                     var currentX = e.clientX - initialX;
                     var currentY = e.clientY - initialY;
 
-                    // Update offsets
                     xOffset = currentX;
                     yOffset = currentY;
 
-                    // Apply the new position
                     videoWindow.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
                     e.preventDefault();
                 }
             });
 
             document.addEventListener("mouseup", function(e) {
-                // Stop dragging
                 if (active) {
                     initialX = xOffset;
                     initialY = yOffset;
