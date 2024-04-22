@@ -6,7 +6,6 @@
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/css/main.css" />
     <script src="https://js.arcgis.com/4.28/"></script>
-    <!-- YouTube IFrame API -->
     <script src="https://www.youtube.com/iframe_api"></script>
     <style>
         html, body, #viewDiv {
@@ -45,11 +44,11 @@
         var highlights = {};
         var activeLayerId = null;
         var currentConeGraphic = null;
-        var currentBearing = 0; // Current dynamic adjustment to bearing based on user interaction
-        var initialBearing = 0; // Initial bearing from the feature
-        var Graphic; // ArcGIS API Graphic object
-        var startDateTimeMap = {}; // Global variable for start datetime mapping
-        var videoMap = { // Mapping video IDs to feature types
+        var currentBearing = 0;
+        var initialBearing = 0;
+        var Graphic;
+        var startDateTimeMap = {};
+        var videoMap = {
             'creek': 'EEovFU3OOlg',
             'insta360Test': 's_kCckaYzDo'
         };
@@ -66,44 +65,96 @@
 
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.PLAYING) {
-                updateConeDuringPlayback();
-            } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
-                if(currentConeGraphic) {
-                    updateConeGraphic(currentBearing);
-                }
+                var checkTimeUpdate = function() {
+                    var currentSecond = Math.floor(player.getCurrentTime());
+                    Object.keys(featureLayers).forEach(function(layerId) {
+                        var featureLayer = featureLayers[layerId];
+                        highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+                    });
+                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                        setTimeout(checkTimeUpdate, 1000);
+                    }
+                };
+                checkTimeUpdate();
+            } else if (event.data === YT.PlayerState.ENDED) {
+                Object.keys(featureLayers).forEach(function(layerId) {
+                    clearHighlight(featureLayers[layerId]);
+                });
+            } else if (event.data === YT.PlayerState.PAUSED) {
+                console.log("Video paused, maintaining current highlights.");
             }
         }
 
-        function updateConeDuringPlayback() {
-            var updateInterval = setInterval(function() {
-                if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
-                    clearInterval(updateInterval);
-                    return;
+        window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
+            if (!startDateTimeMap[featureLayer.id]) {
+                console.error("Start DateTimeS not set yet for " + featureLayer.id);
+                return;
+            }
+
+            if (featureLayer.id !== activeLayerId) {
+                return;
+            }
+
+            var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+
+            view.whenLayerView(featureLayer).then(function(layerView) {
+                layerView.queryFeatures({
+                    where: "DateTimeS = '" + queryDateTimeStr + "'",
+                    returnGeometry: true,
+                    outFields: ["*"]
+                }).then(function(results) {
+                    if (results.features.length > 0) {
+                        var feature = results.features[0];
+                        clearAndHighlight(feature, featureLayer);
+                    } else {
+                        clearHighlight(featureLayer);
+                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                    }
+                }).catch(function(error) {
+                    console.error("Error highlighting feature based on DateTimeS:", error);
+                });
+            });
+        };
+
+        function clearAndHighlight(feature, layer) {
+            Object.keys(highlights).forEach(function(layerId) {
+                if (highlights[layerId]) {
+                    highlights[layerId].remove();
+                    highlights[layerId] = null;
                 }
-                var simulatedBearingChange = (Math.random() - 0.5) * 10; // Random change in bearing
-                currentBearing += simulatedBearingChange;
-                updateConeGraphic(currentBearing);
-            }, 1000); // Update every second
+            });
+            activeLayerId = layer.id;
+            window.view.whenLayerView(layer).then(function(layerView) {
+                highlights[layer.id] = layerView.highlight(feature);
+                updateConeBasedOnFeature(feature);
+            }).catch(function(error) {
+                console.error("Error in highlighting feature: ", error);
+            });
         }
 
-        function updateConeGraphic(bearing) {
-            if (!activeLayerId || !featureLayers[activeLayerId]) return;
-            var feature = featureLayers[activeLayerId].getSelectedFeatures(); // Placeholder method
-            if (feature) {
-                var center = feature.geometry; // Assuming the feature has a geometry attribute
-                createOrUpdateCone(center, bearing);
+        function updateConeBasedOnFeature(feature) {
+            var center = feature.geometry;
+            var bearing = parseFloat(feature.attributes.Bearing);
+            if (!isNaN(bearing)) {
+                initialBearing = bearing;
+                createOrUpdateCone(center, initialBearing + currentBearing, 0);
+            } else {
+                console.error("Invalid bearing value:", feature.attributes.Bearing);
             }
         }
 
-        function createOrUpdateCone(center, bearing) {
+        function createOrUpdateCone(center, initialBearing, additionalBearing) {
             if (currentConeGraphic) {
                 window.view.graphics.remove(currentConeGraphic);
             }
-            var coneLength = 0.01; // Length of the cone in map units
-            var spread = 45; // Half-angle of the FOV
+            var totalBearing = initialBearing + additionalBearing;
+            var coneLength = 0.01;
+            var spread = 45;
 
-            var startAngle = bearing - spread / 2;
-            var endAngle = bearing + spread / 2;
+            var startAngle = totalBearing - spread;
+            var endAngle = totalBearing + spread;
             var points = [center];
             for (var angle = startAngle; angle <= endAngle; angle++) {
                 var radians = angle * Math.PI / 180;
@@ -112,7 +163,7 @@
                     y: center.y + coneLength * Math.sin(radians)
                 });
             }
-            points.push(center); // Close the polygon
+            points.push(center);
 
             var polygon = new Graphic({
                 geometry: {
@@ -121,7 +172,7 @@
                 },
                 symbol: {
                     type: "simple-fill",
-                    color: [255, 0, 0, 0.4], // Semi-transparent red
+                    color: [255, 0, 0, 0.4],
                     outline: {
                         color: [255, 0, 0],
                         width: 2
@@ -131,6 +182,17 @@
 
             window.view.graphics.add(polygon);
             currentConeGraphic = polygon;
+        }
+
+        function clearHighlight(layer) {
+            if (highlights[layer.id]) {
+                highlights[layer.id].remove();
+                highlights[layer.id] = null;
+            }
+            if (currentConeGraphic) {
+                window.view.graphics.remove(currentConeGraphic);
+                currentConeGraphic = null;
+            }
         }
 
         require([
@@ -144,7 +206,7 @@
             "esri/symbols/PictureMarkerSymbol",
             "esri/Graphic"
         ], function(WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicImport) {
-            Graphic = GraphicImport; // Make Graphic available globally
+            Graphic = GraphicImport;
             var info = new OAuthInfo({
                 appId: "ti3fi1FqvHE2Hhyw",
                 popup: true
@@ -174,8 +236,8 @@
                 });
 
                 var layerUrls = {
-                    creek: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek_insta360_gpx_ProjectLatLong/FeatureServer/0",
-                    // insta360Test: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/insta360Test/FeatureServer/9"
+                    creek: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek/FeatureServer/0",
+                    insta360Test: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/insta360Test/FeatureServer/9"
                 };
 
                 Object.keys(layerUrls).forEach(function(key) {
@@ -252,39 +314,6 @@
                     });
                 });
             }
-
-            window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-                if (!startDateTimeMap[featureLayer.id]) {
-                    console.error("Start DateTimeS not set yet for " + featureLayer.id);
-                    return;
-                }
-
-                if (featureLayer.id !== activeLayerId) {
-                    return;
-                }
-
-                var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-                queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-                var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-
-                view.whenLayerView(featureLayer).then(function(layerView) {
-                    layerView.queryFeatures({
-                        where: "DateTimeS = '" + queryDateTimeStr + "'",
-                        returnGeometry: true,
-                        outFields: ["*"]
-                    }).then(function(results) {
-                        if (results.features.length > 0) {
-                            var feature = results.features[0];
-                            clearAndHighlight(feature, featureLayer);
-                        } else {
-                            clearHighlight(featureLayer);
-                            console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                        }
-                    }).catch(function(error) {
-                        console.error("Error highlighting feature based on DateTimeS:", error);
-                    });
-                });
-            };
         });
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -296,7 +325,7 @@
             var yOffset = 0;
 
             document.addEventListener("mousedown", function(e) {
-                if (e.target === videoWindow || videoWindow.contains(e.target)) {
+                if (e.target === videoWindow || videoWindow contains(e.target)) {
                     active = true;
                     initialX = e.clientX - xOffset;
                     initialY = e.clientY - yOffset;
