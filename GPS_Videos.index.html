@@ -116,43 +116,46 @@
         }
 
         function createOrUpdateCone(center, initialBearing, additionalBearing) {
-            if (currentConeGraphic) {
-                window.view.graphics.remove(currentConeGraphic);
+    console.log("Creating or updating cone for feature with center:", center, "and initial bearing:", initialBearing, "and additional bearing:", additionalBearing);
+    
+    if (currentConeGraphic) {
+        window.view.graphics.remove(currentConeGraphic);
+    }
+    var totalBearing = initialBearing + additionalBearing;
+    var coneLength = 0.01; // Length of the cone in map units
+    var spread = 45; // Half-angle of the FOV
+
+    var startAngle = totalBearing - spread;
+    var endAngle = totalBearing + spread;
+    var points = [center];
+    for (var angle = startAngle; angle <= endAngle; angle++) {
+        var radians = angle * Math.PI / 180;
+        points.push({
+            x: center.x + coneLength * Math.cos(radians),
+            y: center.y + coneLength * Math.sin(radians)
+        });
+    }
+    points.push(center); // Close the polygon
+
+    var polygon = new Graphic({
+        geometry: {
+            type: "polygon",
+            rings: [points.map(point => [point.x, point.y])]
+        },
+        symbol: {
+            type: "simple-fill",
+            color: [255, 0, 0, 0.4], // Semi-transparent red
+            outline: {
+                color: [255, 0, 0],
+                width: 2
             }
-            var totalBearing = initialBearing + additionalBearing;
-            var coneLength = 0.01; // Length of the cone in map units
-            var spread = 45; // Half-angle of the FOV
-
-            var startAngle = totalBearing - spread;
-            var endAngle = totalBearing + spread;
-            var points = [center];
-            for (var angle = startAngle; angle <= endAngle; angle++) {
-                var radians = angle * Math.PI / 180;
-                points.push({
-                    x: center.x + coneLength * Math.cos(radians),
-                    y: center.y + coneLength * Math.sin(radians)
-                });
-            }
-            points.push(center); // Close the polygon
-
-            var polygon = new Graphic({
-                geometry: {
-                    type: "polygon",
-                    rings: [points.map(point => [point.x, point.y])]
-                },
-                symbol: {
-                    type: "simple-fill",
-                    color: [255, 0, 0, 0.4], // Semi-transparent red
-                    outline: {
-                        color: [255, 0, 0],
-                        width: 2
-                    }
-                }
-            });
-
-            window.view.graphics.add(polygon);
-            currentConeGraphic = polygon;
         }
+    });
+
+    window.view.graphics.add(polygon);
+    currentConeGraphic = polygon;
+}
+
 
         function clearHighlight(layer) {
             console.log("Clearing highlight for layer:", layer.id);
