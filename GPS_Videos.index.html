@@ -48,6 +48,11 @@
         var currentBearing = 0; // Current dynamic adjustment to bearing based on user interaction
         var initialBearing = 0; // Initial bearing from the feature
         var Graphic; // ArcGIS API Graphic object
+        var startDateTimeMap = {}; // Global variable for start datetime mapping
+        var videoMap = { // Mapping video IDs to feature types
+            'creek': 'EEovFU3OOlg',
+            'insta360Test': 's_kCckaYzDo'
+        };
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -200,7 +205,7 @@
                 });
 
                 var layerUrls = {
-                    creek: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek_insta360_gpx_ProjectLatLong/FeatureServer/0",
+                    creek: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek/FeatureServer/0",
                     insta360Test: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/insta360Test/FeatureServer/9"
                 };
 
@@ -322,7 +327,7 @@
             var yOffset = 0;
 
             document.addEventListener("mousedown", function(e) {
-                if (e.target === videoWindow || videoWindow.contains(e.target)) {
+                if (e.target === videoWindow or videoWindow.contains(e.target)) {
                     active = true;
                     initialX = e.clientX - xOffset;
                     initialY = e.clientY - yOffset;
