@@ -106,17 +106,22 @@
             if (currentConeGraphic) {
                 window.view.graphics.remove(currentConeGraphic);
             }
-            var coneLength = 0.01; // Length of the cone in map units
-            var spread = 45; // Half-angle of the FOV
+            var coneLength = 1000; // Length of the cone in meters for Mercator
 
-            var startAngle = bearing - spread / 2;
-            var endAngle = bearing + spread / 2;
+            if (center.spatialReference.wkid !== window.view.spatialReference.wkid) {
+                center = window.view.toMap(window.view.toScreen(center));
+            }
+
+            var startAngle = bearing - 22.5; // Half-angle of 45 degrees
+            var endAngle = bearing + 22.5;
             var points = [center];
-            for (var angle = startAngle; angle <= endAngle; angle++) {
+            for (var angle = startAngle; angle <= endAngle; angle += 1) { // Increment by 1 degree
                 var radians = angle * Math.PI / 180;
+                var dx = coneLength * Math.cos(radians);
+                var dy = coneLength * Math.sin(radians);
                 points.push({
-                    x: center.x + coneLength * Math.cos(radians),
-                    y: center.y + coneLength * Math.sin(radians)
+                    x: center.x + dx,
+                    y: center.y + dy
                 });
             }
             points.push(center); // Close the polygon
@@ -124,7 +129,7 @@
             var polygon = new Graphic({
                 geometry: {
                     type: "polygon",
-                    rings: [points.map(point => [point.x, point.y])]
+                    rings: [points.map(p => [p.x, p.y])]
                 },
                 symbol: {
                     type: "simple-fill",
