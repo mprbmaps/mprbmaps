@@ -95,7 +95,7 @@
 
             window.view.whenLayerView(layer).then(function(layerView) {
                 highlights[layer.id] = layerView.highlight(feature);
-                drawFOVCone(feature, layerView);
+                window.drawFOVCone(feature, layerView); // Now calling the globally accessible function
             }).catch(function(error) {
                 console.error("Error in highlighting feature: ", error);
             });
@@ -265,7 +265,7 @@
                 });
             };
 
-            function drawFOVCone(feature, layerView) {
+            window.drawFOVCone = function(feature, layerView) {  // Define as a global function
                 require([
                     "esri/geometry/Point",
                     "esri/geometry/Polygon",
@@ -296,7 +296,7 @@
 
                     fovGraphicsLayer.graphics.add(fovGraphic);
                 });
-            }
+            };
 
             function createCone(centerPoint, bearing, width, length) {
                 var points = [];
@@ -328,7 +328,7 @@
             var yOffset = 0;
 
             document.addEventListener("mousedown", function(e) {
-                if (e.target === videoWindow || videoWindow.contains(e.target)) {
+                if (e.target === videoWindow or videoWindow.contains(e.target)) {
                     active = true;
                     initialX = e.clientX - xOffset;
                     initialY = e.clientY - yOffset;
