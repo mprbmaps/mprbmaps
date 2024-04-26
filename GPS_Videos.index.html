@@ -154,7 +154,12 @@
         function calculateConeCoords(center, bearing, length, width) {
             // Implement coordinate calculations here based on trigonometric functions
             // This is a placeholder for the actual implementation
-            return [[center.x, center.y], [center.x + length, center.y + width], [center.x + length, center.y - width], [center.x, center.y]];
+            return [
+                [center.x, center.y],
+                [center.x + length, center.y + width],
+                [center.x + length, center.y - width],
+                [center.x, center.y]
+            ];
         }
 
         require([
@@ -165,8 +170,10 @@
             "esri/identity/OAuthInfo",
             "esri/identity/IdentityManager",
             "esri/renderers/SimpleRenderer",
-            "esri/symbols/PictureMarkerSymbol" // Import PictureMarkerSymbol
-        ], function(WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol) {
+            "esri/symbols/PictureMarkerSymbol"
+        ], function(
+            WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol
+        ) {
             var info = new OAuthInfo({
                 appId: "ti3fi1FqvHE2Hhyw",
                 popup: true
@@ -192,12 +199,12 @@
                     container: "viewDiv",
                     map: webmap,
                     center: [-93.2650, 44.9778], // Latitude and Longitude of Minneapolis
-                    zoom: 11.75  // Zoom level set to 14
+                    zoom: 11.75  // Zoom level
                 });
 
                 var layerUrls = {
-                    creek: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek_insta360_gpx_ProjectLatLong/FeatureServer/0",
-                    // insta360Test: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/insta360Test/FeatureServer/9"
+                    creek: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek_insta360_gpx_ProjectLatLong/FeatureServer/0"
+                    // Add more layers as needed
                 };
 
                 Object.keys(layerUrls).forEach(function(key) {
