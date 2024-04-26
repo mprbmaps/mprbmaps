@@ -42,9 +42,9 @@
     <script>
         var player;
         var featureLayers = {};
-        var highlights = {}; // Object to store highlight references per layer
-        var activeLayerId = null; // Store the ID of the currently active layer
-        var fovConeGraphic = null; // Graphic for the FOV cone
+        var highlights = {};
+        var fovGraphicsLayer;
+        var activeLayerId = null;
         var videoMap = {
             'creek': 'EEovFU3OOlg',
             'insta360Test': 's_kCckaYzDo'
@@ -84,7 +84,6 @@
         }
 
         function clearAndHighlight(feature, layer) {
-            // Clear existing highlights from all layers
             Object.keys(highlights).forEach(function(layerId) {
                 if (highlights[layerId]) {
                     highlights[layerId].remove();
@@ -92,15 +91,11 @@
                 }
             });
 
-            // Set the active layer ID
             activeLayerId = layer.id;
 
-            // Highlight the new feature on the new active layer
             window.view.whenLayerView(layer).then(function(layerView) {
                 highlights[layer.id] = layerView.highlight(feature);
-                // Update or create the FOV cone
-                var bearing = feature.attributes.bearing; // Ensure this matches the actual field name
-                createFOVCone(window.view, bearing, feature.geometry);
+                drawFOVCone(feature, layerView);
             }).catch(function(error) {
                 console.error("Error in highlighting feature: ", error);
             });
@@ -112,54 +107,6 @@
                 highlights[layer.id].remove();
                 highlights[layer.id] = null;
             }
-            if (fovConeGraphic) {
-                window.view.graphics.remove(fovConeGraphic);
-                fovConeGraphic = null;
-            }
-        }
-
-        function createFOVCone(view, bearing, geometry) {
-            require(["esri/Graphic", "esri/geometry/Polygon", "esri/symbols/SimpleFillSymbol"], function(Graphic, Polygon, SimpleFillSymbol) {
-                var coneLength = 100; // Adjust this value based on your scale
-                var coneWidth = 30; // Degrees of the cone's width
-
-                // Calculate cone coordinates based on the bearing
-                var coords = calculateConeCoords(geometry, bearing, coneLength, coneWidth);
-                var polygon = new Polygon({
-                    rings: [coords],
-                    spatialReference: view.spatialReference
-                });
-
-                var symbol = new SimpleFillSymbol({
-                    color: [255, 165, 0, 0.4], // Orange, semi-transparent
-                    outline: {
-                        color: [255, 165, 0],
-                        width: 2
-                    }
-                });
-
-                if (fovConeGraphic) {
-                    view.graphics.remove(fovConeGraphic);
-                }
-
-                fovConeGraphic = new Graphic({
-                    geometry: polygon,
-                    symbol: symbol
-                });
-
-                view.graphics.add(fovConeGraphic);
-            });
-        }
-
-        function calculateConeCoords(center, bearing, length, width) {
-            // Implement coordinate calculations here based on trigonometric functions
-            // This is a placeholder for the actual implementation
-            return [
-                [center.x, center.y],
-                [center.x + length, center.y + width],
-                [center.x + length, center.y - width],
-                [center.x, center.y]
-            ];
         }
 
         require([
@@ -170,10 +117,11 @@
             "esri/identity/OAuthInfo",
             "esri/identity/IdentityManager",
             "esri/renderers/SimpleRenderer",
-            "esri/symbols/PictureMarkerSymbol"
-        ], function(
-            WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol
-        ) {
+            "esri/symbols/PictureMarkerSymbol",
+            "esri/layers/GraphicsLayer",
+            "esri/Graphic",
+            "esri/geometry/Polygon"
+        ], function(WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicsLayer, Graphic, Polygon) {
             var info = new OAuthInfo({
                 appId: "ti3fi1FqvHE2Hhyw",
                 popup: true
@@ -198,13 +146,15 @@
                 window.view = new MapView({
                     container: "viewDiv",
                     map: webmap,
-                    center: [-93.2650, 44.9778], // Latitude and Longitude of Minneapolis
-                    zoom: 11.75  // Zoom level
+                    center: [-93.2650, 44.9778],
+                    zoom: 11.75
                 });
+
+                fovGraphicsLayer = new GraphicsLayer();
+                webmap.add(fovGraphicsLayer);
 
                 var layerUrls = {
                     creek: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek_insta360_gpx_ProjectLatLong/FeatureServer/0"
-                    // Add more layers as needed
                 };
 
                 Object.keys(layerUrls).forEach(function(key) {
@@ -243,11 +193,10 @@
                 window.view.on("click", function(event) {
                     window.view.hitTest(event).then(function(response) {
                         if (response.results.length > 0) {
-                            var result = response.results[0]; // Only consider the first result
+                            var result = response.results[0];
                             var feature = result.graphic;
                             var layer = result.graphic.layer;
 
-                            // Check if the clicked layer is one of the feature layers
                             if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
                                 var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
                                 var videoId = videoMap[layerId];
@@ -257,7 +206,7 @@
                                     var featureTime = new Date(feature.attributes.DateTimeS).getTime();
                                     var startTime = new Date(layerStartDateTime).getTime();
                                     var timeDifference = featureTime - startTime;
-                                    var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
+                                    var seekTime = timeDifference / 1000;
 
                                     console.log("Attempting to play video", videoId, "at", seekTime, "seconds");
 
@@ -281,41 +230,94 @@
                         console.error("Error during hitTest:", error);
                     });
                 });
+            }
 
-                window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-                    if (!startDateTimeMap[featureLayer.id]) {
-                        console.error("Start DateTimeS not set yet for " + featureLayer.id);
-                        return;
-                    }
+            window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
+                if (!startDateTimeMap[featureLayer.id]) {
+                    console.error("Start DateTimeS not set yet for " + featureLayer.id);
+                    return;
+                }
 
-                    if (featureLayer.id !== activeLayerId) {
-                        return;  // Do not highlight if this is not the active layer
-                    }
+                if (featureLayer.id !== activeLayerId) {
+                    return;  // Do not highlight if this is not the active layer
+                }
 
-                    var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-                    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-                    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+                var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+                queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+                var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
-                    view.whenLayerView(featureLayer).then(function(layerView) {
-                        layerView.queryFeatures({
-                            where: "DateTimeS = '" + queryDateTimeStr + "'",
-                            returnGeometry: true,
-                            outFields: ["*"]
-                        }).then(function(results) {
-                            if (results.features.length > 0) {
-                                var feature = results.features[0];
-                                clearAndHighlight(feature, featureLayer);
-                            } else {
-                                clearHighlight(featureLayer);
-                                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                            }
-                        }).catch(function(error) {
-                            console.error("Error highlighting feature based on DateTimeS:", error);
-                        });
+                view.whenLayerView(featureLayer).then(function(layerView) {
+                    layerView.queryFeatures({
+                        where: "DateTimeS = '" + queryDateTimeStr + "'",
+                        returnGeometry: true,
+                        outFields: ["*"]
+                    }).then(function(results) {
+                        if (results.features.length > 0) {
+                            var feature = results.features[0];
+                            clearAndHighlight(feature, featureLayer);
+                        } else {
+                            clearHighlight(featureLayer);
+                            console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                        }
+                    }).catch(function(error) {
+                        console.error("Error highlighting feature based on DateTimeS:", error);
                     });
-                };
-            });
-        
+                });
+            };
+
+            function drawFOVCone(feature, layerView) {
+                require([
+                    "esri/geometry/Point",
+                    "esri/geometry/Polygon",
+                    "esri/geometry/support/webMercatorUtils"
+                ], function(Point, Polygon, webMercatorUtils) {
+                    var bearing = feature.attributes.bearing;
+                    var coneLength = 500; // Length of the cone in meters
+                    var coneWidth = 30; // Half angle of the FOV cone in degrees
+
+                    var centerPoint = feature.geometry.clone();
+                    var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
+                    var polygon = new Polygon({
+                        rings: cone,
+                        spatialReference: { wkid: 4326 }
+                    });
+
+                    var fovGraphic = new Graphic({
+                        geometry: polygon,
+                        symbol: {
+                            type: "simple-fill",
+                            color: [255, 165, 0, 0.3],
+                            outline: {
+                                color: [255, 165, 0],
+                                width: 2
+                            }
+                        }
+                    });
+
+                    fovGraphicsLayer.graphics.add(fovGraphic);
+                });
+            }
+
+            function createCone(centerPoint, bearing, width, length) {
+                var points = [];
+                points.push([centerPoint.x, centerPoint.y]); // Cone apex
+
+                var startBearing = bearing - width;
+                var endBearing = bearing + width;
+
+                points.push(calculatePoint(centerPoint, startBearing, length));
+                points.push(calculatePoint(centerPoint, endBearing, length));
+
+                return [points];
+            }
+
+            function calculatePoint(center, bearing, distance) {
+                var angleRad = (Math.PI / 180) * bearing;
+                var dx = distance * Math.sin(angleRad);
+                var dy = distance * Math.cos(angleRad);
+                return [center.x + dx, center.y + dy];
+            }
+        });
 
         document.addEventListener('DOMContentLoaded', function() {
             var videoWindow = document.querySelector("#videoWindow");
@@ -326,7 +328,6 @@
             var yOffset = 0;
 
             document.addEventListener("mousedown", function(e) {
-                // Start dragging when the mouse is down on the video window
                 if (e.target === videoWindow || videoWindow.contains(e.target)) {
                     active = true;
                     initialX = e.clientX - xOffset;
@@ -337,22 +338,18 @@
 
             document.addEventListener("mousemove", function(e) {
                 if (active) {
-                    // Calculate new position
                     var currentX = e.clientX - initialX;
                     var currentY = e.clientY - initialY;
 
-                    // Update offsets
                     xOffset = currentX;
                     yOffset = currentY;
 
-                    // Apply the new position
                     videoWindow.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
                     e.preventDefault();
                 }
             });
 
             document.addEventListener("mouseup", function(e) {
-                // Stop dragging
                 if (active) {
                     initialX = xOffset;
                     initialY = yOffset;
