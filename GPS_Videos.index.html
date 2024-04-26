@@ -79,14 +79,27 @@
         }
 
         function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.PLAYING) {
-                updateConeDuringPlayback();
-            } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
-                if(currentConeGraphic) {
-                    updateConeGraphic(currentBearing);
-                }
+    if (event.data === YT.PlayerState.PLAYING) {
+        var checkTimeUpdate = function() {
+            var currentSecond = Math.floor(player.getCurrentTime());
+            if (activeLayerId) {
+                highlightFeatureAtTime(currentSecond, featureLayers[activeLayerId], window.view);
             }
-        }
+            if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                setTimeout(checkTimeUpdate, 1000); // Check every second
+            }
+        };
+        checkTimeUpdate();
+    } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
+        Object.keys(highlights).forEach(function(layerId) {
+            if (highlights[layerId]) {
+                highlights[layerId].remove();
+                highlights[layerId] = null;
+            }
+        });
+    }
+}
+
 
         function updateConeDuringPlayback() {
             var updateInterval = setInterval(function() {
