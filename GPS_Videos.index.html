@@ -62,6 +62,7 @@
                     'onStateChange': onPlayerStateChange
                 }
             });
+            setupVideoSync(); // Set up video synchronization with map features
         }
 
         function onPlayerStateChange(event) {
@@ -265,11 +266,11 @@
                                 }
 
                                 // Retrieve initial bearing from feature attributes
-                                initialBearing = feature.attributes.Bearing;
+                                initialBearing = feature.attributes["bearing"]; // Correctly accessing the bearing field
                                 if (initialBearing !== undefined) {
                                     createOrUpdateCone(feature.geometry, initialBearing);
                                 } else {
-                                    console.error("Bearing attribute is missing or undefined for the selected feature.");
+                                    console.error("bearing attribute is missing or undefined for the selected feature.");
                                 }
 
                                 window.view.whenLayerView(layer).then(function(layerView) {
@@ -290,17 +291,14 @@
             }
         });
 
-        window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-            if (!startDateTimeMap[featureLayer.id]) {
-                console.error("Start DateTimeS not set yet for " + featureLayer.id);
+        window.highlightFeatureAtTime = function(currentSecond, layerId, view) {
+            var featureLayer = featureLayers[layerId];
+            if (!featureLayer || !startDateTimeMap[layerId]) {
+                console.error("Layer not loaded or start DateTimeS not set for layer", layerId);
                 return;
             }
 
-            if (featureLayer.id !== activeLayerId) {
-                return;
-            }
-
-            var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+            var queryDateTime = new Date(startDateTimeMap[layerId]);
             queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
             var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
@@ -308,19 +306,19 @@
                 layerView.queryFeatures({
                     where: "DateTimeS = '" + queryDateTimeStr + "'",
                     returnGeometry: true,
-                    outFields: ["*"]
+                    outFields: ["bearing"] // Ensuring only necessary fields are queried
                 }).then(function(results) {
                     if (results.features.length > 0) {
                         var feature = results.features[0];
-                        if (highlights[featureLayer.id]) {
-                            highlights[featureLayer.id].remove(); // Remove previous highlight
+                        if (highlights[layerId]) {
+                            highlights[layerId].remove(); // Remove previous highlight
                         }
-                        highlights[featureLayer.id] = layerView.highlight(feature);
-                        updateConeGraphic(feature.attributes.Bearing || initialBearing); // Update cone with new bearing
+                        highlights[layerId] = layerView.highlight(feature);
+                        updateConeGraphic(feature.attributes["bearing"] || initialBearing); // Ensure bearing is updated correctly
                     } else {
-                        if (highlights[featureLayer.id]) {
-                            highlights[featureLayer.id].remove(); // Remove previous highlight
-                            highlights[featureLayer.id] = null;
+                        if (highlights[layerId]) {
+                            highlights[layerId].remove(); // Remove previous highlight
+                            highlights[layerId] = null;
                         }
                         console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
                     }
