@@ -42,7 +42,7 @@
     <script>
         var player;
         var featureLayers = {};
-        var highlights = {}; // Store layer view references for highlighting
+        var highlights = {};
         var activeLayerId = null;
         var currentConeGraphic = null;
         var currentBearing = 0; // Current dynamic adjustment to bearing based on user interaction
@@ -150,12 +150,14 @@
             "esri/views/MapView",
             "esri/layers/FeatureLayer",
             "esri/layers/GraphicsLayer",
+            "esri/geometry/Point",
+            "esri/geometry/support/webMercatorUtils",
             "esri/identity/OAuthInfo",
             "esri/identity/IdentityManager",
             "esri/renderers/SimpleRenderer",
             "esri/symbols/PictureMarkerSymbol",
             "esri/Graphic"
-        ], function(WebMap, MapView, FeatureLayer, GraphicsLayer, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicImport) {
+        ], function(WebMap, MapView, FeatureLayer, GraphicsLayer, Point, webMercatorUtils, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicImport) {
             Graphic = GraphicImport; // Make Graphic available globally
             var info = new OAuthInfo({
                 appId: "ti3fi1FqvHE2Hhyw",
@@ -273,6 +275,7 @@
                                         highlights[layerId].remove(); // Remove previous highlight
                                     }
                                     highlights[layerId] = layerView.highlight(feature);
+                                    initialBearing = feature.attributes.Bearing; // Assuming bearing is stored in the 'Bearing' field
                                     createOrUpdateCone(feature.geometry, initialBearing); // Call to create or update the FOV cone
                                 }).catch(function(error) {
                                     console.error("Error obtaining layer view:", error);
@@ -310,6 +313,7 @@
                                     highlights[featureLayer.id].remove(); // Remove previous highlight
                                 }
                                 highlights[featureLayer.id] = layerView.highlight(feature);
+                                updateConeGraphic(feature.attributes.Bearing || initialBearing); // Update cone with new bearing
                             } else {
                                 if (highlights[featureLayer.id]) {
                                     highlights[featureLayer.id].remove(); // Remove previous highlight
@@ -334,7 +338,7 @@
             var yOffset = 0;
 
             document.addEventListener("mousedown", function(e) {
-                if (e.target === videoWindow || videoWindow.contains(e.target)) {
+                if (e.target === videoWindow or videoWindow.contains(e.target)) {
                     active = true;
                     initialX = e.clientX - xOffset;
                     initialY = e.clientY - yOffset;
