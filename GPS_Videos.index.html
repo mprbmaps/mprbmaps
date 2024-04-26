@@ -6,7 +6,6 @@
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/css/main.css" />
     <script src="https://js.arcgis.com/4.28/"></script>
-    <!-- YouTube IFrame API -->
     <script src="https://www.youtube.com/iframe_api"></script>
     <style>
         html, body, #viewDiv {
@@ -41,117 +40,123 @@
     </div>
     <script>
         var player;
-    var featureLayers = {};
-    var highlights = {};
-    var activeLayerId = null;
-    var currentConeGraphic = null;
-    var currentBearing = 0;
-    var initialBearing = 0;
-    var Graphic; // ArcGIS API Graphic object
-    var startDateTimeMap = {};
-    var videoMap = {
-        'creek': 'EEovFU3OOlg',
-        'insta360Test': 's_kCckaYzDo'
-    };
+        var featureLayers = {};
+        var highlights = {};
+        var activeLayerId = null;
+        var currentConeGraphic = null;
+        var currentBearing = 0;
+        var initialBearing = 0;
+        var Graphic; // ArcGIS API Graphic object
+        var startDateTimeMap = {};
+        var videoMap = {
+            'creek': 'EEovFU3OOlg',
+            'insta360Test': 's_kCckaYzDo'
+        };
 
-    function setupVideoSync() {
-        if (!player) return; // Ensure the player is initialized before setting up synchronization.
-        var updateInterval = setInterval(function() {
-            if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
-                clearInterval(updateInterval); // Stop the interval when the video is not playing.
-                return;
+        function setupVideoSync() {
+            if (!player) return; // Ensure the player is initialized before setting up synchronization.
+            var updateInterval = setInterval(function() {
+                if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
+                    clearInterval(updateInterval); // Stop the interval when the video is not playing.
+                    return;
+                }
+                var currentSecond = player.getCurrentTime(); // Get the current playback time.
+                if (activeLayerId) {
+                    highlightFeatureAtTime(currentSecond, activeLayerId, window.view); // Update map based on current video time.
+                }
+            }, 1000); // The interval runs every 1000 milliseconds (1 second).
+        }
+
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('youtubePlayer', {
+                height: '443',
+                width: '707',
+                events: {
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+            setupVideoSync(); // Set up video synchronization with map features right after player is ready.
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.PLAYING) {
+                updateConeDuringPlayback();
+            } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
+                if(currentConeGraphic) {
+                    updateConeGraphic(currentBearing);
+                }
             }
-            var currentSecond = player.getCurrentTime(); // Get the current playback time.
-            highlightFeatureAtTime(currentSecond, activeLayerId, window.view); // Update map based on current video time.
-        }, 1000); // The interval runs every 1000 milliseconds (1 second).
-    }
+        }
 
-    function onYouTubeIframeAPIReady() {
-        player = new YT.Player('youtubePlayer', {
-            height: '443',
-            width: '707',
-            events: {
-                'onStateChange': onPlayerStateChange
-            }
-        });
-        setupVideoSync(); // Set up video synchronization with map features right after player is ready.
-    }
-
-    function onPlayerStateChange(event) {
-        if (event.data === YT.PlayerState.PLAYING) {
-            updateConeDuringPlayback();
-        } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
-            if(currentConeGraphic) {
+        function updateConeDuringPlayback() {
+            var updateInterval = setInterval(function() {
+                if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
+                    clearInterval(updateInterval);
+                    return;
+                }
+                var simulatedBearingChange = (Math.random() - 0.5) * 10;
+                currentBearing += simulatedBearingChange;
                 updateConeGraphic(currentBearing);
-            }
+            }, 1000);
         }
-    }
 
-    function updateConeDuringPlayback() {
-        var updateInterval = setInterval(function() {
-            if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
-                clearInterval(updateInterval);
-                return;
-            }
-            var simulatedBearingChange = (Math.random() - 0.5) * 10;
-            currentBearing += simulatedBearingChange;
-            updateConeGraphic(currentBearing);
-        }, 1000);
-    }
-
-    function updateConeGraphic(bearing) {
-        if (!activeLayerId || !featureLayers[activeLayerId]) return;
-        var featureLayer = featureLayers[activeLayerId];
-        window.view.whenLayerView(featureLayer).then(layerView => {
-            var query = layerView.createQuery();
-            query.where = "OBJECTID = 1";
-            layerView.queryFeatures(query).then(result => {
-                if (result.features.length > 0) {
-                    var feature = result.features[0];
-                    var center = feature.geometry.centroid;
-                    createOrUpdateCone(center, bearing);
-                }
-            });
-        });
-    }
-
-    function createOrUpdateCone(center, bearing) {
-        if (currentConeGraphic) {
-            window.view.graphics.remove(currentConeGraphic);
-        }
-        var coneLength = 1000;
-        var startAngle = bearing - 22.5;
-        var endAngle = bearing + 22.5;
-        var points = [center];
-        for (var angle = startAngle; angle <= endAngle; angle += 1) {
-            var radians = angle * Math.PI / 180;
-            var dx = coneLength * Math.cos(radians);
-            var dy = coneLength * Math.sin(radians);
-            points.push({
-                x: center.x + dx,
-                y: center.y + dy
+        function updateConeGraphic(bearing) {
+            if (!activeLayerId || !featureLayers[activeLayerId]) return;
+            var featureLayer = featureLayers[activeLayerId];
+            window.view.whenLayerView(featureLayer).then(layerView => {
+                var query = layerView.createQuery();
+                query.where = "OBJECTID = 1";
+                layerView.queryFeatures(query).then(result => {
+                    if (result.features.length > 0) {
+                        var feature = result.features[0];
+                        var center = feature.geometry.centroid;
+                        createOrUpdateCone(center, bearing);
+                    }
+                });
             });
         }
-        points.push(center); // Close the polygon
 
-        var polygon = new Graphic({
-            geometry: {
-                type: "polygon",
-                rings: [points.map(p => [p.x, p.y])]
-            },
-            symbol: {
-                type: "simple-fill",
-                color: [255, 0, 0, 0.4], // Semi-transparent red
-                outline: {
-                    color: [255, 0, 0],
-                    width: 2
-                }
+        function createOrUpdateCone(center, bearing) {
+            if (currentConeGraphic) {
+                window.view.graphics.remove(currentConeGraphic);
             }
-        });
 
-        window.view.graphics.add(polygon);
-        currentConeGraphic = polygon;
-    }
+            // Convert bearing to numeric if it comes as a string
+            bearing = Number(bearing);
+            
+            var coneLength = 1000; // Length in meters for the visualization
+            var startAngle = bearing - 22.5;
+            var endAngle = bearing + 22.5;
+            var points = [center];
+            for (var angle = startAngle; angle <= endAngle; angle++) {
+                var radians = angle * Math.PI / 180;
+                var dx = coneLength * Math.cos(radians);
+                var dy = coneLength * Math.sin(radians);
+                points.push({
+                    x: center.x + dx,
+                    y: center.y + dy
+                });
+            }
+            points.push(center); // Close the polygon
+
+            var polygon = new Graphic({
+                geometry: {
+                    type: "polygon",
+                    rings: [points.map(p => [p.x, p.y])]
+                },
+                symbol: {
+                    type: "simple-fill",
+                    color: [255, 0, 0, 0.4], // Semi-transparent red
+                    outline: {
+                        color: [255, 0, 0],
+                        width: 2
+                    }
+                }
+            });
+
+            window.view.graphics.add(polygon);
+            currentConeGraphic = polygon;
+        }
 
         require([
             "esri/WebMap",
