@@ -42,7 +42,7 @@
     <script>
         var player;
         var featureLayers = {};
-        var highlights = {};
+        var highlights = {}; // Store layer view references for highlighting
         var activeLayerId = null;
         var currentConeGraphic = null;
         var currentBearing = 0; // Current dynamic adjustment to bearing based on user interaction
@@ -88,11 +88,18 @@
 
         function updateConeGraphic(bearing) {
             if (!activeLayerId || !featureLayers[activeLayerId]) return;
-            var feature = featureLayers[activeLayerId].getSelectedFeatures(); // Placeholder method
-            if (feature) {
-                var center = feature.geometry; // Assuming the feature has a geometry attribute
-                createOrUpdateCone(center, bearing);
-            }
+            var featureLayer = featureLayers[activeLayerId];
+            window.view.whenLayerView(featureLayer).then(layerView => {
+                var query = layerView.createQuery();
+                query.where = "OBJECTID = 1"; // Example query, replace with actual conditions
+                layerView.queryFeatures(query).then(result => {
+                    if (result.features.length > 0) {
+                        var feature = result.features[0];
+                        var center = feature.geometry.centroid; // Assuming the feature has a centroid property
+                        createOrUpdateCone(center, bearing);
+                    }
+                });
+            });
         }
 
         function createOrUpdateCone(center, bearing) {
@@ -255,8 +262,16 @@
                                     console.error("Missing valid DateTimeS for feature or startDateTime for layer is not set.");
                                 }
 
-                                clearAndHighlight(feature, layer);
-                                createOrUpdateCone(feature.geometry, initialBearing); // Call to create or update the FOV cone
+                                window.view.whenLayerView(layer).then(function(layerView) {
+                                    // Use the layerView for highlighting
+                                    if (highlights[layerId]) {
+                                        highlights[layerId].remove(); // Remove previous highlight
+                                    }
+                                    highlights[layerId] = layerView.highlight(feature);
+                                    createOrUpdateCone(feature.geometry, initialBearing); // Call to create or update the FOV cone
+                                }).catch(function(error) {
+                                    console.error("Error obtaining layer view:", error);
+                                });
                             }
                         }
                     }).catch(function(error) {
@@ -286,9 +301,15 @@
                         }).then(function(results) {
                             if (results.features.length > 0) {
                                 var feature = results.features[0];
-                                clearAndHighlight(feature, featureLayer);
+                                if (highlights[featureLayer.id]) {
+                                    highlights[featureLayer.id].remove(); // Remove previous highlight
+                                }
+                                highlights[featureLayer.id] = layerView.highlight(feature);
                             } else {
-                                clearHighlight(featureLayer);
+                                if (highlights[featureLayer.id]) {
+                                    highlights[featureLayer.id].remove(); // Remove previous highlight
+                                    highlights[featureLayer.id] = null;
+                                }
                                 console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
                             }
                         }).catch(function(error) {
@@ -296,15 +317,6 @@
                         });
                     });
                 };
-
-                function clearAndHighlight(feature, layer) {
-                    if (currentConeGraphic) {
-                        graphicsLayer.remove(currentConeGraphic);
-                    }
-                    var highlight = layer.highlight(feature);
-                    createOrUpdateCone(feature.geometry, initialBearing);
-                    return highlight;
-                }
             }
         });
 
