@@ -110,6 +110,7 @@
         }
 
         require([
+            "esri/config",
             "esri/WebMap",
             "esri/views/MapView",
             "esri/layers/FeatureLayer",
@@ -120,8 +121,11 @@
             "esri/symbols/PictureMarkerSymbol",
             "esri/layers/GraphicsLayer",
             "esri/Graphic",
-            "esri/geometry/Polygon"
-        ], function(WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicsLayer, Graphic, Polygon) {
+            "esri/geometry/Polygon",
+            "esri/geometry/projection"
+        ], function(esriConfig, WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicsLayer, Graphic, Polygon, projection) {
+            esriConfig.apiKey = "AAPK8b3bc436a0804ff1a4c60d4af391fb56peKBPwx9mGPvNmi2b49LWv234NdUhHD0p_6-ZUKEDMeZDcs2Z44nqQ7v8SM3YhMt";
+
             var info = new OAuthInfo({
                 appId: "ti3fi1FqvHE2Hhyw",
                 popup: true
@@ -265,21 +269,32 @@
                 });
             };
 
-            window.drawFOVCone = function(feature, layerView) {  // Define as a global function
+            window.drawFOVCone = function(feature, layerView) {
                 require([
                     "esri/geometry/Point",
                     "esri/geometry/Polygon",
-                    "esri/geometry/support/webMercatorUtils"
-                ], function(Point, Polygon, webMercatorUtils) {
+                    "esri/geometry/support/webMercatorUtils",
+                    "esri/geometry/projection"
+                ], function(Point, Polygon, webMercatorUtils, projection) {
+                    projection.load(); // Ensure the projection module is loaded
+
                     var bearing = feature.attributes.bearing;
                     var coneLength = 500; // Length of the cone in meters
                     var coneWidth = 30; // Half angle of the FOV cone in degrees
 
-                    var centerPoint = feature.geometry.clone();
-                    var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
+                    var centerPoint = new Point({
+                        x: feature.geometry.longitude,
+                        y: feature.geometry.latitude,
+                        spatialReference: { wkid: 4326 }
+                    });
+
+                    var projectedCenter = projection.project(centerPoint, { wkid: 102100 });
+
+                    var cone = createCone(projectedCenter, bearing, coneWidth, coneLength);
+
                     var polygon = new Polygon({
                         rings: cone,
-                        spatialReference: { wkid: 4326 }
+                        spatialReference: { wkid: 102100 }
                     });
 
                     var fovGraphic = new Graphic({
