@@ -265,38 +265,41 @@
                 });
             };
 
-            window.drawFOVCone = function(feature, layerView) {  // Define as a global function
-                require([
-                    "esri/geometry/Point",
-                    "esri/geometry/Polygon",
-                    "esri/geometry/support/webMercatorUtils"
-                ], function(Point, Polygon, webMercatorUtils) {
-                    var bearing = feature.attributes.bearing;
-                    var coneLength = 500; // Length of the cone in meters
-                    var coneWidth = 30; // Half angle of the FOV cone in degrees
+            window.drawFOVCone = function(feature, layerView) {
+    require([
+        "esri/geometry/Point",
+        "esri/geometry/Polygon",
+        "esri/geometry/support/webMercatorUtils"
+    ], function(Point, Polygon, webMercatorUtils) {
+        var bearing = feature.attributes.bearing;
+        var coneLength = 500; // Length of the cone in meters
+        var coneWidth = 30; // Half angle of the FOV cone in degrees
 
-                    var centerPoint = feature.geometry.clone();
-                    var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
-                    var polygon = new Polygon({
-                        rings: cone,
-                        spatialReference: { wkid: 4326 }
-                    });
+        // Convert the center point of the feature to Web Mercator
+        var centerPoint = webMercatorUtils.geographicToWebMercator(feature.geometry.clone());
 
-                    var fovGraphic = new Graphic({
-                        geometry: polygon,
-                        symbol: {
-                            type: "simple-fill",
-                            color: [255, 165, 0, 0.3],
-                            outline: {
-                                color: [255, 165, 0],
-                                width: 2
-                            }
-                        }
-                    });
+        var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
+        var polygon = new Polygon({
+            rings: cone,
+            spatialReference: { wkid: 102100 } // Set the spatial reference to Web Mercator
+        });
 
-                    fovGraphicsLayer.graphics.add(fovGraphic);
-                });
-            };
+        var fovGraphic = new Graphic({
+            geometry: polygon,
+            symbol: {
+                type: "simple-fill",
+                color: [255, 165, 0, 0.3],
+                outline: {
+                    color: [255, 165, 0],
+                    width: 2
+                }
+            }
+        });
+
+        fovGraphicsLayer.graphics.add(fovGraphic);
+    });
+};
+
 
             function createCone(centerPoint, bearing, width, length) {
                 var points = [];
