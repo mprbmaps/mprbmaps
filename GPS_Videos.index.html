@@ -109,6 +109,39 @@
             }
         }
 
+        window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
+            if (!startDateTimeMap[featureLayer.id]) {
+                console.error("Start DateTimeS not set yet for " + featureLayer.id);
+                return;
+            }
+
+            if (featureLayer.id !== activeLayerId) {
+                return;  // Do not highlight if this is not the active layer
+            }
+
+            var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+
+            view.whenLayerView(featureLayer).then(function(layerView) {
+                layerView.queryFeatures({
+                    where: "DateTimeS = '" + queryDateTimeStr + "'",
+                    returnGeometry: true,
+                    outFields: ["*"]
+                }).then(function(results) {
+                    if (results.features.length > 0) {
+                        var feature = results.features[0];
+                        clearAndHighlight(feature, featureLayer);
+                    } else {
+                        clearHighlight(featureLayer);
+                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                    }
+                }).catch(function(error) {
+                    console.error("Error highlighting feature based on DateTimeS:", error);
+                });
+            });
+        };
+
         require([
             "esri/WebMap",
             "esri/views/MapView",
@@ -121,7 +154,9 @@
             "esri/layers/GraphicsLayer",
             "esri/Graphic",
             "esri/geometry/Polygon"
-        ], function(WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicsLayer, Graphic, Polygon) {
+        ], function(
+            WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicsLayer, Graphic, Polygon
+        ) {
             var info = new OAuthInfo({
                 appId: "ti3fi1FqvHE2Hhyw",
                 popup: true
@@ -232,74 +267,45 @@
                 });
             }
 
-            window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-                if (!startDateTimeMap[featureLayer.id]) {
-                    console.error("Start DateTimeS not set yet for " + featureLayer.id);
-                    return;
-                }
+            window.drawFOVCone = function(feature, layerView) {
+                require([
+                    "esri/geometry/Point",
+                    "esri/geometry/Polygon",
+                    "esri/geometry/support/webMercatorUtils"
+                ], function(Point, Polygon, webMercatorUtils) {
+                    var bearing = feature.attributes.bearing;
+                    if (bearing === undefined) {
+                        console.error("Bearing attribute is undefined");
+                        return;
+                    }
+                    var coneLength = 500; // Length of the cone in meters
+                    var coneWidth = 30; // Half angle of the FOV cone in degrees
 
-                if (featureLayer.id !== activeLayerId) {
-                    return;  // Do not highlight if this is not the active layer
-                }
+                    var centerPoint = webMercatorUtils.geographicToWebMercator(feature.geometry.clone());
+                    console.log("Original Feature Coordinates:", feature.geometry.toJSON());
+                    console.log("Projected Feature Coordinates:", centerPoint.toJSON());
 
-                var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-                queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-                var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-
-                view.whenLayerView(featureLayer).then(function(layerView) {
-                    layerView.queryFeatures({
-                        where: "DateTimeS = '" + queryDateTimeStr + "'",
-                        returnGeometry: true,
-                        outFields: ["*"]
-                    }).then(function(results) {
-                        if (results.features.length > 0) {
-                            var feature = results.features[0];
-                            clearAndHighlight(feature, featureLayer);
-                        } else {
-                            clearHighlight(featureLayer);
-                            console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                        }
-                    }).catch(function(error) {
-                        console.error("Error highlighting feature based on DateTimeS:", error);
+                    var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
+                    var polygon = new Polygon({
+                        rings: cone,
+                        spatialReference: { wkid: 102100 }
                     });
+
+                    var fovGraphic = new Graphic({
+                        geometry: polygon,
+                        symbol: {
+                            type: "simple-fill",
+                            color: [255, 165, 0, 0.3],
+                            outline: {
+                                color: [255, 165, 0],
+                                width: 2
+                            }
+                        }
+                    });
+
+                    fovGraphicsLayer.graphics.add(fovGraphic);
                 });
             };
-
-            window.drawFOVCone = function(feature, layerView) {
-    require([
-        "esri/geometry/Point",
-        "esri/geometry/Polygon",
-        "esri/geometry/support/webMercatorUtils"
-    ], function(Point, Polygon, webMercatorUtils) {
-        var bearing = feature.attributes.bearing;
-        var coneLength = 500; // Length of the cone in meters
-        var coneWidth = 30; // Half angle of the FOV cone in degrees
-
-        // Convert the center point of the feature to Web Mercator
-        var centerPoint = webMercatorUtils.geographicToWebMercator(feature.geometry.clone());
-
-        var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
-        var polygon = new Polygon({
-            rings: cone,
-            spatialReference: { wkid: 102100 } // Set the spatial reference to Web Mercator
-        });
-
-        var fovGraphic = new Graphic({
-            geometry: polygon,
-            symbol: {
-                type: "simple-fill",
-                color: [255, 165, 0, 0.3],
-                outline: {
-                    color: [255, 165, 0],
-                    width: 2
-                }
-            }
-        });
-
-        fovGraphicsLayer.graphics.add(fovGraphic);
-    });
-};
-
 
             function createCone(centerPoint, bearing, width, length) {
                 var points = [];
@@ -310,6 +316,7 @@
 
                 points.push(calculatePoint(centerPoint, startBearing, length));
                 points.push(calculatePoint(centerPoint, endBearing, length));
+                points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
 
                 return [points];
             }
@@ -325,10 +332,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             var videoWindow = document.querySelector("#videoWindow");
             var active = false;
-            var initialX = 0;
-            var initialY = 0;
-            var xOffset = 0;
-            var yOffset = 0;
+            var initialX, initialY, xOffset = 0, yOffset = 0;
 
             document.addEventListener("mousedown", function(e) {
                 if (e.target === videoWindow || videoWindow.contains(e.target)) {
@@ -352,12 +356,10 @@
                 }
             });
 
-            document.addEventListener("mouseup", function(e) {
-                if (active) {
-                    initialX = xOffset;
-                    initialY = yOffset;
-                    active = false;
-                }
+            document.addEventListener("mouseup", function() {
+                active = false;
+                initialX = xOffset;
+                initialY = yOffset;
             });
         });
     </script>
