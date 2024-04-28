@@ -67,19 +67,25 @@
                     var currentSecond = Math.floor(player.getCurrentTime());
                     Object.keys(featureLayers).forEach(function(layerId) {
                         var featureLayer = featureLayers[layerId];
-                        highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+                        if (featureLayer.id === activeLayerId) {
+                            highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+                        }
                     });
                     if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        setTimeout(checkTimeUpdate, 1000); // Check every second
+                        setTimeout(checkTimeUpdate, 1000);
                     }
                 };
                 checkTimeUpdate();
             } else if (event.data === YT.PlayerState.ENDED) {
                 Object.keys(featureLayers).forEach(function(layerId) {
                     clearHighlight(featureLayers[layerId]);
+                    fovGraphicsLayer.graphics.removeAll();
                 });
             } else if (event.data === YT.PlayerState.PAUSED) {
-                console.log("Video paused, maintaining current highlights.");
+                console.log("Video paused, maintaining current highlights and FOV.");
+            } else if (event.data === YT.PlayerState.SEEKED) {
+                console.log("Video was panned (seeked), updating FOV cone.");
+                // Add functionality here to handle the re-drawing of FOV cones based on the seek position
             }
         }
 
@@ -95,7 +101,7 @@
 
             window.view.whenLayerView(layer).then(function(layerView) {
                 highlights[layer.id] = layerView.highlight(feature);
-                window.drawFOVCone(feature, layerView); // Now calling the globally accessible function
+                window.drawFOVCone(feature, layerView);
             }).catch(function(error) {
                 console.error("Error in highlighting feature: ", error);
             });
@@ -268,40 +274,40 @@
             }
 
             window.drawFOVCone = function(feature, layerView) {
-    require([
-        "esri/geometry/Polygon",
-        "esri/Graphic"
-    ], function(Polygon, Graphic) {
-        var bearing = feature.attributes.bearing;
-        var coneLength = 20; // Length of the cone in meters
-        var coneWidth = 30; // Half angle of the FOV cone in degrees
+                require([
+                    "esri/geometry/Polygon",
+                    "esri/Graphic"
+                ], function(Polygon, Graphic) {
+                    var bearing = feature.attributes.bearing;
+                    var coneLength = 20; // Length of the cone in meters
+                    var coneWidth = 30; // Half angle of the FOV cone in degrees
 
-        // Assuming coordinates are already in Web Mercator
-        var centerPoint = feature.geometry.clone();
-        console.log("Using Feature Coordinates:", centerPoint.toJSON());
+                    fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
-        var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
-        var polygon = new Polygon({
-            rings: cone,
-            spatialReference: { wkid: 102100 } // Using the same spatial reference
-        });
+                    var centerPoint = feature.geometry.clone();
+                    console.log("Using Feature Coordinates:", centerPoint.toJSON());
 
-        var fovGraphic = new Graphic({
-            geometry: polygon,
-            symbol: {
-                type: "simple-fill",
-                color: [255, 165, 0, 0.3],
-                outline: {
-                    color: [255, 165, 0],
-                    width: 2
-                }
-            }
-        });
+                    var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
+                    var polygon = new Polygon({
+                        rings: cone,
+                        spatialReference: { wkid: 102100 }
+                    });
 
-        fovGraphicsLayer.graphics.add(fovGraphic);
-    });
-};
+                    var fovGraphic = new Graphic({
+                        geometry: polygon,
+                        symbol: {
+                            type: "simple-fill",
+                            color: [255, 165, 0, 0.3],
+                            outline: {
+                                color: [255, 165, 0],
+                                width: 2
+                            }
+                        }
+                    });
 
+                    fovGraphicsLayer.graphics.add(fovGraphic);
+                });
+            };
 
             function createCone(centerPoint, bearing, width, length) {
                 var points = [];
