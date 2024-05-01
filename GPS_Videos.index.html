@@ -9,7 +9,7 @@
     <!-- YouTube IFrame API -->
     <script src="https://www.youtube.com/iframe_api"></script>
     <style>
-        html, body, #viewDiv {
+        html, body, #viewDiv, #bearingControl {
             height: 100%;
             width: 100%;
             margin: 0;
@@ -32,6 +32,17 @@
             width: 707px;
             height: 443px;
         }
+        #bearingControl {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            background: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -39,12 +50,17 @@
     <div id="videoWindow">
         <div id="youtubePlayer"></div>
     </div>
+    <div id="bearingControl">
+        <input type="range" id="bearingSlider" min="0" max="360" step="1" value="180" style="width: 300px;">
+        <span id="bearingValue">180°</span>
+    </div>
     <script>
         var player;
         var featureLayers = {};
         var highlights = {};
         var fovGraphicsLayer;
         var activeLayerId = null;
+        var currentFeature = null; // Placeholder for the current feature
         var videoMap = {
             'creek': 'EEovFU3OOlg',
             'insta360Test': 's_kCckaYzDo'
@@ -102,6 +118,7 @@
             window.view.whenLayerView(layer).then(function(layerView) {
                 highlights[layer.id] = layerView.highlight(feature);
                 window.drawFOVCone(feature, layerView);
+                currentFeature = feature; // Update current feature for FOV adjustment
             }).catch(function(error) {
                 console.error("Error in highlighting feature: ", error);
             });
@@ -271,97 +288,103 @@
                         console.error("Error during hitTest:", error);
                     });
                 });
-            }
 
-            window.drawFOVCone = function(feature, layerView) {
-                require([
-                    "esri/geometry/Polygon",
-                    "esri/Graphic"
-                ], function(Polygon, Graphic) {
-                    var bearing = feature.attributes.bearing;
-                    var coneLength = 20; // Length of the cone in meters
-                    var coneWidth = 30; // Half angle of the FOV cone in degrees
-
-                    fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
-
-                    var centerPoint = feature.geometry.clone();
-                    console.log("Using Feature Coordinates:", centerPoint.toJSON());
-
-                    var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
-                    var polygon = new Polygon({
-                        rings: cone,
-                        spatialReference: { wkid: 102100 }
-                    });
-
-                    var fovGraphic = new Graphic({
-                        geometry: polygon,
-                        symbol: {
-                            type: "simple-fill",
-                            color: [255, 165, 0, 0.3],
-                            outline: {
-                                color: [255, 165, 0],
-                                width: 2
-                            }
-                        }
-                    });
-
-                    fovGraphicsLayer.graphics.add(fovGraphic);
+                document.getElementById('bearingSlider').addEventListener('input', function(e) {
+                    var newBearing = parseInt(e.target.value);
+                    document.getElementById('bearingValue').innerText = `${newBearing}°`;
+                    updateFOVConeDirection(newBearing);
                 });
-            };
 
-            function createCone(centerPoint, bearing, width, length) {
-                var points = [];
-                points.push([centerPoint.x, centerPoint.y]); // Cone apex
+                window.drawFOVCone = function(feature, layerView) {
+                    require([
+                        "esri/geometry/Polygon",
+                        "esri/Graphic"
+                    ], function(Polygon, Graphic) {
+                        var bearing = feature.attributes.bearing;
+                        var coneLength = 20; // Length of the cone in meters
+                        var coneWidth = 30; // Half angle of the FOV cone in degrees
 
-                var startBearing = bearing - width;
-                var endBearing = bearing + width;
+                        fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
-                points.push(calculatePoint(centerPoint, startBearing, length));
-                points.push(calculatePoint(centerPoint, endBearing, length));
-                points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
+                        var centerPoint = feature.geometry.clone();
+                        console.log("Using Feature Coordinates:", centerPoint.toJSON());
 
-                return [points];
-            }
+                        var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
+                        var polygon = new Polygon({
+                            rings: cone,
+                            spatialReference: { wkid: 102100 }
+                        });
 
-            function calculatePoint(center, bearing, distance) {
-                var angleRad = (Math.PI / 180) * bearing;
-                var dx = distance * Math.sin(angleRad);
-                var dy = distance * Math.cos(angleRad);
-                return [center.x + dx, center.y + dy];
-            }
-        });
+                        var fovGraphic = new Graphic({
+                            geometry: polygon,
+                            symbol: {
+                                type: "simple-fill",
+                                color: [255, 165, 0, 0.3],
+                                outline: {
+                                    color: [255, 165, 0],
+                                    width: 2
+                                }
+                            }
+                        });
 
-        document.addEventListener('DOMContentLoaded', function() {
-            var videoWindow = document.querySelector("#videoWindow");
-            var active = false;
-            var initialX, initialY, xOffset = 0, yOffset = 0;
+                        fovGraphicsLayer.graphics.add(fovGraphic);
+                    });
+                };
 
-            document.addEventListener("mousedown", function(e) {
-                if (e.target === videoWindow || videoWindow.contains(e.target)) {
-                    active = true;
-                    initialX = e.clientX - xOffset;
-                    initialY = e.clientY - yOffset;
-                    e.preventDefault();
+                function createCone(centerPoint, bearing, width, length) {
+                    var points = [];
+                    points.push([centerPoint.x, centerPoint.y]); // Cone apex
+
+                    var startBearing = bearing - width;
+                    var endBearing = bearing + width;
+
+                    points.push(calculatePoint(centerPoint, startBearing, length));
+                    points.push(calculatePoint(centerPoint, endBearing, length));
+                    points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
+
+                    return [points];
+                }
+
+                function calculatePoint(center, bearing, distance) {
+                    var angleRad = (Math.PI / 180) * bearing;
+                    var dx = distance * Math.sin(angleRad);
+                    var dy = distance * Math.cos(angleRad);
+                    return [center.x + dx, center.y + dy];
                 }
             });
 
-            document.addEventListener("mousemove", function(e) {
-                if (active) {
-                    var currentX = e.clientX - initialX;
-                    var currentY = e.clientY - initialY;
+            document.addEventListener('DOMContentLoaded', function() {
+                var videoWindow = document.querySelector("#videoWindow");
+                var active = false;
+                var initialX, initialY, xOffset = 0, yOffset = 0;
 
-                    xOffset = currentX;
-                    yOffset = currentY;
+                document.addEventListener("mousedown", function(e) {
+                    if (e.target === videoWindow || videoWindow.contains(e.target)) {
+                        active = true;
+                        initialX = e.clientX - xOffset;
+                        initialY = e.clientY - yOffset;
+                        e.preventDefault();
+                    }
+                });
 
-                    videoWindow.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
-                    e.preventDefault();
-                }
-            });
+                document.addEventListener("mousemove", function(e) {
+                    if (active) {
+                        var currentX = e.clientX - initialX;
+                        var currentY = e.clientY - initialY;
 
-            document.addEventListener("mouseup", function() {
-                active = false;
-                initialX = xOffset;
-                initialY = yOffset;
+                        xOffset = currentX;
+                        yOffset = currentY;
+
+                        videoWindow.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
+                        e.preventDefault();
+                    }
+                });
+
+                document.addEventListener("mouseup", function() {
+                    active = false;
+                    initialX = xOffset;
+                    initialY = yOffset;
+                });
             });
         });
     </script>
