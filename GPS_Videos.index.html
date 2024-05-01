@@ -296,39 +296,34 @@
                 });
 
                 window.drawFOVCone = function(feature, layerView) {
-                    require([
-                        "esri/geometry/Polygon",
-                        "esri/Graphic"
-                    ], function(Polygon, Graphic) {
-                        var bearing = feature.attributes.bearing;
-                        var coneLength = 20; // Length of the cone in meters
-                        var coneWidth = 30; // Half angle of the FOV cone in degrees
+                    var bearing = feature.attributes.bearing;
+                    var coneLength = 20; // Length of the cone in meters
+                    var coneWidth = 30; // Half angle of the FOV cone in degrees
 
-                        fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
+                    fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
-                        var centerPoint = feature.geometry.clone();
-                        console.log("Using Feature Coordinates:", centerPoint.toJSON());
+                    var centerPoint = feature.geometry.clone();
+                    console.log("Using Feature Coordinates:", centerPoint.toJSON());
 
-                        var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
-                        var polygon = new Polygon({
-                            rings: cone,
-                            spatialReference: { wkid: 102100 }
-                        });
-
-                        var fovGraphic = new Graphic({
-                            geometry: polygon,
-                            symbol: {
-                                type: "simple-fill",
-                                color: [255, 165, 0, 0.3],
-                                outline: {
-                                    color: [255, 165, 0],
-                                    width: 2
-                                }
-                            }
-                        });
-
-                        fovGraphicsLayer.graphics.add(fovGraphic);
+                    var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
+                    var polygon = new Polygon({
+                        rings: cone,
+                        spatialReference: { wkid: 102100 }
                     });
+
+                    var fovGraphic = new Graphic({
+                        geometry: polygon,
+                        symbol: {
+                            type: "simple-fill",
+                            color: [255, 165, 0, 0.3],
+                            outline: {
+                                color: [255, 165, 0],
+                                width: 2
+                            }
+                        }
+                    });
+
+                    fovGraphicsLayer.graphics.add(fovGraphic);
                 };
 
                 function createCone(centerPoint, bearing, width, length) {
