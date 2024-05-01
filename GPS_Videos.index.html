@@ -200,22 +200,31 @@
             });
         
             function displayMap() {
-                var webmap = new WebMap({
-    portalItem: {
-        id: "08386264ca8d480286748e95b89558b4"
-    }
-}).catch(function(error) {
-    console.error("Error loading WebMap:", error);
-});
-        
-                window.view = new MapView({
-    container: "viewDiv",
-    map: webmap,
-    center: [-93.2650, 44.9778],
-    zoom: 11.75
-}).then(function() {
-    console.log("MapView is ready.");
-});
+    var webmap = new WebMap({
+        portalItem: {
+            id: "08386264ca8d480286748e95b89558b4"
+        }
+    }).catch(function(error) {
+        console.error("Error loading WebMap:", error);
+        return error; // Return error to keep the promise chain.
+    });
+
+    webmap.then(function(map) {
+        window.view = new MapView({
+            container: "viewDiv",
+            map: map,
+            center: [-93.2650, 44.9778],
+            zoom: 11.75
+        }).then(function(view) {
+            console.log("MapView is ready.");
+        }).catch(function(error) {
+            console.error("Error creating MapView:", error);
+        });
+    }).catch(function(error) {
+        console.error("Error after WebMap processing:", error);
+    });
+}
+
         
                 fovGraphicsLayer = new GraphicsLayer();
                 webmap.add(fovGraphicsLayer);
