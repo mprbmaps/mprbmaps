@@ -5,9 +5,9 @@
     <title>FeatureLayer with Video Synchronization and FOV Display</title>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/css/main.css" />
-    <link href="https://vjs.zencdn.net/7.10.2/video-js.css" rel="stylesheet">
-    <script src="https://vjs.zencdn.net/7.10.2/video.js"></script>
     <script src="https://js.arcgis.com/4.28/"></script>
+    <!-- YouTube IFrame API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
     <style>
         html, body, #viewDiv {
             height: 100%;
@@ -28,7 +28,7 @@
             overflow: hidden;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
         }
-        .video-js {
+        #youtubePlayer {
             width: 707px;
             height: 443px;
         }
@@ -37,50 +37,57 @@
 <body>
     <div id="viewDiv"></div>
     <div id="videoWindow">
-        <video id="my-video" class="video-js vjs-default-skin" controls preload="auto" width="707" height="443">
-            <source src="https://mprbvideos.b-cdn.net/VID_20240410_165022_00_048%281%29logo.mp4" type="video/mp4">
-            Your browser does not support HTML5 video.
-        </video>
+        <div id="youtubePlayer"></div>
     </div>
     <script>
-        var player = videojs('my-video');
+        var player;
         var featureLayers = {};
         var highlights = {};
         var fovGraphicsLayer;
         var activeLayerId = null;
         var videoMap = {
-            'creek': 'https://mprbvideos.b-cdn.net/VID_20240410_165022_00_048%281%29logo.mp4',
-            //'insta360Test': 'URL_to_insta360Test_video.mp4' // Uncomment and set correct URL if needed
+            'creek': 'EEovFU3OOlg',
+            'insta360Test': 's_kCckaYzDo'
         };
         var startDateTimeMap = {};
 
-        player.ready(function() {
-            player.on('timeupdate', function() {
-                var currentSecond = Math.floor(player.currentTime());
-                Object.keys(featureLayers).forEach(function(layerId) {
-                    var featureLayer = featureLayers[layerId];
-                    if (featureLayer.id === activeLayerId) {
-                        highlightFeatureAtTime(currentSecond, featureLayer, window.view);
-                    }
-                });
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('youtubePlayer', {
+                height: '443',
+                width: '707',
+                events: {
+                    'onStateChange': onPlayerStateChange
+                }
             });
+        }
 
-            player.on('ended', function() {
+        function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.PLAYING) {
+                var checkTimeUpdate = function() {
+                    var currentSecond = Math.floor(player.getCurrentTime());
+                    Object.keys(featureLayers).forEach(function(layerId) {
+                        var featureLayer = featureLayers[layerId];
+                        if (featureLayer.id === activeLayerId) {
+                            highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+                        }
+                    });
+                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                        setTimeout(checkTimeUpdate, 1000);
+                    }
+                };
+                checkTimeUpdate();
+            } else if (event.data === YT.PlayerState.ENDED) {
                 Object.keys(featureLayers).forEach(function(layerId) {
                     clearHighlight(featureLayers[layerId]);
                     fovGraphicsLayer.graphics.removeAll();
                 });
-            });
-
-            player.on('pause', function() {
+            } else if (event.data === YT.PlayerState.PAUSED) {
                 console.log("Video paused, maintaining current highlights and FOV.");
-            });
-
-            player.on('seeked', function() {
+            } else if (event.data === YT.PlayerState.SEEKED) {
                 console.log("Video was panned (seeked), updating FOV cone.");
-                // Additional functionality for updating the FOV cone based on the seek position
-            });
-        });
+                // Add functionality here to handle the re-drawing of FOV cones based on the seek position
+            }
+        }
 
         function clearAndHighlight(feature, layer) {
             Object.keys(highlights).forEach(function(layerId) {
@@ -245,8 +252,11 @@
                                     console.log("Attempting to play video", videoId, "at", seekTime, "seconds");
 
                                     if (seekTime >= 0) {
-                                        player.src({ type: 'video/mp4', src: videoId });
-                                        player.currentTime(seekTime);
+                                        if (player && typeof player.loadVideoById === "function") {
+                                            player.loadVideoById({ videoId: videoId, startSeconds: seekTime });
+                                        } else {
+                                            console.error("YouTube player is not ready or `loadVideoById` is not available.");
+                                        }
                                     } else {
                                         console.error("Calculated seek time is negative.");
                                     }
@@ -307,7 +317,7 @@
                 var endBearing = bearing + width;
 
                 points.push(calculatePoint(centerPoint, startBearing, length));
-                points push(calculatePoint(centerPoint, endBearing, length));
+                points.push(calculatePoint(centerPoint, endBearing, length));
                 points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
 
                 return [points];
@@ -327,7 +337,7 @@
             var initialX, initialY, xOffset = 0, yOffset = 0;
 
             document.addEventListener("mousedown", function(e) {
-                if (e.target === videoWindow || videoWindow contains(e.target)) {
+                if (e.target === videoWindow || videoWindow.contains(e.target)) {
                     active = true;
                     initialX = e.clientX - xOffset;
                     initialY = e.clientY - yOffset;
