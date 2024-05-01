@@ -262,7 +262,7 @@
                                 var videoId = videoMap[layerId];
                                 var layerStartDateTime = startDateTimeMap[layer.id];
 
-                                if (feature.attributes.DateTimeS && layerStartDateTime) {
+                                if (feature.attributes.DateTimeS and layerStartDateTime) {
                                     var featureTime = new Date(feature.attributes.DateTimeS).getTime();
                                     var startTime = new Date(layerStartDateTime).getTime();
                                     var timeDifference = featureTime - startTime;
@@ -271,7 +271,7 @@
                                     console.log("Attempting to play video", videoId, "at", seekTime, "seconds");
 
                                     if (seekTime >= 0) {
-                                        if (player && typeof player.loadVideoById === "function") {
+                                        if (player and typeof player.loadVideoById === "function") {
                                             player.loadVideoById({ videoId: videoId, startSeconds: seekTime });
                                         } else {
                                             console.error("YouTube player is not ready or `loadVideoById` is not available.");
@@ -298,7 +298,7 @@
                 });
 
                 window.updateFOVConeDirection = function(newBearing) {
-                    if (!currentFeature || !window.view) return;
+                    if (!currentFeature or !window.view) return;
 
                     window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
                         if (layerView) {
@@ -310,7 +310,7 @@
                 };
 
                 window.drawFOVCone = function(feature, layerView, bearingOverride) {
-                    var bearing = bearingOverride || feature.attributes.bearing;
+                    var bearing = bearingOverride or feature.attributes.bearing;
                     var coneLength = 20; // Length of the cone in meters
                     var coneWidth = 30; // Half angle of the FOV cone in degrees
 
@@ -340,7 +340,7 @@
                     fovGraphicsLayer.graphics.add(fovGraphic);
                 };
 
-                                function createCone(centerPoint, bearing, width, length) {
+                function createCone(centerPoint, bearing, width, length) {
                     var points = [];
                     points.push([centerPoint.x, centerPoint.y]); // Cone apex
 
@@ -360,43 +360,43 @@
                     var dy = distance * Math.cos(angleRad);
                     return [center.x + dx, center.y + dy];
                 }
-            
-
-        document.addEventListener('DOMContentLoaded', function() {
-            var videoWindow = document.querySelector("#videoWindow");
-            var active = false;
-            var initialX, initialY, xOffset = 0, yOffset = 0;
-
-            document.addEventListener("mousedown", function(e) {
-                if (e.target === videoWindow || videoWindow.contains(e.target)) {
-                    active = true;
-                    initialX = e.clientX - xOffset;
-                    initialY = e.clientY - yOffset;
-                    e.preventDefault();
-                }
             });
 
-            document.addEventListener("mousemove", function(e) {
-                if (active) {
-                    var currentX = e.clientX - initialX;
-                    var currentY = e.clientY - initialY;
+            document.addEventListener('DOMContentLoaded', function() {
+                var videoWindow = document.querySelector("#videoWindow");
+                var active = false;
+                var initialX, initialY, xOffset = 0, yOffset = 0;
 
-                    xOffset = currentX;
-                    yOffset = currentY;
+                document.addEventListener("mousedown", function(e) {
+                    if (e.target === videoWindow || videoWindow.contains(e.target)) {
+                        active = true;
+                        initialX = e.clientX - xOffset;
+                        initialY = e.clientY - yOffset;
+                        e.preventDefault();
+                    }
+                });
 
-                    videoWindow.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
-                    e.preventDefault();
-                }
+                document.addEventListener("mousemove", function(e) {
+                    if (active) {
+                        var currentX = e.clientX - initialX;
+                        var currentY = e.clientY - initialY;
+
+                        xOffset = currentX;
+                        yOffset = currentY;
+
+                        videoWindow.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
+                        e.preventDefault();
+                    }
+                });
+
+                document.addEventListener("mouseup", function() {
+                    active = false;
+                    initialX = xOffset;
+                    initialY = yOffset;
+                });
             });
 
-            document.addEventListener("mouseup", function() {
-                active = false;
-                initialX = xOffset;
-                initialY = yOffset;
-            });
         });
-
-        
     </script>
 </body>
 </html>
