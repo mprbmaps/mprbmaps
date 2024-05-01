@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <html>
-	<head>
-		<meta charset="utf-8" />
-		<title>FeatureLayer with Video Synchronization and FOV Display</title>
-		<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-		<link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/css/main.css" />
-		<script src="https://js.arcgis.com/4.28/"></script>
-		<!-- YouTube IFrame API -->
-		<script src="https://www.youtube.com/iframe_api"></script>
-		<style>
+<head>
+    <meta charset="utf-8" />
+    <title>FeatureLayer with Video Synchronization and FOV Display</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/css/main.css" />
+    <script src="https://js.arcgis.com/4.28/"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <style>
         html, body, #viewDiv, #bearingControl {
             height: 100%;
             width: 100%;
@@ -44,23 +43,23 @@
             border-radius: 4px;
         }
     </style>
-	</head>
-	<body>
-		<div id="viewDiv"></div>
-		<div id="videoWindow">
-			<div id="youtubePlayer"></div>
-		</div>
-		<div id="bearingControl">
-			<input type="range" id="bearingSlider" min="0" max="360" step="1" value="180" style="width: 300px;">
-				<span id="bearingValue">180°</span>
-			</div>
-			<script>
+</head>
+<body>
+    <div id="viewDiv"></div>
+    <div id="videoWindow">
+        <div id="youtubePlayer"></div>
+    </div>
+    <div id="bearingControl">
+        <input type="range" id="bearingSlider" min="0" max="360" step="1" value="180" style="width: 300px;">
+        <span id="bearingValue">180°</span>
+    </div> <!-- Moved the closing div tag here to properly close #bearingControl -->
+    <script>
         var player;
         var featureLayers = {};
         var highlights = {};
         var fovGraphicsLayer;
         var activeLayerId = null;
-        var currentFeature = null; // Placeholder for the current feature
+        var currentFeature = null;
         var videoMap = {
             'creek': 'EEovFU3OOlg',
             'insta360Test': 's_kCckaYzDo'
@@ -83,25 +82,24 @@
                     var currentSecond = Math.floor(player.getCurrentTime());
                     Object.keys(featureLayers).forEach(function(layerId) {
                         var featureLayer = featureLayers[layerId];
-                        if (featureLayer.id === activeLayerId) {
+                        if (featureLayer && featureLayer.id === activeLayerId) {
                             highlightFeatureAtTime(currentSecond, featureLayer, window.view);
                         }
                     });
-                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                    if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
                         setTimeout(checkTimeUpdate, 1000);
                     }
                 };
                 checkTimeUpdate();
             } else if (event.data === YT.PlayerState.ENDED) {
                 Object.keys(featureLayers).forEach(function(layerId) {
-                    clearHighlight(featureLayers[layerId]);
-                    fovGraphicsLayer.graphics.removeAll();
+                    if (featureLayers[layerId]) clearHighlight(featureLayers[layerId]);
+                    if (fovGraphicsLayer) fovGraphicsLayer.graphics.removeAll();
                 });
             } else if (event.data === YT.PlayerState.PAUSED) {
                 console.log("Video paused, maintaining current highlights and FOV.");
-            } else if (event.data === YT.PlayerState.SEEKED) {
-                console.log("Video was panned (seeked), updating FOV cone.");
-                // Add functionality here to handle the re-drawing of FOV cones based on the seek position
+            } else if (event.data === YT.PlayerState.CUED) {
+                console.log("Video was cued, updating FOV cone.");
             }
         }
 
@@ -116,9 +114,11 @@
             activeLayerId = layer.id;
 
             window.view.whenLayerView(layer).then(function(layerView) {
-                highlights[layer.id] = layerView.highlight(feature);
-                window.drawFOVCone(feature, layerView);
-                currentFeature = feature; // Update current feature for FOV adjustment
+                if (layerView) {
+                    highlights[layer.id] = layerView.highlight(feature);
+                    window.drawFOVCone(feature, layerView);
+                    currentFeature = feature;
+                }
             }).catch(function(error) {
                 console.error("Error in highlighting feature: ", error);
             });
@@ -139,7 +139,7 @@
             }
 
             if (featureLayer.id !== activeLayerId) {
-                return;  // Do not highlight if this is not the active layer
+                return;
             }
 
             var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
@@ -147,21 +147,23 @@
             var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
             view.whenLayerView(featureLayer).then(function(layerView) {
-                layerView.queryFeatures({
-                    where: "DateTimeS = '" + queryDateTimeStr + "'",
-                    returnGeometry: true,
-                    outFields: ["*"]
-                }).then(function(results) {
-                    if (results.features.length > 0) {
-                        var feature = results.features[0];
-                        clearAndHighlight(feature, featureLayer);
-                    } else {
-                        clearHighlight(featureLayer);
-                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                    }
-                }).catch(function(error) {
-                    console.error("Error highlighting feature based on DateTimeS:", error);
-                });
+                if (layerView) {
+                    layerView.queryFeatures({
+                        where: "DateTimeS = '" + queryDateTimeStr + "'",
+                        returnGeometry: true,
+                        outFields: ["*"]
+                    }).then(function(results) {
+                        if (results.features.length > 0) {
+                            var feature = results.features[0];
+                            clearAndHighlight(feature, featureLayer);
+                        } else {
+                            clearHighlight(featureLayer);
+                            console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                        }
+                    }).catch(function(error) {
+                        console.error("Error highlighting feature based on DateTimeS:", error);
+                    });
+                }
             });
         };
 
@@ -386,5 +388,5 @@
 
         });
     </script>
-		</body>
-	</html>
+    </body>
+</html>
