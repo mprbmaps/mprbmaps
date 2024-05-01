@@ -340,7 +340,7 @@
                     fovGraphicsLayer.graphics.add(fovGraphic);
                 };
 
-                function createCone(centerPoint, bearing, width, length) {
+                                function createCone(centerPoint, bearing, width, length) {
                     var points = [];
                     points.push([centerPoint.x, centerPoint.y]); // Cone apex
 
@@ -360,41 +360,43 @@
                     var dy = distance * Math.cos(angleRad);
                     return [center.x + dx, center.y + dy];
                 }
+            }); // This should close the require function's callback
+        }); // This should close the require block itself
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var videoWindow = document.querySelector("#videoWindow");
+            var active = false;
+            var initialX, initialY, xOffset = 0, yOffset = 0;
+
+            document.addEventListener("mousedown", function(e) {
+                if (e.target === videoWindow || videoWindow.contains(e.target)) {
+                    active = true;
+                    initialX = e.clientX - xOffset;
+                    initialY = e.clientY - yOffset;
+                    e.preventDefault();
+                }
             });
 
-            document.addEventListener('DOMContentLoaded', function() {
-                var videoWindow = document.querySelector("#videoWindow");
-                var active = false;
-                var initialX, initialY, xOffset = 0, yOffset = 0;
+            document.addEventListener("mousemove", function(e) {
+                if (active) {
+                    var currentX = e.clientX - initialX;
+                    var currentY = e.clientY - initialY;
 
-                document.addEventListener("mousedown", function(e) {
-                    if (e.target === videoWindow || videoWindow.contains(e.target)) {
-                        active = true;
-                        initialX = e.clientX - xOffset;
-                        initialY = e.clientY - yOffset;
-                        e.preventDefault();
-                    }
-                });
+                    xOffset = currentX;
+                    yOffset = currentY;
 
-                document.addEventListener("mousemove", function(e) {
-                    if (active) {
-                        var currentX = e.clientX - initialX;
-                        var currentY = e.clientY - initialY;
-
-                        xOffset = currentX;
-                        yOffset = currentY;
-
-                        videoWindow.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
-                        e.preventDefault();
-                    }
-                });
-
-                document.addEventListener("mouseup", function() {
-                    active = false;
-                    initialX = xOffset;
-                    initialY = yOffset;
-                });
+                    videoWindow.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
+                    e.preventDefault();
+                }
             });
+
+            document.addEventListener("mouseup", function() {
+                active = false;
+                initialX = xOffset;
+                initialY = yOffset;
+            });
+        });
+
         });
     </script>
 </body>
