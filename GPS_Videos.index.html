@@ -26,11 +26,24 @@
             display: flex;
             overflow: hidden;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            width: calc(30% - 30px); /* Adjust width as needed */
         }
         #youtubePlayer {
             width: 100%;
             height: auto;
             aspect-ratio: 16 / 9;
+        }
+        @media (max-width: 767px) {
+            #videoWindow {
+                top: 10px;
+                right: 10px;
+                width: calc(100% - 20px);
+                padding: 10px;
+            }
+            #youtubePlayer {
+                height: auto;
+                aspect-ratio: 16 / 9;
+            }
         }
     </style>
 </head>
@@ -43,6 +56,7 @@
         var player;
         var featureLayers = {};
         var highlights = {};
+        var fovGraphicsLayer;
         var activeLayerId = null;
         var currentFeature = null;
         var videoMap = {
@@ -50,6 +64,8 @@
             'insta360Test': 's_kCckaYzDo'
         };
         var startDateTimeMap = {};
+        var initialBearing = 180; // assuming 180 degrees as the initial central bearing
+        var videoBearing = null; // This will store the current bearing of the video.
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -63,52 +79,31 @@
         }
 
         function onPlayerReady(event) {
-            console.log("YouTube player is ready");
             loadMapAndLayers();
         }
 
         function onPlayerStateChange(event) {
-            switch (event.data) {
-                case YT.PlayerState.PLAYING:
-                    console.log("Video is playing");
-                    watchBearingChange();
-                    checkTimeUpdate();
-                    break;
-                case YT.PlayerState.ENDED:
-                    console.log("Video has ended");
-                    Object.keys(featureLayers).forEach(function(layerId) {
-                        clearHighlight(featureLayers[layerId]);
-                    });
-                    break;
-                case YT.PlayerState.PAUSED:
-                    console.log("Video paused, maintaining current highlights.");
-                    break;
-                default:
-                    // Optionally handle other states if needed
-                    break;
+            if (event.data === YT.PlayerState.PLAYING) {
+                watchBearingChange();
+                checkTimeUpdate();
             }
         }
 
         function watchBearingChange() {
             if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                var currentYaw = props.yaw;
-                console.log("Active layer at the time of bearing change: ", activeLayerId);
-                if (currentFeature && videoBearing !== null && Math.abs(currentYaw - videoBearing) > 1) {
-                    console.log("Current Yaw: ", currentYaw);
-                    var bearingChange = currentYaw - videoBearing;
-                    videoBearing = currentYaw;
-                    var newBearing = (initialBearing + bearingChange + 360) % 360;
-                    console.log("Yaw changed to: ", newBearing, "Active layer ID:", activeLayerId);
-                    updateFOVConeDirection(newBearing);
+                var props = player.getSphericalProperties(); // Directly get the properties
+                console.log("Current Yaw: ", props.yaw); // Debugging the output
+                if (props.yaw !== videoBearing) {
+                    console.log("Yaw changed from ", videoBearing, " to ", props.yaw);
+                    videoBearing = props.yaw;
+                    updateFOVConeDirection(videoBearing);
                 }
-                setTimeout(watchBearingChange, 100);
+                setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
             }
         }
 
         function checkTimeUpdate() {
             var currentSecond = Math.floor(player.getCurrentTime());
-            console.log("Current video time: ", currentSecond);
             Object.keys(featureLayers).forEach(function(layerId) {
                 var featureLayer = featureLayers[layerId];
                 if (featureLayer && featureLayer.id === activeLayerId) {
@@ -120,22 +115,25 @@
             }
         }
 
-        function updateFOVConeDirection(newBearing) {
-            console.log("Attempting to update FOV cone direction with active layer:", activeLayerId);
+        function updateFOVConeDirection(bearing) {
             if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
-                console.error("Unable to update FOV cone: Missing required references or active layer is undefined.", "Current Feature:", currentFeature, "View:", window.view, "Active Layer:", activeLayerId);
+                console.error("Update FOV failed: Invalid state for operation.");
                 return;
             }
+
+            console.log("Updating FOV cone to new bearing: ", bearing);
             window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-                console.log("Layer view obtained, updating FOV cone direction to:", newBearing);
-                window.drawFOVCone(currentFeature, layerView, newBearing);
+                if (layerView) {
+                    window.drawFOVCone(currentFeature, layerView, bearing);
+                } else {
+                    console.error("LayerView not found for the active layer.");
+                }
             }).catch(function(error) {
-                console.error("Error when updating FOV cone direction on layer", activeLayerId, ":", error);
+                console.error("Error obtaining LayerView for the active layer: ", error);
             });
         }
 
         function clearAndHighlight(feature, layer) {
-            console.log("Clearing highlights for all layers");
             Object.keys(highlights).forEach(function(layerId) {
                 if (highlights[layerId]) {
                     highlights[layerId].remove();
@@ -143,37 +141,34 @@
                 }
             });
 
-            console.log("Setting active layer to:", layer.id);
             activeLayerId = layer.id;
 
             window.view.whenLayerView(layer).then(function(layerView) {
-                highlights[activeLayerId] = layerView.highlight(feature);
-                currentFeature = feature;
-                console.log("Feature highlighted on layer:", activeLayerId);
-                var initialFeatureBearing = feature.attributes.bearing || initialBearing;
-                videoBearing = initialFeatureBearing;
-                window.drawFOVCone(feature, layerView, initialFeatureBearing);
+                if (layerView) {
+                    highlights[layer.id] = layerView.highlight(feature);
+                    window.drawFOVCone(feature, layerView);
+                    currentFeature = feature;
+                }
             }).catch(function(error) {
-                console.error("Error in highlighting feature:", error);
+                console.error("Error in highlighting feature: ", error);
             });
         }
 
         function clearHighlight(layer) {
+            console.log("Clearing highlight for layer:", layer.id);
             if (highlights[layer.id]) {
                 highlights[layer.id].remove();
-                delete highlights[layer.id];
+                highlights[layer.id] = null;
             }
-            console.log("Highlight cleared for layer:", layer.id);
         }
 
-        function highlightFeatureAtTime(currentSecond, featureLayer, view) {
+        window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
             if (!startDateTimeMap[featureLayer.id]) {
-                console.error("Start DateTimeS not set yet for layer", featureLayer.id);
+                console.error("Start DateTimeS not set yet for " + featureLayer.id);
                 return;
             }
 
             if (featureLayer.id !== activeLayerId) {
-                console.log("Skipping highlight for inactive layer:", featureLayer.id);
                 return;
             }
 
@@ -181,26 +176,26 @@
             queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
             var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
-            console.log("Querying features for DateTimeS:", queryDateTimeStr);
             view.whenLayerView(featureLayer).then(function(layerView) {
-                layerView.queryFeatures({
-                    where: "DateTimeS = '" + queryDateTimeStr + "'",
-                    returnGeometry: true,
-                    outFields: ["*"]
-                }).then(function(results) {
-                    if (results.features.length > 0) {
-                        var feature = results.features[0];
-                        console.log("Feature found for DateTimeS:", queryDateTimeStr);
-                        clearAndHighlight(feature, featureLayer);
-                    } else {
-                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                        clearHighlight(featureLayer);
-                    }
-                }).catch(function(error) {
-                    console.error("Error highlighting feature based on DateTimeS:", error);
-                });
+                if (layerView) {
+                    layerView.queryFeatures({
+                        where: "DateTimeS = '" + queryDateTimeStr + "'",
+                        returnGeometry: true,
+                        outFields: ["*"]
+                    }).then(function(results) {
+                        if (results.features.length > 0) {
+                            var feature = results.features[0];
+                            clearAndHighlight(feature, featureLayer);
+                        } else {
+                            clearHighlight(featureLayer);
+                            console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                        }
+                    }).catch(function(error) {
+                        console.error("Error highlighting feature based on DateTimeS:", error);
+                    });
+                }
             });
-        }
+        };
 
         function loadMapAndLayers() {
             require([
@@ -245,7 +240,7 @@
                 };
 
                 Object.keys(layerUrls).forEach(function(key) {
-                    var layer = new FeatureLayer({
+                    featureLayers[key] = new FeatureLayer({
                         url: layerUrls[key],
                         outFields: ["*"],
                         renderer: new SimpleRenderer({
@@ -257,10 +252,9 @@
                         })
                     });
 
-                    webmap.add(layer);
-                    featureLayers[key + "-layer"] = layer;  // Ensure consistency in key formatting
+                    webmap.add(featureLayers[key]);
 
-                    layer.queryFeatures({
+                    featureLayers[key].queryFeatures({
                         where: "1=1",
                         orderByFields: ["DateTimeS ASC"],
                         returnGeometry: false,
@@ -268,13 +262,13 @@
                         num: 1
                     }).then(function(response) {
                         if (response.features.length > 0) {
-                            startDateTimeMap[layer.id] = response.features[0].attributes.DateTimeS;
-                            console.log(key + " Start DateTimeS set for layer", layer.id + ":", startDateTimeMap[layer.id]);
+                            startDateTimeMap[featureLayers[key].id] = response.features[0].attributes.DateTimeS;
+                            console.log(key + " Start DateTimeS set for " + featureLayers[key].id + ": ", startDateTimeMap[featureLayers[key].id]);
                         } else {
-                            console.error("No features found to set startDateTime for layer", layer.id);
+                            console.error("No features found to set startDateTime for " + key);
                         }
                     }).catch(function(error) {
-                        console.error("Error fetching start DateTimeS for layer", layer.id + ":", error);
+                        console.error("Error fetching start DateTimeS for " + key + ":", error);
                     });
                 });
 
@@ -285,7 +279,7 @@
                             var feature = result.graphic;
                             var layer = result.graphic.layer;
 
-                            if (layer === featureLayers.creek || layer === featureLayers.insta360Test) {
+                            if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
                                 var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
                                 var videoId = videoMap[layerId];
                                 var layerStartDateTime = startDateTimeMap[layer.id];
@@ -320,10 +314,10 @@
                 });
 
                 window.drawFOVCone = function(feature, layerView, bearingOverride) {
-                    var bearing = (videoBearing !== null) ? videoBearing : (bearingOverride || feature.attributes.bearing || initialBearing);
+                    var bearing = (videoBearing !== null) ? videoBearing : (bearingOverride || feature.attributes.bearing);
                     console.log("Drawing FOV cone with bearing: ", bearing);
-                    var coneLength = 25; // Length of the cone in meters
-                    var coneWidth = 55; // Half angle of the FOV cone in degrees
+                    var coneLength = 20; // Length of the cone in meters
+                    var coneWidth = 30; // Half angle of the FOV cone in degrees
 
                     fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
@@ -338,10 +332,10 @@
                         geometry: polygon,
                         symbol: {
                             type: "simple-fill",
-                            color: [255, 165, 0, 0.2],
+                            color: [255, 165, 0, 0.3],
                             outline: {
-                                color: [255, 165, 0, 0.2],
-                                width: 1
+                                color: [255, 165, 0],
+                                width: 2
                             }
                         }
                     });
@@ -371,7 +365,6 @@
                     return [center.x + dx, center.y + dy];
                 }
             });
-
         };
     </script>
 </body>
