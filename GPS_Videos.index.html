@@ -64,9 +64,8 @@
             'insta360Test': 's_kCckaYzDo'
         };
         var startDateTimeMap = {};
+        var initialBearing = 180; // assuming 180 degrees as the initial central bearing
         var videoBearing = null; // This will store the current bearing of the video.
-        var lastUpdateTimestamp = 0; // Stores the timestamp of the last update
-        var updateInterval = 500; // Update every 500 milliseconds
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -85,81 +84,54 @@
 
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.PLAYING) {
-                var checkTimeUpdate = function() {
-                    var currentSecond = Math.floor(player.getCurrentTime());
-                    Object.keys(featureLayers).forEach(function(layerId) {
-                        var featureLayer = featureLayers[layerId];
-                        highlightFeatureAtTime(currentSecond, featureLayer, window.view);
-                    });
-                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        setTimeout(checkTimeUpdate, 1000); // Check every second
-                    }
-                };
-                checkTimeUpdate();
                 watchBearingChange();
-            } else if (event.data === YT.PlayerState.ENDED) {
-                Object.keys(featureLayers).forEach(function(layerId) {
-                    clearHighlight(featureLayers[layerId]);
-                });
-            } else if (event.data === YT.PlayerState.PAUSED) {
-                console.log("Video paused, maintaining current highlights.");
+                checkTimeUpdate();
             }
         }
 
         function watchBearingChange() {
             if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                if (typeof props.yaw === "number") {
-                    var yawChange = props.yaw - (videoBearing || props.yaw);
-                    videoBearing = props.yaw; // Update to current yaw
-                    var now = Date.now();
-
-                    if (Math.abs(yawChange) > 1 && (now - lastUpdateTimestamp) > updateInterval) {
-                        console.log("Significant yaw change detected: ", yawChange);
-                        var newBearing = calculateNewBearing(currentFeature.attributes.bearing, yawChange);
-                        console.log("Calculated new bearing: ", newBearing);
-                        updateFOVConeDirection(newBearing, currentFeature.attributes.fov || 45); // Assuming default FOV is 45
-                        lastUpdateTimestamp = now;
-                    }
+                var props = player.getSphericalProperties(); // Directly get the properties
+                console.log("Current Yaw: ", props.yaw); // Debugging the output
+                if (props.yaw !== videoBearing) {
+                    console.log("Yaw changed from ", videoBearing, " to ", props.yaw);
+                    videoBearing = props.yaw;
+                    updateFOVConeDirection(videoBearing);
                 }
                 setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
             }
         }
 
-        function updateFOVConeDirection(bearing, coneWidth) {
-            console.log("Attempting to update FOV cone to new bearing:", bearing);
-            var layer = featureLayers[activeLayerId];
+        function checkTimeUpdate() {
+            var currentSecond = Math.floor(player.getCurrentTime());
+            Object.keys(featureLayers).forEach(function(layerId) {
+                var featureLayer = featureLayers[layerId];
+                if (featureLayer && featureLayer.id === activeLayerId) {
+                    highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+                }
+            });
+            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                setTimeout(checkTimeUpdate, 1000);
+            }
+        }
 
-            if (!layer) {
-                console.error("No layer found with ID:", activeLayerId);
-                console.log("Current featureLayers keys:", Object.keys(featureLayers));
+        function updateFOVConeDirection(bearing) {
+            console.log("Attempting to update FOV cone with bearing:", bearing);
+            console.log("Current feature:", currentFeature);
+            console.log("View available:", !!window.view);
+            console.log("Active layer view available:", featureLayers[activeLayerId]);
+
+            if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
+                console.error("Update FOV failed: Invalid state for operation.");
                 return;
             }
 
-            if (layer.loaded && window.view) {
-                window.view.whenLayerView(layer).then(function(layerView) {
-                    if (layerView) {
-                        console.log("LayerView found, updating FOV cone.");
-                        window.drawFOVCone(currentFeature, layerView, bearing, coneWidth);
-                    } else {
-                        console.error("LayerView not found after layer was reported as loaded.");
-                    }
-                }).catch(function(error) {
-                    console.error("Error obtaining LayerView:", error);
-                });
-            } else {
-                console.log("Layer not ready or view not available, cannot update FOV.");
-            }
-        }
-
-        function calculateNewBearing(initialBearing, yawChange) {
-            var newBearing = initialBearing + yawChange; // Directly apply yaw change in degrees
-            newBearing = (newBearing + 360) % 360; // Normalize the bearing
-            return newBearing;
-        }
-
-        function calculateConeWidth(fov) {
-            return fov / 2; // Simple example calculation; adjust as needed
+            window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+                console.log("Layer view found, updating FOV cone.");
+                window.drawFOVCone(currentFeature, layerView, bearing);
+            }).catch(function(error) {
+                console.error("Error obtaining LayerView for the active layer:", error);
+            });
         }
 
         function clearAndHighlight(feature, layer) {
@@ -171,17 +143,17 @@
             });
 
             activeLayerId = layer.id;
-            currentFeature = feature; // Update currentFeature with the new feature
 
             window.view.whenLayerView(layer).then(function(layerView) {
                 if (layerView) {
                     highlights[layer.id] = layerView.highlight(feature);
-                    window.drawFOVCone(feature, layerView, feature.attributes.bearing, calculateConeWidth(feature.attributes.fov || 90)); // Use bearing from feature attributes and default FOV of 90 degrees
+                    window.drawFOVCone(feature, layerView);
+                    currentFeature = feature;
                 }
             }).catch(function(error) {
                 console.error("Error in highlighting feature: ", error);
             });
-        };
+        }
 
         function clearHighlight(layer) {
             console.log("Clearing highlight for layer:", layer.id);
@@ -210,7 +182,7 @@
                     layerView.queryFeatures({
                         where: "DateTimeS = '" + queryDateTimeStr + "'",
                         returnGeometry: true,
-                        outFields: ["*"] // Make sure "bearing" is included in outFields
+                        outFields: ["*"]
                     }).then(function(results) {
                         if (results.features.length > 0) {
                             var feature = results.features[0];
@@ -342,11 +314,11 @@
                     });
                 });
 
-                window.drawFOVCone = function(feature, layerView, bearingOverride, coneWidth) {
-                    var bearing = (typeof bearingOverride === 'number') ? bearingOverride : feature.attributes.bearing;
+                window.drawFOVCone = function(feature, layerView, bearingOverride) {
+                    var bearing = (videoBearing !== null) ? videoBearing : (bearingOverride || feature.attributes.bearing);
                     console.log("Drawing FOV cone with bearing: ", bearing);
-                    console.log("Drawing FOV cone with width: ", coneWidth);
                     var coneLength = 20; // Length of the cone in meters
+                    var coneWidth = 30; // Half angle of the FOV cone in degrees
 
                     fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
