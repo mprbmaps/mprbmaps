@@ -64,7 +64,7 @@
             'insta360Test': 's_kCckaYzDo'
         };
         var startDateTimeMap = {};
-        var initialBearing = 180; // assuming 180 degrees as the initial central bearing
+        var initialBearing = 180; // Assuming 180 degrees as the initial central bearing
         var videoBearing = null; // This will store the current bearing of the video.
 
         function onYouTubeIframeAPIReady() {
@@ -92,10 +92,10 @@
         function watchBearingChange() {
             if (player && player.getSphericalProperties) {
                 var props = player.getSphericalProperties(); // Directly get the properties
-                console.log("Current Yaw: ", props.yaw); // Debugging the output
-                if (props.yaw !== videoBearing) {
+                if (Math.abs(props.yaw - videoBearing) > 1) { // Significant change threshold
+                    console.log("Current Yaw: ", props.yaw);
+                    videoBearing = (360 - props.yaw) % 360; // Adjust direction if necessary
                     console.log("Yaw changed from ", videoBearing, " to ", props.yaw);
-                    videoBearing = props.yaw;
                     updateFOVConeDirection(videoBearing);
                 }
                 setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
@@ -116,87 +116,71 @@
         }
 
         function updateFOVConeDirection(bearing) {
-            console.log("Attempting to update FOV cone with bearing:", bearing);
-            console.log("Current feature:", currentFeature);
-            console.log("View available:", !!window.view);
-            console.log("Active layer view available:", featureLayers[activeLayerId]);
-
             if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
                 console.error("Update FOV failed: Invalid state for operation.");
                 return;
             }
-
             window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-                console.log("Layer view found, updating FOV cone.");
+                console.log("Layer view found, updating FOV cone to new bearing: ", bearing);
                 window.drawFOVCone(currentFeature, layerView, bearing);
             }).catch(function(error) {
-                console.error("Error obtaining LayerView for the active layer:", error);
+                console.error("Error obtaining LayerView for the active layer: ", error);
             });
         }
 
         function clearAndHighlight(feature, layer) {
-            Object.keys(highlights).forEach(function(layerId) {
-                if (highlights[layerId]) {
-                    highlights[layerId].remove();
-                    highlights[layerId] = null;
-                }
-            });
-
+            if (highlights[activeLayerId]) {
+                highlights[activeLayerId].remove();
+                delete highlights[activeLayerId];
+            }
             activeLayerId = layer.id;
-
             window.view.whenLayerView(layer).then(function(layerView) {
-                if (layerView) {
-                    highlights[layer.id] = layerView.highlight(feature);
-                    window.drawFOVCone(feature, layerView);
-                    currentFeature = feature;
-                }
+                highlights[activeLayerId] = layerView.highlight(feature);
+                currentFeature = feature;
+                var featureBearing = feature.attributes.bearing || initialBearing;
+                window.drawFOVCone(feature, layerView, featureBearing);
             }).catch(function(error) {
                 console.error("Error in highlighting feature: ", error);
             });
         }
 
         function clearHighlight(layer) {
-            console.log("Clearing highlight for layer:", layer.id);
             if (highlights[layer.id]) {
                 highlights[layer.id].remove();
-                highlights[layer.id] = null;
+                delete highlights[layer.id];
             }
+            console.log("Clearing highlight for layer:", layer.id);
         }
 
-        window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
+        function highlightFeatureAtTime(currentSecond, featureLayer, view) {
             if (!startDateTimeMap[featureLayer.id]) {
                 console.error("Start DateTimeS not set yet for " + featureLayer.id);
                 return;
             }
-
             if (featureLayer.id !== activeLayerId) {
                 return;
             }
-
             var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
             queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
             var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-
             view.whenLayerView(featureLayer).then(function(layerView) {
-                if (layerView) {
-                    layerView.queryFeatures({
-                        where: "DateTimeS = '" + queryDateTimeStr + "'",
-                        returnGeometry: true,
-                        outFields: ["*"]
-                    }).then(function(results) {
-                        if (results.features.length > 0) {
-                            var feature = results.features[0];
-                            clearAndHighlight(feature, featureLayer);
-                        } else {
-                            clearHighlight(featureLayer);
-                            console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                        }
-                    }).catch(function(error) {
-                        console.error("Error highlighting feature based on DateTimeS:", error);
-                    });
-                }
+                layerView.queryFeatures({
+                    where: "DateTimeS = '" + queryDateTimeStr + "'",
+                    returnGeometry: true,
+                    outFields: ["*"]
+                }).then(function(results) {
+                    if (results.features.length > 0) {
+                        var feature = results.features[0];
+                        clearAndHighlight(feature, featureLayer);
+                    } else {
+                        clearHighlight(featureLayer);
+                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                    }
+                }).catch(function(error) {
+                    console.error("Error highlighting feature based on DateTimeS:", error);
+                });
             });
-        };
+        }
 
         function loadMapAndLayers() {
             require([
@@ -315,7 +299,7 @@
                 });
 
                 window.drawFOVCone = function(feature, layerView, bearingOverride) {
-                    var bearing = (videoBearing !== null) ? videoBearing : (bearingOverride || feature.attributes.bearing);
+                    var bearing = (videoBearing !== null) ? videoBearing : (bearingOverride || feature.attributes.bearing || initialBearing);
                     console.log("Drawing FOV cone with bearing: ", bearing);
                     var coneLength = 20; // Length of the cone in meters
                     var coneWidth = 30; // Half angle of the FOV cone in degrees
