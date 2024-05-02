@@ -26,7 +26,7 @@
             display: flex;
             overflow: hidden;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            width: calc(30% - 30px); /* Adjust width as needed */
+            width: calc(30% - 30px);
         }
         #youtubePlayer {
             width: 100%;
@@ -106,21 +106,21 @@
         }
 
         function watchBearingChange() {
-    if (player && player.getSphericalProperties) {
-        var props = player.getSphericalProperties();
-        var currentYaw = props.yaw;
-        if (currentFeature && videoBearing !== null && Math.abs(currentYaw - videoBearing) > 1) {
-            console.log("Current Yaw: ", currentYaw);
-            var bearingChange = currentYaw - videoBearing;
-            videoBearing = currentYaw;
-            var newBearing = (initialBearing + bearingChange + 360) % 360; // initialBearing should be updated based on currentFeature's bearing if available.
-            console.log("Yaw changed to: ", newBearing);
-            updateFOVConeDirection(newBearing);
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties();
+                var currentYaw = props.yaw;
+                console.log("Active layer at the time of bearing change: ", activeLayerId);
+                if (currentFeature && videoBearing !== null && Math.abs(currentYaw - videoBearing) > 1) {
+                    console.log("Current Yaw: ", currentYaw);
+                    var bearingChange = currentYaw - videoBearing;
+                    videoBearing = currentYaw;
+                    var newBearing = (initialBearing + bearingChange + 360) % 360;
+                    console.log("Yaw changed to: ", newBearing, "Active layer ID:", activeLayerId);
+                    updateFOVConeDirection(newBearing);
+                }
+                setTimeout(watchBearingChange, 100);
+            }
         }
-        setTimeout(watchBearingChange, 100);
-    }
-}
-
 
         function checkTimeUpdate() {
             var currentSecond = Math.floor(player.getCurrentTime());
@@ -137,30 +137,31 @@
         }
 
         function updateFOVConeDirection(newBearing) {
-    if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
-        console.error("Update FOV failed: Invalid state for operation. Current Feature: ", currentFeature, " View: ", window.view, " Active Layer: ", featureLayers[activeLayerId]);
-        return;
-    }
-    window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-        if (layerView) {
-            console.log("Layer view found, updating FOV cone to new bearing: ", newBearing);
-            window.drawFOVCone(currentFeature, layerView, newBearing);
-        } else {
-            console.error("No layer view available.");
+            console.log("Attempting to update FOV cone direction with active layer:", activeLayerId);
+            if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
+                console.error("Update FOV failed: Invalid state for operation. Current Feature: ", currentFeature, " View: ", window.view, " Active Layer: ", featureLayers[activeLayerId]);
+                return;
+            }
+            window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+                if (layerView) {
+                    console.log("Layer view found, updating FOV cone to new bearing: ", newBearing);
+                    window.drawFOVCone(currentFeature, layerView, newBearing);
+                } else {
+                    console.error("No layer view available.");
+                }
+            }).catch(function(error) {
+                console.error("Error obtaining LayerView for the active layer: ", error);
+            });
         }
-    }).catch(function(error) {
-        console.error("Error obtaining LayerView for the active layer: ", error);
-    });
-}
-
 
         function clearAndHighlight(feature, layer) {
+            console.log("Attempting to set active layer to: ", layer.id);
+            activeLayerId = layer.id;
+            console.log("Active layer set to: ", activeLayerId);
             if (highlights[activeLayerId]) {
                 highlights[activeLayerId].remove();
                 delete highlights[activeLayerId];
             }
-            activeLayerId = layer.id;
-            console.log("Setting active layer to: ", activeLayerId);
             window.view.whenLayerView(layer).then(function(layerView) {
                 highlights[activeLayerId] = layerView.highlight(feature);
                 currentFeature = feature;
