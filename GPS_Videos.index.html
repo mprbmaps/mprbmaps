@@ -96,23 +96,20 @@
                 if (props.yaw !== videoBearing) {
                     console.log("Yaw changed from ", videoBearing, " to ", props.yaw);
                     videoBearing = props.yaw;
-                    updateFOVConeDirection(videoBearing);
+                    updateFOVConeDirection(calculateNewBearing(initialBearing, videoBearing));
                 }
                 setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
             }
         }
 
-        function checkTimeUpdate() {
-            var currentSecond = Math.floor(player.getCurrentTime());
-            Object.keys(featureLayers).forEach(function(layerId) {
-                var featureLayer = featureLayers[layerId];
-                if (featureLayer && featureLayer.id === activeLayerId) {
-                    highlightFeatureAtTime(currentSecond, featureLayer, window.view);
-                }
-            });
-            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
-                setTimeout(checkTimeUpdate, 1000);
-            }
+        function calculateNewBearing(initialBearing, change) {
+            // Calculate new bearing based on the change in yaw
+            // Assuming change is the difference in yaw (props.yaw), positive if panned right, negative if left
+            var newBearing = initialBearing + change;
+            // Normalize bearing to be within 0-360 degrees
+            if (newBearing >= 360) newBearing -= 360;
+            if (newBearing < 0) newBearing += 360;
+            return newBearing;
         }
 
         function updateFOVConeDirection(bearing) {
