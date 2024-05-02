@@ -83,9 +83,22 @@
         }
 
         function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.PLAYING) {
-                watchBearingChange();
-                checkTimeUpdate();
+            switch (event.data) {
+                case YT.PlayerState.PLAYING:
+                    watchBearingChange();
+                    checkTimeUpdate();
+                    break;
+                case YT.PlayerState.ENDED:
+                    Object.keys(featureLayers).forEach(function(layerId) {
+                        clearHighlight(featureLayers[layerId]);
+                    });
+                    break;
+                case YT.PlayerState.PAUSED:
+                    console.log("Video paused, maintaining current highlights.");
+                    break;
+                default:
+                    // Optionally handle other states if needed
+                    break;
             }
         }
 
@@ -102,6 +115,19 @@
                     updateFOVConeDirection(newBearing);
                 }
                 setTimeout(watchBearingChange, 100);
+            }
+        }
+
+        function checkTimeUpdate() {
+            var currentSecond = Math.floor(player.getCurrentTime());
+            Object.keys(featureLayers).forEach(function(layerId) {
+                var featureLayer = featureLayers[layerId];
+                if (featureLayer && featureLayer.id === activeLayerId) {
+                    highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+                }
+            });
+            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                setTimeout(checkTimeUpdate, 1000);
             }
         }
 
