@@ -106,49 +106,48 @@
         }
 
         function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties(); // Directly get the properties
-                if (typeof props.yaw === "number") { // Check if yaw is a valid number
-                    console.log("Current Yaw: ", props.yaw);
-                    if (props.yaw !== videoBearing) {
-                        console.log("Yaw changed from ", videoBearing, " to ", props.yaw);
-                        videoBearing = props.yaw;
-                        if (currentFeature && window.view && featureLayers[activeLayerId]) { // Ensure valid state
-                            updateFOVConeDirection(calculateNewBearing(initialBearing, videoBearing));
-                        }
-                    }
+    if (player && player.getSphericalProperties) {
+        var props = player.getSphericalProperties();
+        if (typeof props.yaw === "number") {
+            console.log("Current Yaw: ", props.yaw);
+            if (props.yaw !== videoBearing) {
+                console.log("Yaw changed from ", videoBearing, " to ", props.yaw);
+                videoBearing = props.yaw;
+                if (currentFeature && window.view && featureLayers[activeLayerId]) {
+                    var newBearing = calculateNewBearing(currentFeature.attributes.bearing, videoBearing);
+                    updateFOVConeDirection(newBearing);
                 }
-                setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
             }
         }
+        setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
+    }
+}
 
-        function calculateNewBearing(initialBearing, change) {
-            // Calculate new bearing based on the change in yaw
-            // Assuming change is the difference in yaw (props.yaw), positive if panned right, negative if left
-            var newBearing = initialBearing + change;
-            // Normalize bearing to be within 0-360 degrees
-            if (newBearing >= 360) newBearing -= 360;
-            if (newBearing < 0) newBearing += 360;
-            return newBearing;
+function calculateNewBearing(initialBearing, yawChange) {
+    // Adjust this formula as needed based on how yawChange is measured and applied
+    var newBearing = initialBearing + yawChange;
+    newBearing = newBearing % 360; // Normalize the bearing
+    if (newBearing < 0) newBearing += 360; // Ensure the bearing is positive
+    return newBearing;
+}
+
+function updateFOVConeDirection(bearing) {
+    if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
+        console.error("Update FOV failed: Invalid state for operation.");
+        return;
+    }
+
+    console.log("Updating FOV cone to new bearing: ", bearing);
+    window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+        if (layerView) {
+            window.drawFOVCone(currentFeature, layerView, bearing);
+        } else {
+            console.error("LayerView not found for the active layer.");
         }
-
-        function updateFOVConeDirection(bearing) {
-            if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
-                console.error("Update FOV failed: Invalid state for operation.");
-                return;
-            }
-
-            console.log("Updating FOV cone to new bearing: ", bearing);
-            window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-                if (layerView) {
-                    window.drawFOVCone(currentFeature, layerView, bearing);
-                } else {
-                    console.error("LayerView not found for the active layer.");
-                }
-            }).catch(function(error) {
-                console.error("Error obtaining LayerView for the active layer: ", error);
-            });
-        }
+    }).catch(function(error) {
+        console.error("Error obtaining LayerView for the active layer: ", error);
+    });
+}
 
         function clearAndHighlight(feature, layer) {
     Object.keys(highlights).forEach(function(layerId) {
