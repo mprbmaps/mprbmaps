@@ -84,19 +84,39 @@
 
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.PLAYING) {
-                watchBearingChange();
+                var checkTimeUpdate = function() {
+                    var currentSecond = Math.floor(player.getCurrentTime());
+                    Object.keys(featureLayers).forEach(function(layerId) {
+                        var featureLayer = featureLayers[layerId];
+                        highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+                    });
+                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                        setTimeout(checkTimeUpdate, 1000); // Check every second
+                    }
+                };
                 checkTimeUpdate();
+                watchBearingChange();
+            } else if (event.data === YT.PlayerState.ENDED) {
+                Object.keys(featureLayers).forEach(function(layerId) {
+                    clearHighlight(featureLayers[layerId]);
+                });
+            } else if (event.data === YT.PlayerState.PAUSED) {
+                console.log("Video paused, maintaining current highlights.");
             }
         }
 
         function watchBearingChange() {
             if (player && player.getSphericalProperties) {
                 var props = player.getSphericalProperties(); // Directly get the properties
-                console.log("Current Yaw: ", props.yaw); // Debugging the output
-                if (props.yaw !== videoBearing) {
-                    console.log("Yaw changed from ", videoBearing, " to ", props.yaw);
-                    videoBearing = props.yaw;
-                    updateFOVConeDirection(calculateNewBearing(initialBearing, videoBearing));
+                if (typeof props.yaw === "number") { // Check if yaw is a valid number
+                    console.log("Current Yaw: ", props.yaw);
+                    if (props.yaw !== videoBearing) {
+                        console.log("Yaw changed from ", videoBearing, " to ", props.yaw);
+                        videoBearing = props.yaw;
+                        if (currentFeature && window.view && featureLayers[activeLayerId]) { // Ensure valid state
+                            updateFOVConeDirection(calculateNewBearing(initialBearing, videoBearing));
+                        }
+                    }
                 }
                 setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
             }
