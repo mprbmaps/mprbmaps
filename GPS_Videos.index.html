@@ -325,47 +325,59 @@
                 });
 
                 window.updateFOVConeDirection = function(newBearing) {
-                    if (!currentFeature || !window.view) return;
+    if (!currentFeature || !window.view || !featureLayers[activeLayerId]) return;
 
-                    window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-                        if (layerView) {
-                            window.drawFOVCone(currentFeature, layerView, newBearing);
-                        }
-                    }).catch(function(error) {
-                        console.error("Error updating FOV direction: ", error);
-                    });
-                };
+    window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+        if (layerView) {
+            window.drawFOVCone(currentFeature, layerView, newBearing);
+        } else {
+            console.error("LayerView is not ready.");
+            // Optionally, retry after some delay
+            setTimeout(() => {
+                window.updateFOVConeDirection(newBearing);
+            }, 1000); // Retry after 1 second
+        }
+    }).catch(function(error) {
+        console.error("Error updating FOV direction: ", error);
+    });
+};
 
-                window.drawFOVCone = function(feature, layerView, bearingOverride) {
-                    var bearing = bearingOverride || feature.attributes.bearing;
-                    var coneLength = 20; // Length of the cone in meters
-                    var coneWidth = 30; // Half angle of the FOV cone in degrees
+window.drawFOVCone = function(feature, layerView, bearingOverride) {
+    if (!layerView) {
+        console.error("drawFOVCone called without a valid layerView");
+        return;
+    }
 
-                    fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
+    var bearing = bearingOverride || feature.attributes.bearing;
+    var coneLength = 20; // Length of the cone in meters
+    var coneWidth = 30; // Half angle of the FOV cone in degrees
 
-                    var centerPoint = feature.geometry.clone();
-                    console.log("Using Feature Coordinates:", centerPoint.toJSON());
+    fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
-                    var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
-                    var polygon = new Polygon({
-                        rings: cone,
-                        spatialReference: { wkid: 102100 }
-                    });
+    var centerPoint = feature.geometry.clone();
+    console.log("Using Feature Coordinates:", centerPoint.toJSON());
 
-                    var fovGraphic = new Graphic({
-                        geometry: polygon,
-                        symbol: {
-                            type: "simple-fill",
-                            color: [255, 165, 0, 0.3],
-                            outline: {
-                                color: [255, 165, 0],
-                                width: 2
-                            }
-                        }
-                    });
+    var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
+    var polygon = new Polygon({
+        rings: cone,
+        spatialReference: { wkid: 102100 }
+    });
 
-                    fovGraphicsLayer.graphics.add(fovGraphic);
-                };
+    var fovGraphic = new Graphic({
+        geometry: polygon,
+        symbol: {
+            type: "simple-fill",
+            color: [255, 165, 0, 0.3],
+            outline: {
+                color: [255, 165, 0],
+                width: 2
+            }
+        }
+    });
+
+    fovGraphicsLayer.graphics.add(fovGraphic);
+};
+
 
                 function createCone(centerPoint, bearing, width, length) {
                     var points = [];
