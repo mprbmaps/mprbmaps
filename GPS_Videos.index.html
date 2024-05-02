@@ -86,6 +86,8 @@
             if (event.data === YT.PlayerState.PLAYING) {
                 watchBearingChange();
                 checkTimeUpdate();
+            } else if (event.data === YT.PlayerState.ENDED) {
+                console.log("Video ended or stopped.");
             }
         }
 
@@ -116,6 +118,7 @@
         }
 
         function updateFOVConeDirection(bearing) {
+            console.log("Active Layer ID:", activeLayerId);
             console.log("Attempting to update FOV cone with bearing:", bearing);
             console.log("Current feature:", currentFeature);
             console.log("View available:", !!window.view);
@@ -146,6 +149,7 @@
             });
 
             activeLayerId = layer.id; // Ensure this is always set before calling any dependent functions
+            console.log("Setting activeLayerId:", activeLayerId);
             window.view.whenLayerView(layer).then(function(layerView) {
                 if (layerView) {
                     highlights[layer.id] = layerView.highlight(feature);
@@ -172,6 +176,7 @@
             }
 
             if (featureLayer.id !== activeLayerId) {
+                console.error("Feature layer ID does not match active layer ID.");
                 return;
             }
 
@@ -196,7 +201,11 @@
                     }).catch(function(error) {
                         console.error("Error highlighting feature based on DateTimeS:", error);
                     });
+                } else {
+                    console.error("Layer view not available for query.");
                 }
+            }).catch(function(error) {
+                console.error("Error during layer view retrieval for feature highlighting:", error);
             });
         };
 
