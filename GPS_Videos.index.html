@@ -79,16 +79,19 @@
         }
 
         function onPlayerReady(event) {
+            console.log("YouTube player is ready");
             loadMapAndLayers();
         }
 
         function onPlayerStateChange(event) {
             switch (event.data) {
                 case YT.PlayerState.PLAYING:
+                    console.log("Video is playing");
                     watchBearingChange();
                     checkTimeUpdate();
                     break;
                 case YT.PlayerState.ENDED:
+                    console.log("Video has ended");
                     Object.keys(featureLayers).forEach(function(layerId) {
                         clearHighlight(featureLayers[layerId]);
                     });
@@ -120,6 +123,7 @@
 
         function checkTimeUpdate() {
             var currentSecond = Math.floor(player.getCurrentTime());
+            console.log("Current video time: ", currentSecond);
             Object.keys(featureLayers).forEach(function(layerId) {
                 var featureLayer = featureLayers[layerId];
                 if (featureLayer && featureLayer.id === activeLayerId) {
@@ -154,11 +158,14 @@
                 delete highlights[activeLayerId];
             }
             activeLayerId = layer.id;
+            console.log("Setting active layer to: ", activeLayerId);
             window.view.whenLayerView(layer).then(function(layerView) {
                 highlights[activeLayerId] = layerView.highlight(feature);
                 currentFeature = feature;
+                console.log("Current feature set to: ", currentFeature);
                 var initialFeatureBearing = feature.attributes.bearing || initialBearing;
                 videoBearing = initialFeatureBearing;
+                console.log("Video bearing set to: ", videoBearing);
                 window.drawFOVCone(feature, layerView, initialFeatureBearing);
             }).catch(function(error) {
                 console.error("Error in highlighting feature: ", error);
@@ -179,11 +186,13 @@
                 return;
             }
             if (featureLayer.id !== activeLayerId) {
+                console.log("Skipping highlight for inactive layer: ", featureLayer.id);
                 return;
             }
             var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
             queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
             var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+            console.log("Querying features for DateTimeS: ", queryDateTimeStr);
             view.whenLayerView(featureLayer).then(function(layerView) {
                 layerView.queryFeatures({
                     where: "DateTimeS = '" + queryDateTimeStr + "'",
@@ -192,10 +201,11 @@
                 }).then(function(results) {
                     if (results.features.length > 0) {
                         var feature = results.features[0];
+                        console.log("Feature found for DateTimeS: ", queryDateTimeStr);
                         clearAndHighlight(feature, featureLayer);
                     } else {
-                        clearHighlight(featureLayer);
                         console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                        clearHighlight(featureLayer);
                     }
                 }).catch(function(error) {
                     console.error("Error highlighting feature based on DateTimeS:", error);
