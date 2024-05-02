@@ -143,6 +143,10 @@
             return newBearing;
         }
 
+        function calculateConeWidth(fov) {
+            return fov / 2; // Simple example calculation; adjust as needed
+        }
+
         function clearAndHighlight(feature, layer) {
             Object.keys(highlights).forEach(function(layerId) {
                 if (highlights[layerId]) {
@@ -157,7 +161,7 @@
             window.view.whenLayerView(layer).then(function(layerView) {
                 if (layerView) {
                     highlights[layer.id] = layerView.highlight(feature);
-                    window.drawFOVCone(feature, layerView, feature.attributes.bearing, calculateConeWidth(90)); // Use bearing from feature attributes and default FOV of 90 degrees
+                    window.drawFOVCone(feature, layerView, feature.attributes.bearing, calculateConeWidth(feature.attributes.fov || 90)); // Use bearing from feature attributes and default FOV of 90 degrees
                 }
             }).catch(function(error) {
                 console.error("Error in highlighting feature: ", error);
