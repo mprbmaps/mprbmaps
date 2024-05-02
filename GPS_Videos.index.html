@@ -65,6 +65,8 @@
         };
         var startDateTimeMap = {};
         var videoBearing = null; // This will store the current bearing of the video.
+        var lastUpdateTimestamp = 0; // Stores the timestamp of the last update
+        var updateInterval = 500; // Update every 500 milliseconds
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -110,13 +112,14 @@
                 if (typeof props.yaw === "number") {
                     var yawChange = props.yaw - (videoBearing || props.yaw);
                     videoBearing = props.yaw; // Update to current yaw
+                    var now = Date.now();
 
-                    var threshold = 1; // Adjusted to a sensible value for clear changes
-                    if (Math.abs(yawChange) > threshold) {
+                    if (Math.abs(yawChange) > 1 && (now - lastUpdateTimestamp) > updateInterval) {
                         console.log("Significant yaw change detected: ", yawChange);
                         var newBearing = calculateNewBearing(currentFeature.attributes.bearing, yawChange);
                         console.log("Calculated new bearing: ", newBearing);
                         updateFOVConeDirection(newBearing, currentFeature.attributes.fov || 45); // Assuming default FOV is 45
+                        lastUpdateTimestamp = now;
                     }
                 }
                 setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
@@ -125,16 +128,21 @@
 
         function updateFOVConeDirection(bearing, coneWidth) {
             console.log("Attempting to update FOV cone to new bearing:", bearing);
+            var layer = featureLayers[activeLayerId];
 
-            // Ensure the layer is ready and the LayerView is accessible
-            window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-                if (layerView) {
-                    console.log("LayerView found, updating FOV cone.");
-                    window.drawFOVCone(currentFeature, layerView, bearing, coneWidth);
-                }
-            }).catch(function(error) {
-                console.error("Failed to obtain LayerView for the active layer:", error);
-            });
+            if (layer && layer.loaded) {
+                window.view.whenLayerView(layer).then(function(layerView) {
+                    if (layerView) {
+                        console.log("LayerView found, updating FOV cone.");
+                        window.drawFOVCone(currentFeature, layerView, bearing, coneWidth);
+                    }
+                }).catch(function(error) {
+                    console.error("Failed to obtain LayerView for the active layer:", error);
+                });
+            } else {
+                console.log("Layer not ready, delaying update.");
+                setTimeout(function() { updateFOVConeDirection(bearing, coneWidth); }, 500); // Retry after some time
+            }
         }
 
         function calculateNewBearing(initialBearing, yawChange) {
