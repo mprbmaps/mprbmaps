@@ -107,24 +107,15 @@
         function watchBearingChange() {
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
-        if (typeof props.yaw === "number" && typeof props.fov === "number") {
+        if (typeof props.yaw === "number") {
             console.log("Current Yaw: ", props.yaw);
-            console.log("Current FOV: ", props.fov);
-            if (videoBearing === null) {
-                videoBearing = props.yaw;
-            } else {
-                var yawChange = props.yaw - videoBearing;
-                var threshold = 0.1; // Adjust this value as needed
-                if (Math.abs(yawChange) > threshold) {
-                    console.log("Yaw changed from ", videoBearing, " to ", props.yaw);
-                    videoBearing = props.yaw;
-                    if (currentFeature && window.view && featureLayers[activeLayerId]) {
-                        var initialBearing = currentFeature.attributes.bearing;
-                        var newBearing = calculateNewBearing(initialBearing, yawChange);
-                        var coneWidth = calculateConeWidth(props.fov);
-                        updateFOVConeDirection(newBearing, coneWidth);
-                    }
-                }
+            var yawChange = props.yaw - (videoBearing || props.yaw);
+            videoBearing = props.yaw; // Update videoBearing to current yaw
+
+            var threshold = 0.1; // Small threshold to prevent minor adjustments
+            if (Math.abs(yawChange) > threshold) {
+                console.log("Yaw changed by ", yawChange);
+                updateFOVConeDirection(yawChange);
             }
         }
         setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
@@ -133,12 +124,7 @@
 
         function calculateNewBearing(initialBearing, yawChange) {
     var newBearing = initialBearing + yawChange * (180 / Math.PI);
-    while (newBearing < 0) {
-        newBearing += 360;
-    }
-    while (newBearing >= 360) {
-        newBearing -= 360;
-    }
+    newBearing = (newBearing + 360) % 360; // Normalize the bearing
     return newBearing;
 }
 
@@ -148,29 +134,24 @@
             return coneWidth;
         }
 
-        function updateFOVConeDirection(bearing, coneWidth) {
-            if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
-                console.error("Update FOV failed: Invalid state for operation.");
-                return;
-            }
+        function updateFOVConeDirection(yawChange) {
+    if (currentFeature && window.view && featureLayers[activeLayerId]) {
+        var initialBearing = currentFeature.attributes.bearing;
+        var newBearing = calculateNewBearing(initialBearing, yawChange);
+        var coneWidth = currentFeature.attributes.fov || 90; // Assuming FOV is stored or default to 90
+        console.log("Updating FOV cone to new bearing: ", newBearing);
 
-            bearing = bearing % 360;
-            if (bearing < 0) {
-                bearing += 360;
+        window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+            if (layerView) {
+                window.drawFOVCone(currentFeature, layerView, newBearing, coneWidth);
+            } else {
+                console.error("LayerView not found for the active layer.");
             }
-
-            console.log("Updating FOV cone to new bearing: ", bearing);
-            console.log("Updating FOV cone width: ", coneWidth);
-            window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-                if (layerView) {
-                    window.drawFOVCone(currentFeature, layerView, bearing, coneWidth);
-                } else {
-                    console.error("LayerView not found for the active layer.");
-                }
-            }).catch(function(error) {
-                console.error("Error obtaining LayerView for the active layer: ", error);
-            });
-        }
+        }).catch(function(error) {
+            console.error("Error obtaining LayerView for the active layer: ", error);
+        });
+    }
+}
 
         function clearAndHighlight(feature, layer) {
             Object.keys(highlights).forEach(function(layerId) {
