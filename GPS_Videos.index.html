@@ -116,18 +116,19 @@
         }
 
         function updateFOVConeDirection(bearing) {
+            console.log("Attempting to update FOV cone with bearing:", bearing);
+            console.log("Current feature:", currentFeature);
+            console.log("View available:", !!window.view);
+            console.log("Active layer view available:", featureLayers[activeLayerId]);
+
             if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
                 console.error("Update FOV failed: Invalid state for operation.");
                 return;
             }
 
-            console.log("Updating FOV cone to new bearing: ", bearing);
             window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-                if (layerView) {
-                    window.drawFOVCone(currentFeature, layerView, bearing);
-                } else {
-                    console.error("LayerView not found for the active layer.");
-                }
+                console.log("Layer view found, updating FOV cone.");
+                window.drawFOVCone(currentFeature, layerView, bearing);
             }).catch(function(error) {
                 console.error("Error obtaining LayerView for the active layer: ", error);
             });
