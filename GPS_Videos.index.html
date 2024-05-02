@@ -68,8 +68,8 @@
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
-                height: '200', // Adjusted height to fit within the smaller width
-                width: '354', // Adjusted width corresponding to the aspect ratio
+                height: '200',
+                width: '354',
                 events: {
                     'onReady': onPlayerReady,
                     'onStateChange': onPlayerStateChange
@@ -78,71 +78,50 @@
         }
 
         function onPlayerReady(event) {
-            var videoContainer = document.getElementById('youtubePlayer');
-            var isDragging = false;
-            var initialX = null;
-
-            videoContainer.addEventListener('mousedown', function(e) {
-                isDragging = true;
-                initialX = e.clientX;
-                e.preventDefault();
-            });
-
-            document.addEventListener('mousemove', function(e) {
-                if (isDragging) {
-                    var deltaX = e.clientX - initialX;
-                    var videoWidth = videoContainer.offsetWidth;
-                    var bearingChange = (deltaX / videoWidth) * 360; // Full width corresponds to 360 degrees change
-                    var newBearing = (initialBearing + bearingChange + 360) % 360; // Normalize the bearing
-
-                    if (player && player.setSphericalProperties) {
-                        player.setSphericalProperties({yaw: newBearing});
-                    }
-
-                    if (currentFeature && fovGraphicsLayer) {
-                        updateFOVConeDirection(newBearing);
-                    }
-                }
-            });
-
-            document.addEventListener('mouseup', function(e) {
-                if (isDragging) {
-                    isDragging = false;
-                    var deltaX = e.clientX - initialX;
-                    var videoWidth = videoContainer.offsetWidth;
-                    var bearingChange = (deltaX / videoWidth) * 360;
-                    initialBearing = (initialBearing + bearingChange + 360) % 360; // Update initial bearing on mouse release
-                }
-            });
-
             loadMapAndLayers();
         }
 
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.PLAYING) {
-                var checkTimeUpdate = function() {
-                    var currentSecond = Math.floor(player.getCurrentTime());
-                    Object.keys(featureLayers).forEach(function(layerId) {
-                        var featureLayer = featureLayers[layerId];
-                        if (featureLayer && featureLayer.id === activeLayerId) {
-                            highlightFeatureAtTime(currentSecond, featureLayer, window.view);
-                        }
-                    });
-                    if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        setTimeout(checkTimeUpdate, 1000);
-                    }
-                };
+                watchBearingChange();
                 checkTimeUpdate();
-            } else if (event.data === YT.PlayerState.ENDED) {
-                Object.keys(featureLayers).forEach(function(layerId) {
-                    if (featureLayers[layerId]) clearHighlight(featureLayers[layerId]);
-                    if (fovGraphicsLayer) fovGraphicsLayer.graphics.removeAll();
-                });
-            } else if (event.data === YT.PlayerState.PAUSED) {
-                console.log("Video paused, maintaining current highlights and FOV.");
-            } else if (event.data === YT.PlayerState.CUED) {
-                console.log("Video was cued, updating FOV cone.");
             }
+        }
+
+        function watchBearingChange() {
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties();
+                if (props.yaw !== initialBearing) {
+                    initialBearing = props.yaw;
+                    updateFOVConeDirection(initialBearing);
+                }
+                setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
+            }
+        }
+
+        function checkTimeUpdate() {
+            var currentSecond = Math.floor(player.getCurrentTime());
+            Object.keys(featureLayers).forEach(function(layerId) {
+                var featureLayer = featureLayers[layerId];
+                if (featureLayer && featureLayer.id === activeLayerId) {
+                    highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+                }
+            });
+            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                setTimeout(checkTimeUpdate, 1000);
+            }
+        }
+
+        function updateFOVConeDirection(newBearing) {
+            if (!currentFeature || !window.view) return;
+
+            window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+                if (layerView) {
+                    window.drawFOVCone(currentFeature, layerView, newBearing);
+                }
+            }).catch(function(error) {
+                console.error("Error updating FOV direction: ", error);
+            });
         }
 
         function clearAndHighlight(feature, layer) {
@@ -325,18 +304,6 @@
                     });
                 });
 
-                window.updateFOVConeDirection = function(newBearing) {
-                    if (!currentFeature || !window.view) return;
-
-                    window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-                        if (layerView) {
-                            window.drawFOVCone(currentFeature, layerView, newBearing);
-                        }
-                    }).catch(function(error) {
-                        console.error("Error updating FOV direction: ", error);
-                    });
-                };
-
                 window.drawFOVCone = function(feature, layerView, bearingOverride) {
                     var bearing = bearingOverride || feature.attributes.bearing;
                     var coneLength = 20; // Length of the cone in meters
@@ -387,40 +354,6 @@
                     return [center.x + dx, center.y + dy];
                 }
             });
-            document.addEventListener('DOMContentLoaded', function() {
-                var videoWindow = document.querySelector("#videoWindow");
-                var active = false;
-                var initialX, initialY, xOffset = 0, yOffset = 0;
-
-                document.addEventListener("mousedown", function(e) {
-                    if (e.target === videoWindow || videoWindow.contains(e.target)) {
-                        active = true;
-                        initialX = e.clientX - xOffset;
-                        initialY = e.clientY - yOffset;
-                        e.preventDefault();
-                    }
-                });
-
-                document.addEventListener("mousemove", function(e) {
-                    if (active) {
-                        var currentX = e.clientX - initialX;
-                        var currentY = e.clientY - initialY;
-
-                        xOffset = currentX;
-                        yOffset = currentY;
-
-                        videoWindow.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
-                        e.preventDefault();
-                    }
-                });
-
-                document.addEventListener("mouseup", function() {
-                    active = false;
-                    initialX = xOffset;
-                    initialY = yOffset;
-                });
-            });
-
         };
     </script>
 </body>
