@@ -138,17 +138,31 @@
 
         function updateFOVConeDirection(newBearing) {
     console.log("Attempting to update FOV cone direction with active layer:", activeLayerId);
-    if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
-        console.error("Unable to update FOV cone: Missing required references or active layer is undefined.", "Current Feature:", currentFeature, "View:", window.view, "Active Layer:", activeLayerId);
-        return;
+
+    // Detailed checks for debugging
+    if (!currentFeature) {
+        console.error("Current feature is undefined.");
     }
-    window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-        console.log("Layer view obtained, updating FOV cone direction to:", newBearing);
-        window.drawFOVCone(currentFeature, layerView, newBearing);
-    }).catch(function(error) {
-        console.error("Error when updating FOV cone direction on layer", activeLayerId, ":", error);
-    });
+    if (!window.view) {
+        console.error("View is undefined.");
+    }
+    if (!featureLayers[activeLayerId]) {
+        console.error("Feature layer corresponding to active layer ID is undefined.", "Active Layer ID:", activeLayerId);
+    }
+
+    // Only proceed if all references are valid
+    if (currentFeature && window.view && featureLayers[activeLayerId]) {
+        window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+            console.log("Layer view obtained, updating FOV cone direction to:", newBearing);
+            window.drawFOVCone(currentFeature, layerView, newBearing);
+        }).catch(function(error) {
+            console.error("Error when updating FOV cone direction on layer", activeLayerId, ":", error);
+        });
+    } else {
+        console.error("Unable to update FOV cone: Missing required references. Current Feature:", currentFeature, "View:", window.view, "Active Layer:", activeLayerId);
+    }
 }
+
 
 
         function clearAndHighlight(feature, layer) {
