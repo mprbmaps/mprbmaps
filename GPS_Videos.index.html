@@ -110,7 +110,7 @@
                 if (typeof props.yaw === "number" && typeof props.fov === "number") {
                     console.log("Current Yaw: ", props.yaw);
                     console.log("Current FOV: ", props.fov);
-                    if (props.yaw !== videoBearing) {
+                    if (Math.abs(props.yaw - videoBearing) > 0.1) {
                         console.log("Yaw changed from ", videoBearing, " to ", props.yaw);
                         videoBearing = props.yaw;
                         if (currentFeature && window.view && featureLayers[activeLayerId]) {
@@ -125,9 +125,12 @@
         }
 
         function calculateNewBearing(initialBearing, yawChange) {
-            var newBearing = initialBearing + yawChange;
-            newBearing = newBearing % 360; // Normalize the bearing
-            if (newBearing < 0) newBearing += 360; // Ensure the bearing is positive
+            var newBearing = initialBearing - yawChange;
+            if (newBearing < 0) {
+                newBearing += 360;
+            } else if (newBearing >= 360) {
+                newBearing -= 360;
+            }
             return newBearing;
         }
 
@@ -141,6 +144,11 @@
             if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
                 console.error("Update FOV failed: Invalid state for operation.");
                 return;
+            }
+
+            bearing = bearing % 360;
+            if (bearing < 0) {
+                bearing += 360;
             }
 
             console.log("Updating FOV cone to new bearing: ", bearing);
