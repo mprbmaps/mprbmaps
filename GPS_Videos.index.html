@@ -26,24 +26,11 @@
             display: flex;
             overflow: hidden;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            width: calc(30% - 30px);
         }
         #youtubePlayer {
             width: 100%;
             height: auto;
             aspect-ratio: 16 / 9;
-        }
-        @media (max-width: 767px) {
-            #videoWindow {
-                top: 10px;
-                right: 10px;
-                width: calc(100% - 20px);
-                padding: 10px;
-            }
-            #youtubePlayer {
-                height: auto;
-                aspect-ratio: 16 / 9;
-            }
         }
     </style>
 </head>
@@ -56,7 +43,6 @@
         var player;
         var featureLayers = {};
         var highlights = {};
-        var fovGraphicsLayer;
         var activeLayerId = null;
         var currentFeature = null;
         var videoMap = {
@@ -64,8 +50,6 @@
             'insta360Test': 's_kCckaYzDo'
         };
         var startDateTimeMap = {};
-        var initialBearing = 180; // Assuming 180 degrees as the initial central bearing
-        var videoBearing = null; // This will store the current bearing of the video.
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -137,52 +121,40 @@
         }
 
         function updateFOVConeDirection(newBearing) {
-    console.log("Attempting to update FOV cone direction with active layer:", activeLayerId);
-
-    // Detailed checks for debugging
-    if (!currentFeature) {
-        console.error("Current feature is undefined.");
-    }
-    if (!window.view) {
-        console.error("View is undefined.");
-    }
-    if (!featureLayers[activeLayerId]) {
-        console.error("Feature layer corresponding to active layer ID is undefined.", "Active Layer ID:", activeLayerId);
-    }
-
-    // Only proceed if all references are valid
-    if (currentFeature && window.view && featureLayers[activeLayerId]) {
-        window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-            console.log("Layer view obtained, updating FOV cone direction to:", newBearing);
-            window.drawFOVCone(currentFeature, layerView, newBearing);
-        }).catch(function(error) {
-            console.error("Error when updating FOV cone direction on layer", activeLayerId, ":", error);
-        });
-    } else {
-        console.error("Unable to update FOV cone: Missing required references. Current Feature:", currentFeature, "View:", window.view, "Active Layer:", activeLayerId);
-    }
-}
-
-
+            console.log("Attempting to update FOV cone direction with active layer:", activeLayerId);
+            if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
+                console.error("Unable to update FOV cone: Missing required references or active layer is undefined.", "Current Feature:", currentFeature, "View:", window.view, "Active Layer:", activeLayerId);
+                return;
+            }
+            window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+                console.log("Layer view obtained, updating FOV cone direction to:", newBearing);
+                window.drawFOVCone(currentFeature, layerView, newBearing);
+            }).catch(function(error) {
+                console.error("Error when updating FOV cone direction on layer", activeLayerId, ":", error);
+            });
+        }
 
         function clearAndHighlight(feature, layer) {
-            console.log("Attempting to set active layer to: ", layer.id);
+            console.log("Clearing highlights for all layers");
+            Object.keys(highlights).forEach(function(layerId) {
+                if (highlights[layerId]) {
+                    highlights[layerId].remove();
+                    highlights[layerId] = null;
+                }
+            });
+
+            console.log("Setting active layer to:", layer.id);
             activeLayerId = layer.id;
-            console.log("Active layer set to: ", activeLayerId);
-            if (highlights[activeLayerId]) {
-                highlights[activeLayerId].remove();
-                delete highlights[activeLayerId];
-            }
+
             window.view.whenLayerView(layer).then(function(layerView) {
                 highlights[activeLayerId] = layerView.highlight(feature);
                 currentFeature = feature;
-                console.log("Current feature set to: ", currentFeature);
+                console.log("Feature highlighted on layer:", activeLayerId);
                 var initialFeatureBearing = feature.attributes.bearing || initialBearing;
                 videoBearing = initialFeatureBearing;
-                console.log("Video bearing set to: ", videoBearing);
                 window.drawFOVCone(feature, layerView, initialFeatureBearing);
             }).catch(function(error) {
-                console.error("Error in highlighting feature: ", error);
+                console.error("Error in highlighting feature:", error);
             });
         }
 
@@ -191,22 +163,25 @@
                 highlights[layer.id].remove();
                 delete highlights[layer.id];
             }
-            console.log("Clearing highlight for layer:", layer.id);
+            console.log("Highlight cleared for layer:", layer.id);
         }
 
         function highlightFeatureAtTime(currentSecond, featureLayer, view) {
             if (!startDateTimeMap[featureLayer.id]) {
-                console.error("Start DateTimeS not set yet for " + featureLayer.id);
+                console.error("Start DateTimeS not set yet for layer", featureLayer.id);
                 return;
             }
+
             if (featureLayer.id !== activeLayerId) {
-                console.log("Skipping highlight for inactive layer: ", featureLayer.id);
+                console.log("Skipping highlight for inactive layer:", featureLayer.id);
                 return;
             }
+
             var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
             queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
             var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-            console.log("Querying features for DateTimeS: ", queryDateTimeStr);
+
+            console.log("Querying features for DateTimeS:", queryDateTimeStr);
             view.whenLayerView(featureLayer).then(function(layerView) {
                 layerView.queryFeatures({
                     where: "DateTimeS = '" + queryDateTimeStr + "'",
@@ -215,7 +190,7 @@
                 }).then(function(results) {
                     if (results.features.length > 0) {
                         var feature = results.features[0];
-                        console.log("Feature found for DateTimeS: ", queryDateTimeStr);
+                        console.log("Feature found for DateTimeS:", queryDateTimeStr);
                         clearAndHighlight(feature, featureLayer);
                     } else {
                         console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
@@ -270,7 +245,7 @@
                 };
 
                 Object.keys(layerUrls).forEach(function(key) {
-                    featureLayers[key] = new FeatureLayer({
+                    var layer = new FeatureLayer({
                         url: layerUrls[key],
                         outFields: ["*"],
                         renderer: new SimpleRenderer({
@@ -282,9 +257,10 @@
                         })
                     });
 
-                    webmap.add(featureLayers[key]);
+                    webmap.add(layer);
+                    featureLayers[key + "-layer"] = layer;  // Ensure consistency in key formatting
 
-                    featureLayers[key].queryFeatures({
+                    layer.queryFeatures({
                         where: "1=1",
                         orderByFields: ["DateTimeS ASC"],
                         returnGeometry: false,
@@ -292,13 +268,13 @@
                         num: 1
                     }).then(function(response) {
                         if (response.features.length > 0) {
-                            startDateTimeMap[featureLayers[key].id] = response.features[0].attributes.DateTimeS;
-                            console.log(key + " Start DateTimeS set for " + featureLayers[key].id + ": ", startDateTimeMap[featureLayers[key].id]);
+                            startDateTimeMap[layer.id] = response.features[0].attributes.DateTimeS;
+                            console.log(key + " Start DateTimeS set for layer", layer.id + ":", startDateTimeMap[layer.id]);
                         } else {
-                            console.error("No features found to set startDateTime for " + key);
+                            console.error("No features found to set startDateTime for layer", layer.id);
                         }
                     }).catch(function(error) {
-                        console.error("Error fetching start DateTimeS for " + key + ":", error);
+                        console.error("Error fetching start DateTimeS for layer", layer.id + ":", error);
                     });
                 });
 
@@ -309,7 +285,7 @@
                             var feature = result.graphic;
                             var layer = result.graphic.layer;
 
-                            if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
+                            if (layer === featureLayers.creek || layer === featureLayers.insta360Test) {
                                 var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
                                 var videoId = videoMap[layerId];
                                 var layerStartDateTime = startDateTimeMap[layer.id];
@@ -395,6 +371,7 @@
                     return [center.x + dx, center.y + dy];
                 }
             });
+
         };
     </script>
 </body>
