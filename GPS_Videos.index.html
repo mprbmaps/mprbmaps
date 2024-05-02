@@ -126,38 +126,30 @@
             }
         }
 
-        function updateFOVConeDirection(bearing, coneWidth, retryCount = 0) {
-    console.log("Attempting to update FOV cone to new bearing:", bearing);
-    var layer = featureLayers[activeLayerId];
+        function updateFOVConeDirection(bearing, coneWidth) {
+            console.log("Attempting to update FOV cone to new bearing:", bearing);
+            var layer = featureLayers[activeLayerId];
 
-    if (!layer) {
-        console.error("No layer found with ID:", activeLayerId);
-        return;
-    }
-
-    if (layer.loaded && window.view) {
-        window.view.whenLayerView(layer).then(function(layerView) {
-            if (layerView) {
-                console.log("LayerView found, updating FOV cone.");
-                window.drawFOVCone(currentFeature, layerView, bearing, coneWidth);
-            } else {
-                console.error("LayerView not found after layer was reported as loaded.");
+            if (!layer) {
+                console.error("No layer found with ID:", activeLayerId);
+                return;
             }
-        }).catch(function(error) {
-            console.error("Error obtaining LayerView:", error);
-        });
-    } else {
-        if (retryCount < 10) { // Limit the number of retries to avoid infinite loops
-            console.log("Layer not ready, retrying update. Attempt:", retryCount + 1);
-            setTimeout(function() {
-                updateFOVConeDirection(bearing, coneWidth, retryCount + 1);
-            }, 500); // Retry after 500 ms
-        } else {
-            console.error("Failed to update FOV cone after several retries.");
-        }
-    }
-}
 
+            if (layer.loaded && window.view) {
+                window.view.whenLayerView(layer).then(function(layerView) {
+                    if (layerView) {
+                        console.log("LayerView found, updating FOV cone.");
+                        window.drawFOVCone(currentFeature, layerView, bearing, coneWidth);
+                    } else {
+                        console.error("LayerView not found after layer was reported as loaded.");
+                    }
+                }).catch(function(error) {
+                    console.error("Error obtaining LayerView:", error);
+                });
+            } else {
+                console.log("Layer not ready or view not available, cannot update FOV.");
+            }
+        }
 
         function calculateNewBearing(initialBearing, yawChange) {
             var newBearing = initialBearing + yawChange; // Directly apply yaw change in degrees
