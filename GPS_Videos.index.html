@@ -90,17 +90,20 @@
         }
 
         function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties(); // Directly get the properties
-                if (Math.abs(props.yaw - videoBearing) > 1) { // Significant change threshold
-                    console.log("Current Yaw: ", props.yaw);
-                    videoBearing = (360 - props.yaw) % 360; // Adjust direction if necessary
-                    console.log("Yaw changed from ", videoBearing, " to ", props.yaw);
-                    updateFOVConeDirection(videoBearing);
-                }
-                setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
-            }
+    if (player && player.getSphericalProperties) {
+        var props = player.getSphericalProperties(); // Get current spherical properties
+        var currentYaw = props.yaw; // Current yaw from the video
+        if (currentFeature && Math.abs(currentYaw - videoBearing) > 1) { // Check for significant change
+            console.log("Current Yaw: ", currentYaw);
+            var bearingChange = currentYaw - videoBearing;
+            videoBearing = currentYaw; // Update videoBearing to the new yaw
+            var newBearing = (currentFeature.attributes.bearing + bearingChange + 360) % 360;
+            updateFOVConeDirection(newBearing); // Update the FOV cone with the new calculated bearing
+            console.log("Yaw changed to: ", newBearing);
         }
+        setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
+    }
+}
 
         function checkTimeUpdate() {
             var currentSecond = Math.floor(player.getCurrentTime());
@@ -129,20 +132,21 @@
         }
 
         function clearAndHighlight(feature, layer) {
-            if (highlights[activeLayerId]) {
-                highlights[activeLayerId].remove();
-                delete highlights[activeLayerId];
-            }
-            activeLayerId = layer.id;
-            window.view.whenLayerView(layer).then(function(layerView) {
-                highlights[activeLayerId] = layerView.highlight(feature);
-                currentFeature = feature;
-                var featureBearing = feature.attributes.bearing || initialBearing;
-                window.drawFOVCone(feature, layerView, featureBearing);
-            }).catch(function(error) {
-                console.error("Error in highlighting feature: ", error);
-            });
-        }
+    if (highlights[activeLayerId]) {
+        highlights[activeLayerId].remove();
+        delete highlights[activeLayerId];
+    }
+    activeLayerId = layer.id;
+    window.view.whenLayerView(layer).then(function(layerView) {
+        highlights[activeLayerId] = layerView.highlight(feature);
+        currentFeature = feature; // Store the current feature globally
+        var initialFeatureBearing = feature.attributes.bearing || initialBearing; // Use attribute bearing or default
+        videoBearing = initialFeatureBearing; // Set video bearing to feature bearing initially
+        window.drawFOVCone(feature, layerView, initialFeatureBearing); // Draw FOV cone with initial bearing
+    }).catch(function(error) {
+        console.error("Error in highlighting feature: ", error);
+    });
+}
 
         function clearHighlight(layer) {
             if (highlights[layer.id]) {
