@@ -151,25 +151,25 @@
         }
 
         function clearAndHighlight(feature, layer) {
-            Object.keys(highlights).forEach(function(layerId) {
-                if (highlights[layerId]) {
-                    highlights[layerId].remove();
-                    highlights[layerId] = null;
-                }
-            });
-
-            activeLayerId = layer.id;
-
-            window.view.whenLayerView(layer).then(function(layerView) {
-                if (layerView) {
-                    highlights[layer.id] = layerView.highlight(feature);
-                    window.drawFOVCone(feature, layerView);
-                    currentFeature = feature;
-                }
-            }).catch(function(error) {
-                console.error("Error in highlighting feature: ", error);
-            });
+    Object.keys(highlights).forEach(function(layerId) {
+        if (highlights[layerId]) {
+            highlights[layerId].remove();
+            highlights[layerId] = null;
         }
+    });
+
+    activeLayerId = layer.id;
+    currentFeature = feature; // Update currentFeature with the new feature
+
+    window.view.whenLayerView(layer).then(function(layerView) {
+        if (layerView) {
+            highlights[layer.id] = layerView.highlight(feature);
+            window.drawFOVCone(feature, layerView, feature.attributes.bearing); // Use bearing from feature attributes
+        }
+    }).catch(function(error) {
+        console.error("Error in highlighting feature: ", error);
+    });
+};
 
         function clearHighlight(layer) {
             console.log("Clearing highlight for layer:", layer.id);
@@ -180,39 +180,39 @@
         }
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-            if (!startDateTimeMap[featureLayer.id]) {
-                console.error("Start DateTimeS not set yet for " + featureLayer.id);
-                return;
-            }
+    if (!startDateTimeMap[featureLayer.id]) {
+        console.error("Start DateTimeS not set yet for " + featureLayer.id);
+        return;
+    }
 
-            if (featureLayer.id !== activeLayerId) {
-                return;
-            }
+    if (featureLayer.id !== activeLayerId) {
+        return;
+    }
 
-            var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+    var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
-            view.whenLayerView(featureLayer).then(function(layerView) {
-                if (layerView) {
-                    layerView.queryFeatures({
-                        where: "DateTimeS = '" + queryDateTimeStr + "'",
-                        returnGeometry: true,
-                        outFields: ["*"]
-                    }).then(function(results) {
-                        if (results.features.length > 0) {
-                            var feature = results.features[0];
-                            clearAndHighlight(feature, featureLayer);
-                        } else {
-                            clearHighlight(featureLayer);
-                            console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                        }
-                    }).catch(function(error) {
-                        console.error("Error highlighting feature based on DateTimeS:", error);
-                    });
+    view.whenLayerView(featureLayer).then(function(layerView) {
+        if (layerView) {
+            layerView.queryFeatures({
+                where: "DateTimeS = '" + queryDateTimeStr + "'",
+                returnGeometry: true,
+                outFields: ["*"] // Make sure "bearing" is included in outFields
+            }).then(function(results) {
+                if (results.features.length > 0) {
+                    var feature = results.features[0];
+                    clearAndHighlight(feature, featureLayer);
+                } else {
+                    clearHighlight(featureLayer);
+                    console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
                 }
+            }).catch(function(error) {
+                console.error("Error highlighting feature based on DateTimeS:", error);
             });
-        };
+        }
+    });
+};
 
         function loadMapAndLayers() {
             require([
@@ -331,8 +331,8 @@
                 });
 
                 window.drawFOVCone = function(feature, layerView, bearingOverride) {
-                    var bearing = (videoBearing !== null) ? videoBearing : (bearingOverride || feature.attributes.bearing);
-                    console.log("Drawing FOV cone with bearing: ", bearing);
+    var bearing = (typeof bearingOverride === 'number') ? bearingOverride : feature.attributes.bearing; // Use provided bearing or default to feature's bearing
+    console.log("Drawing FOV cone with bearing: ", bearing);
                     var coneLength = 20; // Length of the cone in meters
                     var coneWidth = 30; // Half angle of the FOV cone in degrees
 
