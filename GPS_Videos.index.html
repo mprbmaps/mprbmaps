@@ -127,14 +127,15 @@
         }
 
         function calculateNewBearing(initialBearing, yawChange) {
-            var newBearing = initialBearing + yawChange;
-            if (newBearing < 0) {
-                newBearing += 360;
-            } else if (newBearing >= 360) {
-                newBearing -= 360;
-            }
-            return newBearing;
-        }
+    var newBearing = initialBearing + yawChange * (180 / Math.PI);
+    while (newBearing < 0) {
+        newBearing += 360;
+    }
+    while (newBearing >= 360) {
+        newBearing -= 360;
+    }
+    return newBearing;
+}
 
         function calculateConeWidth(fov) {
             // Adjust this calculation based on your specific requirements
