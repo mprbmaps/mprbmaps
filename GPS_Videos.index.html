@@ -65,7 +65,7 @@
         };
         var startDateTimeMap = {};
         
-        var videoBearing = null; // This will store the current bearing of the video.
+        var videoBearing = 0; // Initialize videoBearing to prevent 'undefined' state
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -91,11 +91,11 @@
 
         function watchBearingChange() {
             if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties(); // Directly get the properties
-                console.log("Current Yaw: ", props.yaw); // Debugging the output
-                if (props.yaw !== videoBearing) {
-                    console.log("Yaw changed from ", videoBearing, " to ", props.yaw);
-                    videoBearing = props.yaw;
+                var props = player.getSphericalProperties();
+                var newYaw = props.yaw || 0; // Default to 0 if undefined
+                if (newYaw !== videoBearing) {
+                    console.log("Yaw changed from ", videoBearing, " to ", newYaw);
+                    videoBearing = newYaw;
                     updateFOVConeDirection(videoBearing);
                 }
                 setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
@@ -122,19 +122,18 @@
             console.log("Active layer view available:", featureLayers[activeLayerId]);
 
             if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
-                console.error("Update FOV failed: Invalid state for operation.");
+                console.error("Update FOV failed: Invalid state for operation. Active Layer ID:", activeLayerId);
                 return;
             }
 
             window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-                console.log("Layer view found, updating FOV cone.");
                 if (layerView) {
                     window.drawFOVCone(currentFeature, layerView, bearing);
                 } else {
-                    console.error("Update FOV failed: Layer view not available.");
+                    console.error("Layer view not available for activeLayerId:", activeLayerId);
                 }
             }).catch(function(error) {
-                console.error("Error obtaining LayerView for the active layer:", error);
+                console.error("Error obtaining LayerView for the active layer:", activeLayerId, error);
             });
         }
 
@@ -146,8 +145,7 @@
                 }
             });
 
-            activeLayerId = layer.id;
-
+            activeLayerId = layer.id; // Ensure this is always set before calling any dependent functions
             window.view.whenLayerView(layer).then(function(layerView) {
                 if (layerView) {
                     highlights[layer.id] = layerView.highlight(feature);
@@ -321,7 +319,7 @@
                 window.drawFOVCone = function(feature, layerView, bearingOverride) {
                     var bearing = (videoBearing !== null) ? videoBearing : (bearingOverride || feature.attributes.bearing);
                     if (bearing === undefined) {
-                        console.error("Bearing is undefined. Feature attributes might be missing the 'bearing' field.");
+                        console.error("Bearing is undefined. Check feature attributes and bearing initialization.");
                         return;
                     }
                     console.log("Drawing FOV cone with bearing: ", bearing);
