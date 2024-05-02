@@ -108,6 +108,7 @@
                     });
                 }
             });
+            loadMapAndLayers(); // Ensure the map and layers are loaded
         }
 
         function onPlayerStateChange(event) {
@@ -201,36 +202,28 @@
             });
         };
 
-        require([
-            "esri/WebMap",
-            "esri/views/MapView",
-            "esri/layers/FeatureLayer",
-            "esri/geometry/Extent",
-            "esri/identity/OAuthInfo",
-            "esri/identity/IdentityManager",
-            "esri/renderers/SimpleRenderer",
-            "esri/symbols/PictureMarkerSymbol",
-            "esri/layers/GraphicsLayer",
-            "esri/Graphic",
-            "esri/geometry/Polygon"
-        ], function(
-            WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicsLayer, Graphic, Polygon
-        ) {
-            var info = new OAuthInfo({
-                appId: "ti3fi1FqvHE2Hhyw",
-                popup: true
-            });
-            IdentityManager.registerOAuthInfos([info]);
+        function loadMapAndLayers() {
+            require([
+                "esri/WebMap",
+                "esri/views/MapView",
+                "esri/layers/FeatureLayer",
+                "esri/geometry/Extent",
+                "esri/identity/OAuthInfo",
+                "esri/identity/IdentityManager",
+                "esri/renderers/SimpleRenderer",
+                "esri/symbols/PictureMarkerSymbol",
+                "esri/layers/GraphicsLayer",
+                "esri/Graphic",
+                "esri/geometry/Polygon"
+            ], function(
+                WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicsLayer, Graphic, Polygon
+            ) {
+                var info = new OAuthInfo({
+                    appId: "ti3fi1FqvHE2Hhyw",
+                    popup: true
+                });
+                IdentityManager.registerOAuthInfos([info]);
 
-            IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
-                console.log("Signed in successfully");
-                displayMap();
-            }).catch(function(error) {
-                console.error("Sign-in failed: ", error);
-                displayMap();
-            });
-
-            function displayMap() {
                 var webmap = new WebMap({
                     portalItem: {
                         id: "08386264ca8d480286748e95b89558b4"
@@ -394,7 +387,7 @@
                     var dy = distance * Math.cos(angleRad);
                     return [center.x + dx, center.y + dy];
                 }
-            };
+            });
 
             document.addEventListener('DOMContentLoaded', function() {
                 var videoWindow = document.querySelector("#videoWindow");
