@@ -113,14 +113,16 @@
         }
 
         function updateFOVConeDirection(newBearing) {
-            if (!currentFeature || !window.view) return;
+            if (!currentFeature || !window.view || !featureLayers[activeLayerId]) return;
 
             window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
                 if (layerView) {
                     window.drawFOVCone(currentFeature, layerView, newBearing);
+                } else {
+                    console.error("LayerView not found for the active layer.");
                 }
             }).catch(function(error) {
-                console.error("Error updating FOV direction: ", error);
+                console.error("Error obtaining LayerView for the active layer: ", error);
             });
         }
 
