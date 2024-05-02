@@ -78,7 +78,6 @@
         }
 
         function onPlayerReady(event) {
-            // Listener setup for handling mouse drag to rotate the video
             var videoContainer = document.getElementById('youtubePlayer');
             var isDragging = false;
             var initialX = null;
@@ -100,8 +99,8 @@
                         player.setSphericalProperties({yaw: newBearing});
                     }
 
-                    if (currentFeature) {
-                        updateFOVConeDirection(newBearing); // Call the function to update FOV cone direction
+                    if (currentFeature && fovGraphicsLayer) {
+                        updateFOVConeDirection(newBearing);
                     }
                 }
             });
@@ -116,7 +115,7 @@
                 }
             });
 
-            loadMapAndLayers(); // Ensure the map and layers are loaded
+            loadMapAndLayers();
         }
 
         function onPlayerStateChange(event) {
@@ -346,8 +345,6 @@
                     fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
                     var centerPoint = feature.geometry.clone();
-                    console.log("Using Feature Coordinates:", centerPoint.toJSON());
-
                     var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
                     var polygon = new Polygon({
                         rings: cone,
