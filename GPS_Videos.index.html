@@ -116,28 +116,27 @@
         }
 
         function updateFOVConeDirection(bearing) {
-    console.log("Attempting to update FOV cone with bearing:", bearing);
-    console.log("Current feature:", currentFeature);
-    console.log("View available:", !!window.view);
-    console.log("Active layer view available:", featureLayers[activeLayerId]);
+            console.log("Attempting to update FOV cone with bearing:", bearing);
+            console.log("Current feature:", currentFeature);
+            console.log("View available:", !!window.view);
+            console.log("Active layer view available:", featureLayers[activeLayerId]);
 
-    if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
-        console.error("Update FOV failed: Invalid state for operation.");
-        return;
-    }
+            if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
+                console.error("Update FOV failed: Invalid state for operation.");
+                return;
+            }
 
-    window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-        console.log("Layer view found, updating FOV cone.");
-        if (layerView) {
-            window.drawFOVCone(currentFeature, layerView, bearing);
-        } else {
-            console.error("Update FOV failed: Layer view not available.");
+            window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+                console.log("Layer view found, updating FOV cone.");
+                if (layerView) {
+                    window.drawFOVCone(currentFeature, layerView, bearing);
+                } else {
+                    console.error("Update FOV failed: Layer view not available.");
+                }
+            }).catch(function(error) {
+                console.error("Error obtaining LayerView for the active layer:", error);
+            });
         }
-    }).catch(function(error) {
-        console.error("Error obtaining LayerView for the active layer:", error);
-    });
-}
-
 
         function clearAndHighlight(feature, layer) {
             Object.keys(highlights).forEach(function(layerId) {
@@ -321,6 +320,10 @@
 
                 window.drawFOVCone = function(feature, layerView, bearingOverride) {
                     var bearing = (videoBearing !== null) ? videoBearing : (bearingOverride || feature.attributes.bearing);
+                    if (bearing === undefined) {
+                        console.error("Bearing is undefined. Feature attributes might be missing the 'bearing' field.");
+                        return;
+                    }
                     console.log("Drawing FOV cone with bearing: ", bearing);
                     var coneLength = 20; // Length of the cone in meters
                     var coneWidth = 30; // Half angle of the FOV cone in degrees
