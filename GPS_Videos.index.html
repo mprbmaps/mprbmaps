@@ -126,24 +126,38 @@
             }
         }
 
-        function updateFOVConeDirection(bearing, coneWidth) {
-            console.log("Attempting to update FOV cone to new bearing:", bearing);
-            var layer = featureLayers[activeLayerId];
+        function updateFOVConeDirection(bearing, coneWidth, retryCount = 0) {
+    console.log("Attempting to update FOV cone to new bearing:", bearing);
+    var layer = featureLayers[activeLayerId];
 
-            if (layer && layer.loaded) {
-                window.view.whenLayerView(layer).then(function(layerView) {
-                    if (layerView) {
-                        console.log("LayerView found, updating FOV cone.");
-                        window.drawFOVCone(currentFeature, layerView, bearing, coneWidth);
-                    }
-                }).catch(function(error) {
-                    console.error("Failed to obtain LayerView for the active layer:", error);
-                });
+    if (!layer) {
+        console.error("No layer found with ID:", activeLayerId);
+        return;
+    }
+
+    if (layer.loaded && window.view) {
+        window.view.whenLayerView(layer).then(function(layerView) {
+            if (layerView) {
+                console.log("LayerView found, updating FOV cone.");
+                window.drawFOVCone(currentFeature, layerView, bearing, coneWidth);
             } else {
-                console.log("Layer not ready, delaying update.");
-                setTimeout(function() { updateFOVConeDirection(bearing, coneWidth); }, 500); // Retry after some time
+                console.error("LayerView not found after layer was reported as loaded.");
             }
+        }).catch(function(error) {
+            console.error("Error obtaining LayerView:", error);
+        });
+    } else {
+        if (retryCount < 10) { // Limit the number of retries to avoid infinite loops
+            console.log("Layer not ready, retrying update. Attempt:", retryCount + 1);
+            setTimeout(function() {
+                updateFOVConeDirection(bearing, coneWidth, retryCount + 1);
+            }, 500); // Retry after 500 ms
+        } else {
+            console.error("Failed to update FOV cone after several retries.");
         }
+    }
+}
+
 
         function calculateNewBearing(initialBearing, yawChange) {
             var newBearing = initialBearing + yawChange; // Directly apply yaw change in degrees
