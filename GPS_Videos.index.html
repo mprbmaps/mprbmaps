@@ -116,23 +116,28 @@
         }
 
         function updateFOVConeDirection(bearing) {
-            console.log("Attempting to update FOV cone with bearing:", bearing);
-            console.log("Current feature:", currentFeature);
-            console.log("View available:", !!window.view);
-            console.log("Active layer view available:", featureLayers[activeLayerId]);
+    console.log("Attempting to update FOV cone with bearing:", bearing);
+    console.log("Current feature:", currentFeature);
+    console.log("View available:", !!window.view);
+    console.log("Active layer view available:", featureLayers[activeLayerId]);
 
-            if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
-                console.error("Update FOV failed: Invalid state for operation.");
-                return;
-            }
+    if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
+        console.error("Update FOV failed: Invalid state for operation.");
+        return;
+    }
 
-            window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-                console.log("Layer view found, updating FOV cone.");
-                window.drawFOVCone(currentFeature, layerView, bearing);
-            }).catch(function(error) {
-                console.error("Error obtaining LayerView for the active layer:", error);
-            });
+    window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+        console.log("Layer view found, updating FOV cone.");
+        if (layerView) {
+            window.drawFOVCone(currentFeature, layerView, bearing);
+        } else {
+            console.error("Update FOV failed: Layer view not available.");
         }
+    }).catch(function(error) {
+        console.error("Error obtaining LayerView for the active layer:", error);
+    });
+}
+
 
         function clearAndHighlight(feature, layer) {
             Object.keys(highlights).forEach(function(layerId) {
