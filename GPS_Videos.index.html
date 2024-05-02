@@ -8,7 +8,7 @@
     <script src="https://js.arcgis.com/4.28/"></script>
     <script src="https://www.youtube.com/iframe_api"></script>
     <style>
-        html, body, #viewDiv, #bearingControl {
+        html, body, #viewDiv {
             height: 100%;
             width: 100%;
             margin: 0;
@@ -26,41 +26,38 @@
             display: flex;
             overflow: hidden;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            width: calc(30% - 30px); /* Adjust width as needed */
         }
         #youtubePlayer {
             width: 100%;
-            max-width: 707px;
             height: auto;
             aspect-ratio: 16 / 9;
         }
         #bearingControl {
             position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
+            top: calc(20px + 200px); /* adjust the top position based on the height of the video player */
+            right: 20px;
             z-index: 1000;
             background: white;
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
             display: flex;
-            width: 80%;
-            max-width: 300px;
+            width: calc(30% - 30px); /* Match the width of the video window */
         }
         @media (max-width: 767px) {
-            #videoWindow {
+            #videoWindow, #bearingControl {
                 top: 10px;
                 right: 10px;
                 width: calc(100% - 20px);
                 padding: 10px;
             }
-            #youtubePlayer {
+            #youtubePlayer, #bearingControl {
                 height: auto;
                 aspect-ratio: 16 / 9;
             }
             #bearingControl {
-                bottom: 10px;
-                padding: 5px;
+                top: calc(10px + 200px);
             }
         }
     </style>
@@ -89,8 +86,8 @@
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
-                height: '443',
-                width: '707',
+                height: '200', // Adjusted height to fit within the smaller width
+                width: '354', // Adjusted width corresponding to the aspect ratio
                 events: {
                     'onReady': onPlayerReady,
                     'onStateChange': onPlayerStateChange
@@ -106,6 +103,9 @@
                     player.setSphericalProperties({
                         yaw: newBearing
                     });
+                }
+                if (currentFeature) {
+                    updateFOVConeDirection(newBearing);
                 }
             });
             loadMapAndLayers(); // Ensure the map and layers are loaded
@@ -325,59 +325,47 @@
                 });
 
                 window.updateFOVConeDirection = function(newBearing) {
-    if (!currentFeature || !window.view || !featureLayers[activeLayerId]) return;
+                    if (!currentFeature || !window.view) return;
 
-    window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-        if (layerView) {
-            window.drawFOVCone(currentFeature, layerView, newBearing);
-        } else {
-            console.error("LayerView is not ready.");
-            // Optionally, retry after some delay
-            setTimeout(() => {
-                window.updateFOVConeDirection(newBearing);
-            }, 1000); // Retry after 1 second
-        }
-    }).catch(function(error) {
-        console.error("Error updating FOV direction: ", error);
-    });
-};
+                    window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+                        if (layerView) {
+                            window.drawFOVCone(currentFeature, layerView, newBearing);
+                        }
+                    }).catch(function(error) {
+                        console.error("Error updating FOV direction: ", error);
+                    });
+                };
 
-window.drawFOVCone = function(feature, layerView, bearingOverride) {
-    if (!layerView) {
-        console.error("drawFOVCone called without a valid layerView");
-        return;
-    }
+                window.drawFOVCone = function(feature, layerView, bearingOverride) {
+                    var bearing = bearingOverride || feature.attributes.bearing;
+                    var coneLength = 20; // Length of the cone in meters
+                    var coneWidth = 30; // Half angle of the FOV cone in degrees
 
-    var bearing = bearingOverride || feature.attributes.bearing;
-    var coneLength = 20; // Length of the cone in meters
-    var coneWidth = 30; // Half angle of the FOV cone in degrees
+                    fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
-    fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
+                    var centerPoint = feature.geometry.clone();
+                    console.log("Using Feature Coordinates:", centerPoint.toJSON());
 
-    var centerPoint = feature.geometry.clone();
-    console.log("Using Feature Coordinates:", centerPoint.toJSON());
+                    var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
+                    var polygon = new Polygon({
+                        rings: cone,
+                        spatialReference: { wkid: 102100 }
+                    });
 
-    var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
-    var polygon = new Polygon({
-        rings: cone,
-        spatialReference: { wkid: 102100 }
-    });
+                    var fovGraphic = new Graphic({
+                        geometry: polygon,
+                        symbol: {
+                            type: "simple-fill",
+                            color: [255, 165, 0, 0.3],
+                            outline: {
+                                color: [255, 165, 0],
+                                width: 2
+                            }
+                        }
+                    });
 
-    var fovGraphic = new Graphic({
-        geometry: polygon,
-        symbol: {
-            type: "simple-fill",
-            color: [255, 165, 0, 0.3],
-            outline: {
-                color: [255, 165, 0],
-                width: 2
-            }
-        }
-    });
-
-    fovGraphicsLayer.graphics.add(fovGraphic);
-};
-
+                    fovGraphicsLayer.graphics.add(fovGraphic);
+                };
 
                 function createCone(centerPoint, bearing, width, length) {
                     var points = [];
