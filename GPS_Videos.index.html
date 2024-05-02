@@ -89,15 +89,20 @@
         }
 
         function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                if (props.yaw !== initialBearing) {
-                    initialBearing = props.yaw;
-                    updateFOVConeDirection(initialBearing);
-                }
-                setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
+    if (player && player.getSphericalProperties) {
+        player.getSphericalProperties().then(props => {
+            console.log("Current Yaw: ", props.yaw); // Debugging the output
+            if (props.yaw !== initialBearing) {
+                console.log("Yaw changed from ", initialBearing, " to ", props.yaw);
+                initialBearing = props.yaw;
+                updateFOVConeDirection(initialBearing);
             }
-        }
+        }).catch(error => {
+            console.error("Failed to get spherical properties: ", error);
+        });
+        setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
+    }
+}
 
         function checkTimeUpdate() {
             var currentSecond = Math.floor(player.getCurrentTime());
@@ -113,18 +118,19 @@
         }
 
         function updateFOVConeDirection(newBearing) {
-            if (!currentFeature || !window.view || !featureLayers[activeLayerId]) return;
+    if (!currentFeature || !window.view || !featureLayers[activeLayerId]) return;
 
-            window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-                if (layerView) {
-                    window.drawFOVCone(currentFeature, layerView, newBearing);
-                } else {
-                    console.error("LayerView not found for the active layer.");
-                }
-            }).catch(function(error) {
-                console.error("Error obtaining LayerView for the active layer: ", error);
-            });
+    window.view.whenLayerView(featureLayers[activeLayerId]).then(layerView => {
+        if (layerView) {
+            console.log("Updating FOV Cone to new bearing: ", newBearing);
+            window.drawFOVCone(currentFeature, layerView, newBearing);
+        } else {
+            console.error("LayerView not found for the active layer.");
         }
+    }).catch(error => {
+        console.error("Error obtaining LayerView for the active layer: ", error);
+    });
+}
 
         function clearAndHighlight(feature, layer) {
             Object.keys(highlights).forEach(function(layerId) {
