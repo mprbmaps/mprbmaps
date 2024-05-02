@@ -110,11 +110,13 @@
                 if (typeof props.yaw === "number" && typeof props.fov === "number") {
                     console.log("Current Yaw: ", props.yaw);
                     console.log("Current FOV: ", props.fov);
-                    if (Math.abs(props.yaw - videoBearing) > 0.1) {
+                    var yawChange = props.yaw - videoBearing;
+                    var threshold = 0.1; // Adjust this value as needed
+                    if (Math.abs(yawChange) > threshold) {
                         console.log("Yaw changed from ", videoBearing, " to ", props.yaw);
                         videoBearing = props.yaw;
                         if (currentFeature && window.view && featureLayers[activeLayerId]) {
-                            var newBearing = calculateNewBearing(currentFeature.attributes.bearing, videoBearing);
+                            var newBearing = calculateNewBearing(currentFeature.attributes.bearing, yawChange);
                             var coneWidth = calculateConeWidth(props.fov);
                             updateFOVConeDirection(newBearing, coneWidth);
                         }
@@ -125,7 +127,7 @@
         }
 
         function calculateNewBearing(initialBearing, yawChange) {
-            var newBearing = initialBearing - yawChange;
+            var newBearing = initialBearing + yawChange;
             if (newBearing < 0) {
                 newBearing += 360;
             } else if (newBearing >= 360) {
