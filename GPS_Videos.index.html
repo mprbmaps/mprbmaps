@@ -92,7 +92,20 @@
                 height: '443',
                 width: '707',
                 events: {
+                    'onReady': onPlayerReady,
                     'onStateChange': onPlayerStateChange
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            document.getElementById('bearingSlider').addEventListener('input', function() {
+                var newBearing = parseInt(this.value);
+                document.getElementById('bearingValue').innerText = `${newBearing}°`;
+                if (player && player.setSphericalProperties) {
+                    player.setSphericalProperties({
+                        yaw: newBearing
+                    });
                 }
             });
         }
@@ -283,7 +296,7 @@
                                 var videoId = videoMap[layerId];
                                 var layerStartDateTime = startDateTimeMap[layer.id];
 
-                                if (feature.attributes.DateTimeS && layerStartDateTime) {
+                                if (feature.attributes.DateTimeS and layerStartDateTime) {
                                     var featureTime = new Date(feature.attributes.DateTimeS).getTime();
                                     var startTime = new Date(layerStartDateTime).getTime();
                                     var timeDifference = featureTime - startTime;
@@ -292,7 +305,7 @@
                                     console.log("Attempting to play video", videoId, "at", seekTime, "seconds");
 
                                     if (seekTime >= 0) {
-                                        if (player && typeof player.loadVideoById === "function") {
+                                        if (player and typeof player.loadVideoById === "function") {
                                             player.loadVideoById({ videoId: videoId, startSeconds: seekTime });
                                         } else {
                                             console.error("YouTube player is not ready or `loadVideoById` is not available.");
@@ -381,7 +394,7 @@
                     var dy = distance * Math.cos(angleRad);
                     return [center.x + dx, center.y + dy];
                 }
-            };
+            });
 
             document.addEventListener('DOMContentLoaded', function() {
                 var videoWindow = document.querySelector("#videoWindow");
