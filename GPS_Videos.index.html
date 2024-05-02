@@ -106,7 +106,7 @@
         }
 
         function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
+            if (player && player.getSphericalProperties && activeLayerId !== null) {
                 var props = player.getSphericalProperties();
                 var currentYaw = props.yaw;
                 if (currentFeature && videoBearing !== null && Math.abs(currentYaw - videoBearing) > 1) {
@@ -317,11 +317,11 @@
                                     } else {
                                         console.error("Calculated seek time is negative.");
                                     }
+
+                                    clearAndHighlight(feature, layer);
                                 } else {
                                     console.error("Missing valid DateTimeS or startDateTime is not set.");
                                 }
-
-                                clearAndHighlight(feature, layer);
                             }
                         }
                     }).catch(function(error) {
@@ -368,7 +368,7 @@
                     var endBearing = bearing + width;
 
                     points.push(calculatePoint(centerPoint, startBearing, length));
-                    points.push(calculatePoint(centerPoint, endBearing, length));
+                    points.push(calculatePoint(centerPoint, endBearing, length
                     points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
 
                     return [points];
