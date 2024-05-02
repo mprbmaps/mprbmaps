@@ -65,6 +65,7 @@
         };
         var startDateTimeMap = {};
         var initialBearing = 180; // assuming 180 degrees as the initial central bearing
+        var videoBearing = null; // This will store the current bearing of the video.
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -89,17 +90,17 @@
         }
 
         function watchBearingChange() {
-    if (player && player.getSphericalProperties) {
-        var props = player.getSphericalProperties(); // Directly get the properties
-        console.log("Current Yaw: ", props.yaw); // Debugging the output
-        if (props.yaw !== initialBearing) {
-            console.log("Yaw changed from ", initialBearing, " to ", props.yaw);
-            initialBearing = props.yaw;
-            updateFOVConeDirection(initialBearing);
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties(); // Directly get the properties
+                console.log("Current Yaw: ", props.yaw); // Debugging the output
+                if (props.yaw !== videoBearing) {
+                    console.log("Yaw changed from ", videoBearing, " to ", props.yaw);
+                    videoBearing = props.yaw;
+                    updateFOVConeDirection(videoBearing);
+                }
+                setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
+            }
         }
-        setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
-    }
-}
 
         function checkTimeUpdate() {
             var currentSecond = Math.floor(player.getCurrentTime());
@@ -114,23 +115,23 @@
             }
         }
 
-        function updateFOVConeDirection(newBearing) {
-    if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
-        console.error("Update FOV failed: Invalid state for operation.");
-        return;
-    }
+        function updateFOVConeDirection(bearing) {
+            if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
+                console.error("Update FOV failed: Invalid state for operation.");
+                return;
+            }
 
-    console.log("Updating FOV cone to new bearing: ", newBearing);
-    window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-        if (layerView) {
-            window.drawFOVCone(currentFeature, layerView, newBearing);
-        } else {
-            console.error("LayerView not found for the active layer.");
+            console.log("Updating FOV cone to new bearing: ", bearing);
+            window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+                if (layerView) {
+                    window.drawFOVCone(currentFeature, layerView, bearing);
+                } else {
+                    console.error("LayerView not found for the active layer.");
+                }
+            }).catch(function(error) {
+                console.error("Error obtaining LayerView for the active layer: ", error);
+            });
         }
-    }).catch(function(error) {
-        console.error("Error obtaining LayerView for the active layer: ", error);
-    });
-}
 
         function clearAndHighlight(feature, layer) {
             Object.keys(highlights).forEach(function(layerId) {
@@ -313,35 +314,35 @@
                 });
 
                 window.drawFOVCone = function(feature, layerView, bearingOverride) {
-    var bearing = bearingOverride || feature.attributes.bearing;
-    console.log("Drawing FOV cone with bearing: ", bearing);
-    var coneLength = 20; // Length of the cone in meters
-    var coneWidth = 30; // Half angle of the FOV cone in degrees
+                    var bearing = (videoBearing !== null) ? videoBearing : (bearingOverride || feature.attributes.bearing);
+                    console.log("Drawing FOV cone with bearing: ", bearing);
+                    var coneLength = 20; // Length of the cone in meters
+                    var coneWidth = 30; // Half angle of the FOV cone in degrees
 
-    fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
+                    fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
-    var centerPoint = feature.geometry.clone();
-    var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
-    var polygon = new Polygon({
-        rings: cone,
-        spatialReference: { wkid: 102100 }
-    });
+                    var centerPoint = feature.geometry.clone();
+                    var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
+                    var polygon = new Polygon({
+                        rings: cone,
+                        spatialReference: { wkid: 102100 }
+                    });
 
-    var fovGraphic = new Graphic({
-        geometry: polygon,
-        symbol: {
-            type: "simple-fill",
-            color: [255, 165, 0, 0.3],
-            outline: {
-                color: [255, 165, 0],
-                width: 2
-            }
-        }
-    });
+                    var fovGraphic = new Graphic({
+                        geometry: polygon,
+                        symbol: {
+                            type: "simple-fill",
+                            color: [255, 165, 0, 0.3],
+                            outline: {
+                                color: [255, 165, 0],
+                                width: 2
+                            }
+                        }
+                    });
 
-    fovGraphicsLayer.graphics.add(fovGraphic);
-    console.log("FOV cone added to the map.");
-};
+                    fovGraphicsLayer.graphics.add(fovGraphic);
+                    console.log("FOV cone added to the map.");
+                };
 
                 function createCone(centerPoint, bearing, width, length) {
                     var points = [];
