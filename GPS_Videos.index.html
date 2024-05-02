@@ -105,50 +105,43 @@
         }
 
         function watchBearingChange() {
-    if (player && player.getSphericalProperties) {
-        var props = player.getSphericalProperties();
-        if (typeof props.yaw === "number") {
-            var yawChange = props.yaw - (videoBearing || props.yaw);
-            videoBearing = props.yaw; // Update to current yaw
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties();
+                if (typeof props.yaw === "number") {
+                    var yawChange = props.yaw - (videoBearing || props.yaw);
+                    videoBearing = props.yaw; // Update to current yaw
 
-            var threshold = 1; // Adjusted to a sensible value for clear changes
-            if (Math.abs(yawChange) > threshold) {
-                console.log("Significant yaw change detected: ", yawChange);
-                var newBearing = calculateNewBearing(currentFeature.attributes.bearing, yawChange);
-                console.log("Calculated new bearing: ", newBearing);
-                updateFOVConeDirection(newBearing, currentFeature.attributes.fov || 45); // Assuming default FOV is 45
+                    var threshold = 1; // Adjusted to a sensible value for clear changes
+                    if (Math.abs(yawChange) > threshold) {
+                        console.log("Significant yaw change detected: ", yawChange);
+                        var newBearing = calculateNewBearing(currentFeature.attributes.bearing, yawChange);
+                        console.log("Calculated new bearing: ", newBearing);
+                        updateFOVConeDirection(newBearing, currentFeature.attributes.fov || 45); // Assuming default FOV is 45
+                    }
+                }
+                setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
             }
-        }
-        setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
-    }
-}
-
-        function calculateNewBearing(initialBearing, yawChange) {
-    var newBearing = initialBearing + yawChange; // Directly apply yaw change in degrees
-    newBearing = (newBearing + 360) % 360; // Normalize the bearing
-    return newBearing;
-}
-
-        function calculateConeWidth(fov) {
-            // Adjust this calculation based on your specific requirements
-            var coneWidth = fov / 2;
-            return coneWidth;
         }
 
         function updateFOVConeDirection(bearing, coneWidth) {
-    console.log("Updating FOV cone to new bearing: ", bearing);
-    console.log("Updating FOV cone width: ", coneWidth);
-    window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-        if (layerView) {
-            window.drawFOVCone(currentFeature, layerView, bearing, coneWidth);
-            console.log("FOV cone updated on the map.");
-        } else {
-            console.error("LayerView not found for the active layer.");
+            console.log("Attempting to update FOV cone to new bearing:", bearing);
+
+            // Ensure the layer is ready and the LayerView is accessible
+            window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+                if (layerView) {
+                    console.log("LayerView found, updating FOV cone.");
+                    window.drawFOVCone(currentFeature, layerView, bearing, coneWidth);
+                }
+            }).catch(function(error) {
+                console.error("Failed to obtain LayerView for the active layer:", error);
+            });
         }
-    }).catch(function(error) {
-        console.error("Error obtaining LayerView for the active layer: ", error);
-    });
-}
+
+        function calculateNewBearing(initialBearing, yawChange) {
+            var newBearing = initialBearing + yawChange; // Directly apply yaw change in degrees
+            newBearing = (newBearing + 360) % 360; // Normalize the bearing
+            return newBearing;
+        }
 
         function clearAndHighlight(feature, layer) {
             Object.keys(highlights).forEach(function(layerId) {
