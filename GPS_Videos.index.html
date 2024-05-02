@@ -33,31 +33,16 @@
             height: auto;
             aspect-ratio: 16 / 9;
         }
-        #bearingControl {
-            position: absolute;
-            top: calc(20px + 200px); /* adjust the top position based on the height of the video player */
-            right: 20px;
-            z-index: 1000;
-            background: white;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            display: flex;
-            width: calc(30% - 30px); /* Match the width of the video window */
-        }
         @media (max-width: 767px) {
-            #videoWindow, #bearingControl {
+            #videoWindow {
                 top: 10px;
                 right: 10px;
                 width: calc(100% - 20px);
                 padding: 10px;
             }
-            #youtubePlayer, #bearingControl {
+            #youtubePlayer {
                 height: auto;
                 aspect-ratio: 16 / 9;
-            }
-            #bearingControl {
-                top: calc(10px + 200px);
             }
         }
     </style>
@@ -66,10 +51,6 @@
     <div id="viewDiv"></div>
     <div id="videoWindow">
         <div id="youtubePlayer"></div>
-    </div>
-    <div id="bearingControl">
-        <input type="range" id="bearingSlider" min="0" max="360" step="1" value="180" style="width: 100%;">
-        <span id="bearingValue">180°</span>
     </div>
     <script>
         var player;
@@ -83,6 +64,7 @@
             'insta360Test': 's_kCckaYzDo'
         };
         var startDateTimeMap = {};
+        var initialBearing = 180; // assuming 180 degrees as the initial central bearing
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -96,18 +78,44 @@
         }
 
         function onPlayerReady(event) {
-            document.getElementById('bearingSlider').addEventListener('input', function() {
-                var newBearing = parseInt(this.value);
-                document.getElementById('bearingValue').innerText = `${newBearing}°`;
-                if (player && player.setSphericalProperties) {
-                    player.setSphericalProperties({
-                        yaw: newBearing
-                    });
-                }
-                if (currentFeature) {
-                    updateFOVConeDirection(newBearing);
+            // Listener setup for handling mouse drag to rotate the video
+            var videoContainer = document.getElementById('youtubePlayer');
+            var isDragging = false;
+            var initialX = null;
+
+            videoContainer.addEventListener('mousedown', function(e) {
+                isDragging = true;
+                initialX = e.clientX;
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (isDragging) {
+                    var deltaX = e.clientX - initialX;
+                    var videoWidth = videoContainer.offsetWidth;
+                    var bearingChange = (deltaX / videoWidth) * 360; // Full width corresponds to 360 degrees change
+                    var newBearing = (initialBearing + bearingChange + 360) % 360; // Normalize the bearing
+
+                    if (player && player.setSphericalProperties) {
+                        player.setSphericalProperties({yaw: newBearing});
+                    }
+
+                    if (currentFeature) {
+                        updateFOVConeDirection(newBearing);
+                    }
                 }
             });
+
+            document.addEventListener('mouseup', function(e) {
+                if (isDragging) {
+                    isDragging = false;
+                    var deltaX = e.clientX - initialX;
+                    var videoWidth = videoContainer.offsetWidth;
+                    var bearingChange = (deltaX / videoWidth) * 360;
+                    initialBearing = (initialBearing + bearingChange + 360) % 360; // Update initial bearing on mouse release
+                }
+            });
+
             loadMapAndLayers(); // Ensure the map and layers are loaded
         }
 
@@ -318,12 +326,6 @@
                     });
                 });
 
-                document.getElementById('bearingSlider').addEventListener('input', function(e) {
-                    var newBearing = parseInt(e.target.value);
-                    document.getElementById('bearingValue').innerText = `${newBearing}°`;
-                    updateFOVConeDirection(newBearing);
-                });
-
                 window.updateFOVConeDirection = function(newBearing) {
                     if (!currentFeature || !window.view) return;
 
@@ -388,7 +390,6 @@
                     return [center.x + dx, center.y + dy];
                 }
             });
-
             document.addEventListener('DOMContentLoaded', function() {
                 var videoWindow = document.querySelector("#videoWindow");
                 var active = false;
