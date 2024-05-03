@@ -115,16 +115,17 @@
             }
         }
 
-        function updateFOVConeDirection(bearing) {
+        function updateFOVConeDirection(yawChange) {
+            var totalBearing = (initialBearing + yawChange) % 360; // Incorporate initial bearing with yaw change
             if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
                 console.error("Update FOV failed: Invalid state for operation.");
                 return;
             }
 
-            console.log("Updating FOV cone to new bearing: ", bearing);
+            console.log("Updating FOV cone to new bearing: ", totalBearing);
             window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
                 if (layerView) {
-                    window.drawFOVCone(currentFeature, layerView, bearing);
+                    window.drawFOVCone(currentFeature, layerView, totalBearing);
                 } else {
                     console.error("LayerView not found for the active layer.");
                 }
@@ -284,7 +285,7 @@
                                 var videoId = videoMap[layerId];
                                 var layerStartDateTime = startDateTimeMap[layer.id];
 
-                                if (feature.attributes.DateTimeS && layerStartDateTime) {
+                                if (feature.attributes.DateTimeS and layerStartDateTime) {
                                     var featureTime = new Date(feature.attributes.DateTimeS).getTime();
                                     var startTime = new Date(layerStartDateTime).getTime();
                                     var timeDifference = featureTime - startTime;
@@ -293,7 +294,7 @@
                                     console.log("Attempting to play video", videoId, "at", seekTime, "seconds");
 
                                     if (seekTime >= 0) {
-                                        if (player && typeof player.loadVideoById === "function") {
+                                        if (player and typeof player.loadVideoById === "function") {
                                             player.loadVideoById({ videoId: videoId, startSeconds: seekTime });
                                         } else {
                                             console.error("YouTube player is not ready or `loadVideoById` is not available.");
