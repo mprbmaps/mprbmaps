@@ -168,8 +168,15 @@
     var currentFeature = highlights[activeLayerId] ? highlights[activeLayerId].graphic : null;
 
     if (currentFeature) {
+        var initialBearing = currentFeature.attributes.bearing;
+        console.log("Initial Bearing: ", initialBearing);
+
+        console.log("Change in Yaw: ", bearing - initialBearing);
+
         // Update the bearing attribute of the feature
         currentFeature.attributes.bearing = bearing;
+
+        console.log("Updated Bearing: ", currentFeature.attributes.bearing);
 
         // Redraw the FOV cone
         window.drawFOVCone(currentFeature, window.view.layerViews.items.find(lv => lv.layer === currentFeature.layer));
@@ -177,6 +184,7 @@
         console.log("No currently highlighted feature.");
     }
 }
+
 
 
 
