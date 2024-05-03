@@ -116,42 +116,40 @@
         }
 
         async function updateFOVConeDirection(yawChange) {
-    console.log("Received Yaw Change: ", yawChange);
-    if (typeof yawChange !== 'number' || isNaN(yawChange)) {
-        console.error("Invalid yawChange received: ", yawChange);
-        return;
-    }
+            console.log("Received Yaw Change: ", yawChange);
+            if (typeof yawChange !== 'number' || isNaN(yawChange)) {
+                console.error("Invalid yawChange received: ", yawChange);
+                return;
+            }
 
-    if (!currentFeature || !activeLayerId) {
-        console.error("Missing critical objects - currentFeature or activeLayerId is undefined");
-        return;
-    }
+            if (!currentFeature || !activeLayerId) {
+                console.error("Missing critical objects - currentFeature or activeLayerId is undefined");
+                return;
+            }
 
-    let layer = featureLayers[activeLayerId];
-    if (!layer) {
-        console.error("Layer not found for ID: ", activeLayerId);
-        return;
-    }
+            let layer = featureLayers[activeLayerId];
+            if (!layer) {
+                console.error("Layer not found for ID: ", activeLayerId);
+                return;
+            }
 
-    if (!layer.loaded) {
-        console.error("Layer is not loaded: ", activeLayerId);
-        return;
-    }
+            if (!layer.loaded) {
+                console.error("Layer is not loaded: ", activeLayerId);
+                return;
+            }
 
-    try {
-        let layerView = await window.view.whenLayerView(layer);
-        if (layerView) {
-            let totalBearing = initialBearing + yawChange;
-            console.log("Updating FOV cone to new bearing: ", totalBearing);
-            window.drawFOVCone(currentFeature, layerView, totalBearing);
+            try {
+                let layerView = await window.view.whenLayerView(layer);
+                if (layerView) {
+                    let totalBearing = initialBearing + yawChange;
+                    console.log("Updating FOV cone to new bearing: ", totalBearing);
+                    window.drawFOVCone(currentFeature, layerView, totalBearing);
+                }
+            } catch (error) {
+                console.error("Error obtaining LayerView for the active layer: ", error);
+            }
         }
-    } catch (error) {
-        console.error("Error obtaining LayerView for the active layer: ", error);
-    }
-}
-
-
-        function clearAndHighlight(feature, layer) {
+                function clearAndHighlight(feature, layer) {
             Object.keys(highlights).forEach(function(layerId) {
                 if (highlights[layerId]) {
                     highlights[layerId].remove();
