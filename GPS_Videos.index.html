@@ -133,17 +133,19 @@
         }
 
         function updateFOVConeDirection(bearing) {
-            if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
-                console.error("Update FOV failed: Invalid state for operation.");
-                return;
-            }
+    // Check if featureLayers[activeLayerId] is defined
+    if (!featureLayers[activeLayerId]) {
+        console.error("Update FOV failed: featureLayers[activeLayerId] is not defined.");
+        return;
+    }
 
-            window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-                window.drawFOVCone(currentFeature, layerView, bearing);
-            }).catch(function(error) {
-                console.error("Error obtaining LayerView for the active layer: ", error);
-            });
-        }
+    // If all checks pass, proceed with the rest of the function
+    window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+        window.drawFOVCone(currentFeature, layerView, bearing);
+    }).catch(function(error) {
+        console.error("Error obtaining LayerView for the active layer: ", error);
+    });
+}
 
         function clearAndHighlight(feature, layer) {
     Object.keys(highlights).forEach(function(layerId) {
