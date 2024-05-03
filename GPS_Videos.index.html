@@ -116,23 +116,23 @@
         }
 
         function updateFOVConeDirection(bearing) {
-            console.log("Attempting to update FOV cone with bearing:", bearing);
-            console.log("Current feature:", currentFeature);
-            console.log("View available:", !!window.view);
-            console.log("Active layer view available:", featureLayers[activeLayerId]);
+    console.log("Attempting to update FOV cone with bearing:", bearing);
+    console.log("Current feature:", currentFeature);
+    console.log("View available:", !!window.view);
+    console.log("Active layer view available:", featureLayers[activeLayerId]);
 
-            if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
-                console.error("Update FOV failed: Invalid state for operation.");
-                return;
-            }
+    if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
+        console.error("Update FOV failed: Invalid state for operation.");
+        return;
+    }
 
-            window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-                console.log("Layer view found, updating FOV cone.");
-                window.drawFOVCone(currentFeature, layerView, bearing);
-            }).catch(function(error) {
-                console.error("Error obtaining LayerView for the active layer: ", error);
-            });
-        }
+    window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+        console.log("Layer view found, updating FOV cone.");
+        window.drawFOVCone(currentFeature, layerView, bearing);
+    }).catch(function(error) {
+        console.error("Error obtaining LayerView for the active layer: ", error);
+    });
+}
 
         function clearAndHighlight(feature, layer) {
             Object.keys(highlights).forEach(function(layerId) {
@@ -315,35 +315,38 @@
                 });
 
                 window.drawFOVCone = function(feature, layerView, bearingOverride) {
-                    var bearing = (videoBearing !== null) ? videoBearing : (bearingOverride || feature.attributes.bearing);
-                    console.log("Drawing FOV cone with bearing: ", bearing);
-                    var coneLength = 20; // Length of the cone in meters
-                    var coneWidth = 30; // Half angle of the FOV cone in degrees
+    // Use the bearingOverride if provided, otherwise use the bearing from the feature if videoBearing is null
+    var bearing = (bearingOverride !== undefined) ? bearingOverride : 
+                  (videoBearing !== null) ? videoBearing : 
+                  feature.attributes.bearing;
+    console.log("Drawing FOV cone with bearing: ", bearing);
+    var coneLength = 20; // Length of the cone in meters
+    var coneWidth = 30; // Half angle of the FOV cone in degrees
 
-                    fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
+    fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
-                    var centerPoint = feature.geometry.clone();
-                    var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
-                    var polygon = new Polygon({
-                        rings: cone,
-                        spatialReference: { wkid: 102100 }
-                    });
+    var centerPoint = feature.geometry.clone();
+    var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
+    var polygon = new Polygon({
+        rings: cone,
+        spatialReference: { wkid: 102100 }
+    });
 
-                    var fovGraphic = new Graphic({
-                        geometry: polygon,
-                        symbol: {
-                            type: "simple-fill",
-                            color: [255, 165, 0, 0.3],
-                            outline: {
-                                color: [255, 165, 0],
-                                width: 2
-                            }
-                        }
-                    });
+    var fovGraphic = new Graphic({
+        geometry: polygon,
+        symbol: {
+            type: "simple-fill",
+            color: [255, 165, 0, 0.3],
+            outline: {
+                color: [255, 165, 0],
+                width: 2
+            }
+        }
+    });
 
-                    fovGraphicsLayer.graphics.add(fovGraphic);
-                    console.log("FOV cone added to the map.");
-                };
+    fovGraphicsLayer.graphics.add(fovGraphic);
+    console.log("FOV cone added to the map.");
+};
 
                 function createCone(centerPoint, bearing, width, length) {
                     var points = [];
