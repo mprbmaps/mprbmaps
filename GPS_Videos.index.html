@@ -164,14 +164,19 @@
 
         function updateFOVConeDirection(bearing) {
     // Assuming 'currentFeature' is the currently highlighted feature
-    var currentFeature = highlights[activeLayerId].graphic;
+    var currentFeature = highlights[activeLayerId] ? highlights[activeLayerId].graphic : null;
 
-    // Update the bearing attribute of the feature
-    currentFeature.attributes.bearing = bearing;
+    if (currentFeature) {
+        // Update the bearing attribute of the feature
+        currentFeature.attributes.bearing = bearing;
 
-    // Redraw the FOV cone
-    window.drawFOVCone(currentFeature, window.view.layerViews.items.find(lv => lv.layer === currentFeature.layer));
+        // Redraw the FOV cone
+        window.drawFOVCone(currentFeature, window.view.layerViews.items.find(lv => lv.layer === currentFeature.layer));
+    } else {
+        console.log("No currently highlighted feature.");
+    }
 }
+
 
 
 
