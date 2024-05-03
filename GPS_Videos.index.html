@@ -43,13 +43,15 @@
         var player;
         var featureLayers = {};
         var highlights = {}; // Object to store highlight references per layer
-        var fovGraphic = null; // Variable to store the FOV cone graphic
+        var fovGraphicsLayer; // Define a global variable for the FOV graphics layer
         var activeLayerId = null; // Store the ID of the currently active layer
         var videoMap = {
             'creek': 'EEovFU3OOlg',
             'insta360Test': 's_kCckaYzDo'
         };
         var startDateTimeMap = {};
+        var initialBearing = 180; // assuming 180 degrees as the initial central bearing
+        var videoBearing = null; // This will store the current bearing of the video.
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -63,31 +65,51 @@
 
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.PLAYING) {
-                var checkTimeUpdate = function() {
-                    var currentSecond = Math.floor(player.getCurrentTime());
-                    Object.keys(featureLayers).forEach(function(layerId) {
-                        var featureLayer = featureLayers[layerId];
-                        highlightFeatureAtTime(currentSecond, featureLayer, window.view);
-                    });
-                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        setTimeout(checkTimeUpdate, 1000); // Check every second
-                    }
-                };
+                watchBearingChange();
                 checkTimeUpdate();
-            } else if (event.data === YT.PlayerState.ENDED) {
-                Object.keys(featureLayers).forEach(function(layerId) {
-                    clearHighlight(featureLayers[layerId]);
-                });
-            } else if (event.data === YT.PlayerState.PAUSED) {
-                // When the video is paused, stop updating the highlight but do not clear it
-                console.log("Video paused, maintaining current highlights.");
-            } else {
-                // Optionally handle other states if needed
             }
         }
 
+        function watchBearingChange() {
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties(); // Directly get the properties
+                console.log("Current Yaw: ", props.yaw); // Debugging the output
+                if (props.yaw !== videoBearing) {
+                    console.log("Yaw changed from ", videoBearing, " to ", props.yaw);
+                    videoBearing = props.yaw;
+                    updateFOVConeDirection(videoBearing);
+                }
+                setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
+            }
+        }
+
+        function checkTimeUpdate() {
+            var currentSecond = Math.floor(player.getCurrentTime());
+            Object.keys(featureLayers).forEach(function(layerId) {
+                var featureLayer = featureLayers[layerId];
+                if (featureLayer && featureLayer.id === activeLayerId) {
+                    highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+                }
+            });
+            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                setTimeout(checkTimeUpdate, 1000);
+            }
+        }
+
+        function updateFOVConeDirection(bearing) {
+            if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
+                console.error("Update FOV failed: Invalid state for operation.");
+                return;
+            }
+
+            window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+                window.drawFOVCone(currentFeature, layerView, bearing);
+            }).catch(function(error) {
+                console.error("Error obtaining LayerView for the active layer: ", error);
+            });
+        }
+
         function clearAndHighlight(feature, layer) {
-            // Clear existing highlights from all layers
             Object.keys(highlights).forEach(function(layerId) {
                 if (highlights[layerId]) {
                     highlights[layerId].remove();
@@ -95,18 +117,17 @@
                 }
             });
 
-            // Set the active layer ID
             activeLayerId = layer.id;
 
-            // Highlight the new feature on the new active layer
             window.view.whenLayerView(layer).then(function(layerView) {
-                highlights[layer.id] = layerView.highlight(feature);
+                if (layerView) {
+                    highlights[layer.id] = layerView.highlight(feature);
+                    window.drawFOVCone(feature, layerView);
+                    currentFeature = feature;
+                }
             }).catch(function(error) {
                 console.error("Error in highlighting feature: ", error);
             });
-
-            // Display FOV cone graphic
-            displayFOV(feature, layer);
         }
 
         function clearHighlight(layer) {
@@ -115,79 +136,64 @@
                 highlights[layer.id].remove();
                 highlights[layer.id] = null;
             }
-            // Remove FOV cone graphic
-            if (fovGraphic) {
-                fovGraphic.visible = false;
-            }
         }
 
-        function displayFOV(feature, layer) {
-            // Assuming the bearing information is in the "bearing" field of the feature's attributes
-            var bearing = feature.attributes.bearing;
-            if (bearing !== undefined && !isNaN(bearing)) {
-                var cameraLocation = feature.geometry;
-                var fovSymbol = {
-                    type: "mesh-3d",
-                    symbolLayers: [{
-                        type: "cone",
-                        size: 1000,
-                        material: {
-                            color: [255, 0, 0, 0.5]
+        window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
+            if (!startDateTimeMap[featureLayer.id]) {
+                console.error("Start DateTimeS not set yet for " + featureLayer.id);
+                return;
+            }
+
+            if (featureLayer.id !== activeLayerId) {
+                return;
+            }
+
+            var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+
+            view.whenLayerView(featureLayer).then(function(layerView) {
+                if (layerView) {
+                    layerView.queryFeatures({
+                        where: "DateTimeS = '" + queryDateTimeStr + "'",
+                        returnGeometry: true,
+                        outFields: ["*"]
+                    }).then(function(results) {
+                        if (results.features.length > 0) {
+                            var feature = results.features[0];
+                            clearAndHighlight(feature, featureLayer);
+                        } else {
+                            clearHighlight(featureLayer);
+                            console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
                         }
-                    }]
-                };
-
-                var fovGeometry = {
-                    type: "point",
-                    x: cameraLocation.x,
-                    y: cameraLocation.y,
-                    z: cameraLocation.z || 0
-                };
-
-                if (!fovGraphic) {
-                    // Create the FOV graphic if it doesn't exist
-                    fovGraphic = new Graphic({
-                        geometry: fovGeometry,
-                        symbol: fovSymbol
+                    }).catch(function(error) {
+                        console.error("Error highlighting feature based on DateTimeS:", error);
                     });
-                    view.graphics.add(fovGraphic);
-                } else {
-                    // Update the existing FOV graphic
-                    fovGraphic.geometry = fovGeometry;
                 }
-
-                // Rotate the FOV graphic to match the camera bearing
-                fovGraphic.symbol.symbolLayers[0].heading = bearing;
-                fovGraphic.visible = true;
-            }
-        }
-
-        require([
-            "esri/WebMap",
-            "esri/views/MapView",
-            "esri/layers/FeatureLayer",
-            "esri/geometry/Extent",
-            "esri/identity/OAuthInfo",
-            "esri/identity/IdentityManager",
-            "esri/renderers/SimpleRenderer",
-            "esri/symbols/PictureMarkerSymbol", // Import PictureMarkerSymbol
-            "esri/Graphic" // Import Graphic
-        ], function(WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, Graphic) {
-            var info = new OAuthInfo({
-                appId: "ti3fi1FqvHE2Hhyw",
-                popup: true
             });
-            IdentityManager.registerOAuthInfos([info]);
+        };
 
-            IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
-                console.log("Signed in successfully");
-                displayMap();
-            }).catch(function(error) {
-                console.error("Sign-in failed: ", error);
-                displayMap();
-            });
+        function loadMapAndLayers() {
+            require([
+                "esri/WebMap",
+                "esri/views/MapView",
+                "esri/layers/FeatureLayer",
+                "esri/identity/OAuthInfo",
+                "esri/identity/IdentityManager",
+                "esri/renderers/SimpleRenderer",
+                "esri/symbols/PictureMarkerSymbol",
+                "esri/layers/GraphicsLayer",
+                "esri/Graphic",
+                "esri/geometry/Polygon"
+            ], function(
+                WebMap, MapView, FeatureLayer, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicsLayer, Graphic, Polygon
+            ) {
+                var info = new OAuthInfo({
+                    appId: "ti3fi1FqvHE2Hhyw",
+                    popup: true
+                });
+                IdentityManager.registerOAuthInfos([info]);
 
-            function displayMap() {
                 var webmap = new WebMap({
                     portalItem: {
                         id: "08386264ca8d480286748e95b89558b4"
@@ -197,13 +203,15 @@
                 window.view = new MapView({
                     container: "viewDiv",
                     map: webmap,
-                    center: [-93.2650, 44.9778], // Latitude and Longitude of Minneapolis
-                    zoom: 11.75  // Zoom level set to 14
+                    center: [-93.2650, 44.9778],
+                    zoom: 11.75
                 });
 
+                fovGraphicsLayer = new GraphicsLayer(); // Initialize the FOV graphics layer
+                webmap.add(fovGraphicsLayer); // Add the FOV graphics layer to the map
+
                 var layerUrls = {
-                    creek: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek_insta360_gpx_ProjectLatLong/FeatureServer/0",
-                    // insta360Test: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/insta360Test/FeatureServer/9"
+                    creek: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek_insta360_gpx_ProjectLatLong/FeatureServer/0"
                 };
 
                 Object.keys(layerUrls).forEach(function(key) {
@@ -242,11 +250,10 @@
                 window.view.on("click", function(event) {
                     window.view.hitTest(event).then(function(response) {
                         if (response.results.length > 0) {
-                            var result = response.results[0]; // Only consider the first result
+                            var result = response.results[0];
                             var feature = result.graphic;
                             var layer = result.graphic.layer;
 
-                            // Check if the clicked layer is one of the feature layers
                             if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
                                 var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
                                 var videoId = videoMap[layerId];
@@ -256,7 +263,7 @@
                                     var featureTime = new Date(feature.attributes.DateTimeS).getTime();
                                     var startTime = new Date(layerStartDateTime).getTime();
                                     var timeDifference = featureTime - startTime;
-                                    var seekTime = timeDifference / 1000; // Convert milliseconds to seconds
+                                    var seekTime = timeDifference / 1000;
 
                                     console.log("Attempting to play video", videoId, "at", seekTime, "seconds");
 
@@ -280,88 +287,56 @@
                         console.error("Error during hitTest:", error);
                     });
                 });
-            }
 
-            window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-                if (!startDateTimeMap[featureLayer.id]) {
-                    console.error("Start DateTimeS not set yet for " + featureLayer.id);
-                    return;
+                // Define a function to draw the FOV cone
+                window.drawFOVCone = function(feature, layer) {
+                    // Assuming the bearing information is in the "bearing" field of the feature's attributes
+                    var bearing = feature.attributes.bearing;
+                    if (bearing !== undefined && !isNaN(bearing)) {
+                        var centerPoint = feature.geometry.clone();
+                        var coneLength = 1000; // Adjust as needed
+                        var coneWidth = 60; // Adjust as needed
+
+                        // Create the FOV cone geometry
+                        var coneGeometry = createCone(centerPoint, bearing, coneWidth, coneLength);
+
+                        // Clear existing graphics from the FOV graphics layer
+                        fovGraphicsLayer.graphics.removeAll();
+
+                        // Create the FOV graphic
+                        var fovGraphic = new Graphic({
+                            geometry: coneGeometry,
+                            symbol: {
+                                type: "simple-fill",
+                                color: [255, 0, 0, 0.5], // Adjust color and transparency as needed
+                                outline: {
+                                    color: [255, 0, 0],
+                                    width: 1
+                                }
+                            }
+                        });
+
+                        // Add the FOV graphic to the FOV graphics layer
+                        fovGraphicsLayer.add(fovGraphic);
+                    } else {
+                        console.error("Bearing information not available or invalid.");
+                    }
+                };
+
+                // Function to create the FOV cone geometry
+                function createCone(centerPoint, bearing, width, length) {
+                    // Logic to create cone geometry
                 }
+            });
+        };
 
-                if (featureLayer.id !== activeLayerId) {
-                    return;  // Do not highlight if this is not the active layer
-                }
-
-                var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-                queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-                var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-
-                view.whenLayerView(featureLayer).then(function(layerView) {
-                    layerView.queryFeatures({
-                        where: "DateTimeS = '" + queryDateTimeStr + "'",
-                        returnGeometry: true,
-                        outFields: ["*"]
-                    }).then(function(results) {
-                        if (results.features.length > 0) {
-                            var feature = results.features[0];
-                            clearAndHighlight(feature, featureLayer);
-                        } else {
-                            clearHighlight(featureLayer);
-                            console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                        }
-                    }).catch(function(error) {
-                        console.error("Error highlighting feature based on DateTimeS:", error);
-                    });
-                });
-            };
-        });
-
-        
-document.addEventListener('DOMContentLoaded', function() {
-    var videoWindow = document.querySelector("#videoWindow");
-    var active = false;
-    var initialX = 0;
-    var initialY = 0;
-    var xOffset = 0;
-    var yOffset = 0;
-
-    document.addEventListener("mousedown", function(e) {
-        // Start dragging when the mouse is down on the video window
-        if (e.target === videoWindow || videoWindow.contains(e.target)) {
-            active = true;
-            initialX = e.clientX - xOffset;
-            initialY = e.clientY - yOffset;
-            e.preventDefault();
-        }
-    });
-
-    document.addEventListener("mousemove", function(e) {
-        if (active) {
-            // Calculate new position
-            var currentX = e.clientX - initialX;
-            var currentY = e.clientY - initialY;
-
-            // Update offsets
-            xOffset = currentX;
-            yOffset = currentY;
-
-            // Apply the new position
-            videoWindow.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
-            e.preventDefault();
-        }
-    });
-
-    document.addEventListener("mouseup", function(e) {
-        // Stop dragging
-        if (active) {
-            initialX = xOffset;
-            initialY = yOffset;
-            active = false;
-        }
-    });
-});
-
-
+        // Load the YouTube IFrame API script asynchronously
+        (function() {
+            var script = document.createElement('script');
+            script.src = 'https://www.youtube.com/iframe_api';
+            var firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(script, firstScriptTag);
+        })();
     </script>
 </body>
 </html>
