@@ -50,7 +50,7 @@
             'insta360Test': 's_kCckaYzDo'
         };
         var startDateTimeMap = {};
-        var lastHighlightedFeature = null;
+        var lastHighlightedFeatureId = null;
         var bearingAdjustment = {
             hasBeenUpdated: false,
             bearing: 0
@@ -103,15 +103,17 @@
             });
 
             activeLayerId = layer.id;
-            if (!lastHighlightedFeature || feature.attributes.OBJECTID !== lastHighlightedFeature.attributes.OBJECTID) {
-                bearingAdjustment.hasBeenUpdated = false;
-                bearingAdjustment.bearing = feature.attributes.bearing;
+
+            if (lastHighlightedFeatureId !== feature.attributes.OBJECTID) {
+                bearingAdjustment.hasBeenUpdated = false; // Reset the flag when a different feature is clicked
+                bearingAdjustment.bearing = feature.attributes.bearing; // Reset the bearing to feature's default
             }
+
+            lastHighlightedFeatureId = feature.attributes.OBJECTID; // Update last highlighted feature ID
 
             window.view.whenLayerView(layer).then(function(layerView) {
                 highlights[layer.id] = layerView.highlight(feature);
                 window.drawFOVCone(feature, layerView);
-                lastHighlightedFeature = feature;
             }).catch(function(error) {
                 console.error("Error in highlighting feature: ", error);
             });
