@@ -99,17 +99,18 @@
         }
 
         function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                logState("Current Yaw Received", props.yaw);
-                if (props.yaw !== videoBearing && props.yaw !== undefined) {
-                    logState("Yaw Changed", {from: videoBearing, to: props.yaw});
-                    videoBearing = props.yaw;
-                    updateFOVConeDirection(videoBearing);
-                }
-                setTimeout(watchBearingChange, 100);
+    if (player && player.getSphericalProperties && player.getPlayerState() === YT.PlayerState.PLAYING) {
+        var props = player.getSphericalProperties();
+        if (props && props.yaw !== undefined && props.yaw !== videoBearing) {
+            console.log("Yaw changed from ", videoBearing, " to ", props.yaw);
+            videoBearing = props.yaw;
+            if (currentFeature) { // Ensure there is a current feature before updating
+                updateFOVConeDirection(videoBearing);
             }
         }
+        setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
+    }
+}
 
         function checkTimeUpdate() {
             var currentSecond = Math.floor(player.getCurrentTime());
@@ -125,50 +126,39 @@
         }
 
         function updateFOVConeDirection(yawChange) {
-            if (typeof yawChange !== 'number' || isNaN(yawChange)) {
-                logState("Invalid Yaw Change", yawChange);
-                return;
+    if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
+        console.error("Update FOV failed: Invalid state for operation. Missing critical objects.");
+        return;
+    }
+    var totalBearing = (initialBearing + yawChange) % 360;
+    window.view.whenLayerView(featureLayers[activeLayerId])
+        .then(function(layerView) {
+            if (layerView && currentFeature) {
+                window.drawFOVCone(currentFeature, layerView, totalBearing);
+            } else {
+                console.error("LayerView not found or currentFeature is missing.");
             }
-            var totalBearing = (initialBearing + yawChange) % 360;
-            logState("Attempting to Update FOV Direction", {yawChange, totalBearing});
-            if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
-                console.error("Update FOV failed: Invalid state for operation.");
-                return;
-            }
-            window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-                if (layerView) {
-                    window.drawFOVCone(currentFeature, layerView, totalBearing);
-                    logState("FOV Updated", totalBearing);
-                } else {
-                    console.error("LayerView not found for the active layer.");
-                }
-            }).catch(function(error) {
-                console.error("Error obtaining LayerView for the active layer: ", error);
-            });
-        }
+        })
+        .catch(function(error) {
+            console.error("Error obtaining LayerView or drawing FOV cone:", error);
+        });
+}
 
         function clearAndHighlight(feature, layer) {
-            Object.keys(highlights).forEach(function(layerId) {
-                if (highlights[layerId]) {
-                    highlights[layerId].remove();
-                    highlights[layerId] = null;
-                }
-            });
+    highlights.forEach(h => h && h.remove());
+    highlights = {}; // Reset highlights
 
-            activeLayerId = layer.id;
-            currentFeature = feature;
-            initialBearing = feature.attributes.bearing || initialBearing;
-            logState("Feature Highlighted", {featureId: feature.attributes.ObjectId, bearing: initialBearing});
+    activeLayerId = layer.id;
+    currentFeature = feature; // Set the currently active feature
+    initialBearing = feature.attributes.bearing || initialBearing; // Update bearing from feature
 
-            window.view.whenLayerView(layer).then(function(layerView) {
-                if (layerView) {
-                    highlights[layer.id] = layerView.highlight(feature);
-                    window.drawFOVCone(feature, layerView, initialBearing);
-                }
-            }).catch(function(error) {
-                console.error("Error in highlighting feature: ", error);
-            });
-        }
+    window.view.whenLayerView(layer)
+        .then(layerView => {
+            highlights[layer.id] = layerView.highlight(feature);
+            window.drawFOVCone(feature, layerView, initialBearing); // Use feature's own bearing
+        })
+        .catch(error => console.error("Error handling feature highlight:", error));
+}
 
         function clearHighlight(layer) {
             if (highlights[layer.id]) {
