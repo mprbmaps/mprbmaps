@@ -128,11 +128,14 @@
                 return;
             }
 
+            // Use the passed bearing value if available, otherwise use the videoBearing
+            var bearingToUse = bearing !== undefined ? bearing : videoBearing;
+
             // Ensure the layer view is available and ready
             window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
                 if (layerView) {
                     console.log("Active layer view is now available:", layerView);
-                    window.drawFOVCone(currentFeature, layerView, bearing);
+                    window.drawFOVCone(currentFeature, layerView, bearingToUse);
                 } else {
                     console.error("Layer view not available for activeLayerId:", activeLayerId);
                 }
@@ -154,7 +157,7 @@
             window.view.whenLayerView(layer).then(function(layerView) {
                 if (layerView) {
                     highlights[layer.id] = layerView.highlight(feature);
-                    window.drawFOVCone(feature, layerView, videoBearing);
+                    window.drawFOVCone(feature, layerView, feature.attributes.bearing); // Pass the feature's bearing attribute
                     currentFeature = feature;
                 }
             }).catch(function(error) {
@@ -209,7 +212,6 @@
                 console.error("Error during layer view retrieval for feature highlighting:", error);
             });
         };
-
         function loadMapAndLayers() {
             require([
                 "esri/WebMap",
