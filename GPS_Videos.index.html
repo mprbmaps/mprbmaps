@@ -115,9 +115,8 @@
             }
         }
 
-        function updateFOVConeDirection(yawChange) {
+        async function updateFOVConeDirection(yawChange) {
     console.log("Received Yaw Change: ", yawChange);
-
     if (typeof yawChange !== 'number' || isNaN(yawChange)) {
         console.error("Invalid yawChange received: ", yawChange);
         return;
@@ -128,19 +127,29 @@
         return;
     }
 
-    let totalBearing = initialBearing + yawChange;
-    console.log("Updating FOV cone to new bearing: ", totalBearing);
+    let layer = featureLayers[activeLayerId];
+    if (!layer) {
+        console.error("Layer not found for ID: ", activeLayerId);
+        return;
+    }
 
-    window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+    if (!layer.loaded) {
+        console.error("Layer is not loaded: ", activeLayerId);
+        return;
+    }
+
+    try {
+        let layerView = await window.view.whenLayerView(layer);
         if (layerView) {
+            let totalBearing = initialBearing + yawChange;
+            console.log("Updating FOV cone to new bearing: ", totalBearing);
             window.drawFOVCone(currentFeature, layerView, totalBearing);
-        } else {
-            console.error("LayerView not found for the active layer.");
         }
-    }).catch(function(error) {
+    } catch (error) {
         console.error("Error obtaining LayerView for the active layer: ", error);
-    });
+    }
 }
+
 
         function clearAndHighlight(feature, layer) {
             Object.keys(highlights).forEach(function(layerId) {
