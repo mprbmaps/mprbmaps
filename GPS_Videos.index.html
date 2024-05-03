@@ -180,20 +180,21 @@
         var initialBearing = currentFeature.attributes.bearing;
         console.log("Initial Bearing: ", initialBearing);
 
-        console.log("Change in Yaw: ", bearing - initialBearing);
+        var bearingChange = bearing - initialBearing;
+        console.log("Change in Yaw: ", bearingChange);
 
         // Update the bearing attribute of the feature
-        currentFeature.attributes.bearing = bearing;
+        currentFeature.attributes.bearing = (bearingChange + initialBearing + 360) % 360;
 
         console.log("Updated Bearing: ", currentFeature.attributes.bearing);
 
         // Redraw the FOV cone
-        window.drawFOVCone(currentFeature, window.view.layerViews.items.find(lv => lv.layer === currentFeature.layer));
+        drawFOVCone(currentFeature, window.view.layerViews.items.find(lv => lv.layer === currentFeature.layer));
     } else {
         console.log("No currently highlighted feature.");
     }
-    console.log("updateFOVConeDirection called"); // Add this line
 }
+
 
         require([
             "esri/WebMap",
