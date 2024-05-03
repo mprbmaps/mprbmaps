@@ -2,68 +2,237 @@
 <html>
 <head>
     <meta charset="utf-8" />
-    <title>FeatureLayer with Video Synchronization</title>
+    <title>FeatureLayer with Video Synchronization and FOV Display</title>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/css/main.css" />
     <script src="https://js.arcgis.com/4.28/"></script>
     <script src="https://www.youtube.com/iframe_api"></script>
+    <style>
+        html, body, #viewDiv, #bearingControl {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        #videoWindow {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+            background: white;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            display: flex;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+        #youtubePlayer {
+            width: 100%;
+            max-width: 707px;
+            height: auto;
+            aspect-ratio: 16 / 9;
+        }
+        #bearingControl {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            display: flex;
+            width: 80%;
+            max-width: 300px;
+        }
+        @media (max-width: 767px) {
+            #videoWindow {
+                top: 10px;
+                right: 10px;
+                width: calc(100% - 20px);
+                padding: 10px;
+            }
+            #youtubePlayer {
+                height: auto;
+                aspect-ratio: 16 / 9;
+            }
+            #bearingControl {
+                bottom: 10px;
+                padding: 5px;
+            }
+        }
+    </style>
 </head>
 <body>
     <div id="viewDiv"></div>
-    <div id="youtubePlayer"></div>
+    <div id="videoWindow">
+        <div id="youtubePlayer"></div>
+    </div>
+    <div id="bearingControl">
+        <input type="range" id="bearingSlider" min="0" max="360" step="1" value="180" style="width: 100%;">
+        <span id="bearingValue">180°</span>
+    </div>
     <script>
         var player;
         var featureLayers = {};
+        var highlights = {};
+        var fovGraphicsLayer;
         var activeLayerId = null;
-        var startDateTimeMap = {};
+        var currentFeature = null;
         var videoMap = {
             'creek': 'EEovFU3OOlg',
             'insta360Test': 's_kCckaYzDo'
         };
-
-        // Set your app's OAuthInfo
-        var info = new OAuthInfo({
-            appId: "ti3fi1FqvHE2Hhyw",
-            popup: true
-        });
-
-        // Register OAuthInfo
-        IdentityManager.registerOAuthInfos([info]);
+        var startDateTimeMap = {};
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
-                height: '200',
-                width: '354',
+                height: '443',
+                width: '707',
                 events: {
-                    'onReady': onPlayerReady
+                    'onStateChange': onPlayerStateChange
                 }
             });
         }
 
-        function onPlayerReady(event) {
-            loadMapAndLayers();
+        function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.PLAYING) {
+                var checkTimeUpdate = function() {
+                    var currentSecond = Math.floor(player.getCurrentTime());
+                    Object.keys(featureLayers).forEach(function(layerId) {
+                        var featureLayer = featureLayers[layerId];
+                        if (featureLayer && featureLayer.id === activeLayerId) {
+                            highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+                        }
+                    });
+                    if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                        setTimeout(checkTimeUpdate, 1000);
+                    }
+                };
+                checkTimeUpdate();
+            } else if (event.data === YT.PlayerState.ENDED) {
+                Object.keys(featureLayers).forEach(function(layerId) {
+                    if (featureLayers[layerId]) clearHighlight(featureLayers[layerId]);
+                    if (fovGraphicsLayer) fovGraphicsLayer.graphics.removeAll();
+                });
+            } else if (event.data === YT.PlayerState.PAUSED) {
+                console.log("Video paused, maintaining current highlights and FOV.");
+            } else if (event.data === YT.PlayerState.CUED) {
+                console.log("Video was cued, updating FOV cone.");
+            }
         }
 
-        function loadMapAndLayers() {
-            require([
-                "esri/WebMap",
-                "esri/views/MapView",
-                "esri/layers/FeatureLayer",
-                "esri/identity/OAuthInfo",
-                "esri/identity/IdentityManager"
-            ], function(WebMap, MapView, FeatureLayer, OAuthInfo, IdentityManager) {
+        function clearAndHighlight(feature, layer) {
+            Object.keys(highlights).forEach(function(layerId) {
+                if (highlights[layerId]) {
+                    highlights[layerId].remove();
+                    highlights[layerId] = null;
+                }
+            });
+
+            activeLayerId = layer.id;
+
+            window.view.whenLayerView(layer).then(function(layerView) {
+                if (layerView) {
+                    highlights[layer.id] = layerView.highlight(feature);
+                    window.drawFOVCone(feature, layerView);
+                    currentFeature = feature;
+                }
+            }).catch(function(error) {
+                console.error("Error in highlighting feature: ", error);
+            });
+        }
+
+        function clearHighlight(layer) {
+            console.log("Clearing highlight for layer:", layer.id);
+            if (highlights[layer.id]) {
+                highlights[layer.id].remove();
+                highlights[layer.id] = null;
+            }
+        }
+
+        window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
+            if (!startDateTimeMap[featureLayer.id]) {
+                console.error("Start DateTimeS not set yet for " + featureLayer.id);
+                return;
+            }
+
+            if (featureLayer.id !== activeLayerId) {
+                return;
+            }
+
+            var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+
+            view.whenLayerView(featureLayer).then(function(layerView) {
+                if (layerView) {
+                    layerView.queryFeatures({
+                        where: "DateTimeS = '" + queryDateTimeStr + "'",
+                        returnGeometry: true,
+                        outFields: ["*"]
+                    }).then(function(results) {
+                        if (results.features.length > 0) {
+                            var feature = results.features[0];
+                            clearAndHighlight(feature, featureLayer);
+                        } else {
+                            clearHighlight(featureLayer);
+                            console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                        }
+                    }).catch(function(error) {
+                        console.error("Error highlighting feature based on DateTimeS:", error);
+                    });
+                }
+            });
+        };
+
+        require([
+            "esri/WebMap",
+            "esri/views/MapView",
+            "esri/layers/FeatureLayer",
+            "esri/geometry/Extent",
+            "esri/identity/OAuthInfo",
+            "esri/identity/IdentityManager",
+            "esri/renderers/SimpleRenderer",
+            "esri/symbols/PictureMarkerSymbol",
+            "esri/layers/GraphicsLayer",
+            "esri/Graphic",
+            "esri/geometry/Polygon"
+        ], function(
+            WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicsLayer, Graphic, Polygon
+        ) {
+            var info = new OAuthInfo({
+                appId: "ti3fi1FqvHE2Hhyw",
+                popup: true
+            });
+            IdentityManager.registerOAuthInfos([info]);
+
+            IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+                console.log("Signed in successfully");
+                displayMap();
+            }).catch(function(error) {
+                console.error("Sign-in failed: ", error);
+                displayMap();
+            });
+
+            function displayMap() {
                 var webmap = new WebMap({
                     portalItem: {
                         id: "08386264ca8d480286748e95b89558b4"
                     }
                 });
 
-                var view = new MapView({
+                window.view = new MapView({
                     container: "viewDiv",
                     map: webmap,
                     center: [-93.2650, 44.9778],
                     zoom: 11.75
                 });
+
+                fovGraphicsLayer = new GraphicsLayer();
+                webmap.add(fovGraphicsLayer);
 
                 var layerUrls = {
                     creek: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek_insta360_gpx_ProjectLatLong/FeatureServer/0"
@@ -72,7 +241,14 @@
                 Object.keys(layerUrls).forEach(function(key) {
                     featureLayers[key] = new FeatureLayer({
                         url: layerUrls[key],
-                        outFields: ["*"]
+                        outFields: ["*"],
+                        renderer: new SimpleRenderer({
+                            symbol: new PictureMarkerSymbol({
+                                url: "https://i.ibb.co/2FtSs09/youtube-video.png",
+                                width: "20px",
+                                height: "20px"
+                            })
+                        })
                     });
 
                     webmap.add(featureLayers[key]);
@@ -86,6 +262,7 @@
                     }).then(function(response) {
                         if (response.features.length > 0) {
                             startDateTimeMap[featureLayers[key].id] = response.features[0].attributes.DateTimeS;
+                            console.log(key + " Start DateTimeS set for " + featureLayers[key].id + ": ", startDateTimeMap[featureLayers[key].id]);
                         } else {
                             console.error("No features found to set startDateTime for " + key);
                         }
@@ -94,14 +271,14 @@
                     });
                 });
 
-                view.on("click", function(event) {
-                    view.hitTest(event).then(function(response) {
+                window.view.on("click", function(event) {
+                    window.view.hitTest(event).then(function(response) {
                         if (response.results.length > 0) {
                             var result = response.results[0];
                             var feature = result.graphic;
                             var layer = result.graphic.layer;
 
-                            if (featureLayers.creek === layer) {
+                            if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
                                 var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
                                 var videoId = videoMap[layerId];
                                 var layerStartDateTime = startDateTimeMap[layer.id];
@@ -126,14 +303,121 @@
                                 } else {
                                     console.error("Missing valid DateTimeS or startDateTime is not set.");
                                 }
+
+                                clearAndHighlight(feature, layer);
                             }
                         }
                     }).catch(function(error) {
                         console.error("Error during hitTest:", error);
                     });
                 });
+
+                document.getElementById('bearingSlider').addEventListener('input', function(e) {
+                    var newBearing = parseInt(e.target.value);
+                    document.getElementById('bearingValue').innerText = `${newBearing}°`;
+                    updateFOVConeDirection(newBearing);
+                });
+
+                window.updateFOVConeDirection = function(newBearing) {
+                    if (!currentFeature || !window.view) return;
+
+                    window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+                        if (layerView) {
+                            window.drawFOVCone(currentFeature, layerView, newBearing);
+                        }
+                    }).catch(function(error) {
+                        console.error("Error updating FOV direction: ", error);
+                    });
+                };
+
+                window.drawFOVCone = function(feature, layerView, bearingOverride) {
+                    var bearing = bearingOverride || feature.attributes.bearing;
+                    var coneLength = 20; // Length of the cone in meters
+                    var coneWidth = 30; // Half angle of the FOV cone in degrees
+
+                    fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
+
+                    var centerPoint = feature.geometry.clone();
+                    console.log("Using Feature Coordinates:", centerPoint.toJSON());
+
+                    var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
+                    var polygon = new Polygon({
+                        rings: cone,
+                        spatialReference: { wkid: 102100 }
+                    });
+
+                    var fovGraphic = new Graphic({
+                        geometry: polygon,
+                        symbol: {
+                            type: "simple-fill",
+                            color: [255, 165, 0, 0.3],
+                            outline: {
+                                color: [255, 165, 0],
+                                width: 2
+                            }
+                        }
+                    });
+
+                    fovGraphicsLayer.graphics.add(fovGraphic);
+                };
+
+                function createCone(centerPoint, bearing, width, length) {
+                    var points = [];
+                    points.push([centerPoint.x, centerPoint.y]); // Cone apex
+
+                    var startBearing = bearing - width;
+                    var endBearing = bearing + width;
+
+                    points.push(calculatePoint(centerPoint, startBearing, length));
+                    points.push(calculatePoint(centerPoint, endBearing, length));
+                    points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
+
+                    return [points];
+                }
+
+                function calculatePoint(center, bearing, distance) {
+                    var angleRad = (Math.PI / 180) * bearing;
+                    var dx = distance * Math.sin(angleRad);
+                    var dy = distance * Math.cos(angleRad);
+                    return [center.x + dx, center.y + dy];
+                }
+            };
+
+            document.addEventListener('DOMContentLoaded', function() {
+                var videoWindow = document.querySelector("#videoWindow");
+                var active = false;
+                var initialX, initialY, xOffset = 0, yOffset = 0;
+
+                document.addEventListener("mousedown", function(e) {
+                    if (e.target === videoWindow || videoWindow.contains(e.target)) {
+                        active = true;
+                        initialX = e.clientX - xOffset;
+                        initialY = e.clientY - yOffset;
+                        e.preventDefault();
+                    }
+                });
+
+                document.addEventListener("mousemove", function(e) {
+                    if (active) {
+                        var currentX = e.clientX - initialX;
+                        var currentY = e.clientY - initialY;
+
+                        xOffset = currentX;
+                        yOffset = currentY;
+
+                        videoWindow.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
+                        e.preventDefault();
+                    }
+                });
+
+                document.addEventListener("mouseup", function() {
+                    active = false;
+                    initialX = xOffset;
+                    initialY = yOffset;
+                });
             });
-        };
+
+        });
     </script>
 </body>
 </html>
