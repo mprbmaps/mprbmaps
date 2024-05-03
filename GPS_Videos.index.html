@@ -51,6 +51,7 @@
         };
         var startDateTimeMap = {};
         var videoBearing = 0; // Add this line to keep track of the video's current bearing
+        var lastHighlightedFeature = null;
         
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -92,22 +93,23 @@
         }
 
         function clearAndHighlight(feature, layer) {
-            Object.keys(highlights).forEach(function(layerId) {
-                if (highlights[layerId]) {
-                    highlights[layerId].remove();
-                    highlights[layerId] = null;
-                }
-            });
-
-            activeLayerId = layer.id;
-
-            window.view.whenLayerView(layer).then(function(layerView) {
-                highlights[layer.id] = layerView.highlight(feature);
-                window.drawFOVCone(feature, layerView);
-            }).catch(function(error) {
-                console.error("Error in highlighting feature: ", error);
-            });
+    Object.keys(highlights).forEach(function(layerId) {
+        if (highlights[layerId]) {
+            highlights[layerId].remove();
+            highlights[layerId] = null;
         }
+    });
+
+    activeLayerId = layer.id;
+
+    window.view.whenLayerView(layer).then(function(layerView) {
+        highlights[layer.id] = layerView.highlight(feature);
+        window.drawFOVCone(feature, layerView);
+        lastHighlightedFeature = feature; // Store the last highlighted feature
+    }).catch(function(error) {
+        console.error("Error in highlighting feature: ", error);
+    });
+}
 
         function clearHighlight(layer) {
             console.log("Clearing highlight for layer:", layer.id);
@@ -165,8 +167,8 @@
         }
 
         function updateFOVConeDirection(bearing) {
-    // Assuming 'currentFeature' is the currently highlighted feature
-    var currentFeature = highlights[activeLayerId] ? highlights[activeLayerId].graphic : null;
+    // Use the last highlighted feature if there is no currently highlighted feature
+    var currentFeature = highlights[activeLayerId] ? highlights[activeLayerId].graphic : lastHighlightedFeature;
 
     if (currentFeature) {
         var initialBearing = currentFeature.attributes.bearing;
