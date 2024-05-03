@@ -129,25 +129,29 @@
         }
 
         function clearAndHighlight(feature, layer) {
-            Object.keys(highlights).forEach(function(layerId) {
-                if (highlights[layerId]) {
-                    highlights[layerId].remove();
-                    highlights[layerId] = null;
-                }
-            });
-
-            activeLayerId = layer.id;
-
-            window.view.whenLayerView(layer).then(function(layerView) {
-                if (layerView) {
-                    highlights[layer.id] = layerView.highlight(feature);
-                    window.drawFOVCone(feature, layerView);
-                    currentFeature = feature;
-                }
-            }).catch(function(error) {
-                console.error("Error in highlighting feature: ", error);
-            });
+    Object.keys(highlights).forEach(function(layerId) {
+        if (highlights[layerId]) {
+            highlights[layerId].remove();
+            highlights[layerId] = null;
         }
+    });
+
+    activeLayerId = layer.id;
+
+    // Set the videoBearing to the bearing of the current feature
+    videoBearing = feature.attributes.bearing;
+
+    window.view.whenLayerView(layer).then(function(layerView) {
+        if (layerView) {
+            highlights[layer.id] = layerView.highlight(feature);
+            window.drawFOVCone(feature, layerView);
+            currentFeature = feature;
+        }
+    }).catch(function(error) {
+        console.error("Error in highlighting feature: ", error);
+    });
+}
+
 
         function clearHighlight(layer) {
             console.log("Clearing highlight for layer:", layer.id);
