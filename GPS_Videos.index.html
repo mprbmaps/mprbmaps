@@ -50,9 +50,11 @@
             'insta360Test': 's_kCckaYzDo'
         };
         var startDateTimeMap = {};
-        var videoBearing = 0; // Initial bearing of the video
-        var lastHighlightedFeature = null; // Last highlighted feature
-        var videoBearingUpdated = false; // Flag to check if bearing was updated via video interaction
+        var lastHighlightedFeature = null;
+        var bearingAdjustment = {
+            hasBeenUpdated: false,
+            bearing: 0
+        };
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -101,14 +103,15 @@
             });
 
             activeLayerId = layer.id;
-            if (lastHighlightedFeature !== feature) {
-                videoBearingUpdated = false; // Reset flag when a new feature is clicked
+            if (!lastHighlightedFeature || feature.attributes.OBJECTID !== lastHighlightedFeature.attributes.OBJECTID) {
+                bearingAdjustment.hasBeenUpdated = false;
+                bearingAdjustment.bearing = feature.attributes.bearing;
             }
 
             window.view.whenLayerView(layer).then(function(layerView) {
                 highlights[layer.id] = layerView.highlight(feature);
                 window.drawFOVCone(feature, layerView);
-                lastHighlightedFeature = feature; // Update last highlighted feature
+                lastHighlightedFeature = feature;
             }).catch(function(error) {
                 console.error("Error in highlighting feature: ", error);
             });
@@ -158,25 +161,23 @@
             if (player && player.getSphericalProperties) {
                 var props = player.getSphericalProperties();
                 var normalizedYaw = ((props.yaw % 360) + 360) % 360;
+                var delta = normalizedYaw - bearingAdjustment.bearing;
+                var correctedBearing = (bearingAdjustment.bearing + delta + 360) % 360;
 
-                if (Math.abs(normalizedYaw - videoBearing) > 1) {
-                    console.log("Yaw changed from ", videoBearing, " to ", normalizedYaw);
-                    videoBearing = normalizedYaw;
-                    videoBearingUpdated = true;
-                    updateFOVConeDirection(normalizedYaw);
+                if (Math.abs(delta) > 1) {
+                    console.log("Yaw changed from ", bearingAdjustment.bearing, " to ", correctedBearing);
+                    bearingAdjustment.bearing = correctedBearing;
+                    bearingAdjustment.hasBeenUpdated = true;
+                    updateFOVConeDirection();
                 }
 
                 setTimeout(watchBearingChange, 100);
             }
         }
 
-        function updateFOVConeDirection(newBearing) {
-            var currentFeature = lastHighlightedFeature;
-            if (currentFeature) {
-                var finalBearing = videoBearingUpdated ? newBearing : ((currentFeature.attributes.bearing + newBearing - videoBearing + 360) % 360) % 360;
-                console.log("Updated Bearing: ", finalBearing);
-                currentFeature.attributes.bearing = finalBearing;
-                drawFOVCone(currentFeature);
+        function updateFOVConeDirection() {
+            if (lastHighlightedFeature) {
+                drawFOVCone(lastHighlightedFeature);
             }
         }
 
@@ -310,11 +311,11 @@
                     "esri/geometry/Polygon",
                     "esri/Graphic"
                 ], function(Polygon, Graphic) {
-                    var bearing = videoBearingUpdated ? videoBearing : feature.attributes.bearing;
+                    var bearing = bearingAdjustment.hasBeenUpdated ? bearingAdjustment.bearing : feature.attributes.bearing;
                     console.log("Bearing for FOV cone: ", bearing); // Log the bearing
 
-                    var coneLength = 25; // Length of the cone in meters
-                    var coneWidth = 50; // Half angle of the FOV cone in degrees
+                    var coneLength = 20; // Length of the cone in meters
+                    var coneWidth = 60; // Half angle of the FOV cone in degrees
 
                     fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
