@@ -50,10 +50,10 @@
             'insta360Test': 's_kCckaYzDo'
         };
         var startDateTimeMap = {};
-        var videoBearing = 0;
-        var lastHighlightedFeature = null;
-        var videoBearingUpdated = false; // Flag to track if the bearing was manually updated
-        
+        var videoBearing = 0; // Initial bearing of the video
+        var lastHighlightedFeature = null; // Last highlighted feature
+        var videoBearingUpdated = false; // Flag to check if bearing was updated via video interaction
+
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
                 height: '443',
@@ -79,7 +79,7 @@
                     }
                 };
                 checkTimeUpdate();
-                watchBearingChange();
+                watchBearingChange(); // Start watching for bearing changes when video plays
             } else if (event.data === YT.PlayerState.ENDED) {
                 Object.keys(featureLayers).forEach(function(layerId) {
                     clearHighlight(featureLayers[layerId]);
@@ -101,12 +101,14 @@
             });
 
             activeLayerId = layer.id;
-            videoBearingUpdated = false; // Reset flag when a new feature is clicked
+            if (lastHighlightedFeature !== feature) {
+                videoBearingUpdated = false; // Reset flag when a new feature is clicked
+            }
 
             window.view.whenLayerView(layer).then(function(layerView) {
                 highlights[layer.id] = layerView.highlight(feature);
                 window.drawFOVCone(feature, layerView);
-                lastHighlightedFeature = feature; // Store the last highlighted feature
+                lastHighlightedFeature = feature; // Update last highlighted feature
             }).catch(function(error) {
                 console.error("Error in highlighting feature: ", error);
             });
@@ -161,7 +163,7 @@
                     console.log("Yaw changed from ", videoBearing, " to ", normalizedYaw);
                     videoBearing = normalizedYaw;
                     videoBearingUpdated = true;
-                    updateFOVConeDirection(videoBearing);
+                    updateFOVConeDirection(normalizedYaw);
                 }
 
                 setTimeout(watchBearingChange, 100);
@@ -171,7 +173,7 @@
         function updateFOVConeDirection(newBearing) {
             var currentFeature = lastHighlightedFeature;
             if (currentFeature) {
-                var finalBearing = videoBearingUpdated ? newBearing : (currentFeature.attributes.bearing + (newBearing - currentFeature.attributes.bearing + 360) % 360) % 360;
+                var finalBearing = videoBearingUpdated ? newBearing : ((currentFeature.attributes.bearing + newBearing - videoBearing + 360) % 360) % 360;
                 console.log("Updated Bearing: ", finalBearing);
                 currentFeature.attributes.bearing = finalBearing;
                 drawFOVCone(currentFeature);
@@ -311,8 +313,8 @@
                     var bearing = videoBearingUpdated ? videoBearing : feature.attributes.bearing;
                     console.log("Bearing for FOV cone: ", bearing); // Log the bearing
 
-                    var coneLength = 20; // Length of the cone in meters
-                    var coneWidth = 60; // Half angle of the FOV cone in degrees
+                    var coneLength = 25; // Length of the cone in meters
+                    var coneWidth = 50; // Half angle of the FOV cone in degrees
 
                     fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
