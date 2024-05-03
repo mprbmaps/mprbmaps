@@ -52,7 +52,7 @@
         var startDateTimeMap = {};
         var videoBearing = 0;
         var lastHighlightedFeature = null;
-        var videoBearingUpdated = true; // Flag to track if the bearing was manually updated
+        var videoBearingUpdated = false; // Flag to track if the bearing was manually updated
         
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -115,9 +115,9 @@
 
     activeLayerId = layer.id;
 
-    // Only reset the flag if it's true and a different feature is clicked
-    if (videoBearingUpdated && (!lastHighlightedFeature || lastHighlightedFeature !== feature)) {
-        videoBearingUpdated = false;
+    // Only set the flag to true if it's false and a different feature is clicked
+    if (!videoBearingUpdated && (!lastHighlightedFeature || lastHighlightedFeature !== feature)) {
+        videoBearingUpdated = true;
     }
 
     window.view.whenLayerView(layer).then(function(layerView) {
@@ -128,6 +128,7 @@
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
 
 
