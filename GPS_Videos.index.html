@@ -145,8 +145,13 @@
 }
 
         function clearAndHighlight(feature, layer) {
-    highlights.forEach(h => h && h.remove());
-    highlights = {}; // Reset highlights
+    // Correctly iterate over object keys if highlights is an object
+    Object.keys(highlights).forEach(function(layerId) {
+        if (highlights[layerId]) {
+            highlights[layerId].remove(); // Assuming .remove() is the method to clear the highlight
+            delete highlights[layerId]; // Remove the property from highlights object
+        }
+    });
 
     activeLayerId = layer.id;
     currentFeature = feature; // Set the currently active feature
@@ -159,6 +164,7 @@
         })
         .catch(error => console.error("Error handling feature highlight:", error));
 }
+
 
         function clearHighlight(layer) {
             if (highlights[layer.id]) {
