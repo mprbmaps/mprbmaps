@@ -92,6 +92,19 @@
             }
         }
 
+        function checkTimeUpdate() {
+            var currentSecond = Math.floor(player.getCurrentTime());
+            Object.keys(featureLayers).forEach(function(layerId) {
+                var featureLayer = featureLayers[layerId];
+                if (featureLayer && featureLayer.id === activeLayerId) {
+                    highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+                }
+            });
+            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                setTimeout(checkTimeUpdate, 1000);
+            }
+        }
+
         function clearAndHighlight(feature, layer) {
     Object.keys(highlights).forEach(function(layerId) {
         if (highlights[layerId]) {
