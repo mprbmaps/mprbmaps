@@ -50,6 +50,7 @@
             'insta360Test': 's_kCckaYzDo'
         };
         var startDateTimeMap = {};
+        var videoBearing = 0; // Add this line to keep track of the video's current bearing
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -76,6 +77,7 @@
                     }
                 };
                 checkTimeUpdate();
+                watchBearingChange(); // Call this function when the video starts playing
             } else if (event.data === YT.PlayerState.ENDED) {
                 Object.keys(featureLayers).forEach(function(layerId) {
                     clearHighlight(featureLayers[layerId]);
@@ -147,6 +149,18 @@
                 });
             });
         };
+                function watchBearingChange() {
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties(); // Directly get the properties
+                var normalizedYaw = ((props.yaw % 360) + 360) % 360; // Normalize yaw to 0-360 degrees
+                if (normalizedYaw !== videoBearing) {
+                    console.log("Yaw changed from ", videoBearing, " to ", normalizedYaw);
+                    videoBearing = normalizedYaw;
+                    updateFOVConeDirection(videoBearing);
+                }
+                setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
+            }
+        }
 
         require([
             "esri/WebMap",
