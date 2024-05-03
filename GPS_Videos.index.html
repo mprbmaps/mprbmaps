@@ -118,38 +118,37 @@
         }
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-    if (!startDateTimeMap[featureLayer.id]) {
-        console.error("Start DateTimeS not set yet for " + featureLayer.id);
-        return;
-    }
-
-    if (featureLayer.id !== activeLayerId) {
-        return;  // Do not highlight if this is not the active layer
-    }
-
-    var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-
-    view.whenLayerView(featureLayer).then(function(layerView) {
-        layerView.queryFeatures({
-            where: "DateTimeS = '" + queryDateTimeStr + "'",
-            returnGeometry: true,
-            outFields: ["*"]
-        }).then(function(results) {
-            if (results.features.length > 0) {
-                var feature = results.features[0];
-                clearAndHighlight(feature, featureLayer);
-            } else {
-                clearHighlight(featureLayer);
-                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+            if (!startDateTimeMap[featureLayer.id]) {
+                console.error("Start DateTimeS not set yet for " + featureLayer.id);
+                return;
             }
-        }).catch(function(error) {
-            console.error("Error highlighting feature based on DateTimeS:", error);
-        });
-    });
-};
 
+            if (featureLayer.id !== activeLayerId) {
+                return;  // Do not highlight if this is not the active layer
+            }
+
+            var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+
+            view.whenLayerView(featureLayer).then(function(layerView) {
+                layerView.queryFeatures({
+                    where: "DateTimeS = '" + queryDateTimeStr + "'",
+                    returnGeometry: true,
+                    outFields: ["*"]
+                }).then(function(results) {
+                    if (results.features.length > 0) {
+                        var feature = results.features[0];
+                        clearAndHighlight(feature, featureLayer);
+                    } else {
+                        clearHighlight(featureLayer);
+                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                    }
+                }).catch(function(error) {
+                    console.error("Error highlighting feature based on DateTimeS:", error);
+                });
+            });
+        };
                 function watchBearingChange() {
             if (player && player.getSphericalProperties) {
                 var props = player.getSphericalProperties(); // Directly get the properties
@@ -162,6 +161,20 @@
                 setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
             }
         }
+
+        function updateFOVConeDirection(bearing) {
+    // Assuming 'currentFeature' is the currently highlighted feature
+    var currentFeature = highlights[activeLayerId].graphic;
+
+    // Update the bearing attribute of the feature
+    currentFeature.attributes.bearing = bearing;
+
+    // Redraw the FOV cone
+    window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+        window.drawFOVCone(currentFeature, layerView);
+    });
+}
+
 
         require([
             "esri/WebMap",
@@ -326,9 +339,8 @@
 
             function createCone(centerPoint, bearing, width, length) {
                 var points = [];
-                points.push([centerPoint.x, centerPoint.y]); // Cone apex
-
-                var startBearing = bearing - width;
+                points.push([centerPoint.x, centerPoint.y]); // Cone Apex
+            var startBearing = bearing - width;
                 var endBearing = bearing + width;
 
                 points.push(calculatePoint(centerPoint, startBearing, length));
