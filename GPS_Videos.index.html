@@ -26,7 +26,7 @@
             display: flex;
             overflow: hidden;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            width: calc(30% - 30px); /* Adjust width as needed */
+            width: calc(30% - 30px);
         }
         #youtubePlayer {
             width: 100%;
@@ -64,8 +64,17 @@
             'insta360Test': 's_kCckaYzDo'
         };
         var startDateTimeMap = {};
-        var initialBearing = 180; // assuming 180 degrees as the initial central bearing
-        var videoBearing = null; // This will store the current bearing of the video.
+        var initialBearing = 180; // Default initial bearing, update as needed.
+        var videoBearing = null; // Stores the current bearing of the video.
+
+        function logState(context, details) {
+            console.log(context + ": ", details, {
+                "Current Feature": currentFeature ? currentFeature.attributes.ObjectId : "None",
+                "Video Bearing": videoBearing,
+                "Initial Bearing": initialBearing,
+                "Active Layer ID": activeLayerId
+            });
+        }
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -90,17 +99,17 @@
         }
 
         function watchBearingChange() {
-    if (player && player.getSphericalProperties) {
-        var props = player.getSphericalProperties(); // Directly get the properties
-        console.log("Current Yaw: ", props.yaw); // Debugging the output
-        if (props.yaw !== videoBearing && props.yaw !== undefined) { // Check for undefined
-            console.log("Yaw changed from ", videoBearing, " to ", props.yaw);
-            videoBearing = props.yaw;
-            updateFOVConeDirection(videoBearing);
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties();
+                logState("Current Yaw Received", props.yaw);
+                if (props.yaw !== videoBearing && props.yaw !== undefined) {
+                    logState("Yaw Changed", {from: videoBearing, to: props.yaw});
+                    videoBearing = props.yaw;
+                    updateFOVConeDirection(videoBearing);
+                }
+                setTimeout(watchBearingChange, 100);
+            }
         }
-        setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
-    }
-}
 
         function checkTimeUpdate() {
             var currentSecond = Math.floor(player.getCurrentTime());
@@ -116,55 +125,57 @@
         }
 
         function updateFOVConeDirection(yawChange) {
-    var totalBearing = initialBearing; // Default to initialBearing if yawChange is not defined
-    if (typeof yawChange === 'number') { // Ensure yawChange is a number
-        totalBearing = (initialBearing + yawChange) % 360;
-    }
-    if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
-        console.error("Update FOV failed: Invalid state for operation.");
-        return;
-    }
-
-    console.log("Updating FOV cone to new bearing: ", totalBearing);
-    window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-        if (layerView) {
-            window.drawFOVCone(currentFeature, layerView, totalBearing);
-        } else {
-            console.error("LayerView not found for the active layer.");
+            if (typeof yawChange !== 'number' || isNaN(yawChange)) {
+                logState("Invalid Yaw Change", yawChange);
+                return;
+            }
+            var totalBearing = (initialBearing + yawChange) % 360;
+            logState("Attempting to Update FOV Direction", {yawChange, totalBearing});
+            if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
+                console.error("Update FOV failed: Invalid state for operation.");
+                return;
+            }
+            window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+                if (layerView) {
+                    window.drawFOVCone(currentFeature, layerView, totalBearing);
+                    logState("FOV Updated", totalBearing);
+                } else {
+                    console.error("LayerView not found for the active layer.");
+                }
+            }).catch(function(error) {
+                console.error("Error obtaining LayerView for the active layer: ", error);
+            });
         }
-    }).catch(function(error) {
-        console.error("Error obtaining LayerView for the active layer: ", error);
-    });
-}
 
         function clearAndHighlight(feature, layer) {
-    Object.keys(highlights).forEach(function(layerId) {
-        if (highlights[layerId]) {
-            highlights[layerId].remove();
-            highlights[layerId] = null;
-        }
-    });
+            Object.keys(highlights).forEach(function(layerId) {
+                if (highlights[layerId]) {
+                    highlights[layerId].remove();
+                    highlights[layerId] = null;
+                }
+            });
 
-    activeLayerId = layer.id;
-    initialBearing = feature.attributes.bearing || initialBearing; // Update initialBearing with feature's bearing
-
-    window.view.whenLayerView(layer).then(function(layerView) {
-        if (layerView) {
-            highlights[layer.id] = layerView.highlight(feature);
-            window.drawFOVCone(feature, layerView, initialBearing); // Use feature's bearing
+            activeLayerId = layer.id;
             currentFeature = feature;
+            initialBearing = feature.attributes.bearing || initialBearing;
+            logState("Feature Highlighted", {featureId: feature.attributes.ObjectId, bearing: initialBearing});
+
+            window.view.whenLayerView(layer).then(function(layerView) {
+                if (layerView) {
+                    highlights[layer.id] = layerView.highlight(feature);
+                    window.drawFOVCone(feature, layerView, initialBearing);
+                }
+            }).catch(function(error) {
+                console.error("Error in highlighting feature: ", error);
+            });
         }
-    }).catch(function(error) {
-        console.error("Error in highlighting feature: ", error);
-    });
-}
 
         function clearHighlight(layer) {
-            console.log("Clearing highlight for layer:", layer.id);
             if (highlights[layer.id]) {
                 highlights[layer.id].remove();
                 highlights[layer.id] = null;
             }
+            logState("Highlight Cleared", {layerId: layer.id});
         }
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
@@ -172,11 +183,9 @@
                 console.error("Start DateTimeS not set yet for " + featureLayer.id);
                 return;
             }
-
             if (featureLayer.id !== activeLayerId) {
                 return;
             }
-
             var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
             queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
             var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
