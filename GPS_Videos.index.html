@@ -155,20 +155,24 @@
         };
 
         function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                var normalizedYaw = ((props.yaw % 360) + 360) % 360;
+    if (player && player.getSphericalProperties) {
+        var props = player.getSphericalProperties();
+        var normalizedYaw = ((props.yaw % 360) + 360) % 360;
 
-                if (Math.abs(normalizedYaw - videoBearing) > 1) {
-                    console.log("Yaw changed from ", videoBearing, " to ", normalizedYaw);
-                    videoBearing = normalizedYaw;
-                    videoBearingUpdated = true;
-                    updateFOVConeDirection(normalizedYaw);
-                }
+        // Subtract the yaw value from 360 to reverse the direction
+        var correctedYaw = 360 - normalizedYaw;
 
-                setTimeout(watchBearingChange, 100);
-            }
+        if (Math.abs(correctedYaw - videoBearing) > 1) {
+            console.log("Yaw changed from ", videoBearing, " to ", correctedYaw);
+            videoBearing = correctedYaw;
+            videoBearingUpdated = true;
+            updateFOVConeDirection(correctedYaw);
         }
+
+        setTimeout(watchBearingChange, 100);
+    }
+}
+
 
         function updateFOVConeDirection(newBearing) {
             var currentFeature = lastHighlightedFeature;
