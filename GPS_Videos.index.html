@@ -122,15 +122,16 @@
             console.log("Attempting to update FOV cone with bearing:", bearing);
             console.log("Current feature:", currentFeature);
             console.log("View available:", !!window.view);
-            console.log("Active layer view available:", featureLayers[activeLayerId]);
 
             if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
-                console.error("Update FOV failed: Invalid state for operation. Active Layer ID:", activeLayerId);
+                console.error("Update FOV failed: Pre-conditions not met. Active Layer ID:", activeLayerId);
                 return;
             }
 
+            // Ensure the layer view is available and ready
             window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
                 if (layerView) {
+                    console.log("Active layer view is now available:", layerView);
                     window.drawFOVCone(currentFeature, layerView, bearing);
                 } else {
                     console.error("Layer view not available for activeLayerId:", activeLayerId);
@@ -153,7 +154,7 @@
             window.view.whenLayerView(layer).then(function(layerView) {
                 if (layerView) {
                     highlights[layer.id] = layerView.highlight(feature);
-                    window.drawFOVCone(feature, layerView);
+                    window.drawFOVCone(feature, layerView, videoBearing);
                     currentFeature = feature;
                 }
             }).catch(function(error) {
@@ -222,9 +223,7 @@
                 "esri/layers/GraphicsLayer",
                 "esri/Graphic",
                 "esri/geometry/Polygon"
-            ], function(
-                WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicsLayer, Graphic, Polygon
-            ) {
+            ], function(WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicsLayer, Graphic, Polygon) {
                 var info = new OAuthInfo({
                     appId: "ti3fi1FqvHE2Hhyw",
                     popup: true
@@ -242,6 +241,14 @@
                     map: webmap,
                     center: [-93.2650, 44.9778],
                     zoom: 11.75
+                });
+
+                webmap.on("layerview-create-error", function(event) {
+                    console.error("Layer view creation failed for layer:", event.layer.id, event.error);
+                });
+
+                webmap.on("layerview-create", function(event) {
+                    console.log("Layer view created for layer:", event.layer.id);
                 });
 
                 fovGraphicsLayer = new GraphicsLayer();
@@ -327,6 +334,7 @@
 
                 window.drawFOVCone = function(feature, layerView, bearingOverride) {
                     var bearing = (videoBearing !== null) ? videoBearing : (bearingOverride || feature.attributes.bearing);
+                    console.log("Initial bearing/yaw of the feature when drawing FOV cone:", feature.attributes.bearing);
                     if (bearing === undefined) {
                         console.error("Bearing is undefined. Check feature attributes and bearing initialization.");
                         return;
