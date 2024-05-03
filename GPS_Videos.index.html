@@ -90,17 +90,33 @@
         }
 
         function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties(); // Directly get the properties
-                console.log("Current Yaw: ", props.yaw); // Debugging the output
-                if (props.yaw !== videoBearing) {
-                    console.log("Yaw changed from ", videoBearing, " to ", props.yaw);
-                    videoBearing = props.yaw;
-                    updateFOVConeDirection(videoBearing);
-                }
-                setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
+    if (player && typeof player.getSphericalProperties === 'function') {
+        var props = player.getSphericalProperties(); // Directly get the properties
+        console.log("Current Yaw: ", props.yaw); // Debugging the output
+        if (props.yaw !== videoBearing) {
+            console.log("Yaw changed from ", videoBearing, " to ", props.yaw);
+            videoBearing = props.yaw;
+            // Check if currentFeature, window.view, and featureLayers[activeLayerId] are defined before calling updateFOVConeDirection
+            if (!currentFeature) {
+                console.error("Update FOV failed: currentFeature is not defined.");
+                return;
             }
+            if (!window.view) {
+                console.error("Update FOV failed: window.view is not defined.");
+                return;
+            }
+            if (!featureLayers[activeLayerId]) {
+                console.error("Update FOV failed: featureLayers[activeLayerId] is not defined.");
+                return;
+            }
+            updateFOVConeDirection(videoBearing);
         }
+        setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
+    } else {
+        console.error("YouTube player is not ready or getSphericalProperties is not available.");
+    }
+}
+
 
         function checkTimeUpdate() {
             var currentSecond = Math.floor(player.getCurrentTime());
