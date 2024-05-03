@@ -2,11 +2,10 @@
 <html>
 <head>
     <meta charset="utf-8" />
-    <title>FeatureLayer with Video Synchronization</title>
+    <title>FeatureLayer with Video Synchronization and FOV Display</title>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/css/main.css" />
     <script src="https://js.arcgis.com/4.28/"></script>
-    <!-- YouTube IFrame API -->
     <script src="https://www.youtube.com/iframe_api"></script>
     <style>
         html, body, #viewDiv {
@@ -27,10 +26,24 @@
             display: flex;
             overflow: hidden;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            width: calc(30% - 30px); /* Adjust width as needed */
         }
         #youtubePlayer {
-            width: 707px;
-            height: 443px;
+            width: 100%;
+            height: auto;
+            aspect-ratio: 16 / 9;
+        }
+        @media (max-width: 767px) {
+            #videoWindow {
+                top: 10px;
+                right: 10px;
+                width: calc(100% - 20px);
+                padding: 10px;
+            }
+            #youtubePlayer {
+                height: auto;
+                aspect-ratio: 16 / 9;
+            }
         }
     </style>
 </head>
@@ -42,9 +55,10 @@
     <script>
         var player;
         var featureLayers = {};
-        var highlights = {}; // Object to store highlight references per layer
-        var fovGraphicsLayer; // Define a global variable for the FOV graphics layer
-        var activeLayerId = null; // Store the ID of the currently active layer
+        var highlights = {};
+        var fovGraphicsLayer;
+        var activeLayerId = null;
+        var currentFeature = null;
         var videoMap = {
             'creek': 'EEovFU3OOlg',
             'insta360Test': 's_kCckaYzDo'
@@ -55,12 +69,17 @@
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
-                height: '443',
-                width: '707',
+                height: '200',
+                width: '354',
                 events: {
+                    'onReady': onPlayerReady,
                     'onStateChange': onPlayerStateChange
                 }
             });
+        }
+
+        function onPlayerReady(event) {
+            loadMapAndLayers();
         }
 
         function onPlayerStateChange(event) {
@@ -102,8 +121,13 @@
                 return;
             }
 
+            console.log("Updating FOV cone to new bearing: ", bearing);
             window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-                window.drawFOVCone(currentFeature, layerView, bearing);
+                if (layerView) {
+                    window.drawFOVCone(currentFeature, layerView, bearing);
+                } else {
+                    console.error("LayerView not found for the active layer.");
+                }
             }).catch(function(error) {
                 console.error("Error obtaining LayerView for the active layer: ", error);
             });
@@ -178,6 +202,7 @@
                 "esri/WebMap",
                 "esri/views/MapView",
                 "esri/layers/FeatureLayer",
+                "esri/geometry/Extent",
                 "esri/identity/OAuthInfo",
                 "esri/identity/IdentityManager",
                 "esri/renderers/SimpleRenderer",
@@ -186,7 +211,7 @@
                 "esri/Graphic",
                 "esri/geometry/Polygon"
             ], function(
-                WebMap, MapView, FeatureLayer, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicsLayer, Graphic, Polygon
+                WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicsLayer, Graphic, Polygon
             ) {
                 var info = new OAuthInfo({
                     appId: "ti3fi1FqvHE2Hhyw",
@@ -207,8 +232,8 @@
                     zoom: 11.75
                 });
 
-                fovGraphicsLayer = new GraphicsLayer(); // Initialize the FOV graphics layer
-                webmap.add(fovGraphicsLayer); // Add the FOV graphics layer to the map
+                fovGraphicsLayer = new GraphicsLayer();
+                webmap.add(fovGraphicsLayer);
 
                 var layerUrls = {
                     creek: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek_insta360_gpx_ProjectLatLong/FeatureServer/0"
@@ -288,55 +313,59 @@
                     });
                 });
 
-                // Define a function to draw the FOV cone
-                window.drawFOVCone = function(feature, layer) {
-                    // Assuming the bearing information is in the "bearing" field of the feature's attributes
-                    var bearing = feature.attributes.bearing;
-                    if (bearing !== undefined && !isNaN(bearing)) {
-                        var centerPoint = feature.geometry.clone();
-                        var coneLength = 1000; // Adjust as needed
-                        var coneWidth = 60; // Adjust as needed
+                window.drawFOVCone = function(feature, layerView, bearingOverride) {
+                    var bearing = (videoBearing !== null) ? videoBearing : (bearingOverride || feature.attributes.bearing);
+                    console.log("Drawing FOV cone with bearing: ", bearing);
+                    var coneLength = 20; // Length of the cone in meters
+                    var coneWidth = 30; // Half angle of the FOV cone in degrees
 
-                        // Create the FOV cone geometry
-                        var coneGeometry = createCone(centerPoint, bearing, coneWidth, coneLength);
+                    fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
-                        // Clear existing graphics from the FOV graphics layer
-                        fovGraphicsLayer.graphics.removeAll();
+                    var centerPoint = feature.geometry.clone();
+                    var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
+                    var polygon = new Polygon({
+                        rings: cone,
+                        spatialReference: { wkid: 102100 }
+                    });
 
-                        // Create the FOV graphic
-                        var fovGraphic = new Graphic({
-                            geometry: coneGeometry,
-                            symbol: {
-                                type: "simple-fill",
-                                color: [255, 0, 0, 0.5], // Adjust color and transparency as needed
-                                outline: {
-                                    color: [255, 0, 0],
-                                    width: 1
-                                }
+                    var fovGraphic = new Graphic({
+                        geometry: polygon,
+                        symbol: {
+                            type: "simple-fill",
+                            color: [255, 165, 0, 0.3],
+                            outline: {
+                                color: [255, 165, 0],
+                                width: 2
                             }
-                        });
+                        }
+                    });
 
-                        // Add the FOV graphic to the FOV graphics layer
-                        fovGraphicsLayer.add(fovGraphic);
-                    } else {
-                        console.error("Bearing information not available or invalid.");
-                    }
+                    fovGraphicsLayer.graphics.add(fovGraphic);
+                    console.log("FOV cone added to the map.");
                 };
 
-                // Function to create the FOV cone geometry
                 function createCone(centerPoint, bearing, width, length) {
-                    // Logic to create cone geometry
+                    var points = [];
+                    points.push([centerPoint.x, centerPoint.y]); // Cone apex
+
+                    var startBearing = bearing - width;
+                    var endBearing = bearing + width;
+
+                    points.push(calculatePoint(centerPoint, startBearing, length));
+                    points.push(calculatePoint(centerPoint, endBearing, length));
+                    points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
+
+                    return [points];
+                }
+
+                function calculatePoint(center, bearing, distance) {
+                    var angleRad = (Math.PI / 180) * bearing;
+                    var dx = distance * Math.sin(angleRad);
+                    var dy = distance * Math.cos(angleRad);
+                    return [center.x + dx, center.y + dy];
                 }
             });
         };
-
-        // Load the YouTube IFrame API script asynchronously
-        (function() {
-            var script = document.createElement('script');
-            script.src = 'https://www.youtube.com/iframe_api';
-            var firstScriptTag = document.getElementsByTagName('script')[0];
-            firstScriptTag.parentNode.insertBefore(script, firstScriptTag);
-        })();
     </script>
 </body>
 </html>
