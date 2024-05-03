@@ -51,6 +51,7 @@
         };
         var startDateTimeMap = {};
         var videoBearing = 0; // Initial bearing of the video
+        var lastBearing = 0; // Last bearing of the video
         var lastHighlightedFeature = null; // Last highlighted feature
         var videoBearingUpdated = false; // Flag to check if bearing was updated via video interaction
 
@@ -144,6 +145,9 @@
                 }).then(function(results) {
                     if (results.features.length > 0) {
                         var feature = results.features[0];
+                        if (player.getPlayerState() === YT.PlayerState.PLAYING && videoBearingUpdated) {
+                            feature.attributes.bearing = lastBearing; // Use lastBearing if the video is playing and the bearing has been updated
+                        }
                         clearAndHighlight(feature, featureLayer);
                     } else {
                         console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
@@ -155,24 +159,24 @@
         };
 
         function watchBearingChange() {
-    if (player && player.getSphericalProperties) {
-        var props = player.getSphericalProperties();
-        var normalizedYaw = ((props.yaw % 360) + 360) % 360;
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties();
+                var normalizedYaw = ((props.yaw % 360) + 360) % 360;
 
-        // Subtract the yaw value from 360 to reverse the direction
-        var correctedYaw = 360 - normalizedYaw;
+                // Subtract the yaw value from 360 to reverse the direction
+                var correctedYaw = 360 - normalizedYaw;
 
-        if (Math.abs(correctedYaw - videoBearing) > 1) {
-            console.log("Yaw changed from ", videoBearing, " to ", correctedYaw);
-            videoBearing = correctedYaw;
-            videoBearingUpdated = true;
-            updateFOVConeDirection(correctedYaw);
+                if (Math.abs(correctedYaw - videoBearing) > 1) {
+                    console.log("Yaw changed from ", videoBearing, " to ", correctedYaw);
+                    videoBearing = correctedYaw;
+                    lastBearing = correctedYaw; // Update lastBearing here
+                    videoBearingUpdated = true;
+                    updateFOVConeDirection(correctedYaw);
+                }
+
+                setTimeout(watchBearingChange, 100);
+            }
         }
-
-        setTimeout(watchBearingChange, 100);
-    }
-}
-
 
         function updateFOVConeDirection(newBearing) {
             var currentFeature = lastHighlightedFeature;
@@ -240,7 +244,7 @@
                         outFields: ["*"],
                         renderer: new SimpleRenderer({
                             symbol: new PictureMarkerSymbol({
-                                url: "https://i.ibb.co/2FtSs09/youtube-video.png",
+                                                                url: "https://i.ibb.co/2FtSs09/youtube-video.png",
                                 width: "20px",
                                 height: "20px"
                             })
