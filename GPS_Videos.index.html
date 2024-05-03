@@ -51,7 +51,7 @@
         };
         var startDateTimeMap = {};
         var videoBearing = 0; // Add this line to keep track of the video's current bearing
-
+        
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
                 height: '443',
@@ -159,6 +159,7 @@
                     videoBearing = normalizedYaw;
                     updateFOVConeDirection(videoBearing);
                 }
+                console.log("watchBearingChange called"); // Add this line
                 setTimeout(watchBearingChange, 100); // Check every 100 milliseconds
             }
         }
@@ -183,11 +184,8 @@
     } else {
         console.log("No currently highlighted feature.");
     }
+    console.log("updateFOVConeDirection called"); // Add this line
 }
-
-
-
-
 
         require([
             "esri/WebMap",
@@ -315,40 +313,44 @@
             }
 
             window.drawFOVCone = function(feature, layerView) {
-                require([
-                    "esri/geometry/Polygon",
-                    "esri/Graphic"
-                ], function(Polygon, Graphic) {
-                    var bearing = feature.attributes.bearing;
-                    var coneLength = 20; // Length of the cone in meters
-                    var coneWidth = 60; // Half angle of the FOV cone in degrees
+    require([
+        "esri/geometry/Polygon",
+        "esri/Graphic"
+    ], function(Polygon, Graphic) {
+        var bearing = feature.attributes.bearing;
+        console.log("Bearing for FOV cone: ", bearing); // Log the bearing
 
-                    fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
+        var coneLength = 20; // Length of the cone in meters
+        var coneWidth = 60; // Half angle of the FOV cone in degrees
 
-                    var centerPoint = feature.geometry.clone();
-                    console.log("Using Feature Coordinates:", centerPoint.toJSON());
+        fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
-                    var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
-                    var polygon = new Polygon({
-                        rings: cone,
-                        spatialReference: { wkid: 102100 }
-                    });
+        var centerPoint = feature.geometry.clone();
+        console.log("Using Feature Coordinates:", centerPoint.toJSON());
 
-                    var fovGraphic = new Graphic({
-                        geometry: polygon,
-                        symbol: {
-                            type: "simple-fill",
-                            color: [255, 165, 0, 0.3],
-                            outline: {
-                                color: [255, 165, 0],
-                                width: 2
-                            }
-                        }
-                    });
+        var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
+        var polygon = new Polygon({
+            rings: cone,
+            spatialReference: { wkid: 102100 }
+        });
 
-                    fovGraphicsLayer.graphics.add(fovGraphic);
-                });
-            };
+        var fovGraphic = new Graphic({
+            geometry: polygon,
+            symbol: {
+                type: "simple-fill",
+                color: [255, 165, 0, 0.3],
+                outline: {
+                    color: [255, 165, 0],
+                    width: 2
+                }
+            }
+        });
+
+        fovGraphicsLayer.graphics.add(fovGraphic);
+        console.log("FOV cone drawn with bearing: ", bearing); // Log a message after the FOV cone is drawn
+    });
+};
+
 
             function createCone(centerPoint, bearing, width, length) {
                 var points = [];
