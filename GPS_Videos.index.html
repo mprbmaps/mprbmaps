@@ -116,23 +116,31 @@
         }
 
         function updateFOVConeDirection(yawChange) {
-            if (!currentFeature || !window.view || !featureLayers[activeLayerId]) {
-                console.error("Update FOV failed: Invalid state for operation. Missing critical objects.");
-                return;
-            }
+    console.log("Received Yaw Change: ", yawChange);
 
-            var totalBearing = initialBearing + (yawChange - initialBearing);
-            console.log("Updating FOV cone to new bearing: ", totalBearing);
-            window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
-                if (layerView) {
-                    window.drawFOVCone(currentFeature, layerView, totalBearing);
-                } else {
-                    console.error("LayerView not found for the active layer.");
-                }
-            }).catch(function(error) {
-                console.error("Error obtaining LayerView for the active layer: ", error);
-            });
+    if (typeof yawChange !== 'number' || isNaN(yawChange)) {
+        console.error("Invalid yawChange received: ", yawChange);
+        return;
+    }
+
+    if (!currentFeature || !activeLayerId) {
+        console.error("Missing critical objects - currentFeature or activeLayerId is undefined");
+        return;
+    }
+
+    let totalBearing = initialBearing + yawChange;
+    console.log("Updating FOV cone to new bearing: ", totalBearing);
+
+    window.view.whenLayerView(featureLayers[activeLayerId]).then(function(layerView) {
+        if (layerView) {
+            window.drawFOVCone(currentFeature, layerView, totalBearing);
+        } else {
+            console.error("LayerView not found for the active layer.");
         }
+    }).catch(function(error) {
+        console.error("Error obtaining LayerView for the active layer: ", error);
+    });
+}
 
         function clearAndHighlight(feature, layer) {
             Object.keys(highlights).forEach(function(layerId) {
