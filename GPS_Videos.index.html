@@ -169,12 +169,12 @@
         function watchBearingChange() {
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
-        // Properly normalize yaw to 0-360 degrees range
-        var normalizedYaw = (props.yaw % 360 + 360) % 360;
+        // Directly normalize yaw to ensure it wraps around correctly from 0 to 360 degrees
+        var normalizedYaw = (props.yaw + 360) % 360;
 
         console.log("Normalized yaw for bearing update:", normalizedYaw);
 
-        if (Math.abs(normalizedYaw - lastManualBearing) > 1) {
+        if (Math.abs(normalizedYaw - lastManualBearing) > 1) {  // threshold to detect significant change
             console.log("Significant yaw change detected from", lastManualBearing, "to", normalizedYaw);
             lastManualBearing = normalizedYaw;
             videoBearingUpdated = true;
@@ -187,14 +187,14 @@
 
 
         function updateFOVConeDirection(newBearing) {
-            var currentFeature = lastHighlightedFeature;
-            if (currentFeature) {
-                var finalBearing = videoBearingUpdated ? lastManualBearing : currentFeature.attributes.bearing;
-                console.log("Updated Bearing: ", finalBearing);
-                currentFeature.attributes.bearing = finalBearing; // Apply the bearing updated from video panning
-                drawFOVCone(currentFeature); // Redraw the FOV cone with the updated bearing
-            }
-        }
+    var currentFeature = lastHighlightedFeature;
+    if (currentFeature) {
+        var finalBearing = videoBearingUpdated ? newBearing : currentFeature.attributes.bearing;
+        console.log("Updated Bearing: ", finalBearing);
+        currentFeature.attributes.bearing = finalBearing;
+        drawFOVCone(currentFeature);
+    }
+}
 
         require([
             "esri/WebMap",
