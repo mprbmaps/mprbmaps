@@ -95,6 +95,7 @@
 
 
         function clearAndHighlight(feature, layer) {
+    // Clear any existing highlights
     Object.keys(highlights).forEach(function(layerId) {
         if (highlights[layerId]) {
             highlights[layerId].remove();
@@ -102,10 +103,12 @@
         }
     });
 
+    // Set the active layer and initial video bearing
     activeLayerId = layer.id;
-    videoBearing = feature.attributes.bearing; // Set the initial bearing value
-    videoBearingUpdated = false; // Reset flag when a new feature is clicked
+    videoBearing = feature.attributes.bearing;
+    videoBearingUpdated = false; // Reset the update flag when a new feature is highlighted
 
+    // Highlight the new feature and update FOV cone
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
         window.drawFOVCone(feature, layerView);
@@ -161,16 +164,19 @@
         var props = player.getSphericalProperties();
         var normalizedYaw = ((props.yaw % 360) + 360) % 360;
 
-        // Only update the videoBearing if the video is not at the beginning or if the videoBearingUpdated flag is true
-        if (normalizedYaw !== 0 || videoBearingUpdated) {
+        // Adjusted to add the initial bearing from the feature's attribute when updating for the first time
+        if (!videoBearingUpdated) {
+            var initialBearing = lastHighlightedFeature ? lastHighlightedFeature.attributes.bearing : 0;
+            videoBearing = (initialBearing + normalizedYaw) % 360;
+        } else {
+            // Only update if there's a significant change to prevent unnecessary updates
             if (Math.abs(normalizedYaw - videoBearing) > 1) {
                 console.log("Yaw changed from ", videoBearing, " to ", normalizedYaw);
-                videoBearing = 360 - normalizedYaw;
-                videoBearingUpdated = true;
+                videoBearing = normalizedYaw;
                 updateFOVConeDirection(videoBearing);
             }
         }
-
+        videoBearingUpdated = true; // Set flag to true after updating
         setTimeout(watchBearingChange, 100);
     }
 }
@@ -178,14 +184,14 @@
 
 
         function updateFOVConeDirection(newBearing) {
-            var currentFeature = lastHighlightedFeature;
-            if (currentFeature) {
-                var finalBearing = videoBearingUpdated ? newBearing : (currentFeature.attributes.bearing + (newBearing - currentFeature.attributes.bearing + 360) % 360) % 360;
-                console.log("Updated Bearing: ", finalBearing);
-                currentFeature.attributes.bearing = finalBearing;
-                drawFOVCone(currentFeature);
-            }
-        }
+    var currentFeature = lastHighlightedFeature;
+    if (currentFeature) {
+        var finalBearing = (currentFeature.attributes.bearing + (newBearing - currentFeature.attributes.bearing + 360) % 360) % 360;
+        console.log("Updated Bearing: ", finalBearing);
+        currentFeature.attributes.bearing = finalBearing;
+        drawFOVCone(currentFeature);
+    }
+}
 
         require([
             "esri/WebMap",
