@@ -51,10 +51,10 @@
         };
         var startDateTimeMap = {};
         var videoBearing = 0;
+        var lastManualBearing = 0; // Stores the last manual bearing set by user interaction
         var lastHighlightedFeature = null;
         var videoBearingUpdated = false; // Flag to track if the bearing was manually updated
-        var lastManualBearing = 0;
-        var lastFeatureId = null;
+        var lastFeatureId = null; // Track the ID of the last feature
         
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -68,18 +68,6 @@
 
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.PLAYING) {
-                var checkTimeUpdate = function() {
-                    var currentSecond = Math.floor(player.getCurrentTime());
-                    Object.keys(featureLayers).forEach(function(layerId) {
-                        var featureLayer = featureLayers[layerId];
-                        if (featureLayer.id === activeLayerId) {
-                            highlightFeatureAtTime(currentSecond, featureLayer, window.view);
-                        }
-                    });
-                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        setTimeout(checkTimeUpdate, 1000);
-                    }
-                };
                 checkTimeUpdate();
                 watchBearingChange();
             } else if (event.data === YT.PlayerState.ENDED) {
@@ -89,8 +77,6 @@
                 });
             } else if (event.data === YT.PlayerState.PAUSED) {
                 console.log("Video paused, maintaining current highlights and FOV.");
-            } else if (event.data === YT.PlayerState.SEEKED) {
-                console.log("Video was panned (seeked), updating FOV cone.");
             }
         }
 
@@ -108,34 +94,30 @@
         }
 
         function clearAndHighlight(feature, layer) {
-    Object.keys(highlights).forEach(function(layerId) {
-        if (highlights[layerId]) {
-            highlights[layerId].remove();
-            highlights[layerId] = null;
+            Object.keys(highlights).forEach(function(layerId) {
+                if (highlights[layerId]) {
+                    highlights[layerId].remove();
+                    highlights[layerId] = null;
+                }
+            });
+
+            activeLayerId = layer.id;
+
+            if (!lastHighlightedFeature || lastHighlightedFeature.attributes.OBJECTID !== feature.attributes.OBJECTID) {
+                if (lastFeatureId !== feature.attributes.OBJECTID) {
+                    lastFeatureId = feature.attributes.OBJECTID;
+                    videoBearingUpdated = false; // Reset flag only if a different feature is truly selected
+                }
+            }
+
+            window.view.whenLayerView(layer).then(function(layerView) {
+                highlights[layer.id] = layerView.highlight(feature);
+                window.drawFOVCone(feature, layerView);
+                lastHighlightedFeature = feature; // Store the last highlighted feature
+            }).catch(function(error) {
+                console.error("Error in highlighting feature: ", error);
+            });
         }
-    });
-
-    activeLayerId = layer.id;
-
-    if (!lastHighlightedFeature || lastHighlightedFeature.attributes.OBJECTID !== feature.attributes.OBJECTID) {
-        if (lastFeatureId !== feature.attributes.OBJECTID) {
-            lastFeatureId = feature.attributes.OBJECTID;
-            videoBearingUpdated = false; // Reset flag only if a different feature is truly selected
-        }
-    }
-
-    window.view.whenLayerView(layer).then(function(layerView) {
-        highlights[layer.id] = layerView.highlight(feature);
-        window.drawFOVCone(feature, layerView);
-        lastHighlightedFeature = feature; // Store the last highlighted feature
-    }).catch(function(error) {
-        console.error("Error in highlighting feature: ", error);
-    });
-}
-
-
-
-
 
         function clearHighlight(layer) {
             console.log("Clearing highlight for layer:", layer.id);
@@ -146,80 +128,69 @@
         }
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-    if (!startDateTimeMap[featureLayer.id]) {
-        console.error("Start DateTimeS not set yet for " + featureLayer.id);
-        return;
-    }
-
-    if (featureLayer.id !== activeLayerId) {
-        return;  // Do not highlight if this is not the active layer
-    }
-
-    var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-
-    view.whenLayerView(featureLayer).then(function(layerView) {
-        layerView.queryFeatures({
-            where: "DateTimeS = '" + queryDateTimeStr + "'",
-            returnGeometry: true,
-            outFields: ["*"]
-        }).then(function(results) {
-            if (results.features.length > 0) {
-                var feature = results.features[0];
-                if (videoBearingUpdated && lastHighlightedFeature && lastHighlightedFeature === feature) {
-                    // If the video bearing has been manually updated and the feature is the same as the last highlighted feature, just update the FOV cone direction
-                    updateFOVConeDirection(videoBearing);
-                } else {
-                    // If the video bearing hasn't been manually updated or the feature is different from the last highlighted feature, highlight the new feature and reset the flag
-                    clearAndHighlight(feature, featureLayer);
-                    videoBearingUpdated = false; // Reset the flag
-                }
-            } else {
-                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+            if (!startDateTimeMap[featureLayer.id]) {
+                console.error("Start DateTimeS not set yet for " + featureLayer.id);
+                return;
             }
-        }).catch(function(error) {
-            console.error("Error highlighting feature based on DateTimeS:", error);
-        });
-    });
-};
 
+            if (featureLayer.id !== activeLayerId) {
+                return;  // Do not highlight if this is not the active layer
+            }
 
+            var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
-
+            view.whenLayerView(featureLayer).then(function(layerView) {
+                layerView.queryFeatures({
+                    where: "DateTimeS = '" + queryDateTimeStr + "'",
+                    returnGeometry: true,
+                    outFields: ["*"]
+                }).then(function(results) {
+                    if (results.features.length > 0) {
+                        var feature = results.features[0];
+                        if (videoBearingUpdated && lastHighlightedFeature && lastHighlightedFeature === feature) {
+                            // If the video bearing has been manually updated and the feature is the same as the last highlighted feature, just update the FOV cone direction
+                            updateFOVConeDirection(videoBearing);
+                        } else {
+                            // If the video bearing hasn't been manually updated or the feature is different from the last highlighted feature, highlight the new feature and reset the flag
+                            clearAndHighlight(feature, featureLayer);
+                            videoBearingUpdated = false; // Reset the flag
+                        }
+                    } else {
+                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                    }
+                }).catch(function(error) {
+                    console.error("Error highlighting feature based on DateTimeS:", error);
+                });
+            });
+        };
 
         function watchBearingChange() {
-    if (player && player.getSphericalProperties) {
-        var props = player.getSphericalProperties();
-        var normalizedYaw = ((props.yaw % 360) + 360) % 360;
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties();
+                // Calculate the normalizedYaw by subtracting from 360 to invert the direction
+                var normalizedYaw = (360 - ((props.yaw % 360) + 360) % 360);
 
-        if (Math.abs(normalizedYaw - lastManualBearing) > 1) { // Compare with last manual bearing
-            console.log("Yaw changed from ", lastManualBearing, " to ", normalizedYaw);
-            lastManualBearing = normalizedYaw;
-            videoBearingUpdated = true;
-            updateFOVConeDirection(lastManualBearing);
+                if (Math.abs(normalizedYaw - lastManualBearing) > 1) {
+                    console.log("Yaw changed from ", lastManualBearing, " to ", normalizedYaw);
+                    lastManualBearing = normalizedYaw;
+                    videoBearingUpdated = true;
+                    updateFOVConeDirection(normalizedYaw);
+                }
+
+                setTimeout(watchBearingChange, 100);
+            }
         }
 
-        setTimeout(watchBearingChange, 100);
-    }
-}
-
-
-
-
-
         function updateFOVConeDirection(newBearing) {
-    var currentFeature = lastHighlightedFeature;
-    if (currentFeature) {
-        var finalBearing = videoBearingUpdated ? newBearing : currentFeature.attributes.bearing;
-        console.log("Updated Bearing: ", finalBearing);
-        currentFeature.attributes.bearing = finalBearing; // Apply the new bearing
-        drawFOVCone(currentFeature); // Redraw the FOV cone with the new bearing
-    }
-}
-
-
-
+            var currentFeature = lastHighlightedFeature;
+            if (currentFeature) {
+                console.log("Updated Bearing: ", newBearing);
+                currentFeature.attributes.bearing = newBearing; // Apply the new bearing
+                drawFOVCone(currentFeature); // Redraw the FOV cone with the new bearing
+            }
+        }
 
         require([
             "esri/WebMap",
@@ -346,16 +317,16 @@
                 });
             }
 
-            window.drawFOVCone = function(feature, layerView) {
+            window.drawFOVCone = function(feature) {
                 require([
                     "esri/geometry/Polygon",
                     "esri/Graphic"
                 ], function(Polygon, Graphic) {
-                    var bearing = videoBearingUpdated ? videoBearing : feature.attributes.bearing;
-                    console.log("Bearing for FOV cone: ", bearing); // Log the bearing
+                    var bearing = feature.attributes.bearing;
+                    console.log("Bearing for FOV cone: ", bearing); // Log the bearing to verify its correct value
 
-                    var coneLength = 20; // Length of the cone in meters
-                    var coneWidth = 60; // Half angle of the FOV cone in degrees
+                    var coneLength = 25; // Length of the cone in meters, adjusted for visibility
+                    var coneWidth = 50; // Half angle of the FOV cone in degrees
 
                     fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
@@ -374,38 +345,16 @@
                             type: "simple-fill",
                             color: [255, 165, 0, 0.3],
                             outline: {
-                                color: [255, 165, 0],
-                                width: 2
+                                color: [255, 165, 0.2],
+                                width: 1
                             }
                         }
                     });
 
                     fovGraphicsLayer.graphics.add(fovGraphic);
                     console.log("FOV cone drawn with bearing: ", bearing); // Log a message after the FOV cone is drawn
-                    console.log("Drawing FOV cone for feature: ", feature);
-                    console.log("Using layer view: ", layerView);
                 });
             };
-
-            function createCone(centerPoint, bearing, width, length) {
-                var points = [];
-                points.push([centerPoint.x, centerPoint.y]); // Cone Apex
-                var startBearing = bearing - width;
-                var endBearing = bearing + width;
-
-                points.push(calculatePoint(centerPoint, startBearing, length));
-                points.push(calculatePoint(centerPoint, endBearing, length));
-                points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
-
-                return [points];
-            }
-
-            function calculatePoint(center, bearing, distance) {
-                var angleRad = (Math.PI / 180) * bearing;
-                var dx = distance * Math.sin(angleRad);
-                var dy = distance * Math.cos(angleRad);
-                return [center.x + dx, center.y + dy];
-            }
         });
 
         document.addEventListener('DOMContentLoaded', function() {
