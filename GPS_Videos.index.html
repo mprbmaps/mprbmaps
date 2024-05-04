@@ -104,24 +104,18 @@
         var normalizedYaw = ((props.yaw % 360) + 360) % 360;
         console.log("Current Yaw:", normalizedYaw); // Debugging
 
+        // Update only if there is manual panning or significant yaw change detected
         if (manualPanningActive || Math.abs(normalizedYaw - videoBearing) > 1) {
             console.log("Updating FOV due to significant yaw change or manual panning.");
-            videoBearing = normalizedYaw;  // Directly use the normalized yaw
+            // Adjust bearing calculation to account for initial bearing and direction of yaw change
+            var initialBearing = lastHighlightedFeature ? lastHighlightedFeature.attributes.bearing : 0;
+            var yawDifference = normalizedYaw - initialBearing;
+            videoBearing = (initialBearing + yawDifference + 360) % 360;
             updateFOVConeDirection(videoBearing);
-            manualPanningActive = false;  // Reset the manual panning flag
+            manualPanningActive = false; // Reset the manual panning flag
         }
 
         setTimeout(watchBearingChange, 100);
-    }
-}
-
-        function updateFOVConeDirection(newBearing) {
-    var currentFeature = lastHighlightedFeature;
-    if (currentFeature) {
-        var finalBearing = newBearing; // Directly use the new bearing
-        console.log("Updated Bearing to:", finalBearing);
-        currentFeature.attributes.bearing = finalBearing; // Update the bearing attribute of the feature
-        drawFOVCone(currentFeature); // Redraw the FOV cone with the updated bearing
     }
 }
 
@@ -160,6 +154,15 @@
                 highlights[layer.id] = null;
             }
         }
+
+        function updateFOVConeDirection(newBearing) {
+    var currentFeature = lastHighlightedFeature;
+    if (currentFeature) {
+        console.log("Updated Bearing to:", newBearing);
+        currentFeature.attributes.bearing = newBearing; // Update the bearing attribute of the feature
+        drawFOVCone(currentFeature); // Redraw the FOV cone with the updated bearing
+    }
+}
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
             if (!startDateTimeMap[featureLayer.id]) {
