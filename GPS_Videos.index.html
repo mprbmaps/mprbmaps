@@ -103,21 +103,18 @@
 
     activeLayerId = layer.id;
 
-    // Retain bearing and only reset the videoBearingUpdated flag if a new pan action occurs
-    if (!lastHighlightedFeature || lastHighlightedFeature.attributes.OBJECTID !== feature.attributes.OBJECTID) {
-        if (!videoBearingUpdated) { // Check if the bearing was updated from a pan action
-            lastFeatureId = feature.attributes.OBJECTID;
-        }
-    }
-
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
+        if (!videoBearingUpdated) { // Only draw with default bearing if no manual update
+            lastManualBearing = feature.attributes.bearing; // Update to current feature bearing
+        }
         window.drawFOVCone(feature, layerView);
         lastHighlightedFeature = feature; // Store the last highlighted feature
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
 
         function clearHighlight(layer) {
@@ -129,43 +126,43 @@
         }
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-            if (!startDateTimeMap[featureLayer.id]) {
-                console.error("Start DateTimeS not set yet for " + featureLayer.id);
-                return;
-            }
+    if (!startDateTimeMap[featureLayer.id]) {
+        console.error("Start DateTimeS not set yet for " + featureLayer.id);
+        return;
+    }
 
-            if (featureLayer.id !== activeLayerId) {
-                return;  // Do not highlight if this is not the active layer
-            }
+    if (featureLayer.id !== activeLayerId) {
+        return; // Do not highlight if this is not the active layer
+    }
 
-            var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+    var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
-            view.whenLayerView(featureLayer).then(function(layerView) {
-                layerView.queryFeatures({
-                    where: "DateTimeS = '" + queryDateTimeStr + "'",
-                    returnGeometry: true,
-                    outFields: ["*"]
-                }).then(function(results) {
-                    if (results.features.length > 0) {
-                        var feature = results.features[0];
-                        if (videoBearingUpdated && lastHighlightedFeature && lastHighlightedFeature === feature) {
-                            // If the video bearing has been manually updated and the feature is the same as the last highlighted feature, just update the FOV cone direction
-                            updateFOVConeDirection(videoBearing);
-                        } else {
-                            // If the video bearing hasn't been manually updated or the feature is different from the last highlighted feature, highlight the new feature and reset the flag
-                            clearAndHighlight(feature, featureLayer);
-                            videoBearingUpdated = false; // Reset the flag
-                        }
-                    } else {
-                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+    view.whenLayerView(featureLayer).then(function(layerView) {
+        layerView.queryFeatures({
+            where: "DateTimeS = '" + queryDateTimeStr + "'",
+            returnGeometry: true,
+            outFields: ["*"]
+        }).then(function(results) {
+            if (results.features.length > 0) {
+                var feature = results.features[0];
+                if (lastHighlightedFeature && lastHighlightedFeature.attributes.OBJECTID !== feature.attributes.OBJECTID) {
+                    lastHighlightedFeature = feature; // Update to new feature
+                    if (!videoBearingUpdated) { // If not manually updated, reset to feature's default
+                        lastManualBearing = feature.attributes.bearing;
                     }
-                }).catch(function(error) {
-                    console.error("Error highlighting feature based on DateTimeS:", error);
-                });
-            });
-        };
+                    drawFOVCone(feature, layerView); // Draw with last known or feature default bearing
+                }
+            } else {
+                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+            }
+        }).catch(function(error) {
+            console.error("Error highlighting feature based on DateTimeS:", error);
+        });
+    });
+};
+
 
         function watchBearingChange() {
     if (player && player.getSphericalProperties) {
@@ -327,11 +324,11 @@
         "esri/geometry/Polygon",
         "esri/Graphic"
     ], function(Polygon, Graphic) {
-        var bearing = feature.attributes.bearing; // Use updated bearing
-        console.log("Bearing for FOV cone: ", bearing);
+        var bearing = videoBearingUpdated ? lastManualBearing : feature.attributes.bearing;
+        console.log("Drawing FOV cone with bearing: ", bearing);
 
-        var coneLength = 100; // Adjust length for better visibility
-        var coneWidth = 30; // Half angle of the FOV cone in degrees
+        var coneLength = 100;
+        var coneWidth = 30;
 
         fovGraphicsLayer.graphics.removeAll();
 
@@ -355,9 +352,9 @@
         });
 
         fovGraphicsLayer.graphics.add(fovGraphic);
-        console.log("FOV cone drawn with bearing: ", bearing);
     });
 };
+
 
 
             function createCone(centerPoint, bearing, width, length) {
