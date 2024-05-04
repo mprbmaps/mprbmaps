@@ -53,6 +53,7 @@
         var videoBearing = 0;
         var lastHighlightedFeature = null;
         var videoBearingUpdated = false; // Flag to track if the bearing was manually updated
+        var lastManualBearing = 0;
         
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -115,9 +116,8 @@
 
     activeLayerId = layer.id;
 
-    // Only reset the bearing if a different feature is clicked
     if (!lastHighlightedFeature || lastHighlightedFeature.attributes.OBJECTID !== feature.attributes.OBJECTID) {
-        videoBearingUpdated = false; // Reset the flag only if a different feature is selected
+        videoBearingUpdated = false; // Reset only if a different feature is selected
     }
 
     window.view.whenLayerView(layer).then(function(layerView) {
@@ -128,6 +128,7 @@
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
 
 
@@ -188,11 +189,11 @@
         var props = player.getSphericalProperties();
         var normalizedYaw = ((props.yaw % 360) + 360) % 360;
 
-        // Calculate bearing change if it's significantly different
         if (Math.abs(normalizedYaw - videoBearing) > 1) {
             console.log("Yaw changed from ", videoBearing, " to ", normalizedYaw);
             videoBearing = normalizedYaw;
-            videoBearingUpdated = true; // Set flag indicating manual update
+            lastManualBearing = normalizedYaw; // Save last manually adjusted bearing
+            videoBearingUpdated = true;
             updateFOVConeDirection(videoBearing);
         }
 
@@ -202,15 +203,18 @@
 
 
 
+
         function updateFOVConeDirection(newBearing) {
     var currentFeature = lastHighlightedFeature;
     if (currentFeature) {
-        var finalBearing = videoBearingUpdated ? newBearing : currentFeature.attributes.bearing;
+        // Use last manual bearing if updated, otherwise revert to feature's default
+        var finalBearing = videoBearingUpdated ? lastManualBearing : currentFeature.attributes.bearing;
         console.log("Updated Bearing: ", finalBearing);
         currentFeature.attributes.bearing = finalBearing; // Apply the new bearing
         drawFOVCone(currentFeature); // Redraw the FOV cone with the new bearing
     }
 }
+
 
 
         require([
