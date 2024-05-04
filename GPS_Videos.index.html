@@ -66,47 +66,73 @@
         }
 
         function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.PLAYING) {
-                var checkTimeUpdate = function() {
-                    var currentSecond = Math.floor(player.getCurrentTime());
-                    Object.keys(featureLayers).forEach(function(layerId) {
-                        var featureLayer = featureLayers[layerId];
-                        if (featureLayer.id === activeLayerId) {
-                            highlightFeatureAtTime(currentSecond, featureLayer, window.view);
-                        }
-                    });
-                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        setTimeout(checkTimeUpdate, 1000);
-                    }
-                };
-                checkTimeUpdate();
-                videoBearingUpdated = true; // Set the flag to true when the video starts playing
-                watchBearingChange();
-                manualPanningActive = false;  // Reset on playing
-            } else if (event.data === YT.PlayerState.ENDED) {
-                Object.keys(featureLayers).forEach(function(layerId) {
-                    clearHighlight(featureLayers[layerId]);
-                    fovGraphicsLayer.graphics.removeAll();
-                });
-            } else if (event.data === YT.PlayerState.PAUSED) {
-                console.log("Video paused, maintaining current highlights and FOV.");
-            } else if (event.data === YT.PlayerState.SEEKED) {
-                console.log("Video was panned (seeked), updating FOV cone.");
-                manualPanningActive = true;  // Set true on video seek
+            switch (event.data) {
+                case YT.PlayerState.PLAYING:
+                    checkTimeUpdate();
+                    watchBearingChange();
+                    break;
+                case YT.PlayerState.PAUSED:
+                    console.log("Video paused, maintaining current highlights and FOV.");
+                    break;
+                case YT.PlayerState.SEEKING:
+                case YT.PlayerState.SEEKED:
+                    console.log("Video was panned, updating FOV cone.");
+                    manualPanningActive = true; // Assume manual interaction on seeking
+                    break;
+                case YT.PlayerState.ENDED:
+                    clearAllHighlightsAndFOV();
+                    break;
             }
         }
 
         function checkTimeUpdate() {
-            var currentSecond = Math.floor(player.getCurrentTime());
-            Object.keys(featureLayers).forEach(function(layerId) {
-                var featureLayer = featureLayers[layerId];
-                if (featureLayer && featureLayer.id === activeLayerId) {
-                    highlightFeatureAtTime(currentSecond, featureLayer, window.view);
-                }
-            });
             if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                var currentSecond = Math.floor(player.getCurrentTime());
+                Object.keys(featureLayers).forEach(function(layerId) {
+                    var featureLayer = featureLayers[layerId];
+                    if (featureLayer && featureLayer.id === activeLayerId) {
+                        highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+                    }
+                });
                 setTimeout(checkTimeUpdate, 1000);
             }
+        }
+
+        function watchBearingChange() {
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties();
+                var normalizedYaw = ((props.yaw % 360) + 360) % 360;
+                console.log("Current Yaw:", normalizedYaw); // Debugging
+
+                if (manualPanningActive) {
+                    console.log("Manual Panning Active: Updating FOV");
+                    if (Math.abs(normalizedYaw - videoBearing) > 1) { // Verify change is significant
+                        console.log("Yaw changed from", videoBearing, "to", normalizedYaw);
+                        videoBearing = normalizedYaw;
+                        updateFOVConeDirection(videoBearing);
+                    }
+                    manualPanningActive = false; // Reset after adjusting
+                }
+
+                setTimeout(watchBearingChange, 100);
+            }
+        }
+
+        function updateFOVConeDirection(newBearing) {
+            var currentFeature = lastHighlightedFeature;
+            if (currentFeature) {
+                var finalBearing = (currentFeature.attributes.bearing + (newBearing - currentFeature.attributes.bearing + 360) % 360) % 360;
+                console.log("Updated Bearing:", finalBearing);
+                currentFeature.attributes.bearing = finalBearing;
+                drawFOVCone(currentFeature);
+            }
+        }
+
+        function clearAllHighlightsAndFOV() {
+            Object.keys(featureLayers).forEach(function(layerId) {
+                clearHighlight(featureLayers[layerId]);
+                fovGraphicsLayer.graphics.removeAll();
+            });
         }
 
         function clearAndHighlight(feature, layer) {
@@ -169,33 +195,6 @@
                 });
             });
         };
-
-        function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                var normalizedYaw = ((props.yaw % 360) + 360) % 360;
-
-                // Only update the videoBearing if the video is not at the beginning or if the videoBearingUpdated flag is true
-                if (manualPanningActive && Math.abs(normalizedYaw - videoBearing) > 1) {
-                    console.log("Yaw changed from ", videoBearing, " to ", normalizedYaw);
-                    videoBearing = 360 - normalizedYaw;
-                    videoBearingUpdated = true;
-                    updateFOVConeDirection(videoBearing);
-                }
-
-                setTimeout(watchBearingChange, 100);
-            }
-        }
-
-        function updateFOVConeDirection(newBearing) {
-            var currentFeature = lastHighlightedFeature;
-            if (currentFeature) {
-                var finalBearing = videoBearingUpdated ? newBearing : (currentFeature.attributes.bearing + (newBearing - currentFeature.attributes.bearing + 360) % 360) % 360;
-                console.log("Updated Bearing: ", finalBearing);
-                currentFeature.attributes.bearing = finalBearing;
-                drawFOVCone(currentFeature);
-            }
-        }
 
         require([
             "esri/WebMap",
@@ -327,11 +326,11 @@
                     "esri/geometry/Polygon",
                     "esri/Graphic"
                 ], function(Polygon, Graphic) {
-                    var bearing = videoBearingUpdated ? videoBearing : feature.attributes.bearing;
-                    console.log("Bearing for FOV cone: ", bearing); // Log the bearing
+                    var bearing = feature.attributes.bearing; // Use bearing directly from feature
+                    console.log("Bearing for FOV cone: ", bearing);
 
-                    var coneLength = 20; // Length of the cone in meters
-                    var coneWidth = 60; // Half angle of the FOV cone in degrees
+                    var coneLength = 30; // Length of the cone in meters
+                    var coneWidth = 50; // Half angle of the FOV cone in degrees
 
                     fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
@@ -350,14 +349,14 @@
                             type: "simple-fill",
                             color: [255, 165, 0, 0.3],
                             outline: {
-                                color: [255, 165, 0],
-                                width: 2
+                                color: [255, 165, 0.2],
+                                width: 1
                             }
                         }
                     });
 
                     fovGraphicsLayer.graphics.add(fovGraphic);
-                    console.log("FOV cone drawn with bearing: ", bearing); // Log a message after the FOV cone is drawn
+                    console.log("FOV cone drawn with bearing: ", bearing);
                     console.log("Drawing FOV cone for feature: ", feature);
                     console.log("Using layer view: ", layerView);
                 });
