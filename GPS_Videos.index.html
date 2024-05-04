@@ -55,7 +55,8 @@
         var lastHighlightedFeature = null;
         var videoBearingUpdated = false; // Flag to track if the bearing was manually updated
         var lastFeatureId = null; // Track the ID of the last feature
-        
+        var Polygon, Graphic; // Declare these here to be filled later
+
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
                 height: '443',
@@ -320,7 +321,8 @@
                 });
             }
 
-            function drawFOVCone(feature) {
+            // Move the drawing functionality to the outer scope
+            drawFOVCone = function(feature) {
                 require([
                     "esri/geometry/Polygon",
                     "esri/Graphic"
@@ -354,7 +356,7 @@
 
                     fovGraphicsLayer.graphics.add(fovGraphic);
                 });
-            }
+            };
 
             function createCone(centerPoint, bearing, width, length) {
                 var points = [];
