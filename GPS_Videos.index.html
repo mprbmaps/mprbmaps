@@ -104,30 +104,24 @@
         var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize yaw
         console.log("Current Yaw:", currentYaw);
 
-        // Detect if there's a significant change in yaw or if manual panning is active
-        if (manualPanningActive || Math.abs(currentYaw - videoBearing) > 1) {
-            console.log("Yaw changed significantly or manual panning detected.");
+        if (currentYaw > 0.1 || currentYaw < -0.1) { // Ensure there's a meaningful yaw change
+            if (manualPanningActive || Math.abs(currentYaw - videoBearing) > 1) {
+                console.log("Yaw changed significantly or manual panning detected.");
+                
+                // Calculate the change in yaw, adjusting for potential inversion
+                var yawChange = videoBearing - currentYaw;
 
-            // Update the video bearing directly based on the current yaw
-            videoBearing = currentYaw;
+                // Update the bearing by subtracting the yaw change
+                videoBearing = (videoBearing - yawChange + 360) % 360;
 
-            updateFOVConeDirection(videoBearing);
-            manualPanningActive = false; // Reset the manual panning flag after adjustment
+                updateFOVConeDirection(videoBearing);
+                manualPanningActive = false;
+            }
         }
 
         setTimeout(watchBearingChange, 100);
     }
 }
-
-function updateFOVConeDirection(newBearing) {
-    var currentFeature = lastHighlightedFeature;
-    if (currentFeature) {
-        console.log("Updated Bearing to:", newBearing);
-        currentFeature.attributes.bearing = newBearing; // Update the bearing attribute of the feature
-        drawFOVCone(currentFeature); // Redraw the FOV cone with the updated bearing
-    }
-}
-
 
         function clearAllHighlightsAndFOV() {
             Object.keys(featureLayers).forEach(function(layerId) {
@@ -427,4 +421,3 @@ function updateFOVConeDirection(newBearing) {
         });
     </script>
 </body>
-</html>
