@@ -168,23 +168,27 @@
         }
 
         function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                var normalizedYaw = (props.yaw + 360) % 360; // Ensure it wraps correctly
+    if (player && player.getSphericalProperties) {
+        var props = player.getSphericalProperties();
+        var normalizedYaw = (props.yaw + 360) % 360; // Ensure it wraps correctly
 
-                console.log("Normalized yaw for bearing update:", normalizedYaw);
+        console.log("Normalized yaw for bearing update:", normalizedYaw);
 
-                // Change only if there is a significant change and it's not an erroneous reset to zero
-                if (Math.abs(normalizedYaw - lastManualBearing) > 1 && !(normalizedYaw === 0 && Math.abs(lastManualBearing - normalizedYaw) > 350)) {
-                    console.log("Significant yaw change detected from", lastManualBearing, "to", normalizedYaw);
-                    lastManualBearing = normalizedYaw;
-                    videoBearingUpdated = true;
-                    updateFOVConeDirection(normalizedYaw);
-                }
-
-                setTimeout(watchBearingChange, 100);
+        // Change only if there is a significant change and it's not an erroneous reset to zero
+        if (Math.abs(normalizedYaw - lastManualBearing) > 1 && !(normalizedYaw === 0 && Math.abs(lastManualBearing - normalizedYaw) > 350)) {
+            // Add condition to check if yaw is 0 and lastManualBearing is also close to 0
+            if (!(normalizedYaw === 0 && Math.abs(lastManualBearing) < 5)) {
+                console.log("Significant yaw change detected from", lastManualBearing, "to", normalizedYaw);
+                lastManualBearing = normalizedYaw;
+                videoBearingUpdated = true;
+                updateFOVConeDirection(normalizedYaw);
             }
         }
+
+        setTimeout(watchBearingChange, 100);
+    }
+}
+
 
         function updateFOVConeDirection(newBearing) {
             var currentFeature = lastHighlightedFeature;
