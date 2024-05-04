@@ -99,23 +99,29 @@
         }
 
         function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                var currentYaw = ((props.yaw % 360) + 360) % 360;
-                console.log("Current Yaw:", currentYaw);
+    if (player && player.getSphericalProperties) {
+        var props = player.getSphericalProperties();
+        var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize yaw
+        console.log("Current Yaw:", currentYaw);
 
-                if (currentYaw > 0.1 || currentYaw < -0.1) {
-                    if (manualPanningActive || Math.abs(currentYaw - videoBearing) > 1) {
-                        console.log("Yaw changed significantly or manual panning detected.");
-                        videoBearing = currentYaw;
-                        updateFOVConeDirection(videoBearing);
-                        manualPanningActive = false;
-                    }
-                }
+        if (currentYaw > 0.1 || currentYaw < -0.1) { // Ensure there's a meaningful yaw change
+            if (manualPanningActive || Math.abs(currentYaw - videoBearing) > 1) {
+                console.log("Yaw changed significantly or manual panning detected.");
+                
+                // Calculate the change in yaw, adjusting for potential inversion
+                var yawChange = videoBearing - currentYaw;
 
-                setTimeout(watchBearingChange, 100);
+                // Update the bearing by subtracting the yaw change
+                videoBearing = (videoBearing - yawChange + 360) % 360;
+
+                updateFOVConeDirection(videoBearing);
+                manualPanningActive = false;
             }
         }
+
+        setTimeout(watchBearingChange, 100);
+    }
+}
 
         function clearAllHighlightsAndFOV() {
             Object.keys(featureLayers).forEach(function(layerId) {
@@ -154,13 +160,12 @@
         }
 
         function updateFOVConeDirection(newBearing) {
-            var currentFeature = lastHighlightedFeature;
-            if (currentFeature) {
-                console.log("Updated Bearing to:", newBearing);
-                currentFeature.attributes.bearing = newBearing; // Update the bearing attribute of the feature
-                drawFOVCone(currentFeature); // Redraw the FOV cone with the updated bearing
-            }
-        }
+    if (lastHighlightedFeature) {
+        console.log("Updated Bearing to:", newBearing);
+        lastHighlightedFeature.attributes.bearing = newBearing;
+        drawFOVCone(lastHighlightedFeature); // Ensure this function redraws the FOV cone based on the updated bearing
+    }
+}
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
             if (!startDateTimeMap[featureLayer.id]) {
