@@ -103,20 +103,23 @@
 
     activeLayerId = layer.id;
 
-    // Retrieve and apply the initial bearing from the feature attributes
+    // Log to check the bearing value
+    console.log("Feature bearing attribute:", feature.attributes.bearing);
+
     if (feature.attributes.bearing !== undefined) {
-        lastManualBearing = feature.attributes.bearing; // Set from feature's data
-        videoBearingUpdated = false; // Reset as no manual update has occurred yet
+        lastManualBearing = feature.attributes.bearing;
+        videoBearingUpdated = false;
     }
 
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
-        window.drawFOVCone(feature, layerView); // Draw using the retrieved bearing
-        lastHighlightedFeature = feature; // Store the last highlighted feature
+        window.drawFOVCone(feature, layerView);
+        lastHighlightedFeature = feature;
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
 
 
@@ -328,12 +331,11 @@
         "esri/geometry/Polygon",
         "esri/Graphic"
     ], function(Polygon, Graphic) {
-        // Use the last manual bearing if updated; otherwise, use the feature's default bearing
         var bearing = videoBearingUpdated ? lastManualBearing : feature.attributes.bearing;
-        console.log("Drawing FOV cone with bearing: ", bearing);
+        console.log("Drawing FOV cone with bearing:", bearing);  // Ensure this logs the expected bearing
 
-        var coneLength = 100; // Or your specified length
-        var coneWidth = 30; // Or your specified width
+        var coneLength = 30;  // Adjust length for better visibility
+        var coneWidth = 50;  // Half angle of the FOV cone in degrees
 
         fovGraphicsLayer.graphics.removeAll();
 
@@ -348,10 +350,10 @@
             geometry: polygon,
             symbol: {
                 type: "simple-fill",
-                color: [255, 165, 0, 0.3],
+                color: [255, 165, 0, 0.7],
                 outline: {
-                    color: [255, 165, 0],
-                    width: 2
+                    color: [255, 165, 0.6],
+                    width: 1
                 }
             }
         });
@@ -359,9 +361,6 @@
         fovGraphicsLayer.graphics.add(fovGraphic);
     });
 };
-
-
-
 
             function createCone(centerPoint, bearing, width, length) {
                 var points = [];
