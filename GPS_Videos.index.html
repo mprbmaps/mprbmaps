@@ -68,18 +68,20 @@
         }
 
         function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.PLAYING) {
-                checkTimeUpdate();
-                watchBearingChange();
-            } else if (event.data === YT.PlayerState.ENDED) {
-                Object.keys(featureLayers).forEach(function(layerId) {
-                    clearHighlight(featureLayers[layerId]);
-                    fovGraphicsLayer.graphics.removeAll();
-                });
-            } else if (event.data === YT.PlayerState.PAUSED) {
-                console.log("Video paused, maintaining current highlights and FOV.");
-            }
-        }
+    if (event.data === YT.PlayerState.PLAYING) {
+        checkTimeUpdate();
+        // Delay the call to watchBearingChange
+        setTimeout(watchBearingChange, 2000);
+    } else if (event.data === YT.PlayerState.ENDED) {
+        Object.keys(featureLayers).forEach(function(layerId) {
+            clearHighlight(featureLayers[layerId]);
+            fovGraphicsLayer.graphics.removeAll();
+        });
+    } else if (event.data === YT.PlayerState.PAUSED) {
+        console.log("Video paused, maintaining current highlights and FOV.");
+    }
+}
+
 
         function checkTimeUpdate() {
             var currentSecond = Math.floor(player.getCurrentTime());
@@ -130,42 +132,53 @@
         }
 
         function highlightFeatureAtTime(currentSecond, featureLayer, view) {
-            if (!startDateTimeMap[featureLayer.id]) {
-                console.error("Start DateTimeS not set yet for " + featureLayer.id);
-                return;
+    console.log("Entering highlightFeatureAtTime function");
+    console.log("Current second:", currentSecond);
+    console.log("Feature layer:", featureLayer);
+    console.log("View:", view);
+
+    if (!startDateTimeMap[featureLayer.id]) {
+        console.error("Start DateTimeS not set yet for " + featureLayer.id);
+        return;
+    }
+
+    if (featureLayer.id !== activeLayerId) {
+        console.log("This is not the active layer");
+        return; // Do not highlight if this is not the active layer
+    }
+
+    var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+    console.log("Query DateTime:", queryDateTime);
+
+    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+    console.log("Query DateTime String:", queryDateTimeStr);
+
+    view.whenLayerView(featureLayer).then(function(layerView) {
+        console.log("Layer view:", layerView);
+
+        layerView.queryFeatures({
+            where: "DateTimeS = '" + queryDateTimeStr + "'",
+            returnGeometry: true,
+            outFields: ["*"]
+        }).then(function(results) {
+            console.log("Query results:", results);
+
+            if (results.features.length > 0) {
+                var feature = results.features[0];
+                console.log("Feature:", feature);
+
+                // Call clearAndHighlight for the new feature
+                clearAndHighlight(feature, featureLayer);
+            } else {
+                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
             }
+        }).catch(function(error) {
+            console.error("Error highlighting feature based on DateTimeS:", error);
+        });
+    });
+}
 
-            if (featureLayer.id !== activeLayerId) {
-                return; // Do not highlight if this is not the active layer
-            }
-
-            var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-
-            view.whenLayerView(featureLayer).then(function(layerView) {
-                layerView.queryFeatures({
-                    where: "DateTimeS = '" + queryDateTimeStr + "'",
-                    returnGeometry: true,
-                    outFields: ["*"]
-                }).then(function(results) {
-                    if (results.features.length > 0) {
-                        var feature = results.features[0];
-                        if (lastHighlightedFeature && lastHighlightedFeature.attributes.OBJECTID !== feature.attributes.OBJECTID) {
-                            lastHighlightedFeature = feature; // Update to new feature
-                            if (!videoBearingUpdated) { // If not manually updated, reset to feature's default
-                                lastManualBearing = feature.attributes.bearing;
-                            }
-                            drawFOVCone(feature); // Draw with last known or feature default bearing
-                        }
-                    } else {
-                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                    }
-                }).catch(function(error) {
-                    console.error("Error highlighting feature based on DateTimeS:", error);
-                });
-            });
-        }
 
         function watchBearingChange() {
     if (player && player.getSphericalProperties) {
