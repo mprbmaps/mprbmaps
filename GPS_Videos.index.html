@@ -115,9 +115,9 @@
 
     activeLayerId = layer.id;
 
-    // Only set the flag to true if it's false and a different feature is clicked
-    if (!videoBearingUpdated && (!lastHighlightedFeature || lastHighlightedFeature !== feature)) {
-        videoBearingUpdated = true;
+    // Only reset the bearing if a different feature is clicked
+    if (!lastHighlightedFeature || lastHighlightedFeature.attributes.OBJECTID !== feature.attributes.OBJECTID) {
+        videoBearingUpdated = false; // Reset the flag only if a different feature is selected
     }
 
     window.view.whenLayerView(layer).then(function(layerView) {
@@ -188,13 +188,11 @@
         var props = player.getSphericalProperties();
         var normalizedYaw = ((props.yaw % 360) + 360) % 360;
 
-        // Invert the normalizedYaw value
-        var invertedYaw = 360 - normalizedYaw;
-
-        if (Math.abs(invertedYaw - videoBearing) > 1) {
-            console.log("Yaw changed from ", videoBearing, " to ", invertedYaw);
-            videoBearing = invertedYaw;
-            videoBearingUpdated = true;
+        // Calculate bearing change if it's significantly different
+        if (Math.abs(normalizedYaw - videoBearing) > 1) {
+            console.log("Yaw changed from ", videoBearing, " to ", normalizedYaw);
+            videoBearing = normalizedYaw;
+            videoBearingUpdated = true; // Set flag indicating manual update
             updateFOVConeDirection(videoBearing);
         }
 
@@ -203,15 +201,17 @@
 }
 
 
+
         function updateFOVConeDirection(newBearing) {
-            var currentFeature = lastHighlightedFeature;
-            if (currentFeature) {
-                var finalBearing = videoBearingUpdated ? newBearing : (currentFeature.attributes.bearing + (newBearing - currentFeature.attributes.bearing + 360) % 360) % 360;
-                console.log("Updated Bearing: ", finalBearing);
-                currentFeature.attributes.bearing = finalBearing;
-                drawFOVCone(currentFeature);
-            }
-        }
+    var currentFeature = lastHighlightedFeature;
+    if (currentFeature) {
+        var finalBearing = videoBearingUpdated ? newBearing : currentFeature.attributes.bearing;
+        console.log("Updated Bearing: ", finalBearing);
+        currentFeature.attributes.bearing = finalBearing; // Apply the new bearing
+        drawFOVCone(currentFeature); // Redraw the FOV cone with the new bearing
+    }
+}
+
 
         require([
             "esri/WebMap",
