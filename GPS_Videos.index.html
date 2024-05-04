@@ -51,12 +51,9 @@
         };
         var startDateTimeMap = {};
         var videoBearing = 0;
-        var lastManualBearing = 0; // Stores the last manual bearing set by user interaction
         var lastHighlightedFeature = null;
         var videoBearingUpdated = false; // Flag to track if the bearing was manually updated
-        var lastFeatureId = null; // Track the ID of the last feature
-        var Polygon, Graphic; // Declare these here to be filled later
-
+        
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
                 height: '443',
@@ -68,31 +65,30 @@
         }
 
         function onPlayerStateChange(event) {
-    if (event.data === YT.PlayerState.PLAYING) {
-        checkTimeUpdate();
-        // Delay the call to watchBearingChange
-        setTimeout(watchBearingChange, 2000);
-    } else if (event.data === YT.PlayerState.ENDED) {
-        Object.keys(featureLayers).forEach(function(layerId) {
-            clearHighlight(featureLayers[layerId]);
-            fovGraphicsLayer.graphics.removeAll();
-        });
-    } else if (event.data === YT.PlayerState.PAUSED) {
-        console.log("Video paused, maintaining current highlights and FOV.");
-    }
-}
-
-
-        function checkTimeUpdate() {
-            var currentSecond = Math.floor(player.getCurrentTime());
-            Object.keys(featureLayers).forEach(function(layerId) {
-                var featureLayer = featureLayers[layerId];
-                if (featureLayer && featureLayer.id === activeLayerId) {
-                    highlightFeatureAtTime(currentSecond, featureLayer, window.view);
-                }
-            });
-            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
-                setTimeout(checkTimeUpdate, 1000);
+            if (event.data === YT.PlayerState.PLAYING) {
+                var checkTimeUpdate = function() {
+                    var currentSecond = Math.floor(player.getCurrentTime());
+                    Object.keys(featureLayers).forEach(function(layerId) {
+                        var featureLayer = featureLayers[layerId];
+                        if (featureLayer.id === activeLayerId) {
+                            highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+                        }
+                    });
+                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                        setTimeout(checkTimeUpdate, 1000);
+                    }
+                };
+                checkTimeUpdate();
+                watchBearingChange();
+            } else if (event.data === YT.PlayerState.ENDED) {
+                Object.keys(featureLayers).forEach(function(layerId) {
+                    clearHighlight(featureLayers[layerId]);
+                    fovGraphicsLayer.graphics.removeAll();
+                });
+            } else if (event.data === YT.PlayerState.PAUSED) {
+                console.log("Video paused, maintaining current highlights and FOV.");
+            } else if (event.data === YT.PlayerState.SEEKED) {
+                console.log("Video was panned (seeked), updating FOV cone.");
             }
         }
 
@@ -105,19 +101,12 @@
             });
 
             activeLayerId = layer.id;
-
-            console.log("Feature bearing attribute:", feature.attributes.bearing);
-
-            if (feature.attributes.bearing !== undefined && (!lastHighlightedFeature || lastHighlightedFeature.attributes.OBJECTID !== feature.attributes.OBJECTID)) {
-                lastManualBearing = feature.attributes.bearing;
-                videoBearingUpdated = false;
-                console.log("Setting initial bearing from feature attributes:", lastManualBearing);
-            }
+            videoBearingUpdated = false; // Reset flag when a new feature is clicked
 
             window.view.whenLayerView(layer).then(function(layerView) {
                 highlights[layer.id] = layerView.highlight(feature);
-                drawFOVCone(feature);
-                lastHighlightedFeature = feature;
+                window.drawFOVCone(feature, layerView);
+                lastHighlightedFeature = feature; // Store the last highlighted feature
             }).catch(function(error) {
                 console.error("Error in highlighting feature: ", error);
             });
@@ -131,82 +120,58 @@
             }
         }
 
-        function highlightFeatureAtTime(currentSecond, featureLayer, view) {
-    console.log("Entering highlightFeatureAtTime function");
-    console.log("Current second:", currentSecond);
-    console.log("Feature layer:", featureLayer);
-    console.log("View:", view);
-
-    if (!startDateTimeMap[featureLayer.id]) {
-        console.error("Start DateTimeS not set yet for " + featureLayer.id);
-        return;
-    }
-
-    if (featureLayer.id !== activeLayerId) {
-        console.log("This is not the active layer");
-        return; // Do not highlight if this is not the active layer
-    }
-
-    var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-    console.log("Query DateTime:", queryDateTime);
-
-    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-    console.log("Query DateTime String:", queryDateTimeStr);
-
-    view.whenLayerView(featureLayer).then(function(layerView) {
-        console.log("Layer view:", layerView);
-
-        layerView.queryFeatures({
-            where: "DateTimeS = '" + queryDateTimeStr + "'",
-            returnGeometry: true,
-            outFields: ["*"]
-        }).then(function(results) {
-            console.log("Query results:", results);
-
-            if (results.features.length > 0) {
-                var feature = results.features[0];
-                console.log("Feature:", feature);
-
-                // Call clearAndHighlight for the new feature
-                clearAndHighlight(feature, featureLayer);
-            } else {
-                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+        window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
+            if (!startDateTimeMap[featureLayer.id]) {
+                console.error("Start DateTimeS not set yet for " + featureLayer.id);
+                return;
             }
-        }).catch(function(error) {
-            console.error("Error highlighting feature based on DateTimeS:", error);
-        });
-    });
-}
 
+            if (featureLayer.id !== activeLayerId) {
+                return;  // Do not highlight if this is not the active layer
+            }
+
+            var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+
+            view.whenLayerView(featureLayer).then(function(layerView) {
+                layerView.queryFeatures({
+                    where: "DateTimeS = '" + queryDateTimeStr + "'",
+                    returnGeometry: true,
+                    outFields: ["*"]
+                }).then(function(results) {
+                    if (results.features.length > 0) {
+                        var feature = results.features[0];
+                        clearAndHighlight(feature, featureLayer);
+                    } else {
+                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                    }
+                }).catch(function(error) {
+                    console.error("Error highlighting feature based on DateTimeS:", error);
+                });
+            });
+        };
 
         function watchBearingChange() {
-    if (player && player.getSphericalProperties) {
-        var props = player.getSphericalProperties();
-        var normalizedYaw = (props.yaw + 360) % 360; // Ensure it wraps correctly
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties();
+                var normalizedYaw = ((props.yaw % 360) + 360) % 360;
 
-        console.log("Normalized yaw for bearing update:", normalizedYaw);
+                if (Math.abs(normalizedYaw - videoBearing) > 1) {
+                    console.log("Yaw changed from ", videoBearing, " to ", normalizedYaw);
+                    videoBearing = normalizedYaw;
+                    videoBearingUpdated = true;
+                    updateFOVConeDirection(videoBearing);
+                }
 
-        // Change only if there is a significant change and it's not an erroneous reset to zero
-        if (Math.abs(normalizedYaw - lastManualBearing) > 1 && !(normalizedYaw === 0 && Math.abs(lastManualBearing - normalizedYaw) > 350)) {
-            // Add condition to check if yaw is 0 and lastManualBearing is also close to 0
-            if (!(normalizedYaw === 0 && Math.abs(lastManualBearing) < 5)) {
-                console.log("Significant yaw change detected from", lastManualBearing, "to", normalizedYaw);
-                lastManualBearing = normalizedYaw;
-                videoBearingUpdated = true;
-                updateFOVConeDirection(normalizedYaw);
+                setTimeout(watchBearingChange, 100);
             }
         }
-
-        setTimeout(watchBearingChange, 100);
-    }
-}
-
 
         function updateFOVConeDirection(newBearing) {
             var currentFeature = lastHighlightedFeature;
             if (currentFeature) {
-                var finalBearing = videoBearingUpdated ? newBearing : currentFeature.attributes.bearing;
+                var finalBearing = videoBearingUpdated ? newBearing : (currentFeature.attributes.bearing + (newBearing - currentFeature.attributes.bearing + 360) % 360) % 360;
                 console.log("Updated Bearing: ", finalBearing);
                 currentFeature.attributes.bearing = finalBearing;
                 drawFOVCone(currentFeature);
@@ -338,21 +303,22 @@
                 });
             }
 
-            // Move the drawing functionality to the outer scope
-            drawFOVCone = function(feature) {
+            window.drawFOVCone = function(feature, layerView) {
                 require([
                     "esri/geometry/Polygon",
                     "esri/Graphic"
                 ], function(Polygon, Graphic) {
-                    var bearing = videoBearingUpdated ? lastManualBearing : feature.attributes.bearing;
-                    console.log("Drawing FOV cone with bearing:", bearing);
+                    var bearing = videoBearingUpdated ? videoBearing : feature.attributes.bearing;
+                    console.log("Bearing for FOV cone: ", bearing); // Log the bearing
 
-                    var coneLength = 30;
-                    var coneWidth = 50;
+                    var coneLength = 20; // Length of the cone in meters
+                    var coneWidth = 60; // Half angle of the FOV cone in degrees
 
-                    fovGraphicsLayer.graphics.removeAll();
+                    fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
                     var centerPoint = feature.geometry.clone();
+                    console.log("Using Feature Coordinates:", centerPoint.toJSON());
+
                     var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
                     var polygon = new Polygon({
                         rings: cone,
@@ -363,15 +329,18 @@
                         geometry: polygon,
                         symbol: {
                             type: "simple-fill",
-                            color: [255, 165, 0, 0.7],
+                            color: [255, 165, 0, 0.3],
                             outline: {
-                                color: [255, 165, 0.6],
-                                width: 1
+                                color: [255, 165, 0],
+                                width: 2
                             }
                         }
                     });
 
                     fovGraphicsLayer.graphics.add(fovGraphic);
+                    console.log("FOV cone drawn with bearing: ", bearing); // Log a message after the FOV cone is drawn
+                    console.log("Drawing FOV cone for feature: ", feature);
+                    console.log("Using layer view: ", layerView);
                 });
             };
 
