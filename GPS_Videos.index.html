@@ -93,31 +93,24 @@
         }
 
         function clearAndHighlight(feature, layer) {
-    Object.keys(highlights).forEach(function(layerId) {
-        if (highlights[layerId]) {
-            highlights[layerId].remove();
-            highlights[layerId] = null;
+            Object.keys(highlights).forEach(function(layerId) {
+                if (highlights[layerId]) {
+                    highlights[layerId].remove();
+                    highlights[layerId] = null;
+                }
+            });
+
+            activeLayerId = layer.id;
+            videoBearingUpdated = false; // Reset flag when a new feature is clicked
+
+            window.view.whenLayerView(layer).then(function(layerView) {
+                highlights[layer.id] = layerView.highlight(feature);
+                window.drawFOVCone(feature, layerView);
+                lastHighlightedFeature = feature; // Store the last highlighted feature
+            }).catch(function(error) {
+                console.error("Error in highlighting feature: ", error);
+            });
         }
-    });
-
-    activeLayerId = layer.id;
-
-    window.view.whenLayerView(layer).then(function(layerView) {
-        highlights[layer.id] = layerView.highlight(feature);
-        if (lastHighlightedFeature) {
-            // Calculate the bearing change from the last feature
-            var bearingChange = videoBearing - lastHighlightedFeature.attributes.bearing;
-            // Apply the bearing change to the new feature's default bearing
-            feature.attributes.bearing += bearingChange;
-        }
-        window.drawFOVCone(feature, layerView);
-        lastHighlightedFeature = feature; // Store the last highlighted feature
-    }).catch(function(error) {
-        console.error("Error in highlighting feature: ", error);
-    });
-}
-
-
 
         function clearHighlight(layer) {
             console.log("Clearing highlight for layer:", layer.id);
@@ -128,60 +121,52 @@
         }
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-    if (!startDateTimeMap[featureLayer.id]) {
-        console.error("Start DateTimeS not set yet for " + featureLayer.id);
-        return;
-    }
-
-    if (featureLayer.id !== activeLayerId) {
-        return;  // Do not highlight if this is not the active layer
-    }
-
-    var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-
-    view.whenLayerView(featureLayer).then(function(layerView) {
-        layerView.queryFeatures({
-            where: "DateTimeS = '" + queryDateTimeStr + "'",
-            returnGeometry: true,
-            outFields: ["*"]
-        }).then(function(results) {
-            if (results.features.length > 0) {
-                var feature = results.features[0];
-                if (lastHighlightedFeature) {
-                    // Calculate the bearing change from the last video bearing
-                    var bearingChange = videoBearing - lastHighlightedFeature.attributes.bearing;
-                    // Apply the bearing change to the new feature's default bearing
-                    feature.attributes.bearing += bearingChange;
-                }
-                clearAndHighlight(feature, featureLayer);
-            } else {
-                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+            if (!startDateTimeMap[featureLayer.id]) {
+                console.error("Start DateTimeS not set yet for " + featureLayer.id);
+                return;
             }
-        }).catch(function(error) {
-            console.error("Error highlighting feature based on DateTimeS:", error);
-        });
-    });
-};
 
+            if (featureLayer.id !== activeLayerId) {
+                return;  // Do not highlight if this is not the active layer
+            }
+
+            var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+
+            view.whenLayerView(featureLayer).then(function(layerView) {
+                layerView.queryFeatures({
+                    where: "DateTimeS = '" + queryDateTimeStr + "'",
+                    returnGeometry: true,
+                    outFields: ["*"]
+                }).then(function(results) {
+                    if (results.features.length > 0) {
+                        var feature = results.features[0];
+                        clearAndHighlight(feature, featureLayer);
+                    } else {
+                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                    }
+                }).catch(function(error) {
+                    console.error("Error highlighting feature based on DateTimeS:", error);
+                });
+            });
+        };
 
         function watchBearingChange() {
-    if (player && player.getSphericalProperties) {
-        var props = player.getSphericalProperties();
-        var normalizedYaw = ((360 - props.yaw % 360) + 360) % 360; // Subtract yaw from 360
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties();
+                var normalizedYaw = ((props.yaw % 360) + 360) % 360;
 
-        if (Math.abs(normalizedYaw - videoBearing) > 1) {
-            console.log("Yaw changed from ", videoBearing, " to ", normalizedYaw);
-            videoBearing = normalizedYaw;
-            videoBearingUpdated = true;
-            updateFOVConeDirection(videoBearing);
+                if (Math.abs(normalizedYaw - videoBearing) > 1) {
+                    console.log("Yaw changed from ", videoBearing, " to ", normalizedYaw);
+                    videoBearing = normalizedYaw;
+                    videoBearingUpdated = true;
+                    updateFOVConeDirection(videoBearing);
+                }
+
+                setTimeout(watchBearingChange, 100);
+            }
         }
-
-        setTimeout(watchBearingChange, 100);
-    }
-}
-
 
         function updateFOVConeDirection(newBearing) {
             var currentFeature = lastHighlightedFeature;
