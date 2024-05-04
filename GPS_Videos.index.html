@@ -54,6 +54,7 @@
         var lastHighlightedFeature = null;
         var videoBearingUpdated = false; // Flag to track if the bearing was manually updated
         var lastManualBearing = 0;
+        var lastFeatureId = null;
         
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -117,7 +118,10 @@
     activeLayerId = layer.id;
 
     if (!lastHighlightedFeature || lastHighlightedFeature.attributes.OBJECTID !== feature.attributes.OBJECTID) {
-        videoBearingUpdated = false; // Reset only if a different feature is selected
+        if (lastFeatureId !== feature.attributes.OBJECTID) {
+            lastFeatureId = feature.attributes.OBJECTID;
+            videoBearingUpdated = false; // Reset flag only if a different feature is truly selected
+        }
     }
 
     window.view.whenLayerView(layer).then(function(layerView) {
@@ -189,12 +193,11 @@
         var props = player.getSphericalProperties();
         var normalizedYaw = ((props.yaw % 360) + 360) % 360;
 
-        if (Math.abs(normalizedYaw - videoBearing) > 1) {
-            console.log("Yaw changed from ", videoBearing, " to ", normalizedYaw);
-            videoBearing = normalizedYaw;
-            lastManualBearing = normalizedYaw; // Save last manually adjusted bearing
+        if (Math.abs(normalizedYaw - lastManualBearing) > 1) { // Compare with last manual bearing
+            console.log("Yaw changed from ", lastManualBearing, " to ", normalizedYaw);
+            lastManualBearing = normalizedYaw;
             videoBearingUpdated = true;
-            updateFOVConeDirection(videoBearing);
+            updateFOVConeDirection(lastManualBearing);
         }
 
         setTimeout(watchBearingChange, 100);
@@ -204,16 +207,17 @@
 
 
 
+
         function updateFOVConeDirection(newBearing) {
     var currentFeature = lastHighlightedFeature;
     if (currentFeature) {
-        // Use last manual bearing if updated, otherwise revert to feature's default
-        var finalBearing = videoBearingUpdated ? lastManualBearing : currentFeature.attributes.bearing;
+        var finalBearing = videoBearingUpdated ? newBearing : currentFeature.attributes.bearing;
         console.log("Updated Bearing: ", finalBearing);
         currentFeature.attributes.bearing = finalBearing; // Apply the new bearing
         drawFOVCone(currentFeature); // Redraw the FOV cone with the new bearing
     }
 }
+
 
 
 
