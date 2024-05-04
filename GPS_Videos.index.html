@@ -94,30 +94,31 @@
         }
 
         function clearAndHighlight(feature, layer) {
-            Object.keys(highlights).forEach(function(layerId) {
-                if (highlights[layerId]) {
-                    highlights[layerId].remove();
-                    highlights[layerId] = null;
-                }
-            });
-
-            activeLayerId = layer.id;
-
-            if (!lastHighlightedFeature || lastHighlightedFeature.attributes.OBJECTID !== feature.attributes.OBJECTID) {
-                if (lastFeatureId !== feature.attributes.OBJECTID) {
-                    lastFeatureId = feature.attributes.OBJECTID;
-                    videoBearingUpdated = false; // Reset flag only if a different feature is truly selected
-                }
-            }
-
-            window.view.whenLayerView(layer).then(function(layerView) {
-                highlights[layer.id] = layerView.highlight(feature);
-                window.drawFOVCone(feature, layerView);
-                lastHighlightedFeature = feature; // Store the last highlighted feature
-            }).catch(function(error) {
-                console.error("Error in highlighting feature: ", error);
-            });
+    Object.keys(highlights).forEach(function(layerId) {
+        if (highlights[layerId]) {
+            highlights[layerId].remove();
+            highlights[layerId] = null;
         }
+    });
+
+    activeLayerId = layer.id;
+
+    // Retain bearing and only reset the videoBearingUpdated flag if a new pan action occurs
+    if (!lastHighlightedFeature || lastHighlightedFeature.attributes.OBJECTID !== feature.attributes.OBJECTID) {
+        if (!videoBearingUpdated) { // Check if the bearing was updated from a pan action
+            lastFeatureId = feature.attributes.OBJECTID;
+        }
+    }
+
+    window.view.whenLayerView(layer).then(function(layerView) {
+        highlights[layer.id] = layerView.highlight(feature);
+        window.drawFOVCone(feature, layerView);
+        lastHighlightedFeature = feature; // Store the last highlighted feature
+    }).catch(function(error) {
+        console.error("Error in highlighting feature: ", error);
+    });
+}
+
 
         function clearHighlight(layer) {
             console.log("Clearing highlight for layer:", layer.id);
@@ -169,12 +170,11 @@
         function watchBearingChange() {
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
-        // Subtract from 360 to correct direction if necessary
-        var normalizedYaw = 360 - ((props.yaw % 360) + 360) % 360;
+        var normalizedYaw = 360 - ((props.yaw % 360) + 360) % 360; // Adjust direction if needed
 
         if (Math.abs(normalizedYaw - lastManualBearing) > 1) {
             console.log("Yaw changed from ", lastManualBearing, " to ", normalizedYaw);
-            lastManualBearing = normalizedYaw;
+            lastManualBearing = normalizedYaw; // Update the global bearing
             videoBearingUpdated = true;
             updateFOVConeDirection(normalizedYaw);
         }
@@ -184,15 +184,17 @@
 }
 
 
+
         function updateFOVConeDirection(newBearing) {
     var currentFeature = lastHighlightedFeature;
     if (currentFeature) {
         var finalBearing = videoBearingUpdated ? lastManualBearing : currentFeature.attributes.bearing;
         console.log("Updated Bearing: ", finalBearing);
-        currentFeature.attributes.bearing = finalBearing; // Apply the new bearing
+        currentFeature.attributes.bearing = finalBearing; // Apply the bearing updated from video panning
         drawFOVCone(currentFeature); // Redraw the FOV cone with the updated bearing
     }
 }
+
 
 
         require([
