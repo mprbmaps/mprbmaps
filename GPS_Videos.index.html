@@ -65,32 +65,34 @@
         }
 
         function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.PLAYING) {
-                var checkTimeUpdate = function() {
-                    var currentSecond = Math.floor(player.getCurrentTime());
-                    Object.keys(featureLayers).forEach(function(layerId) {
-                        var featureLayer = featureLayers[layerId];
-                        if (featureLayer.id === activeLayerId) {
-                            highlightFeatureAtTime(currentSecond, featureLayer, window.view);
-                        }
-                    });
-                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        setTimeout(checkTimeUpdate, 1000);
-                    }
-                };
-                checkTimeUpdate();
-                watchBearingChange();
-            } else if (event.data === YT.PlayerState.ENDED) {
-                Object.keys(featureLayers).forEach(function(layerId) {
-                    clearHighlight(featureLayers[layerId]);
-                    fovGraphicsLayer.graphics.removeAll();
-                });
-            } else if (event.data === YT.PlayerState.PAUSED) {
-                console.log("Video paused, maintaining current highlights and FOV.");
-            } else if (event.data === YT.PlayerState.SEEKED) {
-                console.log("Video was panned (seeked), updating FOV cone.");
+    if (event.data === YT.PlayerState.PLAYING) {
+        var checkTimeUpdate = function() {
+            var currentSecond = Math.floor(player.getCurrentTime());
+            Object.keys(featureLayers).forEach(function(layerId) {
+                var featureLayer = featureLayers[layerId];
+                if (featureLayer.id === activeLayerId) {
+                    highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+                }
+            });
+            if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                setTimeout(checkTimeUpdate, 1000);
             }
-        }
+        };
+        checkTimeUpdate();
+        videoBearingUpdated = true; // Set the flag to true when the video starts playing
+        watchBearingChange();
+    } else if (event.data === YT.PlayerState.ENDED) {
+        Object.keys(featureLayers).forEach(function(layerId) {
+            clearHighlight(featureLayers[layerId]);
+            fovGraphicsLayer.graphics.removeAll();
+        });
+    } else if (event.data === YT.PlayerState.PAUSED) {
+        console.log("Video paused, maintaining current highlights and FOV.");
+    } else if (event.data === YT.PlayerState.SEEKED) {
+        console.log("Video was panned (seeked), updating FOV cone.");
+    }
+}
+
 
         function clearAndHighlight(feature, layer) {
     Object.keys(highlights).forEach(function(layerId) {
@@ -159,11 +161,12 @@
         var props = player.getSphericalProperties();
         var normalizedYaw = ((props.yaw % 360) + 360) % 360;
 
-        // Only update the videoBearing if the videoBearingUpdated flag is true
-        if (videoBearingUpdated) {
+        // Only update the videoBearing if the video is not at the beginning or if the videoBearingUpdated flag is true
+        if (normalizedYaw !== 0 || videoBearingUpdated) {
             if (Math.abs(normalizedYaw - videoBearing) > 1) {
                 console.log("Yaw changed from ", videoBearing, " to ", normalizedYaw);
                 videoBearing = 360 - normalizedYaw;
+                videoBearingUpdated = true;
                 updateFOVConeDirection(videoBearing);
             }
         }
@@ -171,7 +174,6 @@
         setTimeout(watchBearingChange, 100);
     }
 }
-
 
 
 
