@@ -317,16 +317,16 @@
                 });
             }
 
-            window.drawFOVCone = function(feature) {
+            window.drawFOVCone = function(feature, layerView) {
                 require([
                     "esri/geometry/Polygon",
                     "esri/Graphic"
                 ], function(Polygon, Graphic) {
-                    var bearing = feature.attributes.bearing;
-                    console.log("Bearing for FOV cone: ", bearing); // Log the bearing to verify its correct value
+                    var bearing = videoBearingUpdated ? videoBearing : feature.attributes.bearing;
+                    console.log("Bearing for FOV cone: ", bearing); // Log the bearing
 
-                    var coneLength = 25; // Length of the cone in meters, adjusted for visibility
-                    var coneWidth = 50; // Half angle of the FOV cone in degrees
+                    var coneLength = 20; // Length of the cone in meters
+                    var coneWidth = 60; // Half angle of the FOV cone in degrees
 
                     fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
@@ -345,16 +345,38 @@
                             type: "simple-fill",
                             color: [255, 165, 0, 0.3],
                             outline: {
-                                color: [255, 165, 0.2],
-                                width: 1
+                                color: [255, 165, 0],
+                                width: 2
                             }
                         }
                     });
 
                     fovGraphicsLayer.graphics.add(fovGraphic);
                     console.log("FOV cone drawn with bearing: ", bearing); // Log a message after the FOV cone is drawn
+                    console.log("Drawing FOV cone for feature: ", feature);
+                    console.log("Using layer view: ", layerView);
                 });
             };
+
+            function createCone(centerPoint, bearing, width, length) {
+                var points = [];
+                points.push([centerPoint.x, centerPoint.y]); // Cone Apex
+                var startBearing = bearing - width;
+                var endBearing = bearing + width;
+
+                points.push(calculatePoint(centerPoint, startBearing, length));
+                points.push(calculatePoint(centerPoint, endBearing, length));
+                points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
+
+                return [points];
+            }
+
+            function calculatePoint(center, bearing, distance) {
+                var angleRad = (Math.PI / 180) * bearing;
+                var dx = distance * Math.sin(angleRad);
+                var dy = distance * Math.cos(angleRad);
+                return [center.x + dx, center.y + dy];
+            }
         });
 
         document.addEventListener('DOMContentLoaded', function() {
