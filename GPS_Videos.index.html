@@ -153,20 +153,21 @@
         };
 
         function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                var normalizedYaw = ((props.yaw % 360) + 360) % 360;
+    if (player && player.getSphericalProperties) {
+        var props = player.getSphericalProperties();
+        var normalizedYaw = ((360 - props.yaw % 360) + 360) % 360; // Subtract yaw from 360
 
-                if (Math.abs(normalizedYaw - videoBearing) > 1) {
-                    console.log("Yaw changed from ", videoBearing, " to ", normalizedYaw);
-                    videoBearing = normalizedYaw;
-                    videoBearingUpdated = true;
-                    updateFOVConeDirection(videoBearing);
-                }
-
-                setTimeout(watchBearingChange, 100);
-            }
+        if (Math.abs(normalizedYaw - videoBearing) > 1) {
+            console.log("Yaw changed from ", videoBearing, " to ", normalizedYaw);
+            videoBearing = normalizedYaw;
+            videoBearingUpdated = true;
+            updateFOVConeDirection(videoBearing);
         }
+
+        setTimeout(watchBearingChange, 100);
+    }
+}
+
 
         function updateFOVConeDirection(newBearing) {
             var currentFeature = lastHighlightedFeature;
