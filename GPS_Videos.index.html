@@ -99,25 +99,30 @@
         }
 
         function watchBearingChange() {
-    if (player && player.getSphericalProperties) {
-        var props = player.getSphericalProperties();
-        var normalizedYaw = ((props.yaw % 360) + 360) % 360;
-        console.log("Current Yaw:", normalizedYaw); // Debugging
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties();
+                var normalizedYaw = ((props.yaw % 360) + 360) % 360;
+                console.log("Current Yaw:", normalizedYaw); // Debugging
 
-        // Update only if there is manual panning or significant yaw change detected
-        if (manualPanningActive || Math.abs(normalizedYaw - videoBearing) > 1) {
-            console.log("Updating FOV due to significant yaw change or manual panning.");
-            // Adjust bearing calculation to account for initial bearing and direction of yaw change
-            var initialBearing = lastHighlightedFeature ? lastHighlightedFeature.attributes.bearing : 0;
-            var yawDifference = normalizedYaw - initialBearing;
-            videoBearing = (initialBearing + yawDifference + 360) % 360;
-            updateFOVConeDirection(videoBearing);
-            manualPanningActive = false; // Reset the manual panning flag
+                if (manualPanningActive && Math.abs(normalizedYaw - videoBearing) > 1) {
+                    console.log("Updating FOV due to significant yaw change or manual panning.");
+                    videoBearing = normalizedYaw;
+                    updateFOVConeDirection(videoBearing);
+                    manualPanningActive = false; // Reset the manual panning flag
+                }
+
+                setTimeout(watchBearingChange, 100);
+            }
         }
 
-        setTimeout(watchBearingChange, 100);
-    }
-}
+        function updateFOVConeDirection(newBearing) {
+            var currentFeature = lastHighlightedFeature;
+            if (currentFeature) {
+                console.log("Updated Bearing to:", newBearing);
+                currentFeature.attributes.bearing = newBearing; // Update the bearing attribute of the feature
+                drawFOVCone(currentFeature); // Redraw the FOV cone with the updated bearing
+            }
+        }
 
         function clearAllHighlightsAndFOV() {
             Object.keys(featureLayers).forEach(function(layerId) {
@@ -137,11 +142,11 @@
             activeLayerId = layer.id;
             videoBearing = feature.attributes.bearing; // Set the initial bearing value
             videoBearingUpdated = false; // Reset flag when a new feature is clicked
+            lastHighlightedFeature = feature; // Store the last highlighted feature
 
             window.view.whenLayerView(layer).then(function(layerView) {
                 highlights[layer.id] = layerView.highlight(feature);
-                window.drawFOVCone(feature, layerView);
-                lastHighlightedFeature = feature; // Store the last highlighted feature
+                drawFOVCone(feature, layerView);
             }).catch(function(error) {
                 console.error("Error in highlighting feature: ", error);
             });
@@ -154,15 +159,6 @@
                 highlights[layer.id] = null;
             }
         }
-
-        function updateFOVConeDirection(newBearing) {
-    var currentFeature = lastHighlightedFeature;
-    if (currentFeature) {
-        console.log("Updated Bearing to:", newBearing);
-        currentFeature.attributes.bearing = newBearing; // Update the bearing attribute of the feature
-        drawFOVCone(currentFeature); // Redraw the FOV cone with the updated bearing
-    }
-}
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
             if (!startDateTimeMap[featureLayer.id]) {
@@ -389,7 +385,7 @@
             var initialX, initialY, xOffset = 0, yOffset = 0;
 
             document.addEventListener("mousedown", function(e) {
-                if (e.target === videoWindow || videoWindow.contains(e.target)) {
+                if (e.target === videoWindow or videoWindow.contains(e.target)) {
                     active = true;
                     initialX = e.clientX - xOffset;
                     initialY = e.clientY - yOffset;
