@@ -103,17 +103,21 @@
 
     activeLayerId = layer.id;
 
+    // Retrieve and apply the initial bearing from the feature attributes
+    if (feature.attributes.bearing !== undefined) {
+        lastManualBearing = feature.attributes.bearing; // Set from feature's data
+        videoBearingUpdated = false; // Reset as no manual update has occurred yet
+    }
+
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
-        if (!videoBearingUpdated) { // Only draw with default bearing if no manual update
-            lastManualBearing = feature.attributes.bearing; // Update to current feature bearing
-        }
-        window.drawFOVCone(feature, layerView);
+        window.drawFOVCone(feature, layerView); // Draw using the retrieved bearing
         lastHighlightedFeature = feature; // Store the last highlighted feature
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
 
 
@@ -324,11 +328,12 @@
         "esri/geometry/Polygon",
         "esri/Graphic"
     ], function(Polygon, Graphic) {
+        // Use the last manual bearing if updated; otherwise, use the feature's default bearing
         var bearing = videoBearingUpdated ? lastManualBearing : feature.attributes.bearing;
         console.log("Drawing FOV cone with bearing: ", bearing);
 
-        var coneLength = 30;
-        var coneWidth = 50;
+        var coneLength = 100; // Or your specified length
+        var coneWidth = 30; // Or your specified width
 
         fovGraphicsLayer.graphics.removeAll();
 
@@ -343,10 +348,10 @@
             geometry: polygon,
             symbol: {
                 type: "simple-fill",
-                color: [255, 165, 0, 0.5],
+                color: [255, 165, 0, 0.3],
                 outline: {
-                    color: [255, 165, 0.4],
-                    width: 1
+                    color: [255, 165, 0],
+                    width: 2
                 }
             }
         });
@@ -354,6 +359,7 @@
         fovGraphicsLayer.graphics.add(fovGraphic);
     });
 };
+
 
 
 
