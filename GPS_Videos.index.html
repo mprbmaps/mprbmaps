@@ -155,20 +155,24 @@
         };
 
         function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                var normalizedYaw = ((props.yaw % 360) + 360) % 360;
+    if (player && player.getSphericalProperties) {
+        var props = player.getSphericalProperties();
+        var normalizedYaw = ((props.yaw % 360) + 360) % 360;
 
-                if (Math.abs(normalizedYaw - videoBearing) > 1) {
-                    console.log("Yaw changed from ", videoBearing, " to ", normalizedYaw);
-                    videoBearing = 360 - normalizedYaw;
-                    videoBearingUpdated = true;
-                    updateFOVConeDirection(videoBearing);
-                }
-
-                setTimeout(watchBearingChange, 100);
+        // Check if the video is still loading
+        if (!(normalizedYaw === 0 && player.getPlayerState() === YT.PlayerState.BUFFERING)) {
+            if (Math.abs(normalizedYaw - videoBearing) > 1) {
+                console.log("Yaw changed from ", videoBearing, " to ", normalizedYaw);
+                videoBearing = 360 - normalizedYaw;
+                videoBearingUpdated = true;
+                updateFOVConeDirection(videoBearing);
             }
         }
+
+        setTimeout(watchBearingChange, 100);
+    }
+}
+
 
         function updateFOVConeDirection(newBearing) {
             var currentFeature = lastHighlightedFeature;
