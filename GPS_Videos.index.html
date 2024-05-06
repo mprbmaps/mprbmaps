@@ -40,180 +40,180 @@
         <div id="youtubePlayer"></div>
     </div>
     <script>
-var player;
-var featureLayers = {};
-var highlights = {};
-var fovGraphicsLayer;
-var activeLayerId = null;
-var videoMap = {
-    'creek': 'EEovFU3OOlg',
-    'insta360Test': 's_kCckaYzDo'
-};
-var startDateTimeMap = {};
-var videoBearing = 0;
-var lastHighlightedFeature = null;
-var videoBearingUpdated = false;
-var manualPanningActive = false;
-var bearingUpdateIntervalId = null;
-var debounceTimer;
-var lastValidYaw = 0;
-var bearingManuallyUpdated = false;
-var persistentBearing = 0;
+        var player;
+        var featureLayers = {};
+        var highlights = {};
+        var fovGraphicsLayer;
+        var activeLayerId = null;
+        var videoMap = {
+            'creek': 'EEovFU3OOlg',
+            'insta360Test': 's_kCckaYzDo'
+        };
+        var startDateTimeMap = {};
+        var videoBearing = 0;
+        var lastHighlightedFeature = null;
+        var videoBearingUpdated = false;
+        var manualPanningActive = false;
+        var bearingUpdateIntervalId = null;
+        var debounceTimer;
+        var lastValidYaw = 0;
+        var bearingManuallyUpdated = false;
+        var persistentBearing = 0;
 
-function onYouTubeIframeAPIReady() {
-    player = new YT.Player('youtubePlayer', {
-        height: '443',
-        width: '707',
-        events: {
-            'onStateChange': onPlayerStateChange
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('youtubePlayer', {
+                height: '443',
+                width: '707',
+                events: {
+                    'onStateChange': onPlayerStateChange
+                }
+            });
         }
-    });
-}
 
-function clearBearingUpdateInterval() {
-    if (bearingUpdateIntervalId !== null) {
-        clearInterval(bearingUpdateIntervalId);
-        bearingUpdateIntervalId = null;
-    }
-}
-
-function onPlayerStateChange(event) {
-    switch (event.data) {
-        case YT.PlayerState.PLAYING:
-            checkTimeUpdate(); // Continuously check for updates in the video's current time.
-            watchBearingChange(); // Start or continue watching for bearing changes.
-            break;
-        case YT.PlayerState.PAUSED:
-            console.log("Video paused, maintaining current highlights and FOV."); // Log when video is paused.
-            break;
-        case YT.PlayerState.ENDED:
-            clearAllHighlightsAndFOV(); // Clear all highlights and the FOV cone when video ends.
-            console.log("Video ended, cleared all highlights and FOV."); // Log when the video ends.
-            break;
-        case YT.PlayerState.BUFFERING:
-            console.log("Video buffering, adjustments are paused."); // Log when video is buffering.
-            break;
-        case YT.PlayerState.CUED:
-            console.log("Video cued, ready to play."); // Log when video is cued and ready.
-            break;
-        case YT.PlayerState.SEEKING:
-        case YT.PlayerState.SEEKED:
-            console.log("Video was panned or seeked, checking for new orientation."); // Log when video is seeked or panned.
-            watchBearingChange(); // Ensure that bearing changes are checked after seeking.
-            break;
-    }
-}
-
-function checkTimeUpdate() {
-    if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
-        var currentSecond = Math.floor(player.getCurrentTime());
-        Object.keys(featureLayers).forEach(function(layerId) {
-            var featureLayer = featureLayers[layerId];
-            if (featureLayer && featureLayer.id === activeLayerId) {
-                highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+        function clearBearingUpdateInterval() {
+            if (bearingUpdateIntervalId !== null) {
+                clearInterval(bearingUpdateIntervalId);
+                bearingUpdateIntervalId = null;
             }
-        });
-        setTimeout(checkTimeUpdate, 1000);
-    }
-}
-
-function watchBearingChange() {
-    if (player && player.getSphericalProperties) {
-        var props = player.getSphericalProperties();
-        var currentYaw = ((props.yaw % 360) + 360) % 360;
-
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(function() {
-            var yawChange = currentYaw - lastValidYaw;
-            if (Math.abs(yawChange) > 1) {
-                persistentBearing = (persistentBearing + yawChange + 360) % 360; // Update the persistent bearing
-                bearingManuallyUpdated = true; // Set the flag when bearing is manually changed
-                updateFOVConeDirection(persistentBearing);
-                lastValidYaw = currentYaw;
-            }
-        }, 100);
-    }
-}
-
-function startWatchingBearingChanges() {
-    clearBearingUpdateInterval();
-    bearingUpdateIntervalId = setInterval(watchBearingChange, 100);
-}
-
-function clearAllHighlightsAndFOV() {
-    Object.keys(featureLayers).forEach(function(layerId) {
-        clearHighlight(featureLayers[layerId]);
-        fovGraphicsLayer.graphics.removeAll();
-    });
-}
-
-function clearAndHighlight(feature, layer) {
-    Object.keys(highlights).forEach(function(layerId) {
-        if (highlights[layerId]) {
-            highlights[layerId].remove();
-            highlights[layerId] = null;
         }
-    });
 
-    activeLayerId = layer.id;
-    if (!bearingManuallyUpdated) { // Check if the bearing was manually updated
-        persistentBearing = feature.attributes.bearing; // Reset to default if not manually updated
-    }
-
-    window.view.whenLayerView(layer).then(function(layerView) {
-        highlights[layer.id] = layerView.highlight(feature);
-        window.drawFOVCone(feature, layerView, persistentBearing); // Pass the persistent bearing
-        lastHighlightedFeature = feature;
-        startWatchingBearingChanges();
-    }).catch(function(error) {
-        console.error("Error in highlighting feature: ", error);
-    });
-}
-
-function clearHighlight(layer) {
-    if (highlights[layer.id]) {
-        highlights[layer.id].remove();  // Assuming this removes the highlight from the layer
-        highlights[layer.id] = null;  // Reset the reference to null
-        console.log("Highlight cleared for layer:", layer.id);
-    }
-}
-
-function updateFOVConeDirection(newBearing) {
-    if (lastHighlightedFeature) {
-        console.log("Updated Bearing to:", newBearing);
-        lastHighlightedFeature.attributes.bearing = newBearing;
-        drawFOVCone(lastHighlightedFeature);
-    }
-}
-
-window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-    if (!startDateTimeMap[featureLayer.id]) {
-        console.error("Start DateTimeS not set yet for " + featureLayer.id);
-        return;
-    }
-    if (featureLayer.id !== activeLayerId) {
-        return;
-    }
-    var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-    view.whenLayerView(featureLayer).then(function(layerView) {
-        layerView.queryFeatures({
-            where: "DateTimeS = '" + queryDateTimeStr + "'",
-            returnGeometry: true,
-            outFields: ["*"]
-        }).then(function(results) {
-            if (results.features.length > 0) {
-                var feature = results.features[0];
-                clearAndHighlight(feature, featureLayer);
-            } else {
-                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+        function onPlayerStateChange(event) {
+            switch (event.data) {
+                case YT.PlayerState.PLAYING:
+                    checkTimeUpdate(); // Continuously check for updates in the video's current time.
+                    watchBearingChange(); // Start or continue watching for bearing changes.
+                    break;
+                case YT.PlayerState.PAUSED:
+                    console.log("Video paused, maintaining current highlights and FOV."); // Log when video is paused.
+                    break;
+                case YT.PlayerState.ENDED:
+                    clearAllHighlightsAndFOV(); // Clear all highlights and the FOV cone when video ends.
+                    console.log("Video ended, cleared all highlights and FOV."); // Log when the video ends.
+                    break;
+                case YT.PlayerState.BUFFERING:
+                    console.log("Video buffering, adjustments are paused."); // Log when video is buffering.
+                    break;
+                case YT.PlayerState.CUED:
+                    console.log("Video cued, ready to play."); // Log when video is cued and ready.
+                    break;
+                case YT.PlayerState.SEEKING:
+                case YT.PlayerState.SEEKED:
+                    console.log("Video was panned or seeked, checking for new orientation."); // Log when video is seeked or panned.
+                    watchBearingChange(); // Ensure that bearing changes are checked after seeking.
+                    break;
             }
-        }).catch(function(error) {
-            console.error("Error highlighting feature based on DateTimeS:", error);
-        });
-    });
-};
+        }
+
+        function checkTimeUpdate() {
+            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                var currentSecond = Math.floor(player.getCurrentTime());
+                Object.keys(featureLayers).forEach(function(layerId) {
+                    var featureLayer = featureLayers[layerId];
+                    if (featureLayer && featureLayer.id === activeLayerId) {
+                        highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+                    }
+                });
+                setTimeout(checkTimeUpdate, 1000);
+            }
+        }
+
+        function watchBearingChange() {
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties();
+                var currentYaw = ((props.yaw % 360) + 360) % 360;
+
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(function() {
+                    var yawChange = currentYaw - lastValidYaw;
+                    if (Math.abs(yawChange) > 1) {
+                        persistentBearing = (persistentBearing + yawChange + 360) % 360; // Update the persistent bearing
+                        bearingManuallyUpdated = true; // Set the flag when bearing is manually changed
+                        updateFOVConeDirection(persistentBearing);
+                        lastValidYaw = currentYaw;
+                    }
+                }, 100);
+            }
+        }
+
+        function startWatchingBearingChanges() {
+            clearBearingUpdateInterval();
+            bearingUpdateIntervalId = setInterval(watchBearingChange, 100);
+        }
+
+        function clearAllHighlightsAndFOV() {
+            Object.keys(featureLayers).forEach(function(layerId) {
+                clearHighlight(featureLayers[layerId]);
+                fovGraphicsLayer.graphics.removeAll();
+            });
+        }
+
+        function clearAndHighlight(feature, layer) {
+            Object.keys(highlights).forEach(function(layerId) {
+                if (highlights[layerId]) {
+                    highlights[layerId].remove();
+                    highlights[layerId] = null;
+                }
+            });
+
+            activeLayerId = layer.id;
+            if (!bearingManuallyUpdated) { // Check if the bearing was manually updated
+                persistentBearing = feature.attributes.bearing; // Reset to default if not manually updated
+            }
+
+            window.view.whenLayerView(layer).then(function(layerView) {
+                highlights[layer.id] = layerView.highlight(feature);
+                window.drawFOVCone(feature, layerView, persistentBearing); // Pass the persistent bearing
+                lastHighlightedFeature = feature;
+                startWatchingBearingChanges();
+            }).catch(function(error) {
+                console.error("Error in highlighting feature: ", error);
+            });
+        }
+
+        function clearHighlight(layer) {
+            if (highlights[layer.id]) {
+                highlights[layer.id].remove();  // Assuming this removes the highlight from the layer
+                highlights[layer.id] = null;  // Reset the reference to null
+                console.log("Highlight cleared for layer:", layer.id);
+            }
+        }
+
+        function updateFOVConeDirection(newBearing) {
+            if (lastHighlightedFeature) {
+                console.log("Updated Bearing to:", newBearing);
+                lastHighlightedFeature.attributes.bearing = newBearing;
+                drawFOVCone(lastHighlightedFeature);
+            }
+        }
+
+        window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
+            if (!startDateTimeMap[featureLayer.id]) {
+                console.error("Start DateTimeS not set yet for " + featureLayer.id);
+                return;
+            }
+            if (featureLayer.id !== activeLayerId) {
+                return;
+            }
+            var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+            view.whenLayerView(featureLayer).then(function(layerView) {
+                layerView.queryFeatures({
+                    where: "DateTimeS = '" + queryDateTimeStr + "'",
+                    returnGeometry: true,
+                    outFields: ["*"]
+                }).then(function(results) {
+                    if (results.features.length > 0) {
+                        var feature = results.features[0];
+                        clearAndHighlight(feature, featureLayer);
+                    } else {
+                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                    }
+                }).catch(function(error) {
+                    console.error("Error highlighting feature based on DateTimeS:", error);
+                });
+            });
+        };
 
         require([
             "esri/WebMap",
@@ -341,100 +341,100 @@ window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
             }
 
             window.drawFOVCone = function(feature, layerView) {
-    require([
-        "esri/geometry/Polygon",
-        "esri/Graphic"
-    ], function(Polygon, Graphic) {
-        var bearing = feature.attributes.bearing; // Use bearing directly from feature
-        console.log("Bearing for FOV cone: ", bearing);
+                require([
+                    "esri/geometry/Polygon",
+                    "esri/Graphic"
+                ], function(Polygon, Graphic) {
+                    var bearing = feature.attributes.bearing; // Use bearing directly from feature
+                    console.log("Bearing for FOV cone: ", bearing);
 
-        var coneLength = 30; // Length of the cone in meters
-        var coneWidth = 50; // Half angle of the FOV cone in degrees
+                    var coneLength = 30; // Length of the cone in meters
+                    var coneWidth = 50; // Half angle of the FOV cone in degrees
 
-        fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
+                    fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
-        var centerPoint = feature.geometry.clone();
-        console.log("Using Feature Coordinates:", centerPoint.toJSON());
+                    var centerPoint = feature.geometry.clone();
+                    console.log("Using Feature Coordinates:", centerPoint.toJSON());
 
-        var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
-        var polygon = new Polygon({
-            rings: cone,
-            spatialReference: { wkid: 102100 }
-        });
+                    var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
+                    var polygon = new Polygon({
+                        rings: cone,
+                        spatialReference: { wkid: 102100 }
+                    });
 
-        var fovGraphic = new Graphic({
-            geometry: polygon,
-            symbol: {
-                type: "simple-fill",
-                color: [255, 165, 0, 0.3],
-                outline: {
-                    color: [255, 165, 0.2],
-                    width: 1
-                }
+                    var fovGraphic = new Graphic({
+                        geometry: polygon,
+                        symbol: {
+                            type: "simple-fill",
+                            color: [255, 165, 0, 0.3],
+                            outline: {
+                                color: [255, 165, 0.2],
+                                width: 1
+                            }
+                        }
+                    });
+
+                    fovGraphicsLayer.graphics.add(fovGraphic);
+                    console.log("FOV cone drawn with bearing: ", bearing);
+                    console.log("Drawing FOV cone for feature: ", feature);
+                    console.log("Using layer view: ", layerView);
+                });
+            };
+
+            function createCone(centerPoint, bearing, width, length) {
+                var points = [];
+                points.push([centerPoint.x, centerPoint.y]); // Cone Apex
+                var startBearing = bearing - width;
+                var endBearing = bearing + width;
+
+                points.push(calculatePoint(centerPoint, startBearing, length));
+                points.push(calculatePoint(centerPoint, endBearing, length));
+                points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
+
+                return [points];
+            }
+
+            function calculatePoint(center, bearing, distance) {
+                var angleRad = (Math.PI / 180) * bearing;
+                var dx = distance * Math.sin(angleRad);
+                var dy = distance * Math.cos(angleRad);
+                return [center.x + dx, center.y + dy];
             }
         });
 
-        fovGraphicsLayer.graphics.add(fovGraphic);
-        console.log("FOV cone drawn with bearing: ", bearing);
-        console.log("Drawing FOV cone for feature: ", feature);
-        console.log("Using layer view: ", layerView);
-    });
-};
+        document.addEventListener('DOMContentLoaded', function() {
+            var videoWindow = document.querySelector("#videoWindow");
+            var active = false;
+            var initialX, initialY, xOffset = 0, yOffset = 0;
 
-function createCone(centerPoint, bearing, width, length) {
-    var points = [];
-    points.push([centerPoint.x, centerPoint.y]); // Cone Apex
-    var startBearing = bearing - width;
-    var endBearing = bearing + width;
+            document.addEventListener("mousedown", function(e) {
+                if (e.target === videoWindow || videoWindow.contains(e.target)) {
+                    active = true;
+                    initialX = e.clientX - xOffset;
+                    initialY = e.clientY - yOffset;
+                    e.preventDefault();
+                }
+            });
 
-    points.push(calculatePoint(centerPoint, startBearing, length));
-    points.push(calculatePoint(centerPoint, endBearing, length));
-    points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
+            document.addEventListener("mousemove", function(e) {
+                if (active) {
+                    var currentX = e.clientX - initialX;
+                    var currentY = e.clientY - initialY;
 
-    return [points];
-}
+                    xOffset = currentX;
+                    yOffset = currentY;
 
-function calculatePoint(center, bearing, distance) {
-    var angleRad = (Math.PI / 180) * bearing;
-    var dx = distance * Math.sin(angleRad);
-    var dy = distance * Math.cos(angleRad);
-    return [center.x + dx, center.y + dy];
-}
+                    videoWindow.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
+                    e.preventDefault();
+                }
+            });
 
-document.addEventListener('DOMContentLoaded', function() {
-    var videoWindow = document.querySelector("#videoWindow");
-    var active = false;
-    var initialX, initialY, xOffset = 0, yOffset = 0;
-
-    document.addEventListener("mousedown", function(e) {
-        if (e.target === videoWindow || videoWindow.contains(e.target)) {
-            active = true;
-            initialX = e.clientX - xOffset;
-            initialY = e.clientY - yOffset;
-            e.preventDefault();
-        }
-    });
-
-    document.addEventListener("mousemove", function(e) {
-        if (active) {
-            var currentX = e.clientX - initialX;
-            var currentY = e.clientY - initialY;
-
-            xOffset = currentX;
-            yOffset = currentY;
-
-            videoWindow.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
-            e.preventDefault();
-        }
-    });
-
-    document.addEventListener("mouseup", function() {
-        active = false;
-        initialX = xOffset;
-        initialY = yOffset;
-    });
-});
-</script>
+            document.addEventListener("mouseup", function() {
+                active = false;
+                initialX = xOffset;
+                initialY = yOffset;
+            });
+        });
+    </script>
 </body>
 </html>
-
