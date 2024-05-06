@@ -68,6 +68,10 @@
         function onPlayerStateChange(event) {
     switch (event.data) {
         case YT.PlayerState.PLAYING:
+            // Set the initial bearing of the FOV cone to the feature's attribute bearing
+            if (lastHighlightedFeature) {
+                videoBearing = lastHighlightedFeature.attributes.bearing;
+            }
             checkTimeUpdate(); // Start checking for time updates
             watchBearingChange(); // Start checking for bearing changes
             break;
@@ -85,6 +89,7 @@
             break;
     }
 }
+
 
 function watchBearingChange() {
     if (player && player.getSphericalProperties) {
