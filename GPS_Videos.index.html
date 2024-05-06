@@ -75,26 +75,26 @@
         function onPlayerStateChange(event) {
     switch (event.data) {
         case YT.PlayerState.PLAYING:
-            totalYawChange = 0;  // Reset the total yaw change when a new video starts playing
             checkTimeUpdate(); // Start checking for time updates
             watchBearingChange(); // Start checking for bearing changes
             break;
         case YT.PlayerState.PAUSED:
+            console.log("Video paused, maintaining current highlights and FOV.");
+            break;
         case YT.PlayerState.ENDED:
             // Reset the videoBearing to the feature's attribute bearing
             if (lastHighlightedFeature) {
                 videoBearing = lastHighlightedFeature.attributes.bearing;
             }
-            console.log("Video paused or ended, maintaining current highlights and FOV.");
+            console.log("Video ended, resetting highlights and FOV to original bearing.");
             break;
         case YT.PlayerState.SEEKING:
         case YT.PlayerState.SEEKED:
-            totalYawChange = 0;  // Reset the total yaw change when the video is manually panned or seeked
             console.log("Video was manually panned or seeked.");
-            manualPanningActive = true; // This should trigger checks for bearing change
             break;
     }
 }
+
 
 
 
@@ -104,6 +104,9 @@
         var currentYaw = ((props.yaw % 360) + 360) % 360;  // Normalize yaw to ensure it is always positive
 
         console.log("Current Yaw Detected:", currentYaw);  // Log the detected yaw for debugging
+
+        // Always set manualPanningActive to true
+        manualPanningActive = true;
 
         // Update the FOV cone if the current yaw is different from the last recorded yaw
         if (lastYaw !== undefined && currentYaw !== lastYaw) {
@@ -125,6 +128,7 @@
         console.log("Player or spherical properties not available.");
     }
 }
+
 
 
 
