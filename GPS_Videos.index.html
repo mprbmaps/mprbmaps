@@ -164,19 +164,17 @@ function watchBearingChange() {
     });
 
     activeLayerId = layer.id;
-    if (!bearingManuallyUpdated) { // Check if the bearing was manually updated
-        persistentBearing = feature.attributes.bearing; // Reset to default if not manually updated
-    }
 
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
-        window.drawFOVCone(feature, layerView, persistentBearing); // Pass the persistent bearing
+        window.drawFOVCone(feature, layerView, persistentBearing); // Use the persistent bearing
         lastHighlightedFeature = feature;
         startWatchingBearingChanges();
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
         function clearHighlight(layer) {
     if (highlights[layer.id]) {
