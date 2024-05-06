@@ -112,17 +112,17 @@
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
         var currentYaw = ((props.yaw % 360) + 360) % 360;
-        console.log("Checking Yaw:", currentYaw);
+        console.log("Current Yaw:", currentYaw);
 
-        if (manualPanningActive || Math.abs(currentYaw - videoBearing) > 1) {
-            var yawChange = currentYaw - videoBearing;
-            videoBearing = (videoBearing - yawChange + 360) % 360;
-            console.log("Updated video bearing to:", videoBearing);
+        var yawChange = currentYaw - videoBearing;
+        if (Math.abs(yawChange) > 5) {  // Only update if yaw change is significant
+            videoBearing = (videoBearing + yawChange + 360) % 360;
+            console.log("Significant Yaw Change:", yawChange, "Updated Bearing:", videoBearing);
             updateFOVConeDirection(videoBearing);
-            manualPanningActive = false; // Reset the manual panning flag
         }
     }
 }
+
 
 
         function startWatchingBearingChanges() {
@@ -138,28 +138,25 @@
         }
 
         function clearAndHighlight(feature, layer) {
-    // Clear all existing highlights
-    Object.keys(highlights).forEach(function(layerId) {
-        if (highlights[layerId]) {
-            clearHighlight(featureLayers[layerId]);
-        }
-    });
+    clearAllHighlights();
+    clearInterval(watchBearingInterval); // Clear any existing bearing watch interval
 
-    // Now highlight the new feature
     activeLayerId = layer.id;
-    videoBearing = feature.attributes.bearing;
+    videoBearing = feature.attributes.bearing; // Reset bearing to feature's initial bearing
     console.log("Initial bearing set from feature:", videoBearing);
-    manualPanningActive = false;
 
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
         window.drawFOVCone(feature, layerView);
         lastHighlightedFeature = feature;
-        startWatchingBearingChanges(); // Restart bearing updates with clean state
+
+        manualPanningActive = false; // Reset this flag
+        startWatchingBearingChanges(); // Start a new interval for watching bearing changes
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
 
 
