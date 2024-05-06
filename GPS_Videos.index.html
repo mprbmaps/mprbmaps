@@ -57,6 +57,7 @@
         var bearingUpdateIntervalId = null;
         var debounceTimer;
         var lastValidYaw = 0;
+        var bearingManuallyUpdated = false;
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -123,23 +124,21 @@ var lastValidYaw = 0; // To store the last yaw value that resulted in an update
 function watchBearingChange() {
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
-        var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize the yaw value
+        var currentYaw = ((props.yaw % 360) + 360) % 360;
 
-        console.log("Current Yaw:", currentYaw);
-
-        clearTimeout(debounceTimer); // Clear the existing timer
+        clearTimeout(debounceTimer);
         debounceTimer = setTimeout(function() {
             var yawChange = currentYaw - lastValidYaw;
-            if (Math.abs(yawChange) > 1) { // Update only if the change is significant
-                // Reverse the direction of the change
+            if (Math.abs(yawChange) > 1) {
                 videoBearing = (videoBearing - yawChange + 360) % 360;
-                console.log("Adjusted Bearing:", videoBearing, "Due to Yaw Change:", yawChange);
+                bearingManuallyUpdated = true; // Set the flag when bearing is manually changed
                 updateFOVConeDirection(videoBearing);
-                lastValidYaw = currentYaw; // Update the last valid yaw
+                lastValidYaw = currentYaw;
             }
-        }, 100); // Delay to allow for debouncing
+        }, 100);
     }
 }
+
 
 
 
@@ -156,24 +155,24 @@ function watchBearingChange() {
         }
 
         function clearAndHighlight(feature, layer) {
-    // Assuming highlights is a dictionary where keys are layer IDs and values are highlight objects
     Object.keys(highlights).forEach(function(layerId) {
         if (highlights[layerId]) {
-            highlights[layerId].remove();  // Call the remove method on the highlight object
-            highlights[layerId] = null;  // Reset the dictionary entry
+            highlights[layerId].remove();
+            highlights[layerId] = null;
         }
     });
 
-    // Highlight the new feature
     activeLayerId = layer.id;
-    videoBearing = feature.attributes.bearing;
+    if (!bearingManuallyUpdated) {  // Only reset bearing if it hasn't been manually updated
+        videoBearing = feature.attributes.bearing;
+    }
     manualPanningActive = false;
 
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
         window.drawFOVCone(feature, layerView);
         lastHighlightedFeature = feature;
-        startWatchingBearingChanges(); // Start watching bearing changes again
+        startWatchingBearingChanges();
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
