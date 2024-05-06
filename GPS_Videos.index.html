@@ -138,20 +138,25 @@
         }
 
         function clearAndHighlight(feature, layer) {
-    clearAllHighlights();
-    clearInterval(watchBearingInterval); // Clear any existing bearing watch interval
+    // Iterate over all feature layers and clear highlights
+    Object.keys(highlights).forEach(function(layerId) {
+        if (highlights[layerId]) {
+            clearHighlight(featureLayers[layerId]);  // Use the existing clearHighlight function
+            highlights[layerId] = null;  // Ensure the reference is cleared
+        }
+    });
 
+    // Set the new highlight after clearing the old ones
     activeLayerId = layer.id;
-    videoBearing = feature.attributes.bearing; // Reset bearing to feature's initial bearing
+    videoBearing = feature.attributes.bearing;
     console.log("Initial bearing set from feature:", videoBearing);
+    manualPanningActive = false;
 
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
         window.drawFOVCone(feature, layerView);
         lastHighlightedFeature = feature;
-
-        manualPanningActive = false; // Reset this flag
-        startWatchingBearingChanges(); // Start a new interval for watching bearing changes
+        startWatchingBearingChanges();  // Restart bearing updates with clean state
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
@@ -160,13 +165,15 @@
 
 
 
+
         function clearHighlight(layer) {
-            console.log("Clearing highlight for layer:", layer.id);
-            if (highlights[layer.id]) {
-                highlights[layer.id].remove();
-                highlights[layer.id] = null;
-            }
-        }
+    if (highlights[layer.id]) {
+        highlights[layer.id].remove();  // Assuming this removes the highlight from the layer
+        highlights[layer.id] = null;  // Reset the reference to null
+        console.log("Highlight cleared for layer:", layer.id);
+    }
+}
+
 
         function updateFOVConeDirection(newBearing) {
             if (lastHighlightedFeature) {
