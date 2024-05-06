@@ -68,17 +68,15 @@
         function onPlayerStateChange(event) {
     switch (event.data) {
         case YT.PlayerState.PLAYING:
-            checkTimeUpdate();
-            watchBearingChange(); // Continue monitoring bearing changes
+            watchBearingChange(); // Continuously monitor bearing changes while playing
             break;
         case YT.PlayerState.PAUSED:
             console.log("Video paused, maintaining current highlights and FOV.");
-            manualPanningActive = false; // Ensure we stop considering manual panning when paused
             break;
         case YT.PlayerState.SEEKING:
         case YT.PlayerState.SEEKED:
             console.log("Video was panned, updating FOV cone.");
-            manualPanningActive = true; // This flags that the next update to bearing should consider the video panning
+            manualPanningActive = true; // Flag as true when the user seeks the video
             break;
         case YT.PlayerState.ENDED:
             clearAllHighlightsAndFOV();
@@ -107,16 +105,18 @@
 
         console.log("Current Yaw:", currentYaw);
 
+        // Check if there is a significant yaw change and manual panning is active
         if (manualPanningActive && Math.abs(currentYaw - videoBearing) > 1) {
             console.log("Manual panning detected, updating bearing.");
 
             videoBearing = currentYaw;
-            updateFOVConeDirection(videoBearing);
+            updateFOVConeDirection(videoBearing); // Ensure we're updating the FOV direction whenever there's a significant change
         }
 
         setTimeout(watchBearingChange, 100);
     }
 }
+
 
 
 
