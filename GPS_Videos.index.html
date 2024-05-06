@@ -66,58 +66,57 @@
         }
 
         function onPlayerStateChange(event) {
-    switch (event.data) {
-        case YT.PlayerState.PLAYING:
-            // Set the initial bearing of the FOV cone to the feature's attribute bearing
-            if (lastHighlightedFeature) {
-                videoBearing = lastHighlightedFeature.attributes.bearing;
+            switch (event.data) {
+                case YT.PlayerState.PLAYING:
+                    // Set the initial bearing of the FOV cone to the feature's attribute bearing
+                    if (lastHighlightedFeature) {
+                        videoBearing = lastHighlightedFeature.attributes.bearing;
+                    }
+                    checkTimeUpdate(); // Start checking for time updates
+                    watchBearingChange(); // Start checking for bearing changes
+                    break;
+                case YT.PlayerState.PAUSED:
+                    console.log("Video paused, maintaining current highlights and FOV.");
+                    break;
+                case YT.PlayerState.SEEKING:
+                case YT.PlayerState.SEEKED:
+                    console.log("Video was manually panned or seeked.");
+                    manualPanningActive = true; // This should trigger checks for bearing change
+                    break;
+                case YT.PlayerState.ENDED:
+                    clearAllHighlightsAndFOV();
+                    manualPanningActive = false; // Reset the manual panning flag
+                    break;
             }
-            checkTimeUpdate(); // Start checking for time updates
-            watchBearingChange(); // Start checking for bearing changes
-            break;
-        case YT.PlayerState.PAUSED:
-            console.log("Video paused, maintaining current highlights and FOV.");
-            break;
-        case YT.PlayerState.SEEKING:
-        case YT.PlayerState.SEEKED:
-            console.log("Video was manually panned or seeked.");
-            manualPanningActive = true; // This should trigger checks for bearing change
-            break;
-        case YT.PlayerState.ENDED:
-            clearAllHighlightsAndFOV();
-            manualPanningActive = false; // Reset the manual panning flag
-            break;
-    }
-}
-
-
-function watchBearingChange() {
-    if (player && player.getSphericalProperties) {
-        var props = player.getSphericalProperties();
-        var currentYaw = ((props.yaw % 360) + 360) % 360;  // Normalize yaw to ensure it is always positive
-
-        console.log("Current Yaw Detected:", currentYaw);  // Log the detected yaw for debugging
-
-        // Update the FOV cone if there's a significant change in yaw and manual panning is active
-        if (manualPanningActive || Math.abs(currentYaw - videoBearing) > 1) {
-            console.log("Yaw change detected. Updating FOV cone direction to:", currentYaw);
-
-            // Add the feature's initial bearing to the current yaw of the video
-            if (lastHighlightedFeature) {
-                videoBearing = lastHighlightedFeature.attributes.bearing + currentYaw;
-            } else {
-                videoBearing = currentYaw;
-            }
-            
-            updateFOVConeDirection(videoBearing);
-            manualPanningActive = false; // Reset the manual panning flag
         }
 
-        setTimeout(watchBearingChange, 100);  // Continue to check every 100 milliseconds
-    } else {
-        console.log("Player or spherical properties not available.");
-    }
-}
+        function watchBearingChange() {
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties();
+                var currentYaw = ((props.yaw % 360) + 360) % 360;  // Normalize yaw to ensure it is always positive
+
+                console.log("Current Yaw Detected:", currentYaw);  // Log the detected yaw for debugging
+
+                // Update the FOV cone if there's a significant change in yaw and manual panning is active
+                if (manualPanningActive || Math.abs(currentYaw - videoBearing) > 1) {
+                    console.log("Yaw change detected. Updating FOV cone direction to:", currentYaw);
+
+                    // Subtract the current yaw from the feature's initial bearing
+                    if (lastHighlightedFeature) {
+                        videoBearing = lastHighlightedFeature.attributes.bearing - currentYaw;
+                    } else {
+                        videoBearing = -currentYaw;
+                    }
+                    
+                    updateFOVConeDirection(videoBearing);
+                    manualPanningActive = false; // Reset the manual panning flag
+                }
+
+                setTimeout(watchBearingChange, 100);  // Continue to check every 100 milliseconds
+            } else {
+                console.log("Player or spherical properties not available.");
+            }
+        }
 
 
 
