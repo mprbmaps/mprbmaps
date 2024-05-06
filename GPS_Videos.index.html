@@ -112,6 +112,13 @@
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
         var currentYaw = ((props.yaw % 360) + 360) % 360;
+        
+        // Check for valid yaw values; consider a default if NaN
+        if (isNaN(currentYaw)) {
+            console.log("Invalid yaw data");
+            return;  // Skip processing if yaw is NaN
+        }
+
         console.log("Current Yaw:", currentYaw);
 
         var yawChange = currentYaw - videoBearing;
@@ -122,6 +129,7 @@
         }
     }
 }
+
 
 
 
@@ -138,29 +146,32 @@
         }
 
         function clearAndHighlight(feature, layer) {
-    // Iterate over all feature layers and clear highlights
+    // Check and clear all highlights
     Object.keys(highlights).forEach(function(layerId) {
-        if (highlights[layerId]) {
-            clearHighlight(featureLayers[layerId]);  // Use the existing clearHighlight function
-            highlights[layerId] = null;  // Ensure the reference is cleared
+        if (highlights[layerId] && featureLayers[layerId]) {
+            clearHighlight(featureLayers[layerId]);
+            highlights[layerId] = null;
+        } else {
+            console.log("No valid layer found for layerId:", layerId);  // Add logging to debug
         }
     });
 
-    // Set the new highlight after clearing the old ones
+    // Set new highlight and update FOV
     activeLayerId = layer.id;
     videoBearing = feature.attributes.bearing;
-    console.log("Initial bearing set from feature:", videoBearing);
     manualPanningActive = false;
 
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
         window.drawFOVCone(feature, layerView);
         lastHighlightedFeature = feature;
-        startWatchingBearingChanges();  // Restart bearing updates with clean state
+        console.log("Feature highlighted and FOV cone updated.");
+        startWatchingBearingChanges();
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
 
 
