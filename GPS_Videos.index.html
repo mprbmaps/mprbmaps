@@ -101,27 +101,27 @@
         function watchBearingChange() {
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
-        var currentYaw = ((props.yaw % 360) % 360); // Normalize yaw
+        var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize yaw in the range [0, 360)
+
         console.log("Current Yaw:", currentYaw);
 
-        if (currentYaw > 0.1 || currentYaw < -0.1) { // Ensure there's a meaningful yaw change
-            if (manualPanningActive || Math.abs(currentYaw - videoBearing) > 1) {
-                console.log("Yaw changed significantly or manual panning detected.");
-                
-                // Calculate the change in yaw, adjusting for potential inversion
-                var yawChange = videoBearing - currentYaw;
+        if (Math.abs(currentYaw - videoBearing) > 1) { // Check for meaningful yaw change
+            console.log("Yaw changed significantly or manual panning detected.");
 
-                // Update the bearing by subtracting the yaw change
-                videoBearing = (videoBearing - yawChange + 360) % 360;
+            // Calculate the change in yaw, adding up the change correctly
+            var yawChange = currentYaw - videoBearing;
 
-                updateFOVConeDirection(videoBearing);
-                manualPanningActive = false;
-            }
+            // Update the bearing by adding the yaw change and normalizing
+            videoBearing = (videoBearing + yawChange + 360) % 360;
+
+            updateFOVConeDirection(videoBearing);
+            manualPanningActive = false;
         }
 
         setTimeout(watchBearingChange, 100);
     }
 }
+
 
         function clearAllHighlightsAndFOV() {
             Object.keys(featureLayers).forEach(function(layerId) {
