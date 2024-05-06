@@ -54,6 +54,7 @@
         var lastHighlightedFeature = null;
         var videoBearingUpdated = false; // Flag to track if the bearing was manually updated
         var manualPanningActive = false;  // Flag to determine if manual panning has occurred
+        var watchBearingInterval;
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -104,19 +105,18 @@
         var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize yaw
         console.log("Current Yaw:", currentYaw);
 
-        if (manualPanningActive || Math.abs(currentYaw - videoBearing) > 1) { // Check if there's a significant yaw change
+        if (manualPanningActive || Math.abs(currentYaw - videoBearing) > 1) {
             console.log("Yaw changed significantly or manual panning detected.");
 
             var yawChange = currentYaw - videoBearing;
             videoBearing = (videoBearing - yawChange + 360) % 360;
 
             updateFOVConeDirection(videoBearing);
-            manualPanningActive = false;
+            manualPanningActive = false; // Reset the manual panning flag
         }
-
-        setTimeout(watchBearingChange, 100);
     }
 }
+
 
 
 
@@ -137,17 +137,22 @@
     });
 
     activeLayerId = layer.id;
-    videoBearing = feature.attributes.bearing; // Reset to initial bearing from feature
-    manualPanningActive = false; // Reset manual panning flag
+    videoBearing = feature.attributes.bearing; // Set the initial bearing value
+    videoBearingUpdated = false; // Reset flag when a new feature is clicked
+    manualPanningActive = false; // Ensure no residual panning influence
+    clearInterval(watchBearingInterval); // Clear existing bearing watch interval
 
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
         window.drawFOVCone(feature, layerView);
         lastHighlightedFeature = feature; // Store the last highlighted feature
+        // Restart bearing watching with a fresh state
+        watchBearingInterval = setInterval(watchBearingChange, 100);
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
 
         function clearHighlight(layer) {
