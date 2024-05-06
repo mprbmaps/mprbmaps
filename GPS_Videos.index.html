@@ -105,19 +105,19 @@
 
         console.log("Current Yaw:", currentYaw);
 
-        if (Math.abs(currentYaw - videoBearing) > 1) { // Check for a meaningful yaw change
-            console.log("Yaw changed significantly or manual panning detected.");
+        // Only update if there's a meaningful change and if manual panning is active
+        if (manualPanningActive && Math.abs(currentYaw - videoBearing) > 1) {
+            console.log("Yaw changed significantly.");
 
-            // Directly use the normalized currentYaw as the new video bearing
             videoBearing = currentYaw;
-
             updateFOVConeDirection(videoBearing);
-            manualPanningActive = false;
+            manualPanningActive = false;  // Reset the flag after updating
         }
 
         setTimeout(watchBearingChange, 100);
     }
 }
+
 
 
 
@@ -129,7 +129,6 @@
         }
 
         function clearAndHighlight(feature, layer) {
-    // Make sure existing highlights are cleared
     Object.keys(highlights).forEach(function(layerId) {
         if (highlights[layerId]) {
             highlights[layerId].remove();
@@ -138,17 +137,17 @@
     });
 
     activeLayerId = layer.id;
-    videoBearing = feature.attributes.bearing; // Correctly set the initial bearing value from the feature's attribute
-    videoBearingUpdated = false; // Reset flag when a new feature is clicked
+    videoBearing = feature.attributes.bearing; // Set the initial bearing from feature's attribute
 
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
-        window.drawFOVCone(feature, layerView); // Make sure the FOV cone is drawn using the correct bearing
+        window.drawFOVCone(feature, layerView); // Ensure FOV cone uses the correct bearing
         lastHighlightedFeature = feature; // Store the last highlighted feature
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
 
         function clearHighlight(layer) {
