@@ -214,34 +214,45 @@ function watchBearingChange() {
             }
         }
 
-        window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-            if (!startDateTimeMap[featureLayer.id]) {
-                console.error("Start DateTimeS not set yet for " + featureLayer.id);
-                return;
+        function highlightFeatureAtTime(currentSecond, featureLayer, view) {
+    if (!startDateTimeMap[featureLayer.id]) {
+        console.error("Start DateTimeS not set yet for " + featureLayer.id);
+        return;
+    }
+
+    if (featureLayer.id !== activeLayerId) {
+        return;
+    }
+
+    var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+
+    view.whenLayerView(featureLayer).then(function(layerView) {
+        // Clear previous highlights before setting a new one
+        if (highlights[featureLayer.id]) {
+            highlights[featureLayer.id].remove();
+            highlights[featureLayer.id] = null;
+        }
+
+        layerView.queryFeatures({
+            where: "DateTimeS = '" + queryDateTimeStr + "'",
+            returnGeometry: true,
+            outFields: ["*"]
+        }).then(function(results) {
+            if (results.features.length > 0) {
+                var feature = results.features[0];
+                highlights[featureLayer.id] = layerView.highlight(feature);
+                window.drawFOVCone(feature, layerView, persistentBearing); // Assuming drawFOVCone is properly updating the FOV cone
+            } else {
+                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
             }
-            if (featureLayer.id !== activeLayerId) {
-                return;
-            }
-            var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-            view.whenLayerView(featureLayer).then(function(layerView) {
-                layerView.queryFeatures({
-                    where: "DateTimeS = '" + queryDateTimeStr + "'",
-                    returnGeometry: true,
-                    outFields: ["*"]
-                }).then(function(results) {
-                    if (results.features.length > 0) {
-                        var feature = results.features[0];
-                        clearAndHighlight(feature, featureLayer);
-                    } else {
-                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                    }
-                }).catch(function(error) {
-                    console.error("Error highlighting feature based on DateTimeS:", error);
-                });
-            });
-        };
+        }).catch(function(error) {
+            console.error("Error highlighting feature based on DateTimeS:", error);
+        });
+    });
+}
+
 
         require([
             "esri/WebMap",
