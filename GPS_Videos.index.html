@@ -55,6 +55,7 @@
         var videoBearingUpdated = false; // Flag to track if the bearing was manually updated
         var manualPanningActive = false;  // Flag to determine if manual panning has occurred
         var watchBearingInterval;
+        var bearingUpdateIntervalID = null;
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -65,6 +66,13 @@
                 }
             });
         }
+
+        function clearBearingUpdateInterval() {
+    if (bearingUpdateIntervalId !== null) {
+        clearInterval(bearingUpdateIntervalId);
+        bearingUpdateIntervalId = null;
+    }
+}
 
         function onPlayerStateChange(event) {
             switch (event.data) {
@@ -103,19 +111,22 @@
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
         var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize yaw
-        console.log("Current Yaw:", currentYaw);
-
         if (manualPanningActive || Math.abs(currentYaw - videoBearing) > 1) {
-            console.log("Yaw changed significantly or manual panning detected.");
-
             var yawChange = currentYaw - videoBearing;
             videoBearing = (videoBearing - yawChange + 360) % 360;
 
+            console.log("Updated video bearing to:", videoBearing);
             updateFOVConeDirection(videoBearing);
-            manualPanningActive = false; // Reset the manual panning flag
+            manualPanningActive = false;
         }
     }
 }
+
+function startWatchingBearingChanges() {
+    clearBearingUpdateInterval();
+    bearingUpdateIntervalId = setInterval(watchBearingChange, 100);
+}
+
 
 
 
@@ -129,6 +140,7 @@
         }
 
         function clearAndHighlight(feature, layer) {
+    // Clear existing highlights
     Object.keys(highlights).forEach(function(layerId) {
         if (highlights[layerId]) {
             highlights[layerId].remove();
@@ -136,22 +148,22 @@
         }
     });
 
+    // Set initial conditions
     activeLayerId = layer.id;
-    videoBearing = feature.attributes.bearing; // Set the initial bearing value
-    videoBearingUpdated = false; // Reset flag when a new feature is clicked
-    manualPanningActive = false; // Ensure no residual panning influence
-    clearInterval(watchBearingInterval); // Clear existing bearing watch interval
+    videoBearing = feature.attributes.bearing;
+    manualPanningActive = false;
 
+    // Highlight new feature and reset video bearing
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
         window.drawFOVCone(feature, layerView);
-        lastHighlightedFeature = feature; // Store the last highlighted feature
-        // Restart bearing watching with a fresh state
-        watchBearingInterval = setInterval(watchBearingChange, 100);
+        lastHighlightedFeature = feature;
+        startWatchingBearingChanges();  // Restart bearing updates with clean state
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
 
 
