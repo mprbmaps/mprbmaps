@@ -121,16 +121,12 @@ function updateFOVConeDirection(newBearing) {
         var yawChange = newBearing - lastHighlightedFeature.attributes.bearing;
 
         // Normalize the yaw change to ensure it's within the range [-180, 180]
-        if (yawChange > 180) {
-            yawChange -= 360;
-        } else if (yawChange < -180) {
-            yawChange += 360;
-        }
+        yawChange = (yawChange + 540) % 360 - 180;
 
         // Update the bearing of the last highlighted feature
         lastHighlightedFeature.attributes.bearing = newBearing;
 
-        // Update the FOV cone direction by adding the normalized yaw change
+        // Update the FOV cone direction by adding the yaw change
         var updatedBearing = (lastHighlightedFeature.attributes.bearing + yawChange + 360) % 360;
         lastHighlightedFeature.attributes.bearing = updatedBearing;
 
@@ -139,6 +135,7 @@ function updateFOVConeDirection(newBearing) {
         console.log("FOV cone direction updated to:", updatedBearing);
     }
 }
+
 
 
 
