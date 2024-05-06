@@ -68,23 +68,32 @@
         function onPlayerStateChange(event) {
     switch (event.data) {
         case YT.PlayerState.PLAYING:
-            watchBearingChange();
+            manualPanningActive = false; // Ensure manual panning is disabled when playback starts
+            checkTimeUpdate(); // Start checking for time updates to adjust highlights and FOV
             break;
         case YT.PlayerState.PAUSED:
             console.log("Video paused, maintaining current highlights and FOV.");
-            manualPanningActive = false; // Reset on pause
             break;
         case YT.PlayerState.SEEKING:
+            console.log("Video is seeking.");
+            manualPanningActive = true; // Enable manual panning flag when user is seeking
+            break;
         case YT.PlayerState.SEEKED:
-            console.log("Video was panned, updating FOV cone.");
-            manualPanningActive = true; // Assume manual interaction on seeking
+            console.log("Video seeked to a new position, updating FOV cone.");
+            manualPanningActive = true; // Keep manual panning enabled after seeking
+            checkTimeUpdate(); // Check time update to ensure highlights and FOV cones are adjusted post-seek
             break;
         case YT.PlayerState.ENDED:
+            console.log("Video ended.");
             clearAllHighlightsAndFOV();
-            manualPanningActive = false; // Reset on video end
+            manualPanningActive = false; // Reset manual panning on video end
+            break;
+        default:
+            // Handle other states if necessary
             break;
     }
 }
+
 
 
         function watchBearingChange() {
@@ -174,17 +183,18 @@ function updateFOVConeDirection(newBearing) {
 
 
         function checkTimeUpdate() {
-            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
-                var currentSecond = Math.floor(player.getCurrentTime());
-                Object.keys(featureLayers).forEach(function(layerId) {
-                    var featureLayer = featureLayers[layerId];
-                    if (featureLayer && featureLayer.id === activeLayerId) {
-                        highlightFeatureAtTime(currentSecond, featureLayer, window.view);
-                    }
-                });
-                setTimeout(checkTimeUpdate, 1000);
+    if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+        var currentSecond = Math.floor(player.getCurrentTime());
+        Object.keys(featureLayers).forEach(function(layerId) {
+            var featureLayer = featureLayers[layerId];
+            if (featureLayer && featureLayer.id === activeLayerId) {
+                highlightFeatureAtTime(currentSecond, featureLayer, window.view);
             }
-        }
+        });
+        setTimeout(checkTimeUpdate, 1000); // Ensure this keeps running every second
+    }
+}
+
 
         function highlightFeatureAtTime(currentSecond, featureLayer, view) {
     if (!startDateTimeMap[featureLayer.id]) {
@@ -204,11 +214,13 @@ function updateFOVConeDirection(newBearing) {
         }).then(function(results) {
             if (results.features.length > 0) {
                 var feature = results.features[0];
-                if (lastHighlightedFeature && lastHighlightedFeature !== feature) {
+                if (lastHighlightedFeature !== feature) {
                     clearAndHighlight(feature, featureLayer);
                 }
             } else {
                 console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                // Optionally clear highlights if no corresponding feature is found
+                // clearHighlights();
             }
         }).catch(function(error) {
             console.error("Error highlighting feature based on DateTimeS:", error);
