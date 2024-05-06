@@ -126,19 +126,19 @@ function watchBearingChange() {
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
         var currentYaw = ((props.yaw % 360) + 360) % 360;
-
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(function() {
             var yawChange = currentYaw - lastValidYaw;
-            if (Math.abs(yawChange) > 1) {
-                persistentBearing = (persistentBearing - yawChange + 360) % 360; // Update the persistent bearing
-                bearingManuallyUpdated = true; // Set the flag when bearing is manually changed
+            if (Math.abs(yawChange) > 1) { // Lower threshold for minimal movement
+                persistentBearing = (persistentBearing - yawChange + 360) % 360;
+                bearingManuallyUpdated = true; // Flag set when bearing is changed manually
                 updateFOVConeDirection(persistentBearing);
-                lastValidYaw = currentYaw;
+                lastValidYaw = currentYaw; // Update the last valid yaw
             }
-        }, 100);
+        }, 100); // Reduced delay for responsiveness
     }
 }
+
 
 
 
@@ -164,16 +164,20 @@ function watchBearingChange() {
     });
 
     activeLayerId = layer.id;
+    // Only reset the persistentBearing if there hasn't been a manual update
+    if (!bearingManuallyUpdated) {
+        persistentBearing = feature.attributes.bearing;
+    }
 
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
-        window.drawFOVCone(feature, layerView, persistentBearing); // Use the persistent bearing
+        window.drawFOVCone(feature, layerView, persistentBearing); // Use persistent bearing
         lastHighlightedFeature = feature;
-        startWatchingBearingChanges();
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
 
         function clearHighlight(layer) {
