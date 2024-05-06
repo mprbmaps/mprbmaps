@@ -68,31 +68,23 @@
         function onPlayerStateChange(event) {
     switch (event.data) {
         case YT.PlayerState.PLAYING:
-            manualPanningActive = false; // Ensure manual panning is disabled when playback starts
-            checkTimeUpdate(); // Start checking for time updates to adjust highlights and FOV
+            watchBearingChange(); // Start checking for bearing changes
             break;
         case YT.PlayerState.PAUSED:
             console.log("Video paused, maintaining current highlights and FOV.");
             break;
         case YT.PlayerState.SEEKING:
-            console.log("Video is seeking.");
-            manualPanningActive = true; // Enable manual panning flag when user is seeking
-            break;
         case YT.PlayerState.SEEKED:
-            console.log("Video seeked to a new position, updating FOV cone.");
-            manualPanningActive = true; // Keep manual panning enabled after seeking
-            checkTimeUpdate(); // Check time update to ensure highlights and FOV cones are adjusted post-seek
+            console.log("Video was manually panned or seeked.");
+            manualPanningActive = true; // This should trigger checks for bearing change
             break;
         case YT.PlayerState.ENDED:
-            console.log("Video ended.");
             clearAllHighlightsAndFOV();
-            manualPanningActive = false; // Reset manual panning on video end
-            break;
-        default:
-            // Handle other states if necessary
+            manualPanningActive = false; // Ensure this flag is reset when the video ends
             break;
     }
 }
+
 
 
 
@@ -103,9 +95,9 @@
 
         console.log("Current Yaw Detected:", currentYaw);  // Log the detected yaw for debugging
 
-        // Check for significant changes in yaw and ensure manual panning is active
+        // Update the FOV cone if there's a significant change in yaw and manual panning is active
         if (manualPanningActive && Math.abs(currentYaw - videoBearing) > 1) {
-            console.log("Significant yaw change detected. Updating FOV cone direction to:", currentYaw);
+            console.log("Significant yaw change detected from manual panning. Updating FOV cone direction to:", currentYaw);
 
             videoBearing = currentYaw;
             updateFOVConeDirection(videoBearing);
@@ -116,6 +108,7 @@
         console.log("Player or spherical properties not available.");
     }
 }
+
 
 
 
