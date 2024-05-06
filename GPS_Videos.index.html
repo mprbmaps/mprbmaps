@@ -104,22 +104,20 @@
         var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize yaw
         console.log("Current Yaw:", currentYaw);
 
-        if (manualPanningActive || Math.abs(currentYaw - videoBearing) > 1) { // Check if manual panning is active or there's a significant yaw change
+        if (manualPanningActive || Math.abs(currentYaw - videoBearing) > 1) { // Check if there's a significant yaw change
             console.log("Yaw changed significantly or manual panning detected.");
 
-            // Calculate the change in yaw
             var yawChange = currentYaw - videoBearing;
-
-            // Since yaw increases as you turn left, which should decrease bearing, subtract yaw change from video bearing
             videoBearing = (videoBearing - yawChange + 360) % 360;
 
             updateFOVConeDirection(videoBearing);
-            manualPanningActive = false; // Reset the manual panning flag after updating
+            manualPanningActive = false;
         }
 
         setTimeout(watchBearingChange, 100);
     }
 }
+
 
 
 
@@ -131,25 +129,26 @@
         }
 
         function clearAndHighlight(feature, layer) {
-            Object.keys(highlights).forEach(function(layerId) {
-                if (highlights[layerId]) {
-                    highlights[layerId].remove();
-                    highlights[layerId] = null;
-                }
-            });
-
-            activeLayerId = layer.id;
-            videoBearing = feature.attributes.bearing; // Set the initial bearing value
-            videoBearingUpdated = false; // Reset flag when a new feature is clicked
-
-            window.view.whenLayerView(layer).then(function(layerView) {
-                highlights[layer.id] = layerView.highlight(feature);
-                window.drawFOVCone(feature, layerView);
-                lastHighlightedFeature = feature; // Store the last highlighted feature
-            }).catch(function(error) {
-                console.error("Error in highlighting feature: ", error);
-            });
+    Object.keys(highlights).forEach(function(layerId) {
+        if (highlights[layerId]) {
+            highlights[layerId].remove();
+            highlights[layerId] = null;
         }
+    });
+
+    activeLayerId = layer.id;
+    videoBearing = feature.attributes.bearing; // Reset to initial bearing from feature
+    manualPanningActive = false; // Reset manual panning flag
+
+    window.view.whenLayerView(layer).then(function(layerView) {
+        highlights[layer.id] = layerView.highlight(feature);
+        window.drawFOVCone(feature, layerView);
+        lastHighlightedFeature = feature; // Store the last highlighted feature
+    }).catch(function(error) {
+        console.error("Error in highlighting feature: ", error);
+    });
+}
+
 
         function clearHighlight(layer) {
             console.log("Clearing highlight for layer:", layer.id);
