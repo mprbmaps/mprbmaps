@@ -78,19 +78,26 @@
         }
 
         function onPlayerStateChange(event) {
-    console.log("Player state changed:", event.data);  // Log every state change for clarity
+    console.log("Player state changed to:", event.data); // Log each state change for better tracking
     switch (event.data) {
         case YT.PlayerState.PLAYING:
             console.log("Video is now playing.");
-            checkTimeUpdate();  // Continuously check for updates in the video's current time.
-            watchBearingChange();  // Start or continue watching for bearing changes.
+            checkTimeUpdate(); // Continuously check for updates in the video's current time.
+            // Set up a continuous check for bearing changes only when the video is playing
+            if (!bearingUpdateIntervalId) {
+                bearingUpdateIntervalId = setInterval(watchBearingChange, 100); // Call every 100ms to check for bearing changes
+            }
             break;
         case YT.PlayerState.PAUSED:
             console.log("Video paused, maintaining current highlights and FOV."); // Log when video is paused.
+            clearInterval(bearingUpdateIntervalId); // Stop the bearing update checks when video is paused
+            bearingUpdateIntervalId = null;
             break;
         case YT.PlayerState.ENDED:
             console.log("Video ended, clearing all highlights and FOV."); // Log when the video ends.
             clearAllHighlightsAndFOV(); // Clear all highlights and the FOV cone when video ends.
+            clearInterval(bearingUpdateIntervalId); // Also stop the bearing checks
+            bearingUpdateIntervalId = null;
             break;
         case YT.PlayerState.BUFFERING:
             console.log("Video buffering, adjustments are paused."); // Log when video is buffering.
@@ -103,13 +110,14 @@
             break;
         case YT.PlayerState.SEEKED:
             console.log("Video was panned or seeked, updating bearing."); // Log when video is seeked or panned.
-            watchBearingChange(); // Ensure that bearing changes are checked after seeking.
+            watchBearingChange(); // Ensure that bearing changes are checked immediately after seeking.
             break;
         default:
-            console.log("Unhandled player state change:", event.data); // Log any unhandled states.
+            console.log("Unhandled player state change:", event.data); // Log any unhandled states for further diagnosis.
             break;
     }
 }
+
 
 
 
@@ -134,19 +142,25 @@ var lastValidYaw = 0; // To store the last yaw value that resulted in an update
 function watchBearingChange() {
     if (player && typeof player.getSphericalProperties === 'function') {
         var props = player.getSphericalProperties();
-        console.log("Spherical properties:", props);
+        console.log("Spherical properties:", props); // Continuously log properties for debugging
 
         var currentYaw = ((props.yaw % 360) + 360) % 360;
-        console.log("Normalized currentYaw:", currentYaw);
+        console.log("Normalized currentYaw:", currentYaw); // Log to confirm dynamic changes
 
-        // Force a bearing update for testing
-        persistentBearing = (persistentBearing + 10 + 360) % 360;  // Arbitrarily adjust the bearing by 10 degrees
-        updateFOVConeDirection(persistentBearing);
-        console.log("Forced bearing update to:", persistentBearing);
+        if (Math.abs(currentYaw - lastValidYaw) > 1) { // Confirm significant change before updating
+            persistentBearing = (persistentBearing + currentYaw - lastValidYaw + 360) % 360;
+            updateFOVConeDirection(persistentBearing);
+            console.log("Updated Bearing to:", persistentBearing);
+            lastValidYaw = currentYaw; // Update this to only adjust on changes
+        }
     } else {
         console.log("Player is not ready or getSphericalProperties is not available.");
     }
 }
+
+// Ensure this function is called continuously while the video is playing
+setInterval(watchBearingChange, 100);  // Call every 100ms to check for changes
+
 
 
 
