@@ -94,8 +94,8 @@
 
         console.log("Current Yaw:", currentYaw);
 
-        // Update the FOV cone only if there's a significant yaw change and it's not zero
-        if (manualPanningActive && currentYaw !== 0 && Math.abs(currentYaw - videoBearing) > 1) {
+        // Only update if there's a meaningful yaw change and manual panning is active
+        if (manualPanningActive && Math.abs(currentYaw - videoBearing) > 1) {
             console.log("Updating FOV cone direction based on manual panning.");
 
             videoBearing = currentYaw;
@@ -105,6 +105,15 @@
         setTimeout(watchBearingChange, 100);
     }
 }
+
+function updateFOVConeDirection(newBearing) {
+    if (lastHighlightedFeature) {
+        console.log("Updated Bearing to:", newBearing);
+        lastHighlightedFeature.attributes.bearing = newBearing;
+        drawFOVCone(lastHighlightedFeature);
+    }
+}
+
 
 
 
@@ -125,28 +134,33 @@
         }
 
         function clearAndHighlight(feature, layer) {
+    // First, remove highlights from all other layers except the current one
     Object.keys(highlights).forEach(function(layerId) {
-        if (highlights[layerId]) {
+        if (highlights[layerId] && layerId !== layer.id) {
             highlights[layerId].remove();
             highlights[layerId] = null;
         }
     });
 
+    // Update active layer and video bearing only if not manually interacting
     activeLayerId = layer.id;
-    if (!manualPanningActive) {  // Only update bearing from features if not manually panning
-        videoBearing = feature.attributes.bearing;  // Set the initial bearing value
+    if (!manualPanningActive) {
+        videoBearing = feature.attributes.bearing;
     }
-    videoBearingUpdated = false;  // Reset flag when a new feature is clicked
 
-    fovGraphicsLayer.graphics.removeAll();  // Clear the previous FOV cone
+    // Highlight the new feature
     window.view.whenLayerView(layer).then(function(layerView) {
+        if (highlights[layer.id]) {
+            highlights[layer.id].remove();
+        }
         highlights[layer.id] = layerView.highlight(feature);
-        window.drawFOVCone(feature, layerView);  // Ensure FOV cone uses the correct bearing
-        lastHighlightedFeature = feature;  // Store the last highlighted feature
+        window.drawFOVCone(feature, layerView);
+        lastHighlightedFeature = feature;
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
 
         function updateFOVConeDirection(newBearing) {
