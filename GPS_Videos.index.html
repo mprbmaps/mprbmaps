@@ -94,11 +94,12 @@ function watchBearingChange() {
         console.log("Current Yaw Detected:", currentYaw);  // Log the detected yaw for debugging
 
         // Update the FOV cone if there's a significant change in yaw and manual panning is active
-        if (manualPanningActive && Math.abs(currentYaw - videoBearing) > 1) {
-            console.log("Significant yaw change detected from manual panning. Updating FOV cone direction to:", currentYaw);
+        if (manualPanningActive || Math.abs(currentYaw - videoBearing) > 1) {
+            console.log("Yaw change detected. Updating FOV cone direction to:", currentYaw);
 
             videoBearing = currentYaw;
             updateFOVConeDirection(videoBearing);
+            manualPanningActive = false; // Reset the manual panning flag
         }
 
         setTimeout(watchBearingChange, 100);  // Continue to check every 100 milliseconds
@@ -106,6 +107,7 @@ function watchBearingChange() {
         console.log("Player or spherical properties not available.");
     }
 }
+
 
 
 
