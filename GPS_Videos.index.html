@@ -66,51 +66,50 @@
         }
 
         function onPlayerStateChange(event) {
-            switch (event.data) {
-                case YT.PlayerState.PLAYING:
-                    checkTimeUpdate();
-                    watchBearingChange();
-                    break;
-                case YT.PlayerState.PAUSED:
-                    console.log("Video paused, maintaining current highlights and FOV.");
-                    manualPanningActive = false; // Reset manual panning on pause
-                    break;
-                case YT.PlayerState.SEEKING:
-                case YT.PlayerState.SEEKED:
-                    console.log("Video was panned, updating FOV cone.");
-                    manualPanningActive = true; // Assume manual interaction on seeking
-                    break;
-                case YT.PlayerState.ENDED:
-                    clearAllHighlightsAndFOV();
-                    manualPanningActive = false; // Reset manual panning on video end
-                    break;
-            }
-        }
+    switch (event.data) {
+        case YT.PlayerState.PLAYING:
+            watchBearingChange();
+            break;
+        case YT.PlayerState.PAUSED:
+            console.log("Video paused, maintaining current highlights and FOV.");
+            manualPanningActive = false; // Reset on pause
+            break;
+        case YT.PlayerState.SEEKING:
+        case YT.PlayerState.SEEKED:
+            console.log("Video was panned, updating FOV cone.");
+            manualPanningActive = true; // Assume manual interaction on seeking
+            break;
+        case YT.PlayerState.ENDED:
+            clearAllHighlightsAndFOV();
+            manualPanningActive = false; // Reset on video end
+            break;
+    }
+}
+
 
         function watchBearingChange() {
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
-        var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize yaw
-
-        console.log("Current Yaw:", currentYaw);
+        var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize yaw to always be positive and within 0-360 degrees
 
         // Only update if there's a meaningful yaw change and manual panning is active
         if (manualPanningActive && Math.abs(currentYaw - videoBearing) > 1) {
-            console.log("Updating FOV cone direction based on manual panning.");
+            console.log("Updating FOV cone direction based on manual panning:", currentYaw);
 
             videoBearing = currentYaw;
             updateFOVConeDirection(videoBearing);
         }
 
-        setTimeout(watchBearingChange, 100);
+        setTimeout(watchBearingChange, 100); // Continuously check for changes
     }
 }
+
 
 function updateFOVConeDirection(newBearing) {
     if (lastHighlightedFeature) {
         console.log("Updated Bearing to:", newBearing);
-        lastHighlightedFeature.attributes.bearing = newBearing;
-        drawFOVCone(lastHighlightedFeature);
+        lastHighlightedFeature.attributes.bearing = newBearing; // Update feature bearing with new yaw
+        drawFOVCone(lastHighlightedFeature); // Redraw the FOV cone with the new bearing
     }
 }
 
