@@ -66,24 +66,26 @@
         }
 
         function onPlayerStateChange(event) {
-            switch (event.data) {
-                case YT.PlayerState.PLAYING:
-                    checkTimeUpdate();
-                    watchBearingChange();
-                    break;
-                case YT.PlayerState.PAUSED:
-                    console.log("Video paused, maintaining current highlights and FOV.");
-                    break;
-                case YT.PlayerState.SEEKING:
-                case YT.PlayerState.SEEKED:
-                    console.log("Video was panned, updating FOV cone.");
-                    manualPanningActive = true; // Assume manual interaction on seeking
-                    break;
-                case YT.PlayerState.ENDED:
-                    clearAllHighlightsAndFOV();
-                    break;
-            }
-        }
+    switch (event.data) {
+        case YT.PlayerState.PLAYING:
+            checkTimeUpdate();
+            watchBearingChange(); // Continue monitoring bearing changes
+            break;
+        case YT.PlayerState.PAUSED:
+            console.log("Video paused, maintaining current highlights and FOV.");
+            manualPanningActive = false; // Ensure we stop considering manual panning when paused
+            break;
+        case YT.PlayerState.SEEKING:
+        case YT.PlayerState.SEEKED:
+            console.log("Video was panned, updating FOV cone.");
+            manualPanningActive = true; // This flags that the next update to bearing should consider the video panning
+            break;
+        case YT.PlayerState.ENDED:
+            clearAllHighlightsAndFOV();
+            manualPanningActive = false; // Reset on video end
+            break;
+    }
+}
 
         function checkTimeUpdate() {
             if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
@@ -105,13 +107,11 @@
 
         console.log("Current Yaw:", currentYaw);
 
-        // Only update if there's a meaningful change and if manual panning is active
         if (manualPanningActive && Math.abs(currentYaw - videoBearing) > 1) {
-            console.log("Yaw changed significantly.");
+            console.log("Manual panning detected, updating bearing.");
 
             videoBearing = currentYaw;
             updateFOVConeDirection(videoBearing);
-            manualPanningActive = false;  // Reset the flag after updating
         }
 
         setTimeout(watchBearingChange, 100);
@@ -137,7 +137,10 @@
     });
 
     activeLayerId = layer.id;
-    videoBearing = feature.attributes.bearing; // Set the initial bearing from feature's attribute
+    if (!manualPanningActive) { // Only update bearing from features if not manually panning
+        videoBearing = feature.attributes.bearing; // Set the initial bearing value
+    }
+    videoBearingUpdated = false; // Reset flag when a new feature is clicked
 
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
@@ -147,6 +150,7 @@
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
 
 
