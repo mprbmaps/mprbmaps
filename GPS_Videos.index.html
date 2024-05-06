@@ -69,6 +69,7 @@
         function onPlayerStateChange(event) {
     switch (event.data) {
         case YT.PlayerState.PLAYING:
+            totalYawChange = 0;  // Reset the total yaw change when a new video starts playing
             checkTimeUpdate(); // Start checking for time updates
             watchBearingChange(); // Start checking for bearing changes
             break;
@@ -82,11 +83,13 @@
             break;
         case YT.PlayerState.SEEKING:
         case YT.PlayerState.SEEKED:
+            totalYawChange = 0;  // Reset the total yaw change when the video is manually panned or seeked
             console.log("Video was manually panned or seeked.");
             manualPanningActive = true; // This should trigger checks for bearing change
             break;
     }
 }
+
 
 
         function watchBearingChange() {
