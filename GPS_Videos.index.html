@@ -109,10 +109,10 @@
                 console.log("Yaw changed significantly or manual panning detected.");
                 
                 // Calculate the change in yaw, adjusting for potential inversion
-                var yawChange = videoBearing - currentYaw;
+                var yawChange = currentYaw - videoBearing;
 
-                // Update the bearing by subtracting the yaw change
-                videoBearing = (videoBearing - yawChange + 360) % 360;
+                // Update the bearing by adding the yaw change (opposite of previous subtraction)
+                videoBearing = (videoBearing + yawChange + 360) % 360;
 
                 updateFOVConeDirection(videoBearing);
                 manualPanningActive = false;
@@ -122,6 +122,7 @@
         setTimeout(watchBearingChange, 100);
     }
 }
+
 
         function clearAllHighlightsAndFOV() {
             Object.keys(featureLayers).forEach(function(layerId) {
