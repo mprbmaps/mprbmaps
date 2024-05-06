@@ -115,13 +115,31 @@ function watchBearingChange() {
 
 function updateFOVConeDirection(newBearing) {
     if (lastHighlightedFeature) {
-        console.log("Updating FOV cone bearing to:", newBearing);
-        lastHighlightedFeature.attributes.bearing = newBearing;  // Update the feature's bearing attribute
-        drawFOVCone(lastHighlightedFeature);  // Redraw the FOV cone with the new bearing
-    } else {
-        console.log("No highlighted feature available to update FOV cone.");
+        console.log("Updated Bearing to:", newBearing);
+
+        // Calculate the bearing change as the difference between the new and old bearings
+        var yawChange = newBearing - lastHighlightedFeature.attributes.bearing;
+
+        // Normalize the yaw change to ensure it's within the range [-180, 180]
+        if (yawChange > 180) {
+            yawChange -= 360;
+        } else if (yawChange < -180) {
+            yawChange += 360;
+        }
+
+        // Update the bearing of the last highlighted feature
+        lastHighlightedFeature.attributes.bearing = newBearing;
+
+        // Update the FOV cone direction by adding the normalized yaw change
+        var updatedBearing = (lastHighlightedFeature.attributes.bearing + yawChange + 360) % 360;
+        lastHighlightedFeature.attributes.bearing = updatedBearing;
+
+        drawFOVCone(lastHighlightedFeature);
+
+        console.log("FOV cone direction updated to:", updatedBearing);
     }
 }
+
 
 
 
