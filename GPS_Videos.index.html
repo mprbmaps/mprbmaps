@@ -78,47 +78,37 @@
         }
 
         function onPlayerStateChange(event) {
-    console.log("Player state changed to:", event.data); // Enhanced logging for state changes
     switch (event.data) {
         case YT.PlayerState.PLAYING:
             console.log("Video is now playing.");
-            checkTimeUpdate();
-            if (!bearingUpdateIntervalId) {
-                bearingUpdateIntervalId = setInterval(watchBearingChange, 100); // More frequent checks
+            // Start or continue the interval to watch bearing changes
+            if (!bearingUpdateIntervalId) {  // Only set the interval if it's not already set
+                bearingUpdateIntervalId = setInterval(watchBearingChange, 100);  // Check for bearing changes every 100ms
             }
             break;
         case YT.PlayerState.PAUSED:
             console.log("Video paused, maintaining current highlights and FOV.");
+            // Clear the interval when video is paused to stop checking for bearing changes
             clearInterval(bearingUpdateIntervalId);
             bearingUpdateIntervalId = null;
             break;
         case YT.PlayerState.ENDED:
-            console.log("Video ended, clearing all highlights and FOV.");
-            clearAllHighlightsAndFOV();
+            console.log("Video ended, adjustments are paused.");
+            // Clear the interval when video ends
             clearInterval(bearingUpdateIntervalId);
             bearingUpdateIntervalId = null;
             break;
         case YT.PlayerState.BUFFERING:
             console.log("Video buffering, adjustments are paused.");
-            break;
-        case YT.PlayerState.CUED:
-            console.log("Video cued, ready to play.");
-            break;
-        case YT.PlayerState.SEEKING:
-        case YT.PlayerState.SEEKED:
-            console.log("Video was panned or seeked, checking for new orientation.");
-            watchBearingChange(); // Immediate check after seek
+            // Optionally clear the interval during buffering if consistent behavior is desired
+            clearInterval(bearingUpdateIntervalId);
+            bearingUpdateIntervalId = null;
             break;
         default:
             console.log("Unhandled player state change:", event.data);
             break;
     }
 }
-
-
-
-
-
 
 
         function checkTimeUpdate() {
