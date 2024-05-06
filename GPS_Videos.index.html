@@ -112,11 +112,10 @@
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
         var currentYaw = ((props.yaw % 360) + 360) % 360;
-        
-        // Check for valid yaw values; consider a default if NaN
-        if (isNaN(currentYaw)) {
-            console.log("Invalid yaw data");
-            return;  // Skip processing if yaw is NaN
+
+        if (isNaN(currentYaw) || currentYaw === 0) {
+            console.log("Invalid or zero yaw data, ignoring.");
+            return;  // Ignore zero or invalid yaw updates.
         }
 
         console.log("Current Yaw:", currentYaw);
@@ -129,9 +128,6 @@
         }
     }
 }
-
-
-
 
         function startWatchingBearingChanges() {
             clearBearingUpdateInterval();
