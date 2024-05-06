@@ -66,29 +66,27 @@
         }
 
         function onPlayerStateChange(event) {
-            switch (event.data) {
-                case YT.PlayerState.PLAYING:
-                    // Set the initial bearing of the FOV cone to the feature's attribute bearing
-                    if (lastHighlightedFeature) {
-                        videoBearing = lastHighlightedFeature.attributes.bearing;
-                    }
-                    checkTimeUpdate(); // Start checking for time updates
-                    watchBearingChange(); // Start checking for bearing changes
-                    break;
-                case YT.PlayerState.PAUSED:
-                    console.log("Video paused, maintaining current highlights and FOV.");
-                    break;
-                case YT.PlayerState.SEEKING:
-                case YT.PlayerState.SEEKED:
-                    console.log("Video was manually panned or seeked.");
-                    manualPanningActive = true; // This should trigger checks for bearing change
-                    break;
-                case YT.PlayerState.ENDED:
-                    clearAllHighlightsAndFOV();
-                    manualPanningActive = false; // Reset the manual panning flag
-                    break;
+    switch (event.data) {
+        case YT.PlayerState.PLAYING:
+            checkTimeUpdate(); // Start checking for time updates
+            watchBearingChange(); // Start checking for bearing changes
+            break;
+        case YT.PlayerState.PAUSED:
+        case YT.PlayerState.ENDED:
+            // Reset the videoBearing to the feature's attribute bearing
+            if (lastHighlightedFeature) {
+                videoBearing = lastHighlightedFeature.attributes.bearing;
             }
-        }
+            console.log("Video paused or ended, maintaining current highlights and FOV.");
+            break;
+        case YT.PlayerState.SEEKING:
+        case YT.PlayerState.SEEKED:
+            console.log("Video was manually panned or seeked.");
+            manualPanningActive = true; // This should trigger checks for bearing change
+            break;
+    }
+}
+
 
         function watchBearingChange() {
             if (player && player.getSphericalProperties) {
