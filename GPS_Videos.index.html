@@ -134,32 +134,33 @@ function updateFOVConeDirection(newBearing) {
         }
 
         function clearAndHighlight(feature, layer) {
-    // First, remove highlights from all other layers except the current one
-    Object.keys(highlights).forEach(function(layerId) {
-        if (highlights[layerId] && layerId !== layer.id) {
-            highlights[layerId].remove();
-            highlights[layerId] = null;
-        }
-    });
+    if (lastHighlightedFeature !== feature) {
+        // Only clear and redraw if there's actually a new feature to highlight
+        Object.keys(highlights).forEach(function(layerId) {
+            if (highlights[layerId]) {
+                highlights[layerId].remove();
+                highlights[layerId] = null;
+            }
+        });
 
-    // Update active layer and video bearing only if not manually interacting
-    activeLayerId = layer.id;
-    if (!manualPanningActive) {
-        videoBearing = feature.attributes.bearing;
+        activeLayerId = layer.id;
+        if (!manualPanningActive) {
+            videoBearing = feature.attributes.bearing;  // Set the initial bearing value
+        }
+        videoBearingUpdated = false;  // Reset flag when a new feature is clicked
+
+        fovGraphicsLayer.graphics.removeAll();  // Clear the previous FOV cone
+
+        window.view.whenLayerView(layer).then(function(layerView) {
+            highlights[layer.id] = layerView.highlight(feature);
+            window.drawFOVCone(feature, layerView);  // Ensure FOV cone uses the correct bearing
+            lastHighlightedFeature = feature;  // Store the last highlighted feature
+        }).catch(function(error) {
+            console.error("Error in highlighting feature: ", error);
+        });
     }
-
-    // Highlight the new feature
-    window.view.whenLayerView(layer).then(function(layerView) {
-        if (highlights[layer.id]) {
-            highlights[layer.id].remove();
-        }
-        highlights[layer.id] = layerView.highlight(feature);
-        window.drawFOVCone(feature, layerView);
-        lastHighlightedFeature = feature;
-    }).catch(function(error) {
-        console.error("Error in highlighting feature: ", error);
-    });
 }
+
 
 
 
@@ -187,37 +188,35 @@ function updateFOVConeDirection(newBearing) {
         }
 
         function highlightFeatureAtTime(currentSecond, featureLayer, view) {
-            if (!startDateTimeMap[featureLayer.id]) {
-                console.error("Start DateTime not set yet for " + featureLayer.id);
-                return;
+    if (!startDateTimeMap[featureLayer.id]) {
+        console.error("Start DateTime not set yet for " + featureLayer.id);
+        return;
+    }
+
+    var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+
+    view.whenLayerView(featureLayer).then(function(layerView) {
+        layerView.queryFeatures({
+            where: "DateTimeS = '" + queryDateTimeStr + "'",
+            returnGeometry: true,
+            outFields: ["*"]
+        }).then(function(results) {
+            if (results.features.length > 0) {
+                var feature = results.features[0];
+                if (lastHighlightedFeature && lastHighlightedFeature !== feature) {
+                    clearAndHighlight(feature, featureLayer);
+                }
+            } else {
+                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
             }
+        }).catch(function(error) {
+            console.error("Error highlighting feature based on DateTimeS:", error);
+        });
+    });
+}
 
-            if (featureLayer.id !== activeLayerId) {
-                return;  // Do not highlight if this is not the active layer
-            }
-
-            var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-
-            view.whenLayerView(featureLayer).then(function(layerView) {
-                layerView.queryFeatures({
-                    where: "DateTimeS = '" + queryDateTimeStr + "'",
-                    returnGeometry: true,
-                    outFields: ["*"]
-                }).then(function(results) {
-                    if (results.features.length > 0) {
-                        var feature = results.features[0];
-                        clearAndHighlight(feature, featureLayer);
-                    } else {
-                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                        clearHighlights();
-                    }
-                }).catch(function(error) {
-                    console.error("Error highlighting feature based on DateTimeS:", error);
-                });
-            });
-        }
 
         function clearHighlights() {
             Object.keys(highlights).forEach(function(layerId) {
