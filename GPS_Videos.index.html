@@ -78,45 +78,43 @@
         }
 
         function onPlayerStateChange(event) {
-    console.log("Player state changed to:", event.data); // Log each state change for better tracking
+    console.log("Player state changed to:", event.data); // Enhanced logging for state changes
     switch (event.data) {
         case YT.PlayerState.PLAYING:
             console.log("Video is now playing.");
-            checkTimeUpdate(); // Continuously check for updates in the video's current time.
-            // Set up a continuous check for bearing changes only when the video is playing
+            checkTimeUpdate();
             if (!bearingUpdateIntervalId) {
-                bearingUpdateIntervalId = setInterval(watchBearingChange, 100); // Call every 100ms to check for bearing changes
+                bearingUpdateIntervalId = setInterval(watchBearingChange, 100); // More frequent checks
             }
             break;
         case YT.PlayerState.PAUSED:
-            console.log("Video paused, maintaining current highlights and FOV."); // Log when video is paused.
-            clearInterval(bearingUpdateIntervalId); // Stop the bearing update checks when video is paused
+            console.log("Video paused, maintaining current highlights and FOV.");
+            clearInterval(bearingUpdateIntervalId);
             bearingUpdateIntervalId = null;
             break;
         case YT.PlayerState.ENDED:
-            console.log("Video ended, clearing all highlights and FOV."); // Log when the video ends.
-            clearAllHighlightsAndFOV(); // Clear all highlights and the FOV cone when video ends.
-            clearInterval(bearingUpdateIntervalId); // Also stop the bearing checks
+            console.log("Video ended, clearing all highlights and FOV.");
+            clearAllHighlightsAndFOV();
+            clearInterval(bearingUpdateIntervalId);
             bearingUpdateIntervalId = null;
             break;
         case YT.PlayerState.BUFFERING:
-            console.log("Video buffering, adjustments are paused."); // Log when video is buffering.
+            console.log("Video buffering, adjustments are paused.");
             break;
         case YT.PlayerState.CUED:
-            console.log("Video cued, ready to play."); // Log when video is cued and ready.
+            console.log("Video cued, ready to play.");
             break;
         case YT.PlayerState.SEEKING:
-            console.log("Video is seeking."); // Log when seeking starts.
-            break;
         case YT.PlayerState.SEEKED:
-            console.log("Video was panned or seeked, updating bearing."); // Log when video is seeked or panned.
-            watchBearingChange(); // Ensure that bearing changes are checked immediately after seeking.
+            console.log("Video was panned or seeked, checking for new orientation.");
+            watchBearingChange(); // Immediate check after seek
             break;
         default:
-            console.log("Unhandled player state change:", event.data); // Log any unhandled states for further diagnosis.
+            console.log("Unhandled player state change:", event.data);
             break;
     }
 }
+
 
 
 
@@ -140,26 +138,30 @@
 var lastValidYaw = 0; // To store the last yaw value that resulted in an update
 
 function watchBearingChange() {
-    if (player && typeof player.getSphericalProperties === 'function') {
+    if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
-        console.log("Spherical properties:", props); // Continuously log properties for debugging
+        if (props && props.yaw !== undefined) {  // Ensure yaw is defined before attempting to use it
+            var currentYaw = ((props.yaw % 360) + 360) % 360;  // Normalize the yaw value
+            console.log("Normalized currentYaw:", currentYaw);
 
-        var currentYaw = ((props.yaw % 360) + 360) % 360;
-        console.log("Normalized currentYaw:", currentYaw); // Log to confirm dynamic changes
-
-        if (Math.abs(currentYaw - lastValidYaw) > 1) { // Confirm significant change before updating
-            persistentBearing = (persistentBearing + currentYaw - lastValidYaw + 360) % 360;
-            updateFOVConeDirection(persistentBearing);
-            console.log("Updated Bearing to:", persistentBearing);
-            lastValidYaw = currentYaw; // Update this to only adjust on changes
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(function() {
+                var yawChange = currentYaw - lastValidYaw;
+                if (Math.abs(yawChange) > 1) {
+                    persistentBearing = (persistentBearing - yawChange + 360) % 360; // Update the persistent bearing
+                    console.log("Updated Bearing to:", persistentBearing);
+                    updateFOVConeDirection(persistentBearing);
+                    lastValidYaw = currentYaw;  // Update lastValidYaw to the new currentYaw after a successful update
+                }
+            }, 100);  // Wait 100 milliseconds to stabilize the input
+        } else {
+            console.log("Spherical properties are not fully defined or yaw is missing:", props);
         }
     } else {
-        console.log("Player is not ready or getSphericalProperties is not available.");
+        console.log("Player object or getSphericalProperties method is undefined.");
     }
 }
 
-// Ensure this function is called continuously while the video is playing
-setInterval(watchBearingChange, 100);  // Call every 100ms to check for changes
 
 
 
