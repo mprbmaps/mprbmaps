@@ -99,28 +99,36 @@
         function watchBearingChange() {
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
-        var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize yaw to always be positive and within 0-360 degrees
+        var currentYaw = ((props.yaw % 360) + 360) % 360;  // Normalize yaw to ensure it is always positive
 
-        // Only update if there's a meaningful yaw change and manual panning is active
+        console.log("Current Yaw Detected:", currentYaw);  // Log the detected yaw for debugging
+
+        // Check for significant changes in yaw and ensure manual panning is active
         if (manualPanningActive && Math.abs(currentYaw - videoBearing) > 1) {
-            console.log("Updating FOV cone direction based on manual panning:", currentYaw);
+            console.log("Significant yaw change detected. Updating FOV cone direction to:", currentYaw);
 
             videoBearing = currentYaw;
             updateFOVConeDirection(videoBearing);
         }
 
-        setTimeout(watchBearingChange, 100); // Continuously check for changes
+        setTimeout(watchBearingChange, 100);  // Continue to check every 100 milliseconds
+    } else {
+        console.log("Player or spherical properties not available.");
     }
 }
+
 
 
 function updateFOVConeDirection(newBearing) {
     if (lastHighlightedFeature) {
-        console.log("Updated Bearing to:", newBearing);
-        lastHighlightedFeature.attributes.bearing = newBearing; // Update feature bearing with new yaw
-        drawFOVCone(lastHighlightedFeature); // Redraw the FOV cone with the new bearing
+        console.log("Updating FOV cone bearing to:", newBearing);
+        lastHighlightedFeature.attributes.bearing = newBearing;  // Update the feature's bearing attribute
+        drawFOVCone(lastHighlightedFeature);  // Redraw the FOV cone with the new bearing
+    } else {
+        console.log("No highlighted feature available to update FOV cone.");
     }
 }
+
 
 
 
