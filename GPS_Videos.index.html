@@ -68,6 +68,7 @@
         function onPlayerStateChange(event) {
     switch (event.data) {
         case YT.PlayerState.PLAYING:
+            checkTimeUpdate(); // Start checking for time updates
             watchBearingChange(); // Start checking for bearing changes
             break;
         case YT.PlayerState.PAUSED:
@@ -80,15 +81,12 @@
             break;
         case YT.PlayerState.ENDED:
             clearAllHighlightsAndFOV();
-            manualPanningActive = false; // Ensure this flag is reset when the video ends
+            manualPanningActive = false; // Reset the manual panning flag
             break;
     }
 }
 
-
-
-
-        function watchBearingChange() {
+function watchBearingChange() {
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
         var currentYaw = ((props.yaw % 360) + 360) % 360;  // Normalize yaw to ensure it is always positive
@@ -108,6 +106,7 @@
         console.log("Player or spherical properties not available.");
     }
 }
+
 
 
 
@@ -192,9 +191,10 @@ function updateFOVConeDirection(newBearing) {
                 highlightFeatureAtTime(currentSecond, featureLayer, window.view);
             }
         });
-        setTimeout(checkTimeUpdate, 1000); // Ensure this keeps running every second
     }
+    setTimeout(checkTimeUpdate, 1000); // Continue checking every second
 }
+
 
 
         function highlightFeatureAtTime(currentSecond, featureLayer, view) {
