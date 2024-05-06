@@ -55,6 +55,7 @@
         var videoBearingUpdated = false;
         var manualPanningActive = false;
         var bearingUpdateIntervalId = null;
+        var debounceTimer;
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -107,20 +108,27 @@
         }
 
         function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                var currentYaw = ((props.yaw % 360) + 360) % 360;
-                console.log("Current Yaw:", currentYaw);
-                if (manualPanningActive || Math.abs(currentYaw - videoBearing) > 1) {
-                    var yawChange = currentYaw - videoBearing;
-                    console.log("Yaw Change:", yawChange);
-                    videoBearing = (videoBearing - yawChange + 360) % 360;
-                    console.log("Updated video bearing to:", videoBearing);
-                    updateFOVConeDirection(videoBearing);
-                    manualPanningActive = false;
-                }
+    if (player && player.getSphericalProperties) {
+        var props = player.getSphericalProperties();
+        var currentYaw = ((props.yaw % 360) + 360) % 360;
+        console.log("Checking Yaw:", currentYaw);
+
+        // Clear previous debounce timer
+        clearTimeout(debounceTimer);
+        
+        // Set new debounce timer
+        debounceTimer = setTimeout(function() {
+            if (manualPanningActive || Math.abs(currentYaw - videoBearing) > 1) {
+                var yawChange = currentYaw - videoBearing;
+                console.log("Applying Yaw Change:", yawChange);
+                videoBearing = (videoBearing - yawChange + 360) % 360;
+                console.log("Updated video bearing to:", videoBearing);
+                updateFOVConeDirection(videoBearing);
+                manualPanningActive = false; // Reset the manual panning flag
             }
-        }
+        }, 200); // Delay in ms before updating bearing, adjust as needed for stability
+    }
+}
 
         function startWatchingBearingChanges() {
             clearBearingUpdateInterval();
@@ -135,25 +143,23 @@
         }
 
         function clearAndHighlight(feature, layer) {
-            Object.keys(highlights).forEach(function(layerId) {
-                if (highlights[layerId]) {
-                    highlights[layerId].remove();
-                    highlights[layerId] = null;
-                }
-            });
-            clearBearingUpdateInterval();
-            activeLayerId = layer.id;
-            videoBearing = feature.attributes.bearing;
-            manualPanningActive = false;
-            window.view.whenLayerView(layer).then(function(layerView) {
-                highlights[layer.id] = layerView.highlight(feature);
-                window.drawFOVCone(feature, layerView);
-                lastHighlightedFeature = feature;
-                startWatchingBearingChanges();
-            }).catch(function(error) {
-                console.error("Error in highlighting feature: ", error);
-            });
-        }
+    clearBearingUpdateInterval();
+    activeLayerId = layer.id;
+    videoBearing = feature.attributes.bearing;
+    console.log("Initial bearing set from feature:", videoBearing);
+    manualPanningActive = false;
+
+    window.view.whenLayerView(layer).then(function(layerView) {
+        highlights[layer.id] = layerView.highlight(feature);
+        window.drawFOVCone(feature, layerView);
+        lastHighlightedFeature = feature;
+        console.log("Starting watch on bearing changes.");
+        startWatchingBearingChanges();
+    }).catch(function(error) {
+        console.error("Error in highlighting feature: ", error);
+    });
+}
+
 
         function clearHighlight(layer) {
             console.log("Clearing highlight for layer:", layer.id);
