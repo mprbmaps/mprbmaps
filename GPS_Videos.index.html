@@ -113,21 +113,20 @@
         var props = player.getSphericalProperties();
         var currentYaw = ((props.yaw % 360) + 360) % 360;
 
-        if (isNaN(currentYaw) || currentYaw === 0) {
-            console.log("Invalid or zero yaw data, ignoring.");
-            return;  // Ignore zero or invalid yaw updates.
+        if (isNaN(currentYaw)) {
+            console.log("Invalid yaw data, skipping update.");
+            return;  // Skip updates if yaw is not valid
         }
 
-        console.log("Current Yaw:", currentYaw);
-
         var yawChange = currentYaw - videoBearing;
-        if (Math.abs(yawChange) > 5) {  // Only update if yaw change is significant
-            videoBearing = (videoBearing + yawChange + 360) % 360;
-            console.log("Significant Yaw Change:", yawChange, "Updated Bearing:", videoBearing);
+        if (Math.abs(yawChange) > 5) {  // Adjust only for significant changes
+            videoBearing = (videoBearing - yawChange + 360) % 360;  // Subtract to invert the direction
+            console.log("Adjusted Bearing:", videoBearing);
             updateFOVConeDirection(videoBearing);
         }
     }
 }
+
 
         function startWatchingBearingChanges() {
             clearBearingUpdateInterval();
@@ -142,17 +141,15 @@
         }
 
         function clearAndHighlight(feature, layer) {
-    // Check and clear all highlights
+    // Assuming highlights is a dictionary where keys are layer IDs and values are highlight objects
     Object.keys(highlights).forEach(function(layerId) {
-        if (highlights[layerId] && featureLayers[layerId]) {
-            clearHighlight(featureLayers[layerId]);
-            highlights[layerId] = null;
-        } else {
-            console.log("No valid layer found for layerId:", layerId);  // Add logging to debug
+        if (highlights[layerId]) {
+            highlights[layerId].remove();  // Call the remove method on the highlight object
+            highlights[layerId] = null;  // Reset the dictionary entry
         }
     });
 
-    // Set new highlight and update FOV
+    // Highlight the new feature
     activeLayerId = layer.id;
     videoBearing = feature.attributes.bearing;
     manualPanningActive = false;
@@ -161,17 +158,11 @@
         highlights[layer.id] = layerView.highlight(feature);
         window.drawFOVCone(feature, layerView);
         lastHighlightedFeature = feature;
-        console.log("Feature highlighted and FOV cone updated.");
-        startWatchingBearingChanges();
+        startWatchingBearingChanges(); // Start watching bearing changes again
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
 }
-
-
-
-
-
 
         function clearHighlight(layer) {
     if (highlights[layer.id]) {
