@@ -78,6 +78,7 @@
         }
 
         function onPlayerStateChange(event) {
+    console.log("Player state changed:", event.data);  // Log every state change for clarity
     switch (event.data) {
         case YT.PlayerState.PLAYING:
             console.log("Video is now playing.");
@@ -88,7 +89,7 @@
             console.log("Video paused, maintaining current highlights and FOV."); // Log when video is paused.
             break;
         case YT.PlayerState.ENDED:
-            console.log("Video ended, cleared all highlights and FOV."); // Log when the video ends.
+            console.log("Video ended, clearing all highlights and FOV."); // Log when the video ends.
             clearAllHighlightsAndFOV(); // Clear all highlights and the FOV cone when video ends.
             break;
         case YT.PlayerState.BUFFERING:
@@ -101,7 +102,7 @@
             console.log("Video is seeking."); // Log when seeking starts.
             break;
         case YT.PlayerState.SEEKED:
-            console.log("Video was panned or seeked, checking for new orientation."); // Log when video is seeked or panned.
+            console.log("Video was panned or seeked, updating bearing."); // Log when video is seeked or panned.
             watchBearingChange(); // Ensure that bearing changes are checked after seeking.
             break;
         default:
@@ -109,6 +110,7 @@
             break;
     }
 }
+
 
 
 
@@ -130,23 +132,25 @@
 var lastValidYaw = 0; // To store the last yaw value that resulted in an update
 
 function watchBearingChange() {
-    if (player && player.getSphericalProperties) {
+    if (player && typeof player.getSphericalProperties === 'function') {
         var props = player.getSphericalProperties();
-        var currentYaw = ((props.yaw % 360) + 360) % 360;
+        console.log("Spherical properties:", props); // Log the entire properties to verify data
 
-        // Debounce the updates
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(function() {
-            var yawChange = currentYaw - lastValidYaw;
-            if (Math.abs(yawChange) > 1) {  // Use a threshold to avoid minor changes causing updates
-                persistentBearing = (persistentBearing + yawChange + 360) % 360;  // Correct the application of yaw change
-                updateFOVConeDirection(persistentBearing);
-                lastValidYaw = currentYaw;  // Update lastValidYaw for the next change calculation
-                console.log("Yaw changed, updated bearing: ", persistentBearing);
-            }
-        }, 200);  // Adjust the debounce time if necessary
+        var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize the yaw
+
+        console.log("Normalized currentYaw:", currentYaw); // Log normalized yaw for debugging
+
+        if (Math.abs(currentYaw - lastValidYaw) > 1) { // Threshold to detect significant yaw change
+            persistentBearing = (persistentBearing + currentYaw - lastValidYaw + 360) % 360;
+            updateFOVConeDirection(persistentBearing);
+            lastValidYaw = currentYaw; // Update last valid yaw
+            console.log("Updated persistentBearing to:", persistentBearing); // Log updated bearing
+        }
+    } else {
+        console.log("Player is not ready or getSphericalProperties is not available.");
     }
 }
+
 
 
 
