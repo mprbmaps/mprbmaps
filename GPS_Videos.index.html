@@ -70,10 +70,11 @@
             });
         }
 
-        function adjustBearing(originalBearing, change) {
-            var newBearing = (originalBearing + change + 360) % 360; // Ensures the bearing remains within 0-359 degrees
-            console.log(`Adjusted bearing from ${originalBearing} to ${newBearing}`); // Logs the adjustment for debugging
-            return newBearing;
+        function clearBearingUpdateInterval() {
+            if (bearingUpdateIntervalId !== null) {
+                clearInterval(bearingUpdateIntervalId);
+                bearingUpdateIntervalId = null;
+            }
         }
 
         function onPlayerStateChange(event) {
@@ -103,18 +104,6 @@
             }
         }
 
-        function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                var currentYaw = props.yaw; // Assume you're getting yaw directly as degrees
-                if (currentYaw !== lastValidYaw) {
-                    persistentBearing = adjustBearing(persistentBearing, currentYaw - lastValidYaw);
-                    lastValidYaw = currentYaw;
-                    updateFOVConeDirection(persistentBearing);
-                }
-            }
-        }
-
         function checkTimeUpdate() {
             if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
                 var currentSecond = Math.floor(player.getCurrentTime());
@@ -126,6 +115,29 @@
                 });
                 setTimeout(checkTimeUpdate, 1000);
             }
+        }
+
+        function watchBearingChange() {
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties();
+                var currentYaw = ((props.yaw % 360) + 360) % 360;
+
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(function() {
+                    var yawChange = currentYaw - lastValidYaw;
+                    if (Math.abs(yawChange) > 1) {
+                        persistentBearing = (persistentBearing + yawChange + 360) % 360; // Update the persistent bearing
+                        bearingManuallyUpdated = true; // Set the flag when bearing is manually changed
+                        updateFOVConeDirection(persistentBearing);
+                        lastValidYaw = currentYaw;
+                    }
+                }, 100);
+            }
+        }
+
+        function startWatchingBearingChanges() {
+            clearBearingUpdateInterval();
+            bearingUpdateIntervalId = setInterval(watchBearingChange, 100);
         }
 
         function clearAllHighlightsAndFOV() {
@@ -152,7 +164,7 @@
                 highlights[layer.id] = layerView.highlight(feature);
                 window.drawFOVCone(feature, layerView, persistentBearing); // Pass the persistent bearing
                 lastHighlightedFeature = feature;
-                watchBearingChange();
+                startWatchingBearingChanges();
             }).catch(function(error) {
                 console.error("Error in highlighting feature: ", error);
             });
