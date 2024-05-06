@@ -112,17 +112,17 @@
 
 
         function checkTimeUpdate() {
-            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
-                var currentSecond = Math.floor(player.getCurrentTime());
-                Object.keys(featureLayers).forEach(function(layerId) {
-                    var featureLayer = featureLayers[layerId];
-                    if (featureLayer && featureLayer.id === activeLayerId) {
-                        highlightFeatureAtTime(currentSecond, featureLayer, window.view);
-                    }
-                });
-                setTimeout(checkTimeUpdate, 1000);
+    if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+        var currentSecond = Math.floor(player.getCurrentTime());
+        Object.keys(featureLayers).forEach(function(layerId) {
+            var featureLayer = featureLayers[layerId];
+            if (featureLayer && featureLayer.id === activeLayerId) {
+                highlightFeatureAtTime(currentSecond, featureLayer, window.view);
             }
-        }
+        });
+        setTimeout(checkTimeUpdate, 1000); // ensure this timeout is called correctly
+    }
+}
 
         var debounceTimer; // Global variable to hold the debounce timer
 var lastValidYaw = 0; // To store the last yaw value that resulted in an update
@@ -229,7 +229,7 @@ function watchBearingChange() {
     var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
 
     view.whenLayerView(featureLayer).then(function(layerView) {
-        // Clear previous highlights before setting a new one
+        // Clear previous highlights
         if (highlights[featureLayer.id]) {
             highlights[featureLayer.id].remove();
             highlights[featureLayer.id] = null;
@@ -243,7 +243,8 @@ function watchBearingChange() {
             if (results.features.length > 0) {
                 var feature = results.features[0];
                 highlights[featureLayer.id] = layerView.highlight(feature);
-                window.drawFOVCone(feature, layerView, persistentBearing); // Assuming drawFOVCone is properly updating the FOV cone
+                console.log("Feature highlighted at time: ", currentSecond, "for layer: ", featureLayer.id);
+                window.drawFOVCone(feature, layerView, persistentBearing);
             } else {
                 console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
             }
