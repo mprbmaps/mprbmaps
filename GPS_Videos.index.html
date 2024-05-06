@@ -75,24 +75,25 @@
         }
 
         function onPlayerStateChange(event) {
-            switch (event.data) {
-                case YT.PlayerState.PLAYING:
-                    checkTimeUpdate();
-                    startWatchingBearingChanges();
-                    break;
-                case YT.PlayerState.PAUSED:
-                    console.log("Video paused, maintaining current highlights and FOV.");
-                    break;
-                case YT.PlayerState.SEEKING:
-                case YT.PlayerState.SEEKED:
-                    console.log("Video was panned, updating FOV cone.");
-                    manualPanningActive = true;
-                    break;
-                case YT.PlayerState.ENDED:
-                    clearAllHighlightsAndFOV();
-                    break;
-            }
-        }
+    switch (event.data) {
+        case YT.PlayerState.PLAYING:
+            checkTimeUpdate();
+            startWatchingBearingChanges();
+            break;
+        case YT.PlayerState.PAUSED:
+            console.log("Video paused, maintaining current highlights and FOV.");
+            break;
+        case YT.PlayerState.SEEKING:
+        case YT.PlayerState.SEEKED:
+            console.log("Video was panned or seeked, updating FOV cone.");
+            manualPanningActive = true; // Set to true when video is interacted with
+            break;
+        case YT.PlayerState.ENDED:
+            clearAllHighlightsAndFOV(); // Ensure all highlights and FOVs are cleared at video end
+            break;
+    }
+}
+
 
         function checkTimeUpdate() {
             if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
@@ -113,22 +114,16 @@
         var currentYaw = ((props.yaw % 360) + 360) % 360;
         console.log("Checking Yaw:", currentYaw);
 
-        // Clear previous debounce timer
-        clearTimeout(debounceTimer);
-        
-        // Set new debounce timer
-        debounceTimer = setTimeout(function() {
-            if (manualPanningActive || Math.abs(currentYaw - videoBearing) > 1) {
-                var yawChange = currentYaw - videoBearing;
-                console.log("Applying Yaw Change:", yawChange);
-                videoBearing = (videoBearing - yawChange + 360) % 360;
-                console.log("Updated video bearing to:", videoBearing);
-                updateFOVConeDirection(videoBearing);
-                manualPanningActive = false; // Reset the manual panning flag
-            }
-        }, 200); // Delay in ms before updating bearing, adjust as needed for stability
+        if (manualPanningActive || Math.abs(currentYaw - videoBearing) > 1) {
+            var yawChange = currentYaw - videoBearing;
+            videoBearing = (videoBearing - yawChange + 360) % 360;
+            console.log("Updated video bearing to:", videoBearing);
+            updateFOVConeDirection(videoBearing);
+            manualPanningActive = false; // Reset the manual panning flag
+        }
     }
 }
+
 
         function startWatchingBearingChanges() {
             clearBearingUpdateInterval();
@@ -143,7 +138,14 @@
         }
 
         function clearAndHighlight(feature, layer) {
-    clearBearingUpdateInterval();
+    // Clear all existing highlights
+    Object.keys(highlights).forEach(function(layerId) {
+        if (highlights[layerId]) {
+            clearHighlight(featureLayers[layerId]);
+        }
+    });
+
+    // Now highlight the new feature
     activeLayerId = layer.id;
     videoBearing = feature.attributes.bearing;
     console.log("Initial bearing set from feature:", videoBearing);
@@ -153,12 +155,12 @@
         highlights[layer.id] = layerView.highlight(feature);
         window.drawFOVCone(feature, layerView);
         lastHighlightedFeature = feature;
-        console.log("Starting watch on bearing changes.");
-        startWatchingBearingChanges();
+        startWatchingBearingChanges(); // Restart bearing updates with clean state
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
 
         function clearHighlight(layer) {
