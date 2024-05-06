@@ -123,22 +123,21 @@ var lastValidYaw = 0; // To store the last yaw value that resulted in an update
 function watchBearingChange() {
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
-        var currentYaw = ((props.yaw % 360) + 360) % 360;
+        var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize the yaw value
 
-        // Log for debugging purposes
-        console.log("Current Yaw:", currentYaw, "Last Valid Yaw:", lastValidYaw);
+        console.log("Current Yaw:", currentYaw);
 
-        // Clear the previous debounce timer
-        clearTimeout(debounceTimer);
+        clearTimeout(debounceTimer); // Clear the existing timer
         debounceTimer = setTimeout(function() {
             var yawChange = currentYaw - lastValidYaw;
-            if (Math.abs(yawChange) > 1) { // Lower the threshold for testing if needed
-                videoBearing = (videoBearing + yawChange + 360) % 360;
+            if (Math.abs(yawChange) > 1) { // Update only if the change is significant
+                // Reverse the direction of the change
+                videoBearing = (videoBearing - yawChange + 360) % 360;
                 console.log("Adjusted Bearing:", videoBearing, "Due to Yaw Change:", yawChange);
                 updateFOVConeDirection(videoBearing);
-                lastValidYaw = currentYaw; // Update the last valid yaw after applying changes
+                lastValidYaw = currentYaw; // Update the last valid yaw
             }
-        }, 100); // Shorten the delay to make it more responsive
+        }, 100); // Delay to allow for debouncing
     }
 }
 
