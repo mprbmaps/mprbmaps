@@ -123,17 +123,23 @@
         var currentYaw = ((props.yaw % 360) + 360) % 360;
         var yawChange = currentYaw - lastValidYaw;
 
+        console.log("Current Yaw:", currentYaw);
+        console.log("Last Valid Yaw:", lastValidYaw);
+        console.log("Yaw Change:", yawChange);
+
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(function() {
             if (Math.abs(yawChange) > 1) { // Check significant change to update
                 // Update persistentBearing by adding yawChange
                 persistentBearing = (persistentBearing + yawChange + 360) % 360;
+                console.log("New Persistent Bearing:", persistentBearing);
                 updateFOVConeDirection(persistentBearing); // Apply new bearing to FOV cone
                 lastValidYaw = currentYaw; // Update last valid yaw to new yaw
             }
         }, 100);
     }
 }
+
 
 
 
