@@ -61,6 +61,7 @@
         var persistentBearing = 0;
         var videoStarted = false; // Flag to track whether the video has started playing
         var videoStarting = false; // Flag to track whether the video is in the process of starting
+        var globalYawChange = 0; // This will accumulate changes in yaw
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -124,21 +125,21 @@
         function watchBearingChange() {
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
-        var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize the yaw to 0-360 degrees
+        var currentYaw = ((props.yaw % 360) + 360) % 360;
 
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(function() {
             var yawChange = currentYaw - lastValidYaw;
             if (Math.abs(yawChange) > 1) {
-                persistentBearing += yawChange; // Adjust the persistent bearing by the yaw change
-                persistentBearing = (persistentBearing + 360) % 360; // Normalize the bearing
-                bearingManuallyUpdated = true;
-                updateFOVConeDirection(persistentBearing);
-                lastValidYaw = currentYaw; // Update lastValidYaw to the current yaw
+                globalYawChange += yawChange; // Accumulate changes in global yaw change
+                var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                updateFOVConeDirection(newBearing);
+                lastValidYaw = currentYaw;
             }
         }, 100);
     }
 }
+
 
         function startWatchingBearingChanges() {
             clearBearingUpdateInterval();
@@ -161,24 +162,20 @@
     });
 
     activeLayerId = layer.id;
-    var featureBearing = feature.attributes.bearing; // Get the bearing from feature attributes
-
-    if (!bearingManuallyUpdated) {
-        persistentBearing = featureBearing; // Reset bearing if it was not manually updated
-    } else {
-        persistentBearing = (featureBearing + persistentBearing) % 360; // Apply persistent bearing adjustments to the new feature
-        console.log("Bearing adjusted with persistent changes:", persistentBearing);
-    }
+    persistentBearing = (feature.attributes.bearing + globalYawChange + 360) % 360; // Apply global yaw change
+    
+    console.log("Highlighted feature bearing:", persistentBearing);
 
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
-        window.drawFOVCone(feature, layerView, persistentBearing); // Draw FOV cone with updated bearing
+        window.drawFOVCone(feature, layerView, persistentBearing); // Draw FOV using the updated bearing
         lastHighlightedFeature = feature;
-        startWatchingBearingChanges(); // Continue monitoring bearing changes
+        startWatchingBearingChanges();
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
         function clearHighlight(layer) {
             if (highlights[layer.id]) {
