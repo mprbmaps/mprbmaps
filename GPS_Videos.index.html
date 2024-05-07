@@ -388,6 +388,11 @@
         // Calculate the FOV bearing based on the sum of the persistent bearing and the feature's attribute bearing
         var fovBearing = (persistentBearing + feature.attributes.bearing) % 360;
         
+        // For the first feature, use only the feature's attribute bearing
+        if (!lastHighlightedFeature) {
+            fovBearing = feature.attributes.bearing;
+        }
+        
         // Create the FOV cone
         var cone = createCone(centerPoint, fovBearing, coneWidth, coneLength);
         var polygon = new Polygon({
@@ -410,6 +415,7 @@
         fovGraphicsLayer.graphics.add(fovGraphic);
     });
 };
+
 
 
             function createCone(centerPoint, bearing, width, length) {
