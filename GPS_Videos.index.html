@@ -80,31 +80,29 @@
         }
 
         function onPlayerStateChange(event) {
-            switch (event.data) {
-                case YT.PlayerState.PLAYING:
-                    checkTimeUpdate(); // Continuously check for updates in the video's current time.
-                    startWatchingBearingChanges(); // Ensure bearing is monitored when playing
-                    break;
-                case YT.PlayerState.PAUSED:
-                    console.log("Video paused, maintaining current highlights and FOV."); // Log when video is paused.
-                    break;
-                case YT.PlayerState.ENDED:
-                    clearAllHighlightsAndFOV(); // Clear all highlights and the FOV cone when video ends.
-                    console.log("Video ended, cleared all highlights and FOV."); // Log when the video ends.
-                    break;
-                case YT.PlayerState.BUFFERING:
-                    console.log("Video buffering, adjustments are paused."); // Log when video is buffering.
-                    break;
-                case YT.PlayerState.CUED:
-                    console.log("Video cued, ready to play."); // Log when video is cued and ready.
-                    break;
-                case YT.PlayerState.SEEKING:
-                case YT.PlayerState.SEEKED:
-                    console.log("Video was panned or seeked, checking for new orientation."); // Log when video is seeked or panned.
-                    startWatchingBearingChanges(); // Ensure that bearing changes are checked after seeking.
-                    break;
-            }
-        }
+    switch (event.data) {
+        case YT.PlayerState.PLAYING:
+            watchBearingChange(); // Continue watching for bearing changes.
+            break;
+        case YT.PlayerState.PAUSED:
+            console.log("Video paused, maintaining current highlights and FOV."); // Log when video is paused.
+            break;
+        case YT.PlayerState.ENDED:
+            clearAllHighlightsAndFOV(); // Clear all highlights and the FOV cone when video ends.
+            console.log("Video ended, cleared all highlights and FOV."); // Log when the video ends.
+            break;
+        case YT.PlayerState.BUFFERING:
+            console.log("Video buffering, adjustments are paused."); // Log when video is buffering.
+            break;
+        case YT.PlayerState.CUED:
+            console.log("Video cued, ready to play."); // Log when video is cued and ready.
+            break;
+        case YT.PlayerState.SEEKING:
+        case YT.PlayerState.SEEKED:
+            console.log("Video was panned or seeked, checking for new orientation."); // Log when video is seeked or panned.
+            break;
+    }
+}
 
         function checkTimeUpdate() {
     if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
@@ -128,22 +126,23 @@
         }
 
         function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                var currentYaw = ((props.yaw % 360) + 360) % 360;
+    if (player && player.getSphericalProperties) {
+        var props = player.getSphericalProperties();
+        var currentYaw = ((props.yaw % 360) + 360) % 360;
 
-                var yawChange = currentYaw - lastValidYaw;
-                if (Math.abs(yawChange) > 1) {
-                    cumulativeYawChange += yawChange; // Accumulate yaw changes
-                    lastValidYaw = currentYaw;
-                }
-
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(function() {
-                    console.log("Accumulated yaw change:", cumulativeYawChange);
-                }, 100);
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function() {
+            var yawChange = currentYaw - lastValidYaw;
+            // Inverting the bearing adjustment here
+            if (Math.abs(yawChange) > 1) {
+                persistentBearing = (persistentBearing - yawChange + 360) % 360; // Subtract yawChange to invert direction
+                bearingManuallyUpdated = true; // Flag that bearing has been manually changed
+                updateFOVConeDirection(persistentBearing);
+                lastValidYaw = currentYaw;
             }
-        }
+        }, 100);
+    }
+}
 
         function resetYawAdjustment() {
             cumulativeYawChange = 0;
@@ -162,26 +161,31 @@
         }
 
         function clearAndHighlight(feature, layer) {
-            Object.keys(highlights).forEach(function(layerId) {
-                if (highlights[layerId]) {
-                    highlights[layerId].remove();
-                    highlights[layerId] = null;
-                }
-            });
-
-            activeLayerId = layer.id;
-            // Apply yaw changes here but do not reset
-            var newBearing = (feature.attributes.bearing - cumulativeYawChange + 360) % 360;
-
-            window.view.whenLayerView(layer).then(function(layerView) {
-                highlights[layer.id] = layerView.highlight(feature);
-                window.drawFOVCone(feature, layerView, newBearing); // Use the newly calculated bearing
-                lastHighlightedFeature = feature;
-                bearingManuallyUpdated = false; // Reset the manual update flag if necessary
-            }).catch(function(error) {
-                console.error("Error in highlighting feature: ", error);
-            });
+    Object.keys(highlights).forEach(function(layerId) {
+        if (highlights[layerId]) {
+            highlights[layerId].remove();
+            highlights[layerId] = null;
         }
+    });
+
+    activeLayerId = layer.id;
+    if (!bearingManuallyUpdated) { // Only reset bearing if it was not manually updated
+        persistentBearing = feature.attributes.bearing; // Reset to default bearing from the feature
+    } else {
+        // Log bearing to see if it carries over
+        console.log("Carrying over bearing:", persistentBearing);
+    }
+
+    window.view.whenLayerView(layer).then(function(layerView) {
+        highlights[layer.id] = layerView.highlight(feature);
+        window.drawFOVCone(feature, layerView, persistentBearing); // Always use persistent bearing
+        lastHighlightedFeature = feature;
+        bearingManuallyUpdated = false; // Reset manual update flag after applying it
+        startWatchingBearingChanges();
+    }).catch(function(error) {
+        console.error("Error in highlighting feature: ", error);
+    });
+}
 
         function clearHighlight(layer) {
             if (highlights[layer.id]) {
