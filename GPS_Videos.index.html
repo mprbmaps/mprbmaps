@@ -118,22 +118,22 @@
 }
 
         function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                var currentYaw = ((props.yaw % 360) + 360) % 360;
+    if (player && player.getSphericalProperties) {
+        var props = player.getSphericalProperties();
+        var currentYaw = ((props.yaw % 360) + 360) % 360;  // Ensure yaw is always a positive value between 0 and 360.
 
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(function() {
-                    var yawChange = currentYaw - lastValidYaw;
-                    if (Math.abs(yawChange) > 1) {
-                        persistentBearing = (persistentBearing - yawChange + 360) % 360; // Subtract yawChange to invert direction
-                        bearingManuallyUpdated = true; // Flag that bearing has been manually changed
-                        updateFOVConeDirection(persistentBearing);
-                        lastValidYaw = currentYaw;
-                    }
-                }, 100);
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function() {
+            var yawChange = currentYaw - lastValidYaw;
+            if (Math.abs(yawChange) > 1) {  // Check if the change is significant enough to update (adjust threshold as needed).
+                persistentBearing = (persistentBearing - yawChange + 360) % 360;  // Adjust bearing based on yaw change.
+                bearingManuallyUpdated = true;  // Flag that bearing has been manually changed.
+                updateFOVConeDirection(persistentBearing);  // Update the FOV cone direction based on the new bearing.
+                lastValidYaw = currentYaw;  // Update lastValidYaw to currentYaw for the next calculation.
             }
-        }
+        }, 100);  // Adjust timer as needed for responsiveness vs performance.
+    }
+}
 
         function startWatchingBearingChanges() {
             clearBearingUpdateInterval();
@@ -178,14 +178,16 @@
         }
 
         function updateFOVConeDirection(newBearing) {
-            console.log("Updating FOV Bearing to:", newBearing);
-            persistentBearing = newBearing; // Update persistent bearing regardless of current highlight
-            bearingManuallyUpdated = true; // Mark as manually updated
+    console.log("Updating FOV Bearing to:", newBearing);
+    persistentBearing = newBearing;  // Update the global bearing state to reflect the new bearing after changes.
 
-            if (lastHighlightedFeature) {
-                drawFOVCone(lastHighlightedFeature);
-            }
-        }
+    if (lastHighlightedFeature) {
+        // Call the function to redraw the FOV cone with the updated bearing.
+        // This assumes the presence of a function 'drawFOVCone' which takes a feature and a bearing as parameters.
+        drawFOVCone(lastHighlightedFeature, newBearing);
+    }
+}
+
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
     if (!startDateTimeMap[featureLayer.id]) {
