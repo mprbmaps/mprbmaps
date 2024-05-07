@@ -121,27 +121,20 @@
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
         var currentYaw = ((props.yaw % 360) + 360) % 360;
-        var yawChange = currentYaw - lastValidYaw;
-
-        console.log("Current Yaw:", currentYaw);
-        console.log("Last Valid Yaw:", lastValidYaw);
-        console.log("Yaw Change:", yawChange);
 
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(function() {
-            if (Math.abs(yawChange) > 1) { // Check significant change to update
-                // Update persistentBearing by adding yawChange
-                persistentBearing = (persistentBearing + yawChange + 360) % 360;
-                console.log("New Persistent Bearing:", persistentBearing);
-                updateFOVConeDirection(persistentBearing); // Apply new bearing to FOV cone
-                lastValidYaw = currentYaw; // Update last valid yaw to new yaw
+            var yawChange = currentYaw - lastValidYaw;
+            // Inverting the bearing adjustment here
+            if (Math.abs(yawChange) > 1) {
+                persistentBearing = (persistentBearing - yawChange + 360) % 360; // Subtract yawChange to invert direction
+                bearingManuallyUpdated = true; // Flag that bearing has been manually changed
+                updateFOVConeDirection(persistentBearing);
+                lastValidYaw = currentYaw;
             }
         }, 100);
     }
 }
-
-
-
 
 
         function startWatchingBearingChanges() {
@@ -157,30 +150,30 @@
         }
 
         function clearAndHighlight(feature, layer) {
-    // Clear existing highlights
-    Object.keys(highlights).forEach(function(layerId) {
-        if (highlights[layerId]) {
-            highlights[layerId].remove();
-            highlights[layerId] = null;
+            Object.keys(highlights).forEach(function(layerId) {
+                if (highlights[layerId]) {
+                    highlights[layerId].remove();
+                    highlights[layerId] = null;
+                }
+            });
+
+            activeLayerId = layer.id;
+            if (!bearingManuallyUpdated) { // Only reset bearing if it was not manually updated
+                persistentBearing = feature.attributes.bearing;
+            } else {
+                // Log bearing to see if it carries over
+                console.log("Carrying over bearing:", persistentBearing);
+            }
+
+            window.view.whenLayerView(layer).then(function(layerView) {
+                highlights[layer.id] = layerView.highlight(feature);
+                window.drawFOVCone(feature, layerView, persistentBearing); // Always use persistent bearing
+                lastHighlightedFeature = feature;
+                startWatchingBearingChanges();
+            }).catch(function(error) {
+                console.error("Error in highlighting feature: ", error);
+            });
         }
-    });
-
-    activeLayerId = layer.id;
-
-    // Reset persistentBearing to current feature's bearing and apply any existing yaw change
-    var featureBearing = feature.attributes.bearing;
-    persistentBearing = (featureBearing + lastValidYaw + 360) % 360;
-
-    // Now highlight the new feature and draw its FOV cone
-    window.view.whenLayerView(layer).then(function(layerView) {
-        highlights[layer.id] = layerView.highlight(feature);
-        window.drawFOVCone(feature, layerView); // Always use the updated persistent bearing
-        lastHighlightedFeature = feature;
-        startWatchingBearingChanges(); // Restart bearing watching if needed
-    }).catch(function(error) {
-        console.error("Error in highlighting feature: ", error);
-    });
-}
 
         function clearHighlight(layer) {
             if (highlights[layer.id]) {
@@ -191,14 +184,15 @@
         }
 
         function updateFOVConeDirection(newBearing) {
-    console.log("Updating FOV Bearing to:", newBearing);
-    persistentBearing = newBearing; // Update persistent bearing to newly calculated one
+            console.log("Updating FOV Bearing to:", newBearing);
+            persistentBearing = newBearing; // Update persistent bearing regardless of current highlight
+            bearingManuallyUpdated = true; // Mark as manually updated
 
-    // Redraw FOV cone if a feature is highlighted
-    if (lastHighlightedFeature) {
-        window.drawFOVCone(lastHighlightedFeature, window.view);
-    }
-}
+            if (lastHighlightedFeature) {
+                drawFOVCone(lastHighlightedFeature);
+            }
+        }
+
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
             if (!startDateTimeMap[featureLayer.id]) {
                 console.error("Start DateTimeS not set yet for " + featureLayer.id);
@@ -443,3 +437,4 @@
     </script>
 </body>
 </html>
+
