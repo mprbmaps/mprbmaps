@@ -105,6 +105,13 @@
             }
         }
 
+        function startWatchingBearingChanges() {
+            if (bearingUpdateIntervalId !== null) {
+                clearInterval(bearingUpdateIntervalId); // Ensure no previous intervals are running
+            }
+            bearingUpdateIntervalId = setInterval(watchBearingChange, 100); // Adjust as necessary for your application
+        }
+
         function checkTimeUpdate() {
             if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
                 var currentSecond = Math.floor(player.getCurrentTime());
