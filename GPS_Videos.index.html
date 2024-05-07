@@ -129,21 +129,34 @@
         var props = player.getSphericalProperties();
         console.log("Spherical properties:", props);
         if (props && typeof props.yaw !== 'undefined') {
-            var currentYaw = ((props.yaw % 360) + 360) % 360;
+            var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize the yaw
             var yawChange = currentYaw - lastValidYaw;
-            console.log("Current Yaw:", currentYaw, "Last Valid Yaw:", lastValidYaw, "Yaw Change:", yawChange);
-            if (Math.abs(yawChange) > 1) { // Checking for significant change
-                globalYawChange -= yawChange;
-                var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                console.log("New Bearing Calculated:", newBearing);
-                updateFOVConeDirection(newBearing);
-                lastValidYaw = currentYaw;
+            if (Math.abs(yawChange) > 1) { // Apply a threshold to avoid minor jitter
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(function() {
+                    globalYawChange -= yawChange; // Invert and accumulate yaw change
+                    var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                    console.log("New Bearing Calculated:", newBearing);
+                    updateFOVConeDirection(newBearing);
+                    lastValidYaw = currentYaw;
+                }, 200); // Increased debounce time to allow for smoother transitions
             }
         } else {
             console.warn("No spherical properties available or video is not 360°.");
         }
     }
 }
+
+function updateFOVConeDirection(newBearing) {
+    console.log("Updating FOV Bearing to:", newBearing);
+    if (Math.abs(newBearing - persistentBearing) > 5) { // Only update if the change is significant
+        persistentBearing = newBearing;
+        if (lastHighlightedFeature) {
+            drawFOVCone(lastHighlightedFeature); // Re-draw the FOV cone with the new bearing
+        }
+    }
+}
+
 
 
 
