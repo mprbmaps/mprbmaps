@@ -59,7 +59,7 @@
         var lastValidYaw = 0;
         var bearingManuallyUpdated = false;
         var persistentBearing = 0;
-        var cumulativeYawChange = 0;
+        var cumulativeYawChange = 0; // Initialize outside of function to track cumulative changes
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -119,25 +119,22 @@
         }
 
         function watchBearingChange() {
-    if (player && player.getSphericalProperties) {
-        var props = player.getSphericalProperties();
-        var currentYaw = ((props.yaw % 360) + 360) % 360;
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties();
+                var currentYaw = ((props.yaw % 360) + 360) % 360;
 
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(function() {
-            var yawChange = currentYaw - lastValidYaw;
-            if (Math.abs(yawChange) > 1) {
-                cumulativeYawChange += yawChange;  // Store yaw change
-                lastValidYaw = currentYaw;
+                var yawChange = currentYaw - lastValidYaw;
+                if (Math.abs(yawChange) > 1) {
+                    cumulativeYawChange += yawChange; // Store yaw change
+                    lastValidYaw = currentYaw; // Update last valid yaw here
+                }
+
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(function() {
+                    // Optionally update or manage yaw changes at a slower rate
+                    console.log("Accumulated yaw change:", cumulativeYawChange);
+                }, 100);
             }
-        }, 100);
-    }
-}
-
-
-        function startWatchingBearingChanges() {
-            clearBearingUpdateInterval();
-            bearingUpdateIntervalId = setInterval(watchBearingChange, 100);
         }
 
         function clearAllHighlightsAndFOV() {
@@ -148,31 +145,33 @@
         }
 
         function clearAndHighlight(feature, layer) {
-    Object.keys(highlights).forEach(function(layerId) {
-        if (highlights[layerId]) {
-            highlights[layerId].remove();
-            highlights[layerId] = null;
+            Object.keys(highlights).forEach(function(layerId) {
+                if (highlights[layerId]) {
+                    highlights[layerId].remove();
+                    highlights[layerId] = null;
+                }
+            });
+
+            activeLayerId = layer.id;
+            if (!bearingManuallyUpdated) { // Check if there has been a manual update before resetting
+                persistentBearing = feature.attributes.bearing;
+            }
+
+            // Apply yaw changes here, ensuring it's only reset after application
+            persistentBearing = (persistentBearing - cumulativeYawChange + 360) % 360;
+            cumulativeYawChange = 0; // Reset cumulative yaw change after applying
+
+            console.log("Updated bearing with yaw change:", persistentBearing);
+
+            window.view.whenLayerView(layer).then(function(layerView) {
+                highlights[layer.id] = layerView.highlight(feature);
+                window.drawFOVCone(feature, layerView, persistentBearing);
+                lastHighlightedFeature = feature;
+                startWatchingBearingChanges(); // Restart watching for bearing changes
+            }).catch(function(error) {
+                console.error("Error in highlighting feature: ", error);
+            });
         }
-    });
-
-    activeLayerId = layer.id;
-    persistentBearing = feature.attributes.bearing; // Reset to current feature's bearing
-    if (cumulativeYawChange !== 0) {
-        persistentBearing = (persistentBearing + cumulativeYawChange + 360) % 360; // Apply stored yaw changes
-        cumulativeYawChange = 0;  // Reset yaw changes after applying
-    }
-    console.log("Carrying over bearing:", persistentBearing);
-
-    window.view.whenLayerView(layer).then(function(layerView) {
-        highlights[layer.id] = layerView.highlight(feature);
-        window.drawFOVCone(feature, layerView, persistentBearing); // Always use persistent bearing
-        lastHighlightedFeature = feature;
-        startWatchingBearingChanges();
-    }).catch(function(error) {
-        console.error("Error in highlighting feature: ", error);
-    });
-}
-
 
         function clearHighlight(layer) {
             if (highlights[layer.id]) {
@@ -220,7 +219,6 @@
                 });
             });
         };
-
         require([
             "esri/WebMap",
             "esri/views/MapView",
