@@ -71,7 +71,6 @@
                     'onStateChange': onPlayerStateChange
                 }
             });
-            startWatchingBearingChanges();  // Start watching bearing changes immediately
         }
 
         function clearBearingUpdateInterval() {
@@ -129,34 +128,24 @@
         function watchBearingChange() {
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
-        if (props && typeof props.yaw !== 'undefined') {
+        if (props && typeof props.yaw !== 'undefined') { // Check that props and props.yaw are defined
             var currentYaw = ((props.yaw % 360) + 360) % 360;
 
-            clearTimeout(debounceTimer);  // Clear the existing timeout to reset the debounce logic
+            clearTimeout(debounceTimer);
             debounceTimer = setTimeout(function() {
                 var yawChange = currentYaw - lastValidYaw;
-
-                // Handle yaw change correctly when crossing the 0/360 boundary
-                if (yawChange > 180) {
-                    yawChange -= 360; // Adjust for the positive wrap-around
-                } else if (yawChange < -180) {
-                    yawChange += 360; // Adjust for the negative wrap-around
-                }
-
-                if (Math.abs(yawChange) > 1) {  // Apply the change only if significant
-                    globalYawChange -= yawChange;  // Invert the yaw change direction
+                if (Math.abs(yawChange) > 1) {
+                    globalYawChange -= yawChange; // Continue to invert the yaw change
                     var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                    updateFOVConeDirection(newBearing);  // Update the FOV cone with the new bearing
-                    lastValidYaw = currentYaw;  // Update the last valid yaw to the current for the next calculation
+                    updateFOVConeDirection(newBearing);
+                    lastValidYaw = currentYaw;
                 }
-            }, 200);  // Delay updates slightly to allow for smoother transitions
+            }, 100);
         } else {
             console.warn("Spherical properties are not available or video is not a 360° video.");
         }
     }
 }
-
-
 
 
 
@@ -171,7 +160,6 @@ function stopWatchingBearingChanges() {
         bearingUpdateIntervalId = null;
     }
 }
-
 
 
         function clearAllHighlightsAndFOV() {
