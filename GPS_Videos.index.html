@@ -170,7 +170,7 @@
 
             window.view.whenLayerView(layer).then(function(layerView) {
                 highlights[layer.id] = layerView.highlight(feature);
-                drawFOVConeWithAttributeBearing(feature, layerView); // Draw FOV cone with attribute bearing value
+                window.drawFOVConeWithAttributeBearing(feature, layerView); // Draw FOV cone with attribute bearing value
                 lastHighlightedFeature = feature;
                 startWatchingBearingChanges();
             }).catch(function(error) {
@@ -192,7 +192,7 @@
             bearingManuallyUpdated = true; // Mark as manually updated
 
             if (lastHighlightedFeature) {
-                drawFOVConeWithAttributeBearing(lastHighlightedFeature, window.view);
+                drawFOVConeWithAttributeBearing(lastHighlightedFeature); // Draw FOV cone with attribute bearing value
             }
         }
 
@@ -309,48 +309,48 @@
                 });
 
                 window.view.on("click", function(event) {
-    window.view.hitTest(event).then(function(response) {
-        if (response.results.length > 0) {
-            var result = response.results[0];
-            var feature = result.graphic;
-            var layer = result.graphic.layer;
+                    window.view.hitTest(event).then(function(response) {
+                        if (response.results.length > 0) {
+                            var result = response.results[0];
+                            var feature = result.graphic;
+                            var layer = result.graphic.layer;
 
-            if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
-                var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
-                var videoId = videoMap[layerId];
-                var layerStartDateTime = startDateTimeMap[layer.id];
+                            if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
+                                var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
+                                var videoId = videoMap[layerId];
+                                var layerStartDateTime = startDateTimeMap[layer.id];
 
-                if (feature.attributes.DateTimeS && layerStartDateTime) {
-                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
-                    var startTime = new Date(layerStartDateTime).getTime();
-                    var timeDifference = featureTime - startTime;
-                    var seekTime = timeDifference / 1000;
+                                if (feature.attributes.DateTimeS && layerStartDateTime) {
+                                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
+                                    var startTime = new Date(layerStartDateTime).getTime();
+                                    var timeDifference = featureTime - startTime;
+                                    var seekTime = timeDifference / 1000;
 
-                    console.log("Attempting to play video", videoId, "at", seekTime, "seconds");
+                                    console.log("Attempting to play video", videoId, "at", seekTime, "seconds");
 
-                    // Set the videoStarting flag and load the video
-                    videoStarting = true;
-                    if (player && typeof player.loadVideoById === "function") {
-                        player.loadVideoById({ videoId: videoId, startSeconds: seekTime });
-                    } else {
-                        console.error("YouTube player is not ready or `loadVideoById` is not available.");
-                        videoStarting = false; // Reset the flag if the video loading fails
-                    }
+                                    // Set the videoStarting flag and load the video
+                                    videoStarting = true;
+                                    if (player && typeof player.loadVideoById === "function") {
+                                        player.loadVideoById({ videoId: videoId, startSeconds: seekTime });
+                                    } else {
+                                        console.error("YouTube player is not ready or `loadVideoById` is not available.");
+                                        videoStarting = false; // Reset the flag if the video loading fails
+                                    }
 
-                    clearAndHighlight(feature, layer);
+                                    clearAndHighlight(feature, layer);
 
-                    // Draw FOV cone with attribute bearing value
-                    drawFOVConeWithAttributeBearing(feature, window.view); // Call drawFOVConeWithAttributeBearing here
-                } else {
-                    console.error("Missing valid DateTimeS or startDateTime is not set.");
-                }
+                                    // Draw FOV cone with attribute bearing value
+                                    drawFOVConeWithAttributeBearing(feature, window.view);
+                                } else {
+                                    console.error("Missing valid DateTimeS or startDateTime is not set.");
+                                }
+                            }
+                        }
+                    }).catch(function(error) {
+                        console.error("Error during hitTest:", error);
+                    });
+                });
             }
-        }
-    }).catch(function(error) {
-        console.error("Error during hitTest:", error);
-    });
-});
-
 
             window.drawFOVConeWithAttributeBearing = function(feature, layerView) {
                 require([
@@ -409,7 +409,7 @@
                 var dy = distance * Math.cos(angleRad);
                 return [center.x + dx, center.y + dy];
             }
-        };
+        });
 
         document.addEventListener('DOMContentLoaded', function() {
             var videoWindow = document.querySelector("#videoWindow");
