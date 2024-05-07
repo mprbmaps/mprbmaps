@@ -349,8 +349,42 @@
                 });
             }
 
-            https://chatgpt.com/c/dfc64394-db1a-49bd-ae47-13776dadbc2d#:~:text=window.drawFOVConeWithAttributeBearing,add(fovGraphic)%3B%0A%20%20%20%20%7D)%3B%0A%7D%3B
+            window.drawFOVConeWithAttributeBearing = function(feature, layerView) {
+    require([
+        "esri/geometry/Polygon",
+        "esri/Graphic"
+    ], function(Polygon, Graphic) {
+        var coneLength = 30; // Length of the cone in meters
+        var coneWidth = 50; // Half angle of the FOV cone in degrees
 
+        fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
+
+        var centerPoint = feature.geometry.clone();
+        var attributeBearing = feature.attributes.bearing; // Get attribute bearing
+        
+        // Create the FOV cone with attribute bearing
+        var fovBearing = (persistentBearing + attributeBearing) % 360;
+        var cone = createCone(centerPoint, fovBearing, coneWidth, coneLength);
+        var polygon = new Polygon({
+            rings: cone,
+            spatialReference: { wkid: 102100 }
+        });
+
+        // Create and add the FOV graphic to the graphics layer
+        var fovGraphic = new Graphic({
+            geometry: polygon,
+            symbol: {
+                type: "simple-fill",
+                color: [255, 165, 0, 0.3],
+                outline: {
+                    color: [255, 165, 0.2],
+                    width: 1
+                }
+            }
+        });
+        fovGraphicsLayer.graphics.add(fovGraphic);
+    });
+};
 
             function createCone(centerPoint, bearing, width, length) {
                 var points = [];
