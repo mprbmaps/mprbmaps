@@ -118,22 +118,24 @@
         }
 
         function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                var currentYaw = ((props.yaw % 360) + 360) % 360;
+    if (player && player.getSphericalProperties) {
+        var props = player.getSphericalProperties();
+        var currentYaw = ((props.yaw % 360) + 360) % 360;
 
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(function() {
-                    var yawChange = currentYaw - lastValidYaw;
-                    if (Math.abs(yawChange) > 1) {
-                        persistentBearing = (persistentBearing + yawChange + 360) % 360; // Update the persistent bearing
-                        bearingManuallyUpdated = true; // Set the flag when bearing is manually changed
-                        updateFOVConeDirection(persistentBearing);
-                        lastValidYaw = currentYaw;
-                    }
-                }, 100);
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function() {
+            var yawChange = currentYaw - lastValidYaw;
+            // Inverting the bearing adjustment here
+            if (Math.abs(yawChange) > 1) {
+                persistentBearing = (persistentBearing - yawChange + 360) % 360; // Subtract yawChange to invert direction
+                bearingManuallyUpdated = true; // Flag that bearing has been manually changed
+                updateFOVConeDirection(persistentBearing);
+                lastValidYaw = currentYaw;
             }
-        }
+        }, 100);
+    }
+}
+
 
         function startWatchingBearingChanges() {
             clearBearingUpdateInterval();
