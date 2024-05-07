@@ -122,23 +122,23 @@
         }
 
         function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                var currentYaw = ((props.yaw % 360) + 360) % 360;
+    if (player && player.getSphericalProperties) {
+        var props = player.getSphericalProperties();
+        var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize the yaw to 0-360 degrees
 
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(function() {
-                    var yawChange = currentYaw - lastValidYaw;
-                    // Inverting the bearing adjustment here
-                    if (Math.abs(yawChange) > 1) {
-                        persistentBearing = (persistentBearing - yawChange + 360) % 360; // Subtract yawChange to invert direction
-                        bearingManuallyUpdated = true; // Flag that bearing has been manually changed
-                        updateFOVConeDirection(persistentBearing);
-                        lastValidYaw = currentYaw;
-                    }
-                }, 100);
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function() {
+            var yawChange = currentYaw - lastValidYaw;
+            if (Math.abs(yawChange) > 1) {
+                persistentBearing += yawChange; // Adjust the persistent bearing by the yaw change
+                persistentBearing = (persistentBearing + 360) % 360; // Normalize the bearing
+                bearingManuallyUpdated = true;
+                updateFOVConeDirection(persistentBearing);
+                lastValidYaw = currentYaw; // Update lastValidYaw to the current yaw
             }
-        }
+        }, 100);
+    }
+}
 
         function startWatchingBearingChanges() {
             clearBearingUpdateInterval();
@@ -153,30 +153,32 @@
         }
 
         function clearAndHighlight(feature, layer) {
-            Object.keys(highlights).forEach(function(layerId) {
-                if (highlights[layerId]) {
-                    highlights[layerId].remove();
-                    highlights[layerId] = null;
-                }
-            });
-
-            activeLayerId = layer.id;
-            if (!bearingManuallyUpdated) { // Only reset bearing if it was not manually updated
-                persistentBearing = feature.attributes.bearing;
-            } else {
-                // Log bearing to see if it carries over
-                console.log("Carrying over bearing:", persistentBearing);
-            }
-
-            window.view.whenLayerView(layer).then(function(layerView) {
-                highlights[layer.id] = layerView.highlight(feature);
-                window.drawFOVCone(feature, layerView, persistentBearing); // Always use persistent bearing
-                lastHighlightedFeature = feature;
-                startWatchingBearingChanges();
-            }).catch(function(error) {
-                console.error("Error in highlighting feature: ", error);
-            });
+    Object.keys(highlights).forEach(function(layerId) {
+        if (highlights[layerId]) {
+            highlights[layerId].remove();
+            highlights[layerId] = null;
         }
+    });
+
+    activeLayerId = layer.id;
+    var featureBearing = feature.attributes.bearing; // Get the bearing from feature attributes
+
+    if (!bearingManuallyUpdated) {
+        persistentBearing = featureBearing; // Reset bearing if it was not manually updated
+    } else {
+        persistentBearing = (featureBearing + persistentBearing) % 360; // Apply persistent bearing adjustments to the new feature
+        console.log("Bearing adjusted with persistent changes:", persistentBearing);
+    }
+
+    window.view.whenLayerView(layer).then(function(layerView) {
+        highlights[layer.id] = layerView.highlight(feature);
+        window.drawFOVCone(feature, layerView, persistentBearing); // Draw FOV cone with updated bearing
+        lastHighlightedFeature = feature;
+        startWatchingBearingChanges(); // Continue monitoring bearing changes
+    }).catch(function(error) {
+        console.error("Error in highlighting feature: ", error);
+    });
+}
 
         function clearHighlight(layer) {
             if (highlights[layer.id]) {
