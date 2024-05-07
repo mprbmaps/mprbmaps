@@ -61,6 +61,7 @@
         var bearingManuallyUpdated = false;
         var persistentBearing = 0;
         var cumulativeYawChange = 0; // Initialize outside of function to track cumulative changes
+        var lastYawChange = 0;
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -139,10 +140,12 @@
                 bearingManuallyUpdated = true; // Flag that bearing has been manually changed
                 updateFOVConeDirection(persistentBearing);
                 lastValidYaw = currentYaw;
+                lastYawChange = yawChange; // Store the change in yaw
             }
         }, 100);
     }
 }
+
 
         function resetYawAdjustment() {
             cumulativeYawChange = 0;
@@ -169,18 +172,23 @@
     });
 
     activeLayerId = layer.id;
-    bearingManuallyUpdated = false; // Resetting this on new feature highlight
-    persistentBearing = feature.attributes.bearing;
+    if (!bearingManuallyUpdated) { // Only reset bearing if it was not manually updated
+        persistentBearing = (feature.attributes.bearing + lastYawChange + 360) % 360; // Add lastYawChange to the feature's bearing
+    } else {
+        // Log bearing to see if it carries over
+        console.log("Carrying over bearing:", persistentBearing);
+    }
 
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
-        window.drawFOVCone(feature, layerView, persistentBearing);
+        window.drawFOVCone(feature, layerView, persistentBearing); // Always use persistent bearing
         lastHighlightedFeature = feature;
-        console.log("Feature highlighted with new bearing:", persistentBearing);
+        startWatchingBearingChanges();
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
         function clearHighlight(layer) {
             if (highlights[layer.id]) {
