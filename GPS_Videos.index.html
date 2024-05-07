@@ -126,13 +126,15 @@
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(function() {
             if (Math.abs(yawChange) > 1) { // Check significant change to update
-                persistentBearing = (persistentBearing + yawChange + 360) % 360; // Update bearing considering yaw change
+                // Update persistentBearing by adding yawChange
+                persistentBearing = (persistentBearing + yawChange + 360) % 360;
                 updateFOVConeDirection(persistentBearing); // Apply new bearing to FOV cone
                 lastValidYaw = currentYaw; // Update last valid yaw to new yaw
             }
         }, 100);
     }
 }
+
 
 
         function startWatchingBearingChanges() {
