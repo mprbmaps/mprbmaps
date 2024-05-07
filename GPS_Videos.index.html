@@ -148,30 +148,30 @@
         }
 
         function clearAndHighlight(feature, layer) {
-    Object.keys(highlights).forEach(function(layerId) {
-        if (highlights[layerId]) {
-            highlights[layerId].remove();
-            highlights[layerId] = null;
+            Object.keys(highlights).forEach(function(layerId) {
+                if (highlights[layerId]) {
+                    highlights[layerId].remove();
+                    highlights[layerId] = null;
+                }
+            });
+
+            activeLayerId = layer.id;
+            if (!bearingManuallyUpdated) { // Only reset bearing if it was not manually updated
+                persistentBearing = feature.attributes.bearing;
+            } else {
+                // Log bearing to see if it carries over
+                console.log("Carrying over bearing:", persistentBearing);
+            }
+
+            window.view.whenLayerView(layer).then(function(layerView) {
+                highlights[layer.id] = layerView.highlight(feature);
+                window.drawFOVCone(feature, layerView, persistentBearing); // Always use persistent bearing
+                lastHighlightedFeature = feature;
+                startWatchingBearingChanges();
+            }).catch(function(error) {
+                console.error("Error in highlighting feature: ", error);
+            });
         }
-    });
-
-    activeLayerId = layer.id;
-    if (!bearingManuallyUpdated) { // Only reset bearing if it was not manually updated
-        persistentBearing = feature.attributes.bearing;
-    } else {
-        // Log bearing to see if it carries over
-        console.log("Carrying over bearing:", persistentBearing);
-    }
-
-    window.view.whenLayerView(layer).then(function(layerView) {
-        highlights[layer.id] = layerView.highlight(feature);
-        window.drawFOVCone(feature, layerView, persistentBearing); // Always use persistent bearing
-        lastHighlightedFeature = feature;
-        startWatchingBearingChanges();
-    }).catch(function(error) {
-        console.error("Error in highlighting feature: ", error);
-    });
-}
 
         function clearHighlight(layer) {
             if (highlights[layer.id]) {
@@ -182,19 +182,14 @@
         }
 
         function updateFOVConeDirection(newBearing) {
-    console.log("Original Bearing:", newBearing);
-    // Clamp the bearing to be between 0 and 360 degrees
-    newBearing = ((newBearing % 360) + 360) % 360;
-    console.log("Clamped Bearing:", newBearing);
+            console.log("Updating FOV Bearing to:", newBearing);
+            persistentBearing = newBearing; // Update persistent bearing regardless of current highlight
+            bearingManuallyUpdated = true; // Mark as manually updated
 
-    persistentBearing = newBearing; // Update persistent bearing regardless of current highlight
-    bearingManuallyUpdated = true; // Mark as manually updated
-
-    if (lastHighlightedFeature) {
-        console.log("Updating FOV Cone with Bearing:", newBearing);
-        drawFOVCone(lastHighlightedFeature);
-    }
-}
+            if (lastHighlightedFeature) {
+                drawFOVCone(lastHighlightedFeature);
+            }
+        }
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
             if (!startDateTimeMap[featureLayer.id]) {
@@ -350,69 +345,58 @@
                 });
             }
 
-            window.drawFOVCone = function(feature, layerView, bearing) {
-    require([
-        "esri/geometry/Polygon",
-        "esri/Graphic"
-    ], function(Polygon, Graphic) {
-        var coneLength = 30; // Length of the cone in meters
-        var coneWidth = 50; // Half angle of the FOV cone in degrees
+            window.drawFOVCone = function(feature, layerView) {
+                require([
+                    "esri/geometry/Polygon",
+                    "esri/Graphic"
+                ], function(Polygon, Graphic) {
+                    var coneLength = 30; // Length of the cone in meters
+                    var coneWidth = 50; // Half angle of the FOV cone in degrees
 
-        // Ensure bearing is always within a 0 to 360 range
-        bearing = ((bearing % 360) + 360) % 360;
-        console.log("Drawing FOV Cone with Bearing:", bearing);
+                    fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
-        fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
+                    var centerPoint = feature.geometry.clone();
+                    var cone = createCone(centerPoint, persistentBearing, coneWidth, coneLength);
+                    var polygon = new Polygon({
+                        rings: cone,
+                        spatialReference: { wkid: 102100 }
+                    });
 
-        var centerPoint = feature.geometry.clone();
-        var cone = createCone(centerPoint, bearing, coneWidth, coneLength);
-        var polygon = new Polygon({
-            rings: cone,
-            spatialReference: { wkid: 102100 }
-        });
+                    var fovGraphic = new Graphic({
+                        geometry: polygon,
+                        symbol: {
+                            type: "simple-fill",
+                            color: [255, 165, 0, 0.3],
+                            outline: {
+                                color: [255, 165, 0.2],
+                                width: 1
+                            }
+                        }
+                    });
 
-        var fovGraphic = new Graphic({
-            geometry: polygon,
-            symbol: {
-                type: "simple-fill",
-                color: [255, 165, 0, 0.3], // Semi-transparent orange
-                outline: {
-                    color: [255, 165, 0], // Orange outline
-                    width: 1
-                }
-            }
-        });
-
-        fovGraphicsLayer.graphics.add(fovGraphic);
-    });
-};
-
+                    fovGraphicsLayer.graphics.add(fovGraphic);
+                });
+            };
 
             function createCone(centerPoint, bearing, width, length) {
-    var points = [];
-    points.push([centerPoint.x, centerPoint.y]); // Cone Apex
-    var startBearing = bearing - width;
-    var endBearing = bearing + width;
+                var points = [];
+                points.push([centerPoint.x, centerPoint.y]); // Cone Apex
+                var startBearing = bearing - width;
+                var endBearing = bearing + width;
 
-    var startPoint = calculatePoint(centerPoint, startBearing, length);
-    var endPoint = calculatePoint(centerPoint, endBearing, length);
+                points.push(calculatePoint(centerPoint, startBearing, length));
+                points.push(calculatePoint(centerPoint, endBearing, length));
+                points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
 
-    console.log("Cone Start Point:", startPoint, "End Point:", endPoint); // Log the points
+                return [points];
+            }
 
-    points.push(startPoint);
-    points.push(endPoint);
-    points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
-
-    return [points];
-}
-
-function calculatePoint(center, bearing, distance) {
-    var angleRad = (Math.PI / 180) * bearing;
-    var dx = distance * Math.sin(angleRad);
-    var dy = distance * Math.cos(angleRad);
-    return [center.x + dx, center.y + dy];
-}
-
+            function calculatePoint(center, bearing, distance) {
+                var angleRad = (Math.PI / 180) * bearing;
+                var dx = distance * Math.sin(angleRad);
+                var dy = distance * Math.cos(angleRad);
+                return [center.x + dx, center.y + dy];
+            }
         });
 
         document.addEventListener('DOMContentLoaded', function() {
