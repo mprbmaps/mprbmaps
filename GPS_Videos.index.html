@@ -150,30 +150,28 @@
         }
 
         function clearAndHighlight(feature, layer) {
-            Object.keys(highlights).forEach(function(layerId) {
-                if (highlights[layerId]) {
-                    highlights[layerId].remove();
-                    highlights[layerId] = null;
-                }
-            });
-
-            activeLayerId = layer.id;
-            if (!bearingManuallyUpdated) { // Only reset bearing if it was not manually updated
-                persistentBearing = feature.attributes.bearing;
-            } else {
-                // Log bearing to see if it carries over
-                console.log("Carrying over bearing:", persistentBearing);
-            }
-
-            window.view.whenLayerView(layer).then(function(layerView) {
-                highlights[layer.id] = layerView.highlight(feature);
-                window.drawFOVCone(feature, layerView, persistentBearing); // Always use persistent bearing
-                lastHighlightedFeature = feature;
-                startWatchingBearingChanges();
-            }).catch(function(error) {
-                console.error("Error in highlighting feature: ", error);
-            });
+    Object.keys(highlights).forEach(function(layerId) {
+        if (highlights[layerId]) {
+            highlights[layerId].remove();
+            highlights[layerId] = null;
         }
+    });
+
+    activeLayerId = layer.id;
+    var newFeatureBearing = feature.attributes.bearing;
+    var bearingDifference = newFeatureBearing - persistentBearing;
+    persistentBearing = newFeatureBearing;
+
+    window.view.whenLayerView(layer).then(function(layerView) {
+        highlights[layer.id] = layerView.highlight(feature);
+        window.drawFOVCone(feature, layerView, persistentBearing); // Always use persistent bearing
+        lastHighlightedFeature = feature;
+        startWatchingBearingChanges();
+        adjustVideoRotation(bearingDifference);
+    }).catch(function(error) {
+        console.error("Error in highlighting feature: ", error);
+    });
+}
 
         function clearHighlight(layer) {
             if (highlights[layer.id]) {
@@ -192,6 +190,24 @@
                 drawFOVCone(lastHighlightedFeature);
             }
         }
+
+        function adjustVideoRotation(bearingDifference) {
+    if (player && typeof player.getCurrentTime === "function") {
+        var currentVideoTime = player.getCurrentTime();
+        player.getSphericalProperties().then(function(props) {
+            var currentYaw = props.yaw;
+            var newRotation = currentYaw + bearingDifference;
+            player.setSphericalProperties({ yaw: newRotation }).then(function() {
+                console.log("Adjusted video rotation by", bearingDifference, "degrees.");
+            }).catch(function(error) {
+                console.error("Error adjusting video rotation:", error);
+            });
+        }).catch(function(error) {
+            console.error("Error getting video spherical properties:", error);
+        });
+    }
+}
+
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
             if (!startDateTimeMap[featureLayer.id]) {
