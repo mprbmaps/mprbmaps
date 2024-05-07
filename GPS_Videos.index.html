@@ -72,6 +72,7 @@
             
         }
     });
+    startWatchingBearingChanges();
 }
 
         function clearBearingUpdateInterval() {
@@ -84,27 +85,26 @@
         function onPlayerStateChange(event) {
     switch (event.data) {
         case YT.PlayerState.PLAYING:
-            videoStarted = true;
-            videoStarting = false;
+            console.log("Video is playing.");
             checkTimeUpdate();
             break;
         case YT.PlayerState.PAUSED:
-            console.log("Video paused, maintaining current highlights and FOV.");
+            console.log("Video paused.");
             break;
         case YT.PlayerState.ENDED:
-            console.log("Video ended, cleared all highlights and FOV.");
+            console.log("Video ended, clearing highlights and stopping bearing updates.");
             stopWatchingBearingChanges();
+            clearAllHighlightsAndFOV();
             break;
         case YT.PlayerState.CUED:
-            console.log("Video cued, ready to play.");
-            startWatchingBearingChanges();  // Start watching on cued, useful if not started already
+            console.log("Video cued and ready.");
             break;
         case YT.PlayerState.BUFFERING:
-            console.log("Video buffering, adjustments are paused.");
+            console.log("Video buffering.");
             break;
         case YT.PlayerState.SEEKING:
         case YT.PlayerState.SEEKED:
-            console.log("Video was panned or seeked, checking for new orientation.");
+            console.log("Video seeked, checking orientation.");
             break;
     }
 }
@@ -124,20 +124,23 @@
         }
 
         function watchBearingChange() {
+    console.log("Checking bearing changes...");
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
+        console.log("Spherical properties:", props);
         if (props && typeof props.yaw !== 'undefined') {
             var currentYaw = ((props.yaw % 360) + 360) % 360;
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(function() {
-                var yawChange = currentYaw - lastValidYaw;
-                if (Math.abs(yawChange) > 1) {
-                    globalYawChange -= yawChange;  // Continue to invert the yaw change
-                    var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                    updateFOVConeDirection(newBearing);
-                    lastValidYaw = currentYaw;
-                }
-            }, 100);  // Fast updates for smooth visual feedback
+            var yawChange = currentYaw - lastValidYaw;
+            console.log("Current Yaw:", currentYaw, "Last Valid Yaw:", lastValidYaw, "Yaw Change:", yawChange);
+            if (Math.abs(yawChange) > 1) { // Checking for significant change
+                globalYawChange -= yawChange;
+                var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                console.log("New Bearing Calculated:", newBearing);
+                updateFOVConeDirection(newBearing);
+                lastValidYaw = currentYaw;
+            }
+        } else {
+            console.warn("No spherical properties available or video is not 360°.");
         }
     }
 }
@@ -145,15 +148,17 @@
 
 
         function startWatchingBearingChanges() {
-    if (bearingUpdateIntervalId === null) {
-        bearingUpdateIntervalId = setInterval(watchBearingChange, 100);  // Watch for bearing changes continuously
+    if (!bearingUpdateIntervalId) {
+        bearingUpdateIntervalId = setInterval(watchBearingChange, 100);
+        console.log("Started watching bearing changes.");
     }
 }
 
 function stopWatchingBearingChanges() {
-    if (bearingUpdateIntervalId !== null) {
+    if (bearingUpdateIntervalId) {
         clearInterval(bearingUpdateIntervalId);
         bearingUpdateIntervalId = null;
+        console.log("Stopped watching bearing changes.");
     }
 }
 
