@@ -156,12 +156,10 @@
     });
 
     activeLayerId = layer.id;
-    if (!bearingManuallyUpdated) { // Only reset bearing if it was not manually updated
-        persistentBearing = feature.attributes.bearing;
-    } else {
-        // Log bearing to see if it carries over
-        console.log("Carrying over bearing:", persistentBearing);
-    }
+    
+    // Reset the bearing to the bearing of the new feature
+    persistentBearing = feature.attributes.bearing;
+    lastValidYaw = feature.attributes.bearing;
 
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
