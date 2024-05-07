@@ -124,22 +124,27 @@
         }
 
         function watchBearingChange() {
-    console.log("Checking bearing changes...");
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
-        console.log("Spherical properties:", props);
         if (props && typeof props.yaw !== 'undefined') {
             var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize the yaw
+            console.log("Current Yaw:", currentYaw);
+
+            // Calculate the change in yaw
             var yawChange = currentYaw - lastValidYaw;
-            if (Math.abs(yawChange) > 1) { // Apply a threshold to avoid minor jitter
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(function() {
-                    globalYawChange -= yawChange; // Invert and accumulate yaw change
-                    var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                    console.log("New Bearing Calculated:", newBearing);
-                    updateFOVConeDirection(newBearing);
-                    lastValidYaw = currentYaw;
-                }, 200); // Increased debounce time to allow for smoother transitions
+            if (yawChange !== 0) { // Check if there is any change to process
+                console.log("Detected Yaw Change:", yawChange);
+
+                // Adjust the globalYawChange based on the detected yaw change
+                globalYawChange += yawChange;
+                lastValidYaw = currentYaw; // Update the last valid yaw
+
+                // Calculate the new bearing based on globalYawChange
+                var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                console.log("New Bearing Calculated:", newBearing);
+
+                // Update the FOV cone direction
+                updateFOVConeDirection(newBearing);
             }
         } else {
             console.warn("No spherical properties available or video is not 360°.");
@@ -149,11 +154,9 @@
 
 function updateFOVConeDirection(newBearing) {
     console.log("Updating FOV Bearing to:", newBearing);
-    if (Math.abs(newBearing - persistentBearing) > 5) { // Only update if the change is significant
-        persistentBearing = newBearing;
-        if (lastHighlightedFeature) {
-            drawFOVCone(lastHighlightedFeature); // Re-draw the FOV cone with the new bearing
-        }
+    persistentBearing = newBearing;
+    if (lastHighlightedFeature) {
+        drawFOVCone(lastHighlightedFeature); // Re-draw the FOV cone with the new bearing
     }
 }
 
