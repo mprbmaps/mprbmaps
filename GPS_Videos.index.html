@@ -78,31 +78,33 @@
         }
 
         function onPlayerStateChange(event) {
-            switch (event.data) {
-                case YT.PlayerState.PLAYING:
-                    checkTimeUpdate(); // Continuously check for updates in the video's current time.
-                    watchBearingChange(); // Start or continue watching for bearing changes.
-                    break;
-                case YT.PlayerState.PAUSED:
-                    console.log("Video paused, maintaining current highlights and FOV."); // Log when video is paused.
-                    break;
-                case YT.PlayerState.ENDED:
-                    clearAllHighlightsAndFOV(); // Clear all highlights and the FOV cone when video ends.
-                    console.log("Video ended, cleared all highlights and FOV."); // Log when the video ends.
-                    break;
-                case YT.PlayerState.BUFFERING:
-                    console.log("Video buffering, adjustments are paused."); // Log when video is buffering.
-                    break;
-                case YT.PlayerState.CUED:
-                    console.log("Video cued, ready to play."); // Log when video is cued and ready.
-                    break;
-                case YT.PlayerState.SEEKING:
-                case YT.PlayerState.SEEKED:
-                    console.log("Video was panned or seeked, checking for new orientation."); // Log when video is seeked or panned.
-                    watchBearingChange(); // Ensure that bearing changes are checked after seeking.
-                    break;
-            }
-        }
+    switch (event.data) {
+        case YT.PlayerState.PLAYING:
+            videoStarted = true; // Set the flag when the video starts playing
+            videoStarting = false; // Reset the flag when the video starts playing
+            checkTimeUpdate(); // Continuously check for updates in the video's current time.
+            watchBearingChange(); // Start or continue watching for bearing changes.
+            break;
+        case YT.PlayerState.PAUSED:
+            console.log("Video paused, maintaining current highlights and FOV."); // Log when video is paused.
+            break;
+        case YT.PlayerState.ENDED:
+            clearAllHighlightsAndFOV(); // Clear all highlights and the FOV cone when video ends.
+            console.log("Video ended, cleared all highlights and FOV."); // Log when the video ends.
+            break;
+        case YT.PlayerState.BUFFERING:
+            console.log("Video buffering, adjustments are paused."); // Log when video is buffering.
+            break;
+        case YT.PlayerState.CUED:
+            console.log("Video cued, ready to play."); // Log when video is cued and ready.
+            break;
+        case YT.PlayerState.SEEKING:
+        case YT.PlayerState.SEEKED:
+            console.log("Video was panned or seeked, checking for new orientation."); // Log when video is seeked or panned.
+            watchBearingChange(); // Ensure that bearing changes are checked after seeking.
+            break;
+    }
+}
 
         function checkTimeUpdate() {
             if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
@@ -332,46 +334,44 @@
                 });
 
                 window.view.on("click", function(event) {
-                    window.view.hitTest(event).then(function(response) {
-                        if (response.results.length > 0) {
-                            var result = response.results[0];
-                            var feature = result.graphic;
-                            var layer = result.graphic.layer;
+    window.view.hitTest(event).then(function(response) {
+        if (response.results.length > 0) {
+            var result = response.results[0];
+            var feature = result.graphic;
+            var layer = result.graphic.layer;
 
-                            if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
-                                var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
-                                var videoId = videoMap[layerId];
-                                var layerStartDateTime = startDateTimeMap[layer.id];
+            if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
+                var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
+                var videoId = videoMap[layerId];
+                var layerStartDateTime = startDateTimeMap[layer.id];
 
-                                if (feature.attributes.DateTimeS && layerStartDateTime) {
-                                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
-                                    var startTime = new Date(layerStartDateTime).getTime();
-                                    var timeDifference = featureTime - startTime;
-                                    var seekTime = timeDifference / 1000;
+                if (feature.attributes.DateTimeS && layerStartDateTime) {
+                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
+                    var startTime = new Date(layerStartDateTime).getTime();
+                    var timeDifference = featureTime - startTime;
+                    var seekTime = timeDifference / 1000;
 
-                                    console.log("Attempting to play video", videoId, "at", seekTime, "seconds");
+                    console.log("Attempting to play video", videoId, "at", seekTime, "seconds");
 
-                                    if (seekTime >= 0) {
-                                        if (player && typeof player.loadVideoById === "function") {
-                                            player.loadVideoById({ videoId: videoId, startSeconds: seekTime });
-                                        } else {
-                                            console.error("YouTube player is not ready or `loadVideoById` is not available.");
-                                        }
-                                    } else {
-                                        console.error("Calculated seek time is negative.");
-                                    }
-                                } else {
-                                    console.error("Missing valid DateTimeS or startDateTime is not set.");
-                                }
+                    // Set the videoStarting flag and load the video
+                    videoStarting = true;
+                    if (player && typeof player.loadVideoById === "function") {
+                        player.loadVideoById({ videoId: videoId, startSeconds: seekTime });
+                    } else {
+                        console.error("YouTube player is not ready or `loadVideoById` is not available.");
+                        videoStarting = false; // Reset the flag if the video loading fails
+                    }
+                } else {
+                    console.error("Missing valid DateTimeS or startDateTime is not set.");
+                }
 
-                                clearAndHighlight(feature, layer);
-                            }
-                        }
-                    }).catch(function(error) {
-                        console.error("Error during hitTest:", error);
-                    });
-                });
+                clearAndHighlight(feature, layer);
             }
+        }
+    }).catch(function(error) {
+        console.error("Error during hitTest:", error);
+    });
+});
 
             window.drawFOVCone = function(feature, layerView, persistentBearing) {
     require([
@@ -388,8 +388,8 @@
         // Calculate the FOV bearing based on the sum of the persistent bearing and the feature's attribute bearing
         var fovBearing = (persistentBearing + feature.attributes.bearing) % 360;
         
-        // For the first feature, use only the feature's attribute bearing
-        if (!lastHighlightedFeature) {
+        // For the first feature and if the video has not started or is starting, use only the feature's attribute bearing
+        if (!lastHighlightedFeature && (!videoStarted || videoStarting)) {
             fovBearing = feature.attributes.bearing;
         }
         
