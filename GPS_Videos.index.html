@@ -64,14 +64,15 @@
         var globalYawChange = 0; // This will accumulate changes in yaw
 
         function onYouTubeIframeAPIReady() {
-            player = new YT.Player('youtubePlayer', {
-                height: '443',
-                width: '707',
-                events: {
-                    'onStateChange': onPlayerStateChange
-                }
-            });
+    player = new YT.Player('youtubePlayer', {
+        height: '443',
+        width: '707',
+        events: {
+            'onStateChange': onPlayerStateChange,
+            'onPlaybackRateChange': onPlaybackRateChange
         }
+    });
+}
 
         function clearBearingUpdateInterval() {
             if (bearingUpdateIntervalId !== null) {
@@ -85,17 +86,18 @@
         case YT.PlayerState.PLAYING:
             videoStarted = true;
             videoStarting = false;
+            if (!bearingUpdateIntervalId) {
+                startWatchingBearingChanges();
+            }
             checkTimeUpdate();
-            startWatchingBearingChanges();
             break;
         case YT.PlayerState.PAUSED:
             console.log("Video paused, maintaining current highlights and FOV.");
-            // Do not stop watching bearing changes
             break;
         case YT.PlayerState.ENDED:
             clearAllHighlightsAndFOV();
             console.log("Video ended, cleared all highlights and FOV.");
-            stopWatchingBearingChanges(); // Stop watching bearing changes when the video ends
+            stopWatchingBearingChanges();
             break;
         case YT.PlayerState.BUFFERING:
             console.log("Video buffering, adjustments are paused.");
@@ -106,7 +108,6 @@
         case YT.PlayerState.SEEKING:
         case YT.PlayerState.SEEKED:
             console.log("Video was panned or seeked, checking for new orientation.");
-            // Ensure that bearing changes are checked after seeking
             break;
     }
 }
@@ -128,9 +129,8 @@
         function watchBearingChange() {
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
-        if (props && typeof props.yaw !== 'undefined') { // Check that props and props.yaw are defined
+        if (props && typeof props.yaw !== 'undefined') {
             var currentYaw = ((props.yaw % 360) + 360) % 360;
-
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(function() {
                 var yawChange = currentYaw - lastValidYaw;
@@ -140,7 +140,7 @@
                     updateFOVConeDirection(newBearing);
                     lastValidYaw = currentYaw;
                 }
-            }, 100);
+            }, 50); // Reduced timeout for faster updates
         } else {
             console.warn("Spherical properties are not available or video is not a 360° video.");
         }
@@ -151,7 +151,7 @@
 
         function startWatchingBearingChanges() {
     clearBearingUpdateInterval();
-    bearingUpdateIntervalId = setInterval(watchBearingChange, 100); // Check every 100ms
+    bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Increased frequency
 }
 
 function stopWatchingBearingChanges() {
@@ -385,7 +385,7 @@ function stopWatchingBearingChanges() {
                         geometry: polygon,
                         symbol: {
                             type: "simple-fill",
-                            color: [255, 165, 0, 0.3],
+                            color: [255, 165, 0, 0.1],
                             outline: {
                                 color: [255, 165, 0.2],
                                 width: 1
