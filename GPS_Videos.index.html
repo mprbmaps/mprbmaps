@@ -39,6 +39,7 @@
     <div id="videoWindow">
         <div id="youtubePlayer"></div>
     </div>
+    <button onclick="resetYawAdjustment()">Reset Yaw Adjustment</button>
     <script>
         var player;
         var featureLayers = {};
@@ -82,7 +83,7 @@
             switch (event.data) {
                 case YT.PlayerState.PLAYING:
                     checkTimeUpdate(); // Continuously check for updates in the video's current time.
-                    watchBearingChange(); // Start or continue watching for bearing changes.
+                    startWatchingBearingChanges(); // Ensure bearing is monitored when playing
                     break;
                 case YT.PlayerState.PAUSED:
                     console.log("Video paused, maintaining current highlights and FOV."); // Log when video is paused.
@@ -100,7 +101,7 @@
                 case YT.PlayerState.SEEKING:
                 case YT.PlayerState.SEEKED:
                     console.log("Video was panned or seeked, checking for new orientation."); // Log when video is seeked or panned.
-                    watchBearingChange(); // Ensure that bearing changes are checked after seeking.
+                    startWatchingBearingChanges(); // Ensure that bearing changes are checked after seeking.
                     break;
             }
         }
@@ -112,19 +113,6 @@
             bearingUpdateIntervalId = setInterval(watchBearingChange, 100); // Adjust as necessary for your application
         }
 
-        function checkTimeUpdate() {
-            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
-                var currentSecond = Math.floor(player.getCurrentTime());
-                Object.keys(featureLayers).forEach(function(layerId) {
-                    var featureLayer = featureLayers[layerId];
-                    if (featureLayer && featureLayer.id === activeLayerId) {
-                        highlightFeatureAtTime(currentSecond, featureLayer, window.view);
-                    }
-                });
-                setTimeout(checkTimeUpdate, 1000);
-            }
-        }
-
         function watchBearingChange() {
             if (player && player.getSphericalProperties) {
                 var props = player.getSphericalProperties();
@@ -132,15 +120,23 @@
 
                 var yawChange = currentYaw - lastValidYaw;
                 if (Math.abs(yawChange) > 1) {
-                    cumulativeYawChange += yawChange; // Store yaw change
-                    lastValidYaw = currentYaw; // Update last valid yaw here
+                    cumulativeYawChange += yawChange; // Accumulate yaw changes
+                    lastValidYaw = currentYaw;
                 }
 
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(function() {
-                    // Optionally update or manage yaw changes at a slower rate
                     console.log("Accumulated yaw change:", cumulativeYawChange);
                 }, 100);
+            }
+        }
+
+        function resetYawAdjustment() {
+            cumulativeYawChange = 0;
+            console.log("Yaw adjustment reset.");
+            if (lastHighlightedFeature && activeLayerId) {
+                var featureLayer = featureLayers[activeLayerId];
+                clearAndHighlight(lastHighlightedFeature, featureLayer);
             }
         }
 
@@ -160,21 +156,14 @@
             });
 
             activeLayerId = layer.id;
-            if (!bearingManuallyUpdated) { // Check if there has been a manual update before resetting
-                persistentBearing = feature.attributes.bearing;
-            }
-
-            // Apply yaw changes here, ensuring it's only reset after application
-            persistentBearing = (persistentBearing - cumulativeYawChange + 360) % 360;
-            cumulativeYawChange = 0; // Reset cumulative yaw change after applying
-
-            console.log("Updated bearing with yaw change:", persistentBearing);
+            // Apply yaw changes here but do not reset
+            var newBearing = (feature.attributes.bearing - cumulativeYawChange + 360) % 360;
 
             window.view.whenLayerView(layer).then(function(layerView) {
                 highlights[layer.id] = layerView.highlight(feature);
-                window.drawFOVCone(feature, layerView, persistentBearing);
+                window.drawFOVCone(feature, layerView, newBearing); // Use the newly calculated bearing
                 lastHighlightedFeature = feature;
-                startWatchingBearingChanges(); // Restart watching for bearing changes
+                bearingManuallyUpdated = false; // Reset the manual update flag if necessary
             }).catch(function(error) {
                 console.error("Error in highlighting feature: ", error);
             });
