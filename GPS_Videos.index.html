@@ -170,7 +170,7 @@
 
             window.view.whenLayerView(layer).then(function(layerView) {
                 highlights[layer.id] = layerView.highlight(feature);
-                window.drawFOVConeWithAttributeBearing(feature, layerView); // Always use attribute bearing
+                drawFOVConeWithAttributeBearing(feature, layerView); // Draw FOV cone with attribute bearing value
                 lastHighlightedFeature = feature;
                 startWatchingBearingChanges();
             }).catch(function(error) {
@@ -192,7 +192,7 @@
             bearingManuallyUpdated = true; // Mark as manually updated
 
             if (lastHighlightedFeature) {
-                drawFOVConeWithAttributeBearing(lastHighlightedFeature);
+                drawFOVConeWithAttributeBearing(lastHighlightedFeature, window.view);
             }
         }
 
@@ -336,11 +336,14 @@
                                         console.error("YouTube player is not ready or `loadVideoById` is not available.");
                                         videoStarting = false; // Reset the flag if the video loading fails
                                     }
+
+                                    clearAndHighlight(feature, layer);
+
+                                    // Draw FOV cone with attribute bearing value
+                                    drawFOVConeWithAttributeBearing(feature, window.view);
                                 } else {
                                     console.error("Missing valid DateTimeS or startDateTime is not set.");
                                 }
-
-                                clearAndHighlight(feature, layer);
                             }
                         }
                     }).catch(function(error) {
@@ -386,7 +389,6 @@
                     fovGraphicsLayer.graphics.add(fovGraphic);
                 });
             };
-
 
             function createCone(centerPoint, bearing, width, length) {
                 var points = [];
