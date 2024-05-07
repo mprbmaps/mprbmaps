@@ -192,21 +192,19 @@
         }
 
         function adjustVideoRotation(bearingDifference) {
-    if (player && typeof player.getCurrentTime === "function") {
-        var currentVideoTime = player.getCurrentTime();
-        player.getSphericalProperties().then(function(props) {
-            var currentYaw = props.yaw;
-            var newRotation = currentYaw + bearingDifference;
-            player.setSphericalProperties({ yaw: newRotation }).then(function() {
-                console.log("Adjusted video rotation by", bearingDifference, "degrees.");
-            }).catch(function(error) {
-                console.error("Error adjusting video rotation:", error);
-            });
+    if (player && typeof player.getSphericalProperties === "function") {
+        var currentYaw = player.getSphericalProperties().yaw;
+        var newRotation = currentYaw + bearingDifference;
+        player.setSphericalProperties({ yaw: newRotation }).then(function() {
+            console.log("Adjusted video rotation by", bearingDifference, "degrees.");
         }).catch(function(error) {
-            console.error("Error getting video spherical properties:", error);
+            console.error("Error adjusting video rotation:", error);
         });
+    } else {
+        console.error("Player object or getSphericalProperties method not available.");
     }
 }
+
 
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
