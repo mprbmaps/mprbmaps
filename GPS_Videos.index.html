@@ -81,33 +81,36 @@
         }
 
         function onPlayerStateChange(event) {
-            switch (event.data) {
-                case YT.PlayerState.PLAYING:
-                    videoStarted = true; // Set the flag when the video starts playing
-                    videoStarting = false; // Reset the flag when the video starts playing
-                    checkTimeUpdate(); // Continuously check for updates in the video's current time.
-                    watchBearingChange(); // Start or continue watching for bearing changes.
-                    break;
-                case YT.PlayerState.PAUSED:
-                    console.log("Video paused, maintaining current highlights and FOV."); // Log when video is paused.
-                    break;
-                case YT.PlayerState.ENDED:
-                    clearAllHighlightsAndFOV(); // Clear all highlights and the FOV cone when video ends.
-                    console.log("Video ended, cleared all highlights and FOV."); // Log when the video ends.
-                    break;
-                case YT.PlayerState.BUFFERING:
-                    console.log("Video buffering, adjustments are paused."); // Log when video is buffering.
-                    break;
-                case YT.PlayerState.CUED:
-                    console.log("Video cued, ready to play."); // Log when video is cued and ready.
-                    break;
-                case YT.PlayerState.SEEKING:
-                case YT.PlayerState.SEEKED:
-                    console.log("Video was panned or seeked, checking for new orientation."); // Log when video is seeked or panned.
-                    watchBearingChange(); // Ensure that bearing changes are checked after seeking.
-                    break;
-            }
-        }
+    switch (event.data) {
+        case YT.PlayerState.PLAYING:
+            videoStarted = true;
+            videoStarting = false;
+            checkTimeUpdate();
+            startWatchingBearingChanges();
+            break;
+        case YT.PlayerState.PAUSED:
+            console.log("Video paused, maintaining current highlights and FOV.");
+            // Do not stop watching bearing changes
+            break;
+        case YT.PlayerState.ENDED:
+            clearAllHighlightsAndFOV();
+            console.log("Video ended, cleared all highlights and FOV.");
+            stopWatchingBearingChanges(); // Stop watching bearing changes when the video ends
+            break;
+        case YT.PlayerState.BUFFERING:
+            console.log("Video buffering, adjustments are paused.");
+            break;
+        case YT.PlayerState.CUED:
+            console.log("Video cued, ready to play.");
+            break;
+        case YT.PlayerState.SEEKING:
+        case YT.PlayerState.SEEKED:
+            console.log("Video was panned or seeked, checking for new orientation.");
+            // Ensure that bearing changes are checked after seeking
+            break;
+    }
+}
+
 
         function checkTimeUpdate() {
             if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
@@ -147,9 +150,17 @@
 
 
         function startWatchingBearingChanges() {
-            clearBearingUpdateInterval();
-            bearingUpdateIntervalId = setInterval(watchBearingChange, 100);
-        }
+    clearBearingUpdateInterval();
+    bearingUpdateIntervalId = setInterval(watchBearingChange, 100); // Check every 100ms
+}
+
+function stopWatchingBearingChanges() {
+    if (bearingUpdateIntervalId !== null) {
+        clearInterval(bearingUpdateIntervalId);
+        bearingUpdateIntervalId = null;
+    }
+}
+
 
         function clearAllHighlightsAndFOV() {
             Object.keys(featureLayers).forEach(function(layerId) {
