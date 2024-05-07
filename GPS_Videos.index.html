@@ -105,35 +105,36 @@
         }
 
         function checkTimeUpdate() {
-    if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
-        var currentSecond = Math.floor(player.getCurrentTime());
-        Object.keys(featureLayers).forEach(function(layerId) {
-            var featureLayer = featureLayers[layerId];
-            if (featureLayer && featureLayer.id === activeLayerId) {
-                highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                var currentSecond = Math.floor(player.getCurrentTime());
+                Object.keys(featureLayers).forEach(function(layerId) {
+                    var featureLayer = featureLayers[layerId];
+                    if (featureLayer && featureLayer.id === activeLayerId) {
+                        highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+                    }
+                });
+                setTimeout(checkTimeUpdate, 1000);
             }
-        });
-        setTimeout(checkTimeUpdate, 1000); // Ensure the function calls itself while the video is playing
-    }
-}
+        }
 
         function watchBearingChange() {
-    if (player && player.getSphericalProperties) {
-        var props = player.getSphericalProperties();
-        var currentYaw = ((props.yaw % 360) + 360) % 360;  // Ensure yaw is always a positive value between 0 and 360.
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties();
+                var currentYaw = ((props.yaw % 360) + 360) % 360;
 
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(function() {
-            var yawChange = currentYaw - lastValidYaw;
-            if (Math.abs(yawChange) > 1) {  // Check if the change is significant enough to update (adjust threshold as needed).
-                persistentBearing = (persistentBearing - yawChange + 360) % 360;  // Adjust bearing based on yaw change.
-                bearingManuallyUpdated = true;  // Flag that bearing has been manually changed.
-                updateFOVConeDirection(persistentBearing);  // Update the FOV cone direction based on the new bearing.
-                lastValidYaw = currentYaw;  // Update lastValidYaw to currentYaw for the next calculation.
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(function() {
+                    var yawChange = currentYaw - lastValidYaw;
+                    // Inverting the bearing adjustment here
+                    if (Math.abs(yawChange) > 1) {
+                        persistentBearing = (persistentBearing - yawChange + 360) % 360; // Subtract yawChange to invert direction
+                        bearingManuallyUpdated = true; // Flag that bearing has been manually changed
+                        updateFOVConeDirection(persistentBearing);
+                        lastValidYaw = currentYaw;
+                    }
+                }, 100);
             }
-        }, 100);  // Adjust timer as needed for responsiveness vs performance.
-    }
-}
+        }
 
         function startWatchingBearingChanges() {
             clearBearingUpdateInterval();
@@ -148,26 +149,30 @@
         }
 
         function clearAndHighlight(feature, layer) {
-    Object.keys(highlights).forEach(function(layerId) {
-        if (highlights[layerId]) {
-            highlights[layerId].remove();
-            highlights[layerId] = null;
+            Object.keys(highlights).forEach(function(layerId) {
+                if (highlights[layerId]) {
+                    highlights[layerId].remove();
+                    highlights[layerId] = null;
+                }
+            });
+
+            activeLayerId = layer.id;
+            if (!bearingManuallyUpdated) { // Only reset bearing if it was not manually updated
+                persistentBearing = feature.attributes.bearing;
+            } else {
+                // Log bearing to see if it carries over
+                console.log("Carrying over bearing:", persistentBearing);
+            }
+
+            window.view.whenLayerView(layer).then(function(layerView) {
+                highlights[layer.id] = layerView.highlight(feature);
+                window.drawFOVCone(feature, layerView, persistentBearing); // Always use persistent bearing
+                lastHighlightedFeature = feature;
+                startWatchingBearingChanges();
+            }).catch(function(error) {
+                console.error("Error in highlighting feature: ", error);
+            });
         }
-    });
-
-    activeLayerId = layer.id;
-    bearingManuallyUpdated = false; // Resetting this on new feature highlight
-    persistentBearing = feature.attributes.bearing;
-
-    window.view.whenLayerView(layer).then(function(layerView) {
-        highlights[layer.id] = layerView.highlight(feature);
-        window.drawFOVCone(feature, layerView, persistentBearing);
-        lastHighlightedFeature = feature;
-        console.log("Feature highlighted with new bearing:", persistentBearing);
-    }).catch(function(error) {
-        console.error("Error in highlighting feature: ", error);
-    });
-}
 
         function clearHighlight(layer) {
             if (highlights[layer.id]) {
@@ -178,46 +183,43 @@
         }
 
         function updateFOVConeDirection(newBearing) {
-    console.log("Updating FOV Bearing to:", newBearing);
-    persistentBearing = newBearing;  // Update the global bearing state to reflect the new bearing after changes.
+            console.log("Updating FOV Bearing to:", newBearing);
+            persistentBearing = newBearing; // Update persistent bearing regardless of current highlight
+            bearingManuallyUpdated = true; // Mark as manually updated
 
-    if (lastHighlightedFeature) {
-        // Call the function to redraw the FOV cone with the updated bearing.
-        // This assumes the presence of a function 'drawFOVCone' which takes a feature and a bearing as parameters.
-        drawFOVCone(lastHighlightedFeature, newBearing);
-    }
-}
-
+            if (lastHighlightedFeature) {
+                drawFOVCone(lastHighlightedFeature);
+            }
+        }
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-    if (!startDateTimeMap[featureLayer.id]) {
-        console.error("Start DateTime not set yet for " + featureLayer.id);
-        return;
-    }
-    if (featureLayer.id !== activeLayerId) {
-        console.log("Skipping highlight for inactive layer:", featureLayer.id);
-        return;
-    }
-    var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-    view.whenLayerView(featureLayer).then(function(layerView) {
-        layerView.queryFeatures({
-            where: "DateTimeS = '" + queryDateTimeStr + "'",
-            returnGeometry: true,
-            outFields: ["*"]
-        }).then(function(results) {
-            if (results.features.length > 0) {
-                var feature = results.features[0];
-                clearAndHighlight(feature, featureLayer);
-            } else {
-                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+            if (!startDateTimeMap[featureLayer.id]) {
+                console.error("Start DateTimeS not set yet for " + featureLayer.id);
+                return;
             }
-        }).catch(function(error) {
-            console.error("Error highlighting feature based on DateTimeS:", error);
-        });
-    });
-};
+            if (featureLayer.id !== activeLayerId) {
+                return;
+            }
+            var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+            view.whenLayerView(featureLayer).then(function(layerView) {
+                layerView.queryFeatures({
+                    where: "DateTimeS = '" + queryDateTimeStr + "'",
+                    returnGeometry: true,
+                    outFields: ["*"]
+                }).then(function(results) {
+                    if (results.features.length > 0) {
+                        var feature = results.features[0];
+                        clearAndHighlight(feature, featureLayer);
+                    } else {
+                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                    }
+                }).catch(function(error) {
+                    console.error("Error highlighting feature based on DateTimeS:", error);
+                });
+            });
+        };
 
         require([
             "esri/WebMap",
