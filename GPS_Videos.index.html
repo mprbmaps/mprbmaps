@@ -142,14 +142,8 @@
             bearingUpdateIntervalId = setInterval(watchBearingChange, 100);
         }
 
-        function clearAllHighlightsAndFOV() {
-            Object.keys(featureLayers).forEach(function(layerId) {
-                clearHighlight(featureLayers[layerId]);
-                fovGraphicsLayer.graphics.removeAll();
-            });
-        }
-
         function clearAndHighlight(feature, layer) {
+    // Clear existing highlights
     Object.keys(highlights).forEach(function(layerId) {
         if (highlights[layerId]) {
             highlights[layerId].remove();
@@ -157,21 +151,35 @@
         }
     });
 
+    // Set active layer ID
     activeLayerId = layer.id;
-    var newFeatureBearing = feature.attributes.bearing;
-    var bearingDifference = newFeatureBearing - persistentBearing;
-    persistentBearing = newFeatureBearing;
 
+    // Update persistent bearing based on previous change
+    if (!bearingManuallyUpdated) { // Only reset bearing if it was not manually updated
+        persistentBearing = feature.attributes.bearing;
+    } else {
+        // Log bearing to see if it carries over
+        console.log("Carrying over bearing:", persistentBearing);
+    }
+
+    // Get the view for the layer
     window.view.whenLayerView(layer).then(function(layerView) {
+        // Highlight the feature
         highlights[layer.id] = layerView.highlight(feature);
-        window.drawFOVCone(feature, layerView, persistentBearing); // Always use persistent bearing
+        
+        // Draw FOV cone using the updated persistent bearing
+        window.drawFOVCone(feature, layerView, persistentBearing);
+
+        // Update last highlighted feature
         lastHighlightedFeature = feature;
+
+        // Start watching for bearing changes
         startWatchingBearingChanges();
-        adjustVideoRotation(bearingDifference);
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
         function clearHighlight(layer) {
             if (highlights[layer.id]) {
