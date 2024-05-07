@@ -72,7 +72,6 @@
             
         }
     });
-    startWatchingBearingChanges();
 }
 
         function clearBearingUpdateInterval() {
@@ -85,26 +84,27 @@
         function onPlayerStateChange(event) {
     switch (event.data) {
         case YT.PlayerState.PLAYING:
-            console.log("Video is playing.");
+            videoStarted = true;
+            videoStarting = false;
             checkTimeUpdate();
             break;
         case YT.PlayerState.PAUSED:
-            console.log("Video paused.");
+            console.log("Video paused, maintaining current highlights and FOV.");
             break;
         case YT.PlayerState.ENDED:
-            console.log("Video ended, clearing highlights and stopping bearing updates.");
+            console.log("Video ended, cleared all highlights and FOV.");
             stopWatchingBearingChanges();
-            clearAllHighlightsAndFOV();
             break;
         case YT.PlayerState.CUED:
-            console.log("Video cued and ready.");
+            console.log("Video cued, ready to play.");
+            startWatchingBearingChanges();  // Start watching on cued, useful if not started already
             break;
         case YT.PlayerState.BUFFERING:
-            console.log("Video buffering.");
+            console.log("Video buffering, adjustments are paused.");
             break;
         case YT.PlayerState.SEEKING:
         case YT.PlayerState.SEEKED:
-            console.log("Video seeked, checking orientation.");
+            console.log("Video was panned or seeked, checking for new orientation.");
             break;
     }
 }
@@ -127,54 +127,33 @@
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
         if (props && typeof props.yaw !== 'undefined') {
-            var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize the yaw
-            console.log("Current Yaw:", currentYaw);
-
-            // Calculate the change in yaw
-            var yawChange = currentYaw - lastValidYaw;
-            if (yawChange !== 0) { // Check if there is any change to process
-                console.log("Detected Yaw Change:", yawChange);
-
-                // Adjust the globalYawChange based on the detected yaw change
-                globalYawChange += yawChange;
-                lastValidYaw = currentYaw; // Update the last valid yaw
-
-                // Calculate the new bearing based on globalYawChange
-                var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                console.log("New Bearing Calculated:", newBearing);
-
-                // Update the FOV cone direction
-                updateFOVConeDirection(newBearing);
-            }
-        } else {
-            console.warn("No spherical properties available or video is not 360°.");
+            var currentYaw = ((props.yaw % 360) + 360) % 360;
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(function() {
+                var yawChange = currentYaw - lastValidYaw;
+                if (Math.abs(yawChange) > 1) {
+                    globalYawChange -= yawChange;  // Continue to invert the yaw change
+                    var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                    updateFOVConeDirection(newBearing);
+                    lastValidYaw = currentYaw;
+                }
+            }, 100);  // Fast updates for smooth visual feedback
         }
     }
 }
 
-function updateFOVConeDirection(newBearing) {
-    console.log("Updating FOV Bearing to:", newBearing);
-    persistentBearing = newBearing;
-    if (lastHighlightedFeature) {
-        drawFOVCone(lastHighlightedFeature); // Re-draw the FOV cone with the new bearing
-    }
-}
-
-
 
 
         function startWatchingBearingChanges() {
-    if (!bearingUpdateIntervalId) {
-        bearingUpdateIntervalId = setInterval(watchBearingChange, 100);
-        console.log("Started watching bearing changes.");
+    if (bearingUpdateIntervalId === null) {
+        bearingUpdateIntervalId = setInterval(watchBearingChange, 100);  // Watch for bearing changes continuously
     }
 }
 
 function stopWatchingBearingChanges() {
-    if (bearingUpdateIntervalId) {
+    if (bearingUpdateIntervalId !== null) {
         clearInterval(bearingUpdateIntervalId);
         bearingUpdateIntervalId = null;
-        console.log("Stopped watching bearing changes.");
     }
 }
 
