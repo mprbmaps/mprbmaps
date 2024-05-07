@@ -389,24 +389,30 @@
 
 
             function createCone(centerPoint, bearing, width, length) {
-                var points = [];
-                points.push([centerPoint.x, centerPoint.y]); // Cone Apex
-                var startBearing = bearing - width;
-                var endBearing = bearing + width;
+    var points = [];
+    points.push([centerPoint.x, centerPoint.y]); // Cone Apex
+    var startBearing = bearing - width;
+    var endBearing = bearing + width;
 
-                points.push(calculatePoint(centerPoint, startBearing, length));
-                points.push(calculatePoint(centerPoint, endBearing, length));
-                points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
+    var startPoint = calculatePoint(centerPoint, startBearing, length);
+    var endPoint = calculatePoint(centerPoint, endBearing, length);
 
-                return [points];
-            }
+    console.log("Cone Start Point:", startPoint, "End Point:", endPoint); // Log the points
 
-            function calculatePoint(center, bearing, distance) {
-                var angleRad = (Math.PI / 180) * bearing;
-                var dx = distance * Math.sin(angleRad);
-                var dy = distance * Math.cos(angleRad);
-                return [center.x + dx, center.y + dy];
-            }
+    points.push(startPoint);
+    points.push(endPoint);
+    points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
+
+    return [points];
+}
+
+function calculatePoint(center, bearing, distance) {
+    var angleRad = (Math.PI / 180) * bearing;
+    var dx = distance * Math.sin(angleRad);
+    var dy = distance * Math.cos(angleRad);
+    return [center.x + dx, center.y + dy];
+}
+
         });
 
         document.addEventListener('DOMContentLoaded', function() {
