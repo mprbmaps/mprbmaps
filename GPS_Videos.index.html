@@ -125,20 +125,25 @@
         function watchBearingChange() {
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
-        var currentYaw = ((props.yaw % 360) + 360) % 360;
+        if (props && typeof props.yaw !== 'undefined') { // Check that props and props.yaw are defined
+            var currentYaw = ((props.yaw % 360) + 360) % 360;
 
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(function() {
-            var yawChange = currentYaw - lastValidYaw;
-            if (Math.abs(yawChange) > 1) {
-                globalYawChange -= yawChange; // Invert the yaw change here
-                var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                updateFOVConeDirection(newBearing);
-                lastValidYaw = currentYaw;
-            }
-        }, 100);
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(function() {
+                var yawChange = currentYaw - lastValidYaw;
+                if (Math.abs(yawChange) > 1) {
+                    globalYawChange -= yawChange; // Continue to invert the yaw change
+                    var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                    updateFOVConeDirection(newBearing);
+                    lastValidYaw = currentYaw;
+                }
+            }, 100);
+        } else {
+            console.warn("Spherical properties are not available or video is not a 360° video.");
+        }
     }
 }
+
 
 
         function startWatchingBearingChanges() {
