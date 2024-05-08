@@ -93,6 +93,8 @@
             break;
         case YT.PlayerState.PAUSED:
             console.log("Video paused, bearing before pause:", persistentBearing);
+            // Ensure that the bearing doesn't reset but continues from last known position
+            updateFOVConeDirection(persistentBearing); // Apply current persistent bearing on pause
             startWatchingBearingChanges(); // Continue watching for bearing changes during pause
             break;
         case YT.PlayerState.ENDED:
@@ -143,7 +145,7 @@
 }
 
 function applyImmediateBearingUpdate(yawChange) {
-    // Here, the yaw change is applied directly without negation
+    // Immediately apply any yaw change to the bearing
     var newBearing = (persistentBearing + yawChange + 360) % 360;
     updateFOVConeDirection(newBearing);
     persistentBearing = newBearing; // Update persistent bearing to reflect the immediate change
@@ -154,6 +156,7 @@ function applyDebouncedBearingUpdate() {
     debounceTimer = setTimeout(function() {
         var newBearing = (persistentBearing + globalYawChange + 360) % 360;
         updateFOVConeDirection(newBearing);
+        persistentBearing = newBearing; // Update persistent bearing after debounce
         globalYawChange = 0; // Reset global yaw change after applying
     }, 250); // Adjust debounce time if needed
 }
