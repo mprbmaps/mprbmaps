@@ -82,36 +82,33 @@
         }
 
         function onPlayerStateChange(event) {
+    console.log("Player state changed:", event.data);
     switch (event.data) {
         case YT.PlayerState.PLAYING:
+            console.log("Video playing. Current persistent bearing:", persistentBearing, "Global yaw change:", globalYawChange);
             if (!videoStarted) {
                 persistentBearing = (persistentBearing + globalYawChange + 360) % 360; // Apply pending yaw changes on start
                 globalYawChange = 0; // Reset yaw change after applying
+                updateFOVConeDirection(persistentBearing);
             }
             videoStarted = true;
-            console.log("Video playing: applying persistent bearing", persistentBearing);
-            updateFOVConeDirection(persistentBearing); // Apply persistent bearing when resuming
-            checkTimeUpdate(); // Continue time checks
-            startWatchingBearingChanges(); // Ensure it starts or continues when playing
+            startWatchingBearingChanges();
             break;
         case YT.PlayerState.PAUSED:
-            console.log("Video paused, bearing before pause:", persistentBearing);
-            persistentBearing = (persistentBearing + globalYawChange + 360) % 360; // Update persistent bearing before pause
-            globalYawChange = 0; // Reset yaw change after updating
-            updateFOVConeDirection(persistentBearing); // Apply the updated bearing immediately on pause
+            console.log("Video paused. Current persistent bearing:", persistentBearing, "Global yaw change:", globalYawChange);
+            applyImmediateBearingUpdate(globalYawChange); // Consolidate yaw changes and update immediately when paused
+            globalYawChange = 0; // Reset yaw change after applying
+            console.log("Updated bearing on pause:", persistentBearing);
             break;
         case YT.PlayerState.ENDED:
             videoStarted = false; // Reset the video started flag
-            console.log("Video ended, cleared all highlights and FOV.");
             clearAllHighlightsAndFOV();
-            stopWatchingBearingChanges(); // Definitely stop when the video ends
+            stopWatchingBearingChanges();
             break;
         case YT.PlayerState.BUFFERING:
-            console.log("Video buffering, adjustments are paused.");
-            stopWatchingBearingChanges(); // Stop watching during buffering to avoid errors
+            stopWatchingBearingChanges();
             break;
         case YT.PlayerState.CUED:
-            console.log("Video cued, ready to play.");
             break;
     }
 }
@@ -153,6 +150,7 @@ function applyImmediateBearingUpdate(yawChange) {
     var newBearing = (persistentBearing + yawChange + 360) % 360;
     updateFOVConeDirection(newBearing);
     persistentBearing = newBearing; // Update persistent bearing to reflect the immediate change
+    console.log("Immediate bearing update applied. New bearing:", newBearing);
 }
 
 function applyDebouncedBearingUpdate() {
