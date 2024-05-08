@@ -136,9 +136,7 @@
             var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize the yaw
             var yawChange = lastValidYaw - currentYaw; // Calculate yaw change
             lastValidYaw = currentYaw;
-            if (player.getPlayerState() === YT.PlayerState.PAUSED) {
-                applyImmediateBearingUpdate(yawChange); // Correcting the application of yaw change when paused
-            } else {
+            if (player.getPlayerState() === YT.PlayerState.PLAYING) {
                 globalYawChange += yawChange;
                 applyDebouncedBearingUpdate();
             }
@@ -165,7 +163,7 @@ function applyDebouncedBearingUpdate() {
 
 function startWatchingBearingChanges() {
     if (bearingUpdateIntervalId === null) {
-        bearingUpdateIntervalId = setInterval(watchBearingChange, 100); // Adjusted interval to 100ms
+        bearingUpdateIntervalId = setInterval(watchBearingChange, 100); // Adjusted interval to 100ms for more frequent checks
     }
 }
 
