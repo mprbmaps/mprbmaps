@@ -121,17 +121,18 @@
 
 
         function checkTimeUpdate() {
-            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
-                var currentSecond = Math.floor(player.getCurrentTime());
-                Object.keys(featureLayers).forEach(function(layerId) {
-                    var featureLayer = featureLayers[layerId];
-                    if (featureLayer && featureLayer.id === activeLayerId) {
-                        highlightFeatureAtTime(currentSecond, featureLayer, window.view);
-                    }
-                });
-                setTimeout(checkTimeUpdate, 1000);
+    if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+        var currentSecond = Math.floor(player.getCurrentTime());
+        Object.keys(featureLayers).forEach(function(layerId) {
+            var featureLayer = featureLayers[layerId];
+            if (featureLayer && featureLayer.id === activeLayerId) {
+                highlightFeatureAtTime(currentSecond, featureLayer, window.view);
             }
-        }
+        });
+        setTimeout(checkTimeUpdate, 1000); // Continuously check every second
+    }
+}
+
 
         function watchBearingChange() {
     if (player && player.getSphericalProperties) {
@@ -196,16 +197,11 @@ function stopWatchingBearingChanges() {
         }
     });
 
-    activeLayerId = layer.id; // Update active layer ID
-    persistentBearing = (feature.attributes.bearing + globalYawChange + 360) % 360; // Update bearing with global yaw change
-
-    console.log("Highlighted feature bearing:", persistentBearing);
-
+    // Highlight new feature
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
         window.drawFOVCone(feature, layerView, persistentBearing); // Draw FOV using the updated bearing
         lastHighlightedFeature = feature;
-        startWatchingBearingChanges(); // Start watching bearing changes
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
@@ -229,33 +225,34 @@ function stopWatchingBearingChanges() {
 }
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-            if (!startDateTimeMap[featureLayer.id]) {
-                console.error("Start DateTimeS not set yet for " + featureLayer.id);
-                return;
+    if (!startDateTimeMap[featureLayer.id]) {
+        console.error("Start DateTimeS not set yet for " + featureLayer.id);
+        return;
+    }
+    if (featureLayer.id !== activeLayerId) {
+        return;
+    }
+    var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+    queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+    var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+    view.whenLayerView(featureLayer).then(function(layerView) {
+        layerView.queryFeatures({
+            where: "DateTimeS = '" + queryDateTimeStr + "'",
+            returnGeometry: true,
+            outFields: ["*"]
+        }).then(function(results) {
+            if (results.features.length > 0) {
+                var feature = results.features[0];
+                clearAndHighlight(feature, featureLayer);
+            } else {
+                console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
             }
-            if (featureLayer.id !== activeLayerId) {
-                return;
-            }
-            var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-            view.whenLayerView(featureLayer).then(function(layerView) {
-                layerView.queryFeatures({
-                    where: "DateTimeS = '" + queryDateTimeStr + "'",
-                    returnGeometry: true,
-                    outFields: ["*"]
-                }).then(function(results) {
-                    if (results.features.length > 0) {
-                        var feature = results.features[0];
-                        clearAndHighlight(feature, featureLayer);
-                    } else {
-                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                    }
-                }).catch(function(error) {
-                    console.error("Error highlighting feature based on DateTimeS:", error);
-                });
-            });
-        };
+        }).catch(function(error) {
+            console.error("Error highlighting feature based on DateTimeS:", error);
+        });
+    });
+};
+
 
         require([
             "esri/WebMap",
