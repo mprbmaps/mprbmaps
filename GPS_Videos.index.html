@@ -72,6 +72,7 @@
             
         }
     });
+    startWatchingBearingChanges();
 }
 
         function clearBearingUpdateInterval() {
@@ -135,27 +136,23 @@
         var props = player.getSphericalProperties();
         if (props && typeof props.yaw !== 'undefined') {
             var currentYaw = ((props.yaw % 360) + 360) % 360;
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(function() {
-                var yawChange = currentYaw - lastValidYaw;
-                if (Math.abs(yawChange) > 1) {
-                    globalYawChange -= yawChange; // Continue to invert the yaw change
-                    var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                    updateFOVConeDirection(newBearing);
-                    lastValidYaw = currentYaw;
-                }
-            }, 50); // Reduced timeout for faster updates
-        } else {
-            console.warn("Spherical properties are not available or video is not a 360° video.");
+            var yawChange = currentYaw - lastValidYaw;
+            if (Math.abs(yawChange) > 1) {  // Threshold for yaw change
+                globalYawChange -= yawChange;  // Adjusting for the correct yaw change
+                var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                updateFOVConeDirection(newBearing);
+                lastValidYaw = currentYaw;
+            }
         }
     }
 }
 
 
 
+
         function startWatchingBearingChanges() {
-    clearBearingUpdateInterval();
-    bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Increased frequency for continuous updates
+    clearBearingUpdateInterval();  // Clear previous interval if any
+    bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Continuous updates
 }
 
 function stopWatchingBearingChanges() {
@@ -206,14 +203,12 @@ function stopWatchingBearingChanges() {
         }
 
         function updateFOVConeDirection(newBearing) {
-            console.log("Updating FOV Bearing to:", newBearing);
-            persistentBearing = newBearing; // Update persistent bearing regardless of current highlight
-            bearingManuallyUpdated = true; // Mark as manually updated
-
-            if (lastHighlightedFeature) {
-                drawFOVCone(lastHighlightedFeature);
-            }
-        }
+    console.log("Updating FOV Bearing to:", newBearing);
+    persistentBearing = newBearing; // Update persistent bearing regardless of current highlight
+    if (lastHighlightedFeature) {
+        drawFOVCone(lastHighlightedFeature);  // Ensure this function redraws the FOV cone
+    }
+}
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
             if (!startDateTimeMap[featureLayer.id]) {
