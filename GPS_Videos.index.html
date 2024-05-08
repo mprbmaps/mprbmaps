@@ -84,23 +84,26 @@
         function onPlayerStateChange(event) {
     switch (event.data) {
         case YT.PlayerState.PLAYING:
-            console.log("Video playing: applying persistent bearing", persistentBearing);
-            updateFOVConeDirection(persistentBearing); // Apply persistent bearing when resuming
+            if (videoStarting) {
+                console.log("Video starting: applying default or persistent bearing", persistentBearing);
+                // When starting, check if we are resuming from pause or playing a new video segment
+                if (!videoStarted) {
+                    updateFOVConeDirection(persistentBearing); // Apply persistent bearing when video starts for the first time
+                }
+                videoStarted = true;
+            }
             checkTimeUpdate(); // Continue time checks
-            videoStarted = true;
-            videoStarting = false;
             startWatchingBearingChanges(); // Ensure it starts or continues when playing
             break;
         case YT.PlayerState.PAUSED:
             console.log("Video paused, bearing before pause:", persistentBearing);
-            // Ensure that the bearing doesn't reset but continues from last known position
-            updateFOVConeDirection(persistentBearing); // Apply current persistent bearing on pause
             startWatchingBearingChanges(); // Continue watching for bearing changes during pause
             break;
         case YT.PlayerState.ENDED:
             console.log("Video ended, cleared all highlights and FOV.");
             clearAllHighlightsAndFOV();
             stopWatchingBearingChanges(); // Definitely stop when the video ends
+            videoStarted = false; // Reset video started flag on end
             break;
         case YT.PlayerState.BUFFERING:
             console.log("Video buffering, adjustments are paused.");
@@ -111,6 +114,7 @@
             break;
     }
 }
+
 
 
 
@@ -183,6 +187,7 @@ function stopWatchingBearingChanges() {
         }
 
         function clearAndHighlight(feature, layer) {
+    // Clear existing highlights from all layers
     Object.keys(highlights).forEach(function(layerId) {
         if (highlights[layerId]) {
             highlights[layerId].remove();
@@ -190,21 +195,34 @@ function stopWatchingBearingChanges() {
         }
     });
 
+    // Set the active layer ID for tracking which layer is currently active
     activeLayerId = layer.id;
-    // Incorporate global yaw change to the new feature's bearing
+
+    // Reset global yaw change when selecting a new feature
+    globalYawChange = 0;
+
+    // Reset persistent bearing to the feature's default
     persistentBearing = (feature.attributes.bearing + globalYawChange + 360) % 360;
 
-    console.log("Highlighted feature bearing:", persistentBearing);
+    console.log("New feature selected, bearing reset to:", persistentBearing);
 
+    // Highlight the newly selected feature and update the FOV cone
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
-        window.drawFOVCone(feature, layerView, persistentBearing); // Draw FOV using the updated bearing
+
+        // Ensure the FOV cone is drawn with the updated bearing
+        window.drawFOVCone(feature, layerView, persistentBearing);
+
+        // Store reference to the last highlighted feature for updating its FOV cone direction
         lastHighlightedFeature = feature;
-        startWatchingBearingChanges(); // Ensure bearing updates continue if video is playing
+
+        // Start or continue watching bearing changes if the video is playing
+        startWatchingBearingChanges();
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
         function clearHighlight(layer) {
             if (highlights[layer.id]) {
