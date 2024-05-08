@@ -146,6 +146,24 @@
     bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Increased frequency
 }
 
+        function watchBearingChange() {
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties();
+                if (props && typeof props.yaw !== 'undefined') {
+                    var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize the yaw
+                    var yawChange = lastValidYaw - currentYaw; // Correctly invert the direction of change
+                    if (Math.abs(yawChange) > 1) { // Check for significant change
+                        globalYawChange += yawChange;
+                        var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                        updateFOVConeDirection(newBearing);
+                        lastValidYaw = currentYaw;
+                    }
+                } else {
+                    console.warn("Spherical properties are not available or video is not a 360° video.");
+                }
+            }
+        }
+
 function stopWatchingBearingChanges() {
     if (bearingUpdateIntervalId !== null) {
         clearInterval(bearingUpdateIntervalId);
