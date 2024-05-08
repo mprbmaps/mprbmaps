@@ -93,6 +93,10 @@
             break;
         case YT.PlayerState.PAUSED:
             console.log("Video paused, maintaining current highlights and FOV.");
+            // Ensure bearing updates continue even when paused
+            if (!bearingUpdateIntervalId) {
+                startWatchingBearingChanges();
+            }
             break;
         case YT.PlayerState.ENDED:
             clearAllHighlightsAndFOV();
@@ -151,7 +155,7 @@
 
         function startWatchingBearingChanges() {
     clearBearingUpdateInterval();
-    bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Increased frequency
+    bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Increased frequency for continuous updates
 }
 
 function stopWatchingBearingChanges() {
