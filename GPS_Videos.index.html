@@ -86,28 +86,27 @@
         case YT.PlayerState.PLAYING:
             videoStarted = true;
             videoStarting = false;
-            startWatchingBearingChanges();
-            checkTimeUpdate();
+            startWatchingBearingChanges(); // Start watching bearing changes
+            checkTimeUpdate(); // Continue time checks
             break;
         case YT.PlayerState.PAUSED:
             console.log("Video paused, still watching for bearing changes.");
-            startWatchingBearingChanges(); // Continue watching for bearing changes even while paused
+            // Do not stop watching bearing changes on pause
             break;
         case YT.PlayerState.ENDED:
             clearAllHighlightsAndFOV();
             console.log("Video ended, cleared all highlights and FOV.");
-            stopWatchingBearingChanges();
+            stopWatchingBearingChanges(); // Stop watching bearing changes
             break;
         case YT.PlayerState.BUFFERING:
             console.log("Video buffering, adjustments are paused.");
-            stopWatchingBearingChanges();
+            stopWatchingBearingChanges(); // Stop watching bearing changes temporarily
             break;
         case YT.PlayerState.CUED:
             console.log("Video cued, ready to play.");
             break;
     }
 }
-
 
         function checkTimeUpdate() {
             if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
