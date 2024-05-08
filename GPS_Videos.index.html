@@ -128,23 +128,15 @@
         if (props && typeof props.yaw !== 'undefined') {
             var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize the yaw
             var yawChange = lastValidYaw - currentYaw; // Invert the yaw change
-            if (Math.abs(yawChange) > 5) { // Immediate update for significant changes
-                applyYawChange(yawChange);
-            } else {
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(() => applyYawChange(yawChange), 100); // Smoother and less frequent updates
+            if (Math.abs(yawChange) > 1) { // Check if the change is significant
+                globalYawChange += yawChange;
+                var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                updateFOVConeDirection(newBearing);
+                lastValidYaw = currentYaw; // Update the last valid yaw
             }
-            lastValidYaw = currentYaw; // Update the last valid yaw
         }
     }
 }
-
-function applyYawChange(yawChange) {
-    globalYawChange += yawChange;
-    var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-    updateFOVConeDirection(newBearing);
-}
-
 
 
 
