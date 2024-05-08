@@ -84,26 +84,21 @@
         function onPlayerStateChange(event) {
     switch (event.data) {
         case YT.PlayerState.PLAYING:
-            if (videoStarting || !videoStarted) {
-                // When video starts for the first time or after being loaded
-                videoStarted = true;
-                videoStarting = false;
-                startWatchingBearingChanges(); // Start watching for bearing changes if not already watching
-            } else {
-                // When resuming from pause, ensure persistent bearing is applied
-                updateFOVConeDirection(persistentBearing);
-            }
+            console.log("Video playing: applying persistent bearing", persistentBearing);
+            updateFOVConeDirection(persistentBearing); // Apply persistent bearing when resuming
             checkTimeUpdate(); // Continue time checks
+            videoStarted = true;
+            videoStarting = false;
+            startWatchingBearingChanges(); // Ensure it starts or continues when playing
             break;
         case YT.PlayerState.PAUSED:
-            console.log("Video paused, still watching for bearing changes.");
-            // Continue to watch for bearing changes in case of manual adjustment
-            startWatchingBearingChanges();
+            console.log("Video paused, bearing before pause:", persistentBearing);
+            startWatchingBearingChanges(); // Continue watching for bearing changes during pause
             break;
         case YT.PlayerState.ENDED:
             console.log("Video ended, cleared all highlights and FOV.");
             clearAllHighlightsAndFOV();
-            stopWatchingBearingChanges(); // Stop watching when the video ends
+            stopWatchingBearingChanges(); // Definitely stop when the video ends
             break;
         case YT.PlayerState.BUFFERING:
             console.log("Video buffering, adjustments are paused.");
@@ -218,10 +213,9 @@ function stopWatchingBearingChanges() {
 
         function updateFOVConeDirection(newBearing) {
     console.log("Updating FOV Bearing to:", newBearing);
-    persistentBearing = newBearing; // Update the persistent bearing
-
+    persistentBearing = newBearing; // Ensure this is set before drawing
     if (lastHighlightedFeature && fovGraphicsLayer) {
-        drawFOVCone(lastHighlightedFeature);
+        drawFOVCone(lastHighlightedFeature, lastHighlightedFeature.layerView);
     }
 }
 
