@@ -86,13 +86,12 @@
         case YT.PlayerState.PLAYING:
             videoStarted = true;
             videoStarting = false;
-            if (!bearingUpdateIntervalId) {
-                startWatchingBearingChanges();
-            }
+            startWatchingBearingChanges();
             checkTimeUpdate();
             break;
         case YT.PlayerState.PAUSED:
-            console.log("Video paused, maintaining current highlights and FOV.");
+            console.log("Video paused, still watching for bearing changes.");
+            startWatchingBearingChanges(); // Continue watching for bearing changes even while paused
             break;
         case YT.PlayerState.ENDED:
             clearAllHighlightsAndFOV();
@@ -101,13 +100,10 @@
             break;
         case YT.PlayerState.BUFFERING:
             console.log("Video buffering, adjustments are paused.");
+            stopWatchingBearingChanges();
             break;
         case YT.PlayerState.CUED:
             console.log("Video cued, ready to play.");
-            break;
-        case YT.PlayerState.SEEKING:
-        case YT.PlayerState.SEEKED:
-            console.log("Video was panned or seeked, checking for new orientation.");
             break;
     }
 }
