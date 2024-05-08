@@ -74,31 +74,37 @@
         }
 
         function onPlayerStateChange(event) {
-            switch (event.data) {
-                case YT.PlayerState.PLAYING:
-                    videoStarted = true;
-                    videoStarting = false;
-                    startWatchingBearingChanges();
-                    checkTimeUpdate();
-                    break;
-                case YT.PlayerState.PAUSED:
-                    console.log("Video paused, continuous bearing update is active.");
-                    startWatchingBearingChanges(); // Ensure it continues to update even when paused
-                    break;
-                case YT.PlayerState.ENDED:
-                    clearAllHighlightsAndFOV();
-                    console.log("Video ended, cleared all highlights and FOV.");
-                    stopWatchingBearingChanges();
-                    break;
-                case YT.PlayerState.BUFFERING:
-                    console.log("Video buffering, adjustments are paused.");
-                    stopWatchingBearingChanges();
-                    break;
-                case YT.PlayerState.CUED:
-                    console.log("Video cued, ready to play.");
-                    break;
+    switch (event.data) {
+        case YT.PlayerState.PLAYING:
+            videoStarted = true;
+            videoStarting = false;
+            if (!bearingUpdateIntervalId) {
+                startWatchingBearingChanges();
             }
-        }
+            checkTimeUpdate();
+            break;
+        case YT.PlayerState.PAUSED:
+            console.log("Video paused, continuous bearing update is active.");
+            // Ensure the bearing updates continue even when paused
+            if (!bearingUpdateIntervalId) {
+                startWatchingBearingChanges();
+            }
+            break;
+        case YT.PlayerState.ENDED:
+            console.log("Video ended, cleared all highlights and FOV.");
+            stopWatchingBearingChanges();
+            clearAllHighlightsAndFOV();
+            break;
+        case YT.PlayerState.BUFFERING:
+            console.log("Video buffering, adjustments are paused.");
+            // Optionally stop updates when buffering to avoid erratic behavior
+            stopWatchingBearingChanges();
+            break;
+        case YT.PlayerState.CUED:
+            console.log("Video cued, ready to play.");
+            break;
+    }
+}
 
         function checkTimeUpdate() {
             if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
@@ -138,20 +144,20 @@
 
 
         function startWatchingBearingChanges() {
-            clearBearingUpdateInterval();
-            bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Run this check frequently to ensure updates while paused
-        }
+    clearBearingUpdateInterval(); // Make sure to clear any previous intervals
+    bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Check every 50 milliseconds
+}
 
-        function stopWatchingBearingChanges() {
-            clearBearingUpdateInterval();
-        }
+function stopWatchingBearingChanges() {
+    clearBearingUpdateInterval();
+}
 
-        function clearBearingUpdateInterval() {
-            if (bearingUpdateIntervalId !== null) {
-                clearInterval(bearingUpdateIntervalId);
-                bearingUpdateIntervalId = null;
-            }
-        }
+function clearBearingUpdateInterval() {
+    if (bearingUpdateIntervalId !== null) {
+        clearInterval(bearingUpdateIntervalId);
+        bearingUpdateIntervalId = null;
+    }
+}
 
         function clearAllHighlightsAndFOV() {
             Object.keys(featureLayers).forEach(function(layerId) {
