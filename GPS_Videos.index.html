@@ -127,14 +127,24 @@
         var props = player.getSphericalProperties();
         if (props && typeof props.yaw !== 'undefined') {
             var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize the yaw
-            var yawChange = lastValidYaw - currentYaw; // Invert the yaw change
-            if (Math.abs(yawChange) > 1) { // Check if the change is significant
-                globalYawChange += yawChange;
-                applyDebouncedBearingUpdate();
-                lastValidYaw = currentYaw; // Update the last valid yaw
+            var yawChange = lastValidYaw - currentYaw; // Calculate yaw change
+            if (Math.abs(yawChange) > 0.5) { // Apply only significant changes
+                lastValidYaw = currentYaw;
+                if (player.getPlayerState() === YT.PlayerState.PAUSED) {
+                    applyImmediateBearingUpdate(yawChange);
+                } else {
+                    globalYawChange += yawChange;
+                    applyDebouncedBearingUpdate();
+                }
             }
         }
     }
+}
+
+function applyImmediateBearingUpdate(yawChange) {
+    var newBearing = (persistentBearing - yawChange + 360) % 360; // Adjust bearing immediately for paused video
+    updateFOVConeDirection(newBearing);
+    persistentBearing = newBearing; // Update persistent bearing for consistency
 }
 
 function applyDebouncedBearingUpdate() {
@@ -142,7 +152,8 @@ function applyDebouncedBearingUpdate() {
     debounceTimer = setTimeout(function() {
         var newBearing = (persistentBearing + globalYawChange + 360) % 360;
         updateFOVConeDirection(newBearing);
-    }, 250); // Debounce time of 250 milliseconds
+        globalYawChange = 0; // Reset global yaw change after applying
+    }, 250); // Adjust debounce time if needed
 }
 
 function startWatchingBearingChanges() {
