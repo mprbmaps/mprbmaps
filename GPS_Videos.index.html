@@ -130,7 +130,7 @@
             var yawChange = lastValidYaw - currentYaw; // Calculate yaw change
             lastValidYaw = currentYaw;
             if (player.getPlayerState() === YT.PlayerState.PAUSED) {
-                applyImmediateBearingUpdate(-yawChange); // Apply negative yaw change when paused
+                applyImmediateBearingUpdate(yawChange); // Correcting the application of yaw change when paused
             } else {
                 globalYawChange += yawChange;
                 applyDebouncedBearingUpdate();
@@ -140,9 +140,10 @@
 }
 
 function applyImmediateBearingUpdate(yawChange) {
-    var newBearing = (persistentBearing + yawChange + 360) % 360; // Correct direction of adjustment
+    // Here, the yaw change is applied directly without negation
+    var newBearing = (persistentBearing + yawChange + 360) % 360;
     updateFOVConeDirection(newBearing);
-    persistentBearing = newBearing; // Update persistent bearing for consistency
+    persistentBearing = newBearing; // Update persistent bearing to reflect the immediate change
 }
 
 function applyDebouncedBearingUpdate() {
