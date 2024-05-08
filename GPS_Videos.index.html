@@ -124,6 +124,19 @@
             bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Check every 50 milliseconds
         }
 
+        function checkTimeUpdate() {
+            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                var currentSecond = Math.floor(player.getCurrentTime());
+                Object.keys(featureLayers).forEach(function(layerId) {
+                    var featureLayer = featureLayers[layerId];
+                    if (featureLayer && featureLayer.id === activeLayerId) {
+                        highlightFeatureAtTime(currentSecond, featureLayer, window.view);
+                    }
+                });
+                setTimeout(checkTimeUpdate, 1000);
+            }
+        }
+
         function watchBearingChange() {
             if (player && player.getSphericalProperties) {
                 var props = player.getSphericalProperties();
