@@ -128,21 +128,19 @@
         if (props && typeof props.yaw !== 'undefined') {
             var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize the yaw
             var yawChange = lastValidYaw - currentYaw; // Calculate yaw change
-            if (Math.abs(yawChange) > 0.5) { // Apply only significant changes
-                lastValidYaw = currentYaw;
-                if (player.getPlayerState() === YT.PlayerState.PAUSED) {
-                    applyImmediateBearingUpdate(yawChange);
-                } else {
-                    globalYawChange += yawChange;
-                    applyDebouncedBearingUpdate();
-                }
+            lastValidYaw = currentYaw;
+            if (player.getPlayerState() === YT.PlayerState.PAUSED) {
+                applyImmediateBearingUpdate(-yawChange); // Apply negative yaw change when paused
+            } else {
+                globalYawChange += yawChange;
+                applyDebouncedBearingUpdate();
             }
         }
     }
 }
 
 function applyImmediateBearingUpdate(yawChange) {
-    var newBearing = (persistentBearing - yawChange + 360) % 360; // Adjust bearing immediately for paused video
+    var newBearing = (persistentBearing + yawChange + 360) % 360; // Correct direction of adjustment
     updateFOVConeDirection(newBearing);
     persistentBearing = newBearing; // Update persistent bearing for consistency
 }
@@ -186,8 +184,9 @@ function stopWatchingBearingChanges() {
     });
 
     activeLayerId = layer.id;
-    persistentBearing = (feature.attributes.bearing + globalYawChange + 360) % 360; // Apply global yaw change
-    
+    // Modify this line to add the globalYawChange to the new feature's bearing
+    persistentBearing = ((feature.attributes.bearing + globalYawChange + 360) % 360);
+
     console.log("Highlighted feature bearing:", persistentBearing);
 
     window.view.whenLayerView(layer).then(function(layerView) {
@@ -199,7 +198,6 @@ function stopWatchingBearingChanges() {
         console.error("Error in highlighting feature: ", error);
     });
 }
-
 
         function clearHighlight(layer) {
             if (highlights[layer.id]) {
