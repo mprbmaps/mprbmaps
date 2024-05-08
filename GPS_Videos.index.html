@@ -84,19 +84,26 @@
         function onPlayerStateChange(event) {
     switch (event.data) {
         case YT.PlayerState.PLAYING:
-            startWatchingBearingChanges(); // Ensure it starts or continues when playing
+            if (videoStarting || !videoStarted) {
+                // When video starts for the first time or after being loaded
+                videoStarted = true;
+                videoStarting = false;
+                startWatchingBearingChanges(); // Start watching for bearing changes if not already watching
+            } else {
+                // When resuming from pause, ensure persistent bearing is applied
+                updateFOVConeDirection(persistentBearing);
+            }
             checkTimeUpdate(); // Continue time checks
-            videoStarted = true;
-            videoStarting = false;
             break;
         case YT.PlayerState.PAUSED:
             console.log("Video paused, still watching for bearing changes.");
-            startWatchingBearingChanges(); // Continue watching for bearing changes during pause
+            // Continue to watch for bearing changes in case of manual adjustment
+            startWatchingBearingChanges();
             break;
         case YT.PlayerState.ENDED:
             console.log("Video ended, cleared all highlights and FOV.");
             clearAllHighlightsAndFOV();
-            stopWatchingBearingChanges(); // Definitely stop when the video ends
+            stopWatchingBearingChanges(); // Stop watching when the video ends
             break;
         case YT.PlayerState.BUFFERING:
             console.log("Video buffering, adjustments are paused.");
@@ -107,6 +114,7 @@
             break;
     }
 }
+
 
 
         function checkTimeUpdate() {
