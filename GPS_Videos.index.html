@@ -130,19 +130,24 @@
             var yawChange = lastValidYaw - currentYaw; // Invert the yaw change
             if (Math.abs(yawChange) > 1) { // Check if the change is significant
                 globalYawChange += yawChange;
-                var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                updateFOVConeDirection(newBearing);
+                applyDebouncedBearingUpdate();
                 lastValidYaw = currentYaw; // Update the last valid yaw
             }
         }
     }
 }
 
+function applyDebouncedBearingUpdate() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(function() {
+        var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+        updateFOVConeDirection(newBearing);
+    }, 250); // Debounce time of 250 milliseconds
+}
 
-
-        function startWatchingBearingChanges() {
-    if (bearingUpdateIntervalId === null) { // Check if the interval is not already set
-        bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Set interval if not already set
+function startWatchingBearingChanges() {
+    if (bearingUpdateIntervalId === null) {
+        bearingUpdateIntervalId = setInterval(watchBearingChange, 100); // Adjusted interval to 100ms
     }
 }
 
