@@ -121,14 +121,14 @@
             clearTimeout(debounceTimer); // Reset the timer on every change detected
 
             debounceTimer = setTimeout(function() {
-                var yawChange = currentYaw - lastValidYaw; // Invert the direction of change
+                var yawChange = lastValidYaw - currentYaw; // Correctly invert the direction of change
                 if (Math.abs(yawChange) > 1) { // Ensure we're only updating on significant changes
-                    globalYawChange += yawChange;
-                    var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                    updateFOVConeDirection(newBearing);
-                    lastValidYaw = currentYaw; // Update the last valid yaw only after an update
+                    globalYawChange += yawChange; // Accumulate the yaw change
+                    var newBearing = (persistentBearing + globalYawChange + 360) % 360; // Adjust the bearing calculation
+                    updateFOVConeDirection(newBearing); // Update the FOV cone direction
+                    lastValidYaw = currentYaw; // Update the last valid yaw to the current
                 }
-            }, 100); // Adjusting debouncing time to allow for smoother yet responsive updates
+            }, 100); // Debounce time to stabilize updates
         } else {
             console.warn("Spherical properties are not available or video is not a 360° video.");
         }
