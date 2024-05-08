@@ -84,18 +84,20 @@
         function onPlayerStateChange(event) {
     switch (event.data) {
         case YT.PlayerState.PLAYING:
+            if (!bearingUpdateIntervalId) {
+                startWatchingBearingChanges(); // Start watching bearing changes if not already started
+            }
             videoStarted = true;
             videoStarting = false;
-            startWatchingBearingChanges(); // Start watching bearing changes
             checkTimeUpdate(); // Continue time checks
             break;
         case YT.PlayerState.PAUSED:
-            console.log("Video paused, still watching for bearing changes.");
-            // Do not stop watching bearing changes on pause
+            console.log("Video paused, continue watching for bearing changes.");
+            startWatchingBearingChanges(); // Ensure watching bearing changes continues during pause
             break;
         case YT.PlayerState.ENDED:
-            clearAllHighlightsAndFOV();
             console.log("Video ended, cleared all highlights and FOV.");
+            clearAllHighlightsAndFOV();
             stopWatchingBearingChanges(); // Stop watching bearing changes
             break;
         case YT.PlayerState.BUFFERING:
@@ -107,6 +109,7 @@
             break;
     }
 }
+
 
         function checkTimeUpdate() {
             if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
