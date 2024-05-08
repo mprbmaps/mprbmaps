@@ -74,34 +74,34 @@
         }
 
         function onPlayerStateChange(event) {
-            switch (event.data) {
-                case YT.PlayerState.PLAYING:
-                    console.log("Video playing: applying persistent bearing", persistentBearing);
-                    updateFOVConeDirection(persistentBearing); // Apply persistent bearing when resuming
-                    checkTimeUpdate(); // Continue time checks
-                    videoStarted = true;
-                    videoStarting = false;
-                    startWatchingBearingChanges(); // Ensure it starts or continues when playing
-                    break;
-                case YT.PlayerState.PAUSED:
-                    console.log("Video paused, bearing before pause:", persistentBearing);
-                    persistentBearing = (persistentBearing + globalYawChange + 360) % 360; // Update persistent bearing before pause
-                    globalYawChange = 0; // Reset yaw change after updating
-                    break;
-                case YT.PlayerState.ENDED:
-                    console.log("Video ended, cleared all highlights and FOV.");
-                    clearAllHighlightsAndFOV();
-                    stopWatchingBearingChanges(); // Definitely stop when the video ends
-                    break;
-                case YT.PlayerState.BUFFERING:
-                    console.log("Video buffering, adjustments are paused.");
-                    stopWatchingBearingChanges(); // Stop watching during buffering to avoid errors
-                    break;
-                case YT.PlayerState.CUED:
-                    console.log("Video cued, ready to play.");
-                    break;
-            }
-        }
+    switch (event.data) {
+        case YT.PlayerState.PLAYING:
+            console.log("Video playing: applying persistent bearing", persistentBearing);
+            updateFOVConeDirection(persistentBearing); // Apply persistent bearing when resuming
+            videoStarted = true;
+            videoStarting = false;
+            startWatchingBearingChanges(); // Ensure it starts or continues when playing
+            break;
+        case YT.PlayerState.PAUSED:
+            console.log("Video paused, bearing before pause:", persistentBearing);
+            persistentBearing = (persistentBearing + globalYawChange + 360) % 360; // Update persistent bearing before pause
+            globalYawChange = 0; // Reset yaw change after updating
+            console.log("Updated persistent bearing on pause:", persistentBearing);
+            break;
+        case YT.PlayerState.ENDED:
+            console.log("Video ended, cleared all highlights and FOV.");
+            clearAllHighlightsAndFOV();
+            stopWatchingBearingChanges(); // Definitely stop when the video ends
+            break;
+        case YT.PlayerState.BUFFERING:
+            console.log("Video buffering, adjustments are paused.");
+            stopWatchingBearingChanges(); // Stop watching during buffering to avoid errors
+            break;
+        case YT.PlayerState.CUED:
+            console.log("Video cued, ready to play.");
+            break;
+    }
+}
 
         function checkTimeUpdate() {
             if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
@@ -134,20 +134,22 @@
         }
 
         function applyImmediateBearingUpdate(yawChange) {
-            var newBearing = (persistentBearing + yawChange + 360) % 360;
-            updateFOVConeDirection(newBearing);
-            persistentBearing = newBearing; // Update persistent bearing to reflect the immediate change
-        }
+    var newBearing = (persistentBearing + yawChange + 360) % 360;
+    console.log("Immediate bearing update from:", persistentBearing, "to:", newBearing);
+    updateFOVConeDirection(newBearing);
+    persistentBearing = newBearing; // Update persistent bearing to reflect the immediate change
+}
 
-        function applyDebouncedBearingUpdate() {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(function() {
-                var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                updateFOVConeDirection(newBearing);
-                persistentBearing = newBearing; // Update persistent bearing here as well
-                globalYawChange = 0; // Reset global yaw change after applying
-            }, 250); // Adjust debounce time if needed
-        }
+function applyDebouncedBearingUpdate() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(function() {
+        var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+        console.log("Debounced bearing update from:", persistentBearing, "to:", newBearing);
+        updateFOVConeDirection(newBearing);
+        persistentBearing = newBearing; // Update persistent bearing here as well
+        globalYawChange = 0; // Reset global yaw change after applying
+    }, 250); // Adjust debounce time if needed
+}
 
         function startWatchingBearingChanges() {
             if (bearingUpdateIntervalId === null) {
@@ -208,12 +210,12 @@
         }
 
         function updateFOVConeDirection(newBearing) {
-            console.log("Updating FOV Bearing to:", newBearing);
-            persistentBearing = newBearing; // Ensure this is set before drawing
-            if (lastHighlightedFeature && fovGraphicsLayer) {
-                drawFOVCone(lastHighlightedFeature, lastHighlightedFeature.layerView);
-            }
-        }
+    console.log("Updating FOV Bearing to:", newBearing);
+    persistentBearing = newBearing; // Ensure this is set before drawing
+    if (lastHighlightedFeature && fovGraphicsLayer) {
+        drawFOVCone(lastHighlightedFeature, lastHighlightedFeature.layerView, newBearing);
+    }
+}
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
             if (!startDateTimeMap[featureLayer.id]) {
