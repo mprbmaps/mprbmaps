@@ -55,7 +55,6 @@
         var videoBearingUpdated = false;
         var manualPanningActive = false;
         var bearingUpdateIntervalId = null;
-        var pauseUpdateIntervalId = null;
         var debounceTimer;
         var lastValidYaw = 0;
         var bearingManuallyUpdated = false;
@@ -65,64 +64,54 @@
         var globalYawChange = 0; // This will accumulate changes in yaw
 
         function onYouTubeIframeAPIReady() {
-            player = new YT.Player('youtubePlayer', {
-                height: '443',
-                width: '707',
-                events: {
-                    'onStateChange': onPlayerStateChange
-                }
-            });
+    player = new YT.Player('youtubePlayer', {
+        height: '443',
+        width: '707',
+        events: {
+            'onStateChange': onPlayerStateChange
+            
+        }
+    });
+}
+
+        function clearBearingUpdateInterval() {
+            if (bearingUpdateIntervalId !== null) {
+                clearInterval(bearingUpdateIntervalId);
+                bearingUpdateIntervalId = null;
+            }
         }
 
         function onPlayerStateChange(event) {
-            switch (event.data) {
-                case YT.PlayerState.PLAYING:
-                    if (pauseUpdateIntervalId) {
-                        clearInterval(pauseUpdateIntervalId);
-                        pauseUpdateIntervalId = null;
-                    }
-                    startWatchingBearingChanges();
-                    break;
-                case YT.PlayerState.PAUSED:
-                    startPauseBearingUpdate();
-                    break;
-                case YT.PlayerState.ENDED:
-                case YT.PlayerState.BUFFERING:
-                    stopWatchingBearingChanges();
-                    break;
-                case YT.PlayerState.CUED:
-                    console.log("Video cued, ready to play.");
-                    break;
+    switch (event.data) {
+        case YT.PlayerState.PLAYING:
+            videoStarted = true;
+            videoStarting = false;
+            if (!bearingUpdateIntervalId) {
+                startWatchingBearingChanges();
             }
-        }
+            checkTimeUpdate();
+            break;
+        case YT.PlayerState.PAUSED:
+            console.log("Video paused, maintaining current highlights and FOV.");
+            break;
+        case YT.PlayerState.ENDED:
+            clearAllHighlightsAndFOV();
+            console.log("Video ended, cleared all highlights and FOV.");
+            stopWatchingBearingChanges();
+            break;
+        case YT.PlayerState.BUFFERING:
+            console.log("Video buffering, adjustments are paused.");
+            break;
+        case YT.PlayerState.CUED:
+            console.log("Video cued, ready to play.");
+            break;
+        case YT.PlayerState.SEEKING:
+        case YT.PlayerState.SEEKED:
+            console.log("Video was panned or seeked, checking for new orientation.");
+            break;
+    }
+}
 
-        function startPauseBearingUpdate() {
-            if (pauseUpdateIntervalId) {
-                clearInterval(pauseUpdateIntervalId); // Ensure no duplicate intervals
-            }
-            pauseUpdateIntervalId = setInterval(function() {
-                var props = player.getSphericalProperties();
-                if (props && typeof props.yaw !== 'undefined') {
-                    var currentYaw = ((props.yaw % 360) + 360) % 360;
-                    handleYawChange(currentYaw);
-                }
-            }, 100); // Polling interval, can adjust for responsiveness vs performance
-        }
-
-        function handleYawChange(currentYaw) {
-            var yawChange = lastValidYaw - currentYaw;
-            if (Math.abs(yawChange) > 1) {
-                globalYawChange += yawChange;
-                var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                updateFOVConeDirection(newBearing);
-                lastValidYaw = currentYaw; // Update the last known valid yaw
-            }
-        }
-
-        function startWatchingBearingChanges() {
-            clearBearingUpdateInterval(); // Make sure to clear any previous intervals
-            bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Check every 50 milliseconds
-        }
 
         function checkTimeUpdate() {
             if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
@@ -138,48 +127,40 @@
         }
 
         function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                if (props && typeof props.yaw !== 'undefined') {
-                    var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize the yaw
-                    var yawChange = lastValidYaw - currentYaw; // Correctly invert the direction of change
-                    if (Math.abs(yawChange) > 1) { // Check for significant change
-                        globalYawChange += yawChange;
-                        var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                        updateFOVConeDirection(newBearing);
-                        lastValidYaw = currentYaw;
-                    }
-                } else {
-                    console.warn("Spherical properties are not available or video is not a 360° video.");
+    if (player && player.getSphericalProperties) {
+        var props = player.getSphericalProperties();
+        if (props && typeof props.yaw !== 'undefined') {
+            var currentYaw = ((props.yaw % 360) + 360) % 360;
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(function() {
+                var yawChange = currentYaw - lastValidYaw;
+                if (Math.abs(yawChange) > 1) {
+                    globalYawChange -= yawChange; // Continue to invert the yaw change
+                    var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                    updateFOVConeDirection(newBearing);
+                    lastValidYaw = currentYaw;
                 }
-            }
+            }, 50); // Reduced timeout for faster updates
+        } else {
+            console.warn("Spherical properties are not available or video is not a 360° video.");
         }
+    }
+}
 
-        function stopWatchingBearingChanges() {
-            if (bearingUpdateIntervalId) {
-                clearInterval(bearingUpdateIntervalId);
-                bearingUpdateIntervalId = null;
-            }
-            if (pauseUpdateIntervalId) {
-                clearInterval(pauseUpdateIntervalId);
-                pauseUpdateIntervalId = null;
-            }
-        }
 
-        function clearBearingUpdateInterval() {
-            if (bearingUpdateIntervalId !== null) {
-                clearInterval(bearingUpdateIntervalId);
-                bearingUpdateIntervalId = null;
-            }
-        }
 
-        function updateFOVConeDirection(newBearing) {
-            console.log("Updating FOV Bearing to:", newBearing);
-            persistentBearing = newBearing;
-            if (lastHighlightedFeature && fovGraphicsLayer) {
-                drawFOVCone(lastHighlightedFeature, lastHighlightedFeature.layer);
-            }
-        }
+        function startWatchingBearingChanges() {
+    clearBearingUpdateInterval();
+    bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Increased frequency
+}
+
+function stopWatchingBearingChanges() {
+    if (bearingUpdateIntervalId !== null) {
+        clearInterval(bearingUpdateIntervalId);
+        bearingUpdateIntervalId = null;
+    }
+}
+
 
         function clearAllHighlightsAndFOV() {
             Object.keys(featureLayers).forEach(function(layerId) {
@@ -189,33 +170,44 @@
         }
 
         function clearAndHighlight(feature, layer) {
-            Object.keys(highlights).forEach(function(layerId) {
-                if (highlights[layerId]) {
-                    highlights[layerId].remove();
-                    highlights[layerId] = null;
-                }
-            });
-
-            activeLayerId = layer.id;
-            persistentBearing = (feature.attributes.bearing + globalYawChange + 360) % 360; // Apply global yaw change
-
-            console.log("Highlighted feature bearing:", persistentBearing);
-
-            window.view.whenLayerView(layer).then(function(layerView) {
-                highlights[layer.id] = layerView.highlight(feature);
-                window.drawFOVCone(feature, layerView, persistentBearing); // Draw FOV using the updated bearing
-                lastHighlightedFeature = feature;
-                startWatchingBearingChanges();
-            }).catch(function(error) {
-                console.error("Error in highlighting feature: ", error);
-            });
+    Object.keys(highlights).forEach(function(layerId) {
+        if (highlights[layerId]) {
+            highlights[layerId].remove();
+            highlights[layerId] = null;
         }
+    });
+
+    activeLayerId = layer.id;
+    persistentBearing = (feature.attributes.bearing + globalYawChange + 360) % 360; // Apply global yaw change
+    
+    console.log("Highlighted feature bearing:", persistentBearing);
+
+    window.view.whenLayerView(layer).then(function(layerView) {
+        highlights[layer.id] = layerView.highlight(feature);
+        window.drawFOVCone(feature, layerView, persistentBearing); // Draw FOV using the updated bearing
+        lastHighlightedFeature = feature;
+        startWatchingBearingChanges();
+    }).catch(function(error) {
+        console.error("Error in highlighting feature: ", error);
+    });
+}
+
 
         function clearHighlight(layer) {
             if (highlights[layer.id]) {
                 highlights[layer.id].remove();  // Assuming this removes the highlight from the layer
                 highlights[layer.id] = null;  // Reset the reference to null
                 console.log("Highlight cleared for layer:", layer.id);
+            }
+        }
+
+        function updateFOVConeDirection(newBearing) {
+            console.log("Updating FOV Bearing to:", newBearing);
+            persistentBearing = newBearing; // Update persistent bearing regardless of current highlight
+            bearingManuallyUpdated = true; // Mark as manually updated
+
+            if (lastHighlightedFeature) {
+                drawFOVCone(lastHighlightedFeature);
             }
         }
 
@@ -395,8 +387,8 @@
                             type: "simple-fill",
                             color: [255, 165, 0, 0.1],
                             outline: {
-                                color: [255, 165, 0, 0.8],
-                                width: 2
+                                color: [255, 165, 0.2],
+                                width: 1
                             }
                         }
                     });
