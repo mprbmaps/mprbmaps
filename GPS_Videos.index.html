@@ -185,8 +185,8 @@ function stopWatchingBearingChanges() {
     });
 
     activeLayerId = layer.id;
-    // Modify this line to add the globalYawChange to the new feature's bearing
-    persistentBearing = ((feature.attributes.bearing + globalYawChange + 360) % 360);
+    // Incorporate global yaw change to the new feature's bearing
+    persistentBearing = (feature.attributes.bearing + globalYawChange + 360) % 360;
 
     console.log("Highlighted feature bearing:", persistentBearing);
 
@@ -194,7 +194,7 @@ function stopWatchingBearingChanges() {
         highlights[layer.id] = layerView.highlight(feature);
         window.drawFOVCone(feature, layerView, persistentBearing); // Draw FOV using the updated bearing
         lastHighlightedFeature = feature;
-        startWatchingBearingChanges();
+        startWatchingBearingChanges(); // Ensure bearing updates continue if video is playing
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
