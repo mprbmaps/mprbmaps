@@ -140,11 +140,9 @@
             var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize the yaw
             var yawChange = lastValidYaw - currentYaw; // Calculate yaw change
             lastValidYaw = currentYaw;
-            if (player.getPlayerState() === YT.PlayerState.PAUSED) {
-                applyImmediateBearingUpdate(yawChange); // Correcting the application of yaw change when paused
-            } else {
+            if (player.getPlayerState() === YT.PlayerState.PLAYING || player.getPlayerState() === YT.PlayerState.PAUSED) {
                 globalYawChange += yawChange;
-                applyDebouncedBearingUpdate();
+                applyImmediateBearingUpdate(yawChange); // Apply immediate bearing update
             }
         }
     }
@@ -170,7 +168,7 @@ function applyDebouncedBearingUpdate() {
 
 function startWatchingBearingChanges() {
     if (bearingUpdateIntervalId === null) {
-        bearingUpdateIntervalId = setInterval(watchBearingChange, 100); // Adjusted interval to 100ms
+        bearingUpdateIntervalId = setInterval(watchBearingChange, 100);
     }
 }
 
@@ -190,6 +188,7 @@ function stopWatchingBearingChanges() {
         }
 
         function clearAndHighlight(feature, layer) {
+    // Clear existing highlights across all layers
     Object.keys(highlights).forEach(function(layerId) {
         if (highlights[layerId]) {
             highlights[layerId].remove();
@@ -197,9 +196,8 @@ function stopWatchingBearingChanges() {
         }
     });
 
-    activeLayerId = layer.id;
-    // Incorporate global yaw change to the new feature's bearing
-    persistentBearing = (feature.attributes.bearing + globalYawChange + 360) % 360;
+    activeLayerId = layer.id; // Update active layer ID
+    persistentBearing = (feature.attributes.bearing + globalYawChange + 360) % 360; // Update bearing with global yaw change
 
     console.log("Highlighted feature bearing:", persistentBearing);
 
@@ -207,11 +205,12 @@ function stopWatchingBearingChanges() {
         highlights[layer.id] = layerView.highlight(feature);
         window.drawFOVCone(feature, layerView, persistentBearing); // Draw FOV using the updated bearing
         lastHighlightedFeature = feature;
-        startWatchingBearingChanges(); // Ensure bearing updates continue if video is playing
+        startWatchingBearingChanges(); // Start watching bearing changes
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
         function clearHighlight(layer) {
             if (highlights[layer.id]) {
