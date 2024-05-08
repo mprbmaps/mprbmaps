@@ -84,20 +84,24 @@
         function onPlayerStateChange(event) {
     switch (event.data) {
         case YT.PlayerState.PLAYING:
+            if (!videoStarted) {
+                persistentBearing = (persistentBearing + globalYawChange + 360) % 360; // Apply pending yaw changes on start
+                globalYawChange = 0; // Reset yaw change after applying
+            }
+            videoStarted = true;
             console.log("Video playing: applying persistent bearing", persistentBearing);
             updateFOVConeDirection(persistentBearing); // Apply persistent bearing when resuming
             checkTimeUpdate(); // Continue time checks
-            videoStarted = true;
-            videoStarting = false;
             startWatchingBearingChanges(); // Ensure it starts or continues when playing
             break;
         case YT.PlayerState.PAUSED:
             console.log("Video paused, bearing before pause:", persistentBearing);
             persistentBearing = (persistentBearing + globalYawChange + 360) % 360; // Update persistent bearing before pause
             globalYawChange = 0; // Reset yaw change after updating
-            startWatchingBearingChanges(); // Continue watching for bearing changes during pause
+            updateFOVConeDirection(persistentBearing); // Apply the updated bearing immediately on pause
             break;
         case YT.PlayerState.ENDED:
+            videoStarted = false; // Reset the video started flag
             console.log("Video ended, cleared all highlights and FOV.");
             clearAllHighlightsAndFOV();
             stopWatchingBearingChanges(); // Definitely stop when the video ends
@@ -111,6 +115,7 @@
             break;
     }
 }
+
 
 
 
