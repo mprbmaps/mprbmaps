@@ -64,54 +64,45 @@
         var globalYawChange = 0; // This will accumulate changes in yaw
 
         function onYouTubeIframeAPIReady() {
-    player = new YT.Player('youtubePlayer', {
-        height: '443',
-        width: '707',
-        events: {
-            'onStateChange': onPlayerStateChange
-            
-        }
-    });
-}
-
-        function clearBearingUpdateInterval() {
-            if (bearingUpdateIntervalId !== null) {
-                clearInterval(bearingUpdateIntervalId);
-                bearingUpdateIntervalId = null;
-            }
+            player = new YT.Player('youtubePlayer', {
+                height: '443',
+                width: '707',
+                events: {
+                    'onStateChange': onPlayerStateChange
+                }
+            });
         }
 
         function onPlayerStateChange(event) {
-    switch (event.data) {
-        case YT.PlayerState.PLAYING:
-            videoStarted = true;
-            videoStarting = false;
-            if (!bearingUpdateIntervalId) {
-                startWatchingBearingChanges();
+            switch (event.data) {
+                case YT.PlayerState.PLAYING:
+                    videoStarted = true;
+                    videoStarting = false;
+                    if (!bearingUpdateIntervalId) {
+                        startWatchingBearingChanges();
+                    }
+                    checkTimeUpdate();
+                    break;
+                case YT.PlayerState.PAUSED:
+                    console.log("Video paused, maintaining current highlights and FOV.");
+                    break;
+                case YT.PlayerState.ENDED:
+                    clearAllHighlightsAndFOV();
+                    console.log("Video ended, cleared all highlights and FOV.");
+                    stopWatchingBearingChanges();
+                    break;
+                case YT.PlayerState.BUFFERING:
+                    console.log("Video buffering, adjustments are paused.");
+                    break;
+                case YT.PlayerState.CUED:
+                    console.log("Video cued, ready to play.");
+                    break;
+                case YT.PlayerState.SEEKING:
+                case YT.PlayerState.SEEKED:
+                    console.log("Video was panned or seeked, checking for new orientation.");
+                    break;
             }
-            checkTimeUpdate();
-            break;
-        case YT.PlayerState.PAUSED:
-            console.log("Video paused, maintaining current highlights and FOV.");
-            break;
-        case YT.PlayerState.ENDED:
-            clearAllHighlightsAndFOV();
-            console.log("Video ended, cleared all highlights and FOV.");
-            stopWatchingBearingChanges();
-            break;
-        case YT.PlayerState.BUFFERING:
-            console.log("Video buffering, adjustments are paused.");
-            break;
-        case YT.PlayerState.CUED:
-            console.log("Video cued, ready to play.");
-            break;
-        case YT.PlayerState.SEEKING:
-        case YT.PlayerState.SEEKED:
-            console.log("Video was panned or seeked, checking for new orientation.");
-            break;
-    }
-}
-
+        }
 
         function checkTimeUpdate() {
             if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
@@ -127,40 +118,37 @@
         }
 
         function watchBearingChange() {
-    if (player && player.getSphericalProperties) {
-        var props = player.getSphericalProperties();
-        if (props && typeof props.yaw !== 'undefined') {
-            var currentYaw = ((props.yaw % 360) + 360) % 360;
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(function() {
-                var yawChange = currentYaw - lastValidYaw;
-                if (Math.abs(yawChange) > 1) {
-                    globalYawChange -= yawChange; // Continue to invert the yaw change
-                    var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                    updateFOVConeDirection(newBearing);
-                    lastValidYaw = currentYaw;
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties();
+                if (props && typeof props.yaw !== 'undefined') {
+                    var currentYaw = ((props.yaw % 360) + 360) % 360;
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(function() {
+                        var yawChange = currentYaw - lastValidYaw;
+                        if (Math.abs(yawChange) > 1) {
+                            globalYawChange -= yawChange; // Continue to invert the yaw change
+                            var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                            updateFOVConeDirection(newBearing);
+                            lastValidYaw = currentYaw;
+                        }
+                    }, 50); // Reduced timeout for faster updates
+                } else {
+                    console.warn("Spherical properties are not available or video is not a 360° video.");
                 }
-            }, 50); // Reduced timeout for faster updates
-        } else {
-            console.warn("Spherical properties are not available or video is not a 360° video.");
+            }
         }
-    }
-}
-
-
 
         function startWatchingBearingChanges() {
-    clearBearingUpdateInterval();
-    bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Increased frequency
-}
+            clearBearingUpdateInterval();
+            bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Increased frequency
+        }
 
-function stopWatchingBearingChanges() {
-    if (bearingUpdateIntervalId !== null) {
-        clearInterval(bearingUpdateIntervalId);
-        bearingUpdateIntervalId = null;
-    }
-}
-
+        function stopWatchingBearingChanges() {
+            if (bearingUpdateIntervalId !== null) {
+                clearInterval(bearingUpdateIntervalId);
+                bearingUpdateIntervalId = null;
+            }
+        }
 
         function clearAllHighlightsAndFOV() {
             Object.keys(featureLayers).forEach(function(layerId) {
@@ -170,28 +158,27 @@ function stopWatchingBearingChanges() {
         }
 
         function clearAndHighlight(feature, layer) {
-    Object.keys(highlights).forEach(function(layerId) {
-        if (highlights[layerId]) {
-            highlights[layerId].remove();
-            highlights[layerId] = null;
+            Object.keys(highlights).forEach(function(layerId) {
+                if (highlights[layerId]) {
+                    highlights[layerId].remove();
+                    highlights[layerId] = null;
+                }
+            });
+
+            activeLayerId = layer.id;
+            persistentBearing = (feature.attributes.bearing + globalYawChange + 360) % 360; // Apply global yaw change
+
+            console.log("Highlighted feature bearing:", persistentBearing);
+
+            window.view.whenLayerView(layer).then(function(layerView) {
+                highlights[layer.id] = layerView.highlight(feature);
+                window.drawFOVCone(feature, layerView, persistentBearing); // Draw FOV using the updated bearing
+                lastHighlightedFeature = feature;
+                startWatchingBearingChanges();
+            }).catch(function(error) {
+                console.error("Error in highlighting feature: ", error);
+            });
         }
-    });
-
-    activeLayerId = layer.id;
-    persistentBearing = (feature.attributes.bearing + globalYawChange + 360) % 360; // Apply global yaw change
-    
-    console.log("Highlighted feature bearing:", persistentBearing);
-
-    window.view.whenLayerView(layer).then(function(layerView) {
-        highlights[layer.id] = layerView.highlight(feature);
-        window.drawFOVCone(feature, layerView, persistentBearing); // Draw FOV using the updated bearing
-        lastHighlightedFeature = feature;
-        startWatchingBearingChanges();
-    }).catch(function(error) {
-        console.error("Error in highlighting feature: ", error);
-    });
-}
-
 
         function clearHighlight(layer) {
             if (highlights[layer.id]) {
