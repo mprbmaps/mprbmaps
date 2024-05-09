@@ -122,10 +122,15 @@
         var props = player.getSphericalProperties();
         if (props && typeof props.yaw !== 'undefined') {
             var currentYaw = ((props.yaw % 360) + 360) % 360;
-
             var yawChange = currentYaw - lastValidYaw;
-            if (Math.abs(yawChange) > 1) { // You can adjust the sensitivity here
-                globalYawChange -= yawChange; // Continue to invert the yaw change
+
+            // Using a smoothing factor to average the yaw changes; adjust 'smoothingFactor' as needed
+            var smoothingFactor = 10; 
+            var smoothedYawChange = (yawChange + lastYawChange * (smoothingFactor - 1)) / smoothingFactor;
+            lastYawChange = smoothedYawChange;
+
+            if (Math.abs(smoothedYawChange) > 1) { // Threshold to update the bearing
+                globalYawChange -= smoothedYawChange; // Continue to invert the yaw change
                 var newBearing = (persistentBearing + globalYawChange + 360) % 360;
                 updateFOVConeDirection(newBearing);
                 lastValidYaw = currentYaw;
@@ -135,6 +140,7 @@
         }
     }
 }
+
 
 
         function clearBearingUpdateInterval() {
