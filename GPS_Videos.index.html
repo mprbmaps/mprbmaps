@@ -122,25 +122,24 @@
         function watchBearingChange() {
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
-        if (props && typeof props.yaw !== 'undefined') {
-            var currentYaw = ((props.yaw % 360) + 360) % 360;
-            yawValues.push(currentYaw);
-            if (yawValues.length > maxSamples) {
-                yawValues.shift(); // Maintain the buffer size
-            }
+        var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize the yaw value
+        yawValues.push(currentYaw);
+        if (yawValues.length > maxSamples) {
+            yawValues.shift(); // Maintain the buffer size
+        }
 
-            var smoothedYaw = averageYaw(yawValues);
-            var yawChange = (smoothedYaw - lastValidYaw + 540) % 360 - 180; // Normalize the change
+        var smoothedYaw = averageYaw(yawValues);
+        var yawChange = (smoothedYaw - lastValidYaw + 540) % 360 - 180; // Normalize the change
 
-            if (Math.abs(yawChange) > 5) { // Increase threshold to avoid minor adjustments
-                globalYawChange += yawChange;
-                var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                updateFOVConeDirection(newBearing);
-                lastValidYaw = smoothedYaw;
-            }
+        if (Math.abs(yawChange) > 5) { // Only update if change is significant
+            globalYawChange += yawChange;
+            var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+            updateFOVConeDirection(newBearing);
+            lastValidYaw = smoothedYaw;
         }
     }
 }
+
 
 
         function averageYaw(yawArray) {
@@ -185,6 +184,7 @@
         }
 
         function clearAndHighlight(feature, layer) {
+    // Clear all existing highlights
     Object.keys(highlights).forEach(function(layerId) {
         if (highlights[layerId]) {
             highlights[layerId].remove();
@@ -193,23 +193,24 @@
     });
 
     activeLayerId = layer.id;
-    // Reset bearing only if transitioning to a different feature or context
-    if (!bearingManuallyUpdated || activeLayerId !== layer.id || lastHighlightedFeature === null || lastHighlightedFeature.attributes.OBJECTID !== feature.attributes.OBJECTID) {
-        persistentBearing = feature.attributes.bearing;
-        console.log("Bearing reset to feature default:", persistentBearing);
-    } else {
-        console.log("Carrying over bearing:", persistentBearing);
+    if (lastHighlightedFeature === null || lastHighlightedFeature.attributes.OBJECTID !== feature.attributes.OBJECTID) {
+        // Reset bearing only if it's a new feature
+        if (!bearingManuallyUpdated) {
+            persistentBearing = feature.attributes.bearing;
+            console.log("Bearing reset to feature default:", persistentBearing);
+        }
     }
 
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
         window.drawFOVCone(feature, layerView, persistentBearing); // Always use persistent bearing
-        lastHighlightedFeature = feature;
+        lastHighlightedFeature = feature; // Update last highlighted feature
         startWatchingBearingChanges();
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
 
 
