@@ -183,6 +183,32 @@
             }
         }
 
+        function clearAndHighlight(feature, layer) {
+            Object.keys(highlights).forEach(function(layerId) {
+                if (highlights[layerId]) {
+                    highlights[layerId].remove();
+                    highlights[layerId] = null;
+                }
+            });
+
+            activeLayerId = layer.id;
+            if (!bearingManuallyUpdated) { // Only reset bearing if it was not manually updated
+                persistentBearing = feature.attributes.bearing;
+            } else {
+                // Log bearing to see if it carries over
+                console.log("Carrying over bearing:", persistentBearing);
+            }
+
+            window.view.whenLayerView(layer).then(function(layerView) {
+                highlights[layer.id] = layerView.highlight(feature);
+                window.drawFOVCone(feature, layerView, persistentBearing); // Always use persistent bearing
+                lastHighlightedFeature = feature;
+                startWatchingBearingChanges();
+            }).catch(function(error) {
+                console.error("Error in highlighting feature: ", error);
+            });
+        }
+
         window.drawFOVCone = function(feature, view) {
             require([
                 "esri/geometry/Polygon",
