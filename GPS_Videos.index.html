@@ -117,24 +117,26 @@
             }
         }
 
-        function watchBearingChange() {
+function watchBearingChange() {
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
         if (props && typeof props.yaw !== 'undefined') {
             var currentYaw = ((props.yaw % 360) + 360) % 360;
             var yawChange = currentYaw - lastValidYaw;
-            var yawChangeThreshold = 5; // Adjust this value as needed
-            if (Math.abs(yawChange) > yawChangeThreshold) {
-                globalYawChange -= yawChange; // Continue to invert the yaw change
+            var dampingFactor = 0.1; // Adjust this value as needed
+            if (Math.abs(yawChange) > 1) {
+                globalYawChange -= yawChange * dampingFactor; // Apply the damping factor here
                 var newBearing = (persistentBearing + globalYawChange + 360) % 360;
                 updateFOVConeDirection(newBearing); // Update the FOV cone direction here
                 lastValidYaw = currentYaw;
             }
-        } else {
-            console.warn("Spherical properties are not available or video is not a 360° video.");
-        }
+        }         
     }
 }
+
+// Call watchBearingChange every 100 milliseconds
+setInterval(watchBearingChange, 100);
+
 
 // Call watchBearingChange every 100 milliseconds
 setInterval(watchBearingChange, 100);
