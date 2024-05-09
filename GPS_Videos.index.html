@@ -62,10 +62,11 @@
         var videoStarted = false; // Flag to track whether the video has started playing
         var videoStarting = false; // Flag to track whether the video is in the process of starting
         var globalYawChange = 0; // This will accumulate changes in yaw
+        var manualYawChange = 0; // This will accumulate changes in yaw due to manual panning/rotation
         var isPanning = false;
         var newYaw = null;
 
-              function onYouTubeIframeAPIReady() {
+        function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
                 height: '443',
                 width: '707',
@@ -78,6 +79,8 @@
         function onPlayerStateChange(event) {
             switch (event.data) {
                 case YT.PlayerState.PLAYING:
+                    // When the video starts playing, reset the manualYawChange
+                    manualYawChange = 0;
                     videoStarted = true;
                     videoStarting = false;
                     if (!bearingUpdateIntervalId) {
@@ -86,6 +89,10 @@
                     checkTimeUpdate();
                     break;
                 case YT.PlayerState.PAUSED:
+                    // When the video is paused, update the globalYawChange and persistentBearing based on the manualYawChange
+                    globalYawChange += manualYawChange;
+                    persistentBearing = (persistentBearing + manualYawChange + 360) % 360;
+                    manualYawChange = 0;
                     console.log("Video paused, maintaining current highlights and FOV.");
                     break;
                 case YT.PlayerState.ENDED:
@@ -120,31 +127,26 @@
         }
 
         function watchBearingChange() {
-    if (player && player.getSphericalProperties) {
-        var props = player.getSphericalProperties();
-        if (props && typeof props.yaw !== 'undefined') {
-            var currentYaw = ((props.yaw % 360) + 360) % 360;
-            var yawChange = currentYaw - lastValidYaw;
-            var yawChangeThreshold = 5; // Adjust this value as needed
-
-            // Introduce a damping factor
-            var dampingFactor = 0.5;
-            yawChange *= dampingFactor;
-
-            if (Math.abs(yawChange) > yawChangeThreshold) {
-                globalYawChange -= yawChange; // Continue to invert the yaw change
-                var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(function() {
-                    updateFOVConeDirection(newBearing);
-                }, 200); // Reduced timeout for faster updates
-                lastValidYaw = currentYaw;
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties();
+                if (props && typeof props.yaw !== 'undefined') {
+                    var currentYaw = ((props.yaw % 360) + 360) % 360;
+                    var yawChange = currentYaw - lastValidYaw;
+                    var yawChangeThreshold = 5; // Adjust this value as needed
+                    if (Math.abs(yawChange) > yawChangeThreshold) {
+                        manualYawChange -= yawChange; // Continue to invert the yaw change
+                        var newBearing = (persistentBearing + globalYawChange + manualYawChange + 360) % 360;
+                        clearTimeout(debounceTimer);
+                        debounceTimer = setTimeout(function() {
+                            updateFOVConeDirection(newBearing);
+                        }, 200); // Reduced timeout for faster updates
+                        lastValidYaw = currentYaw;
+                    }
+                } else {
+                    console.warn("Spherical properties are not available or video is not a 360° video.");
+                }
             }
-        } else {
-            console.warn("Spherical properties are not available or video is not a 360° video.");
         }
-    }
-}
 
         function clearBearingUpdateInterval() {
             if (bearingUpdateIntervalId !== null) {
@@ -190,58 +192,39 @@
                 window.drawFOVCone(feature, layerView, persistentBearing); // Draw FOV using the updated bearing
                 lastHighlightedFeature = feature;
                 startWatchingBearingChanges();
-                                  
+            }).catch(function(error) {
+                console.error("Error in highlighting feature: ", error);
+            });
+        }
+
+        window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
+            if (!startDateTimeMap[featureLayer.id]) {
+                console.error("Start DateTimeS not set yet for " + featureLayer.id);
+                return;
+            }
+            if (featureLayer.id !== activeLayerId) {
+                return;
+            }
+            var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
+            queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
+            var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+            view.whenLayerView(featureLayer).then(function(layerView) {
+                layerView.queryFeatures({
+                    where: "DateTimeS = '" + queryDateTimeStr + "'",
+                    returnGeometry: true,
+                    outFields: ["*"]
+                }).then(function(results) {
+                    if (results.features.length > 0) {
+                        var feature = results.features[0];
+                        clearAndHighlight(feature, featureLayer);
+                    } else {
+                        console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
+                    }
                 }).catch(function(error) {
-                    console.error("Error in highlighting feature: ", error);
+                    console.error("Error highlighting feature based on DateTimeS:", error);
                 });
-            }
-
-            function clearHighlight(layer) {
-                if (highlights[layer.id]) {
-                    highlights[layer.id].remove();  // Assuming this removes the highlight from the layer
-                    highlights[layer.id] = null;  // Reset the reference to null
-                    console.log("Highlight cleared for layer:", layer.id);
-                }
-            }
-
-            function updateFOVConeDirection(newBearing) {
-                console.log("Updating FOV Bearing to:", newBearing);
-                persistentBearing = newBearing; // Update persistent bearing regardless of current highlight
-                bearingManuallyUpdated = true; // Mark as manually updated
-
-                if (lastHighlightedFeature) {
-                    drawFOVCone(lastHighlightedFeature);
-                }
-            }
-
-            window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-                if (!startDateTimeMap[featureLayer.id]) {
-                    console.error("Start DateTimeS not set yet for " + featureLayer.id);
-                    return;
-                }
-                if (featureLayer.id !== activeLayerId) {
-                    return;
-                }
-                var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
-                queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
-                var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-                view.whenLayerView(featureLayer).then(function(layerView) {
-                    layerView.queryFeatures({
-                        where: "DateTimeS = '" + queryDateTimeStr + "'",
-                        returnGeometry: true,
-                        outFields: ["*"]
-                    }).then(function(results) {
-                        if (results.features.length > 0) {
-                            var feature = results.features[0];
-                            clearAndHighlight(feature, featureLayer);
-                        } else {
-                            console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                        }
-                    }).catch(function(error) {
-                        console.error("Error highlighting feature based on DateTimeS:", error);
-                    });
-                });
-            };
+            });
+        };
 
             require([
                 "esri/WebMap",
