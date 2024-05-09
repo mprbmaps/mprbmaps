@@ -126,15 +126,13 @@
             var currentYaw = ((props.yaw % 360) + 360) % 360;
             yawValues.push(currentYaw);
             if (yawValues.length > maxSamples) {
-                yawValues.shift(); // Remove the oldest value to maintain size
+                yawValues.shift(); // Maintain the buffer size
             }
 
             var smoothedYaw = averageYaw(yawValues);
-            var yawChange = (smoothedYaw - lastValidYaw + 540) % 360 - 180; // Properly handle transitions from 0 to 360 and vice versa
+            var yawChange = (smoothedYaw - lastValidYaw + 540) % 360 - 180; // Normalize the change
 
-            console.log("Smoothed Yaw:", smoothedYaw, "Yaw Change:", yawChange);
-
-            if (Math.abs(yawChange) > 5) { // Increased threshold to 5 degrees to avoid micro-adjustments
+            if (Math.abs(yawChange) > 5) { // Increase threshold to avoid minor adjustments
                 globalYawChange += yawChange;
                 var newBearing = (persistentBearing + globalYawChange + 360) % 360;
                 updateFOVConeDirection(newBearing);
@@ -143,6 +141,7 @@
         }
     }
 }
+
 
         function averageYaw(yawArray) {
             var sum = yawArray.reduce(function(a, b) { return a + b; }, 0);
@@ -194,12 +193,11 @@
     });
 
     activeLayerId = layer.id;
-    // Check if it's the same video context or if manual update has been made
-    if (!bearingManuallyUpdated || feature.attributes.DateTimeS !== lastHighlightedFeature.attributes.DateTimeS) {
-        persistentBearing = feature.attributes.bearing; // Only reset if it's a different context
+    // Reset bearing only if transitioning to a different feature or context
+    if (!bearingManuallyUpdated || activeLayerId !== layer.id || lastHighlightedFeature === null || lastHighlightedFeature.attributes.OBJECTID !== feature.attributes.OBJECTID) {
+        persistentBearing = feature.attributes.bearing;
         console.log("Bearing reset to feature default:", persistentBearing);
     } else {
-        // Log bearing to see if it carries over
         console.log("Carrying over bearing:", persistentBearing);
     }
 
@@ -212,6 +210,7 @@
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
 
         window.drawFOVCone = function(feature, view) {
