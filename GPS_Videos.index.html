@@ -174,27 +174,31 @@
         }
 
         function clearAndHighlight(feature, layer) {
-            Object.keys(highlights).forEach(function(layerId) {
-                if (highlights[layerId]) {
-                    highlights[layerId].remove();
-                    highlights[layerId] = null;
-                }
-            });
-
-            activeLayerId = layer.id;
-            persistentBearing = (feature.attributes.bearing + globalYawChange + 360) % 360; // Apply global yaw change
-
-            console.log("Highlighted feature bearing:", persistentBearing);
-
-            window.view.whenLayerView(layer).then(function(layerView) {
-                highlights[layer.id] = layerView.highlight(feature);
-                window.drawFOVCone(feature, layerView, persistentBearing); // Draw FOV using the updated bearing
-                lastHighlightedFeature = feature;
-                startWatchingBearingChanges();
-            }).catch(function(error) {
-                console.error("Error in highlighting feature: ", error);
-            });
+    Object.keys(highlights).forEach(function(layerId) {
+        if (highlights[layerId]) {
+            highlights[layerId].remove();
+            highlights[layerId] = null;
         }
+    });
+
+    activeLayerId = layer.id;
+
+    // Only update persistentBearing when a new video starts playing
+    if (!videoStarted && !videoStarting) {
+        persistentBearing = (feature.attributes.bearing + globalYawChange + 360) % 360; // Apply global yaw change
+    }
+
+    console.log("Highlighted feature bearing:", persistentBearing);
+
+    window.view.whenLayerView(layer).then(function(layerView) {
+        highlights[layer.id] = layerView.highlight(feature);
+        window.drawFOVCone(feature, layerView, persistentBearing); // Draw FOV using the updated bearing
+        lastHighlightedFeature = feature;
+        startWatchingBearingChanges();
+    }).catch(function(error) {
+        console.error("Error in highlighting feature: ", error);
+    });
+}
 
         function updateFOVConeDirection(newBearing) {
     console.log("Updating FOV Bearing to:", newBearing);
