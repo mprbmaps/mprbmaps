@@ -157,6 +157,8 @@ function stopWatchingBearingChanges() {
 
         function clearAndHighlight(feature, layer) {
     console.log("Attempting to clear and highlight feature on layer:", layer.id);
+    
+    // Clear existing highlights across all layers
     Object.keys(highlights).forEach(function(layerId) {
         if (highlights[layerId]) {
             highlights[layerId].remove();
@@ -165,16 +167,19 @@ function stopWatchingBearingChanges() {
         }
     });
 
-    activeLayerId = layer.id;  // Ensure this is correctly updated
-    persistentBearing = feature.attributes.bearing;  // Reset the persistent bearing
+    activeLayerId = layer.id;
+    persistentBearing = feature.attributes.bearing;  // Ensure bearing is updated if needed
+
+    // Set the new highlight
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
         console.log("New highlight set for feature on layer:", layer.id);
-        drawFOVCone(feature, layerView);  // Ensure this call is correctly made
+        drawFOVCone(feature, layerView);  // Draw the FOV cone with the new highlight
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
 }
+
 
         function clearHighlight(layer) {
             if (highlights[layer.id]) {
@@ -195,14 +200,10 @@ function stopWatchingBearingChanges() {
         }
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
-    if (!startDateTimeMap[featureLayer.id]) {
-        console.error("Start DateTimeS not set yet for " + featureLayer.id);
-        return;
-    }
     var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
     queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
     var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
-    console.log("Querying for features at:", queryDateTimeStr);
+    
     view.whenLayerView(featureLayer).then(function(layerView) {
         layerView.queryFeatures({
             where: "DateTimeS = '" + queryDateTimeStr + "'",
@@ -210,18 +211,25 @@ function stopWatchingBearingChanges() {
             outFields: ["*"]
         }).then(function(results) {
             if (results.features.length > 0) {
-                console.log("Feature found, highlighting...");
                 var feature = results.features[0];
                 clearAndHighlight(feature, featureLayer);
             } else {
                 console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                clearHighlight(layerView.layer); // Ensure highlights are cleared if no feature matches
+                // Clear any existing highlight if no new feature is found
+                Object.keys(highlights).forEach(function(layerId) {
+                    if (highlights[layerId]) {
+                        highlights[layerId].remove();
+                        highlights[layerId] = null;
+                        console.log("Highlight cleared for layer:", layerId);
+                    }
+                });
             }
         }).catch(function(error) {
             console.error("Error highlighting feature based on DateTimeS:", error);
         });
     });
 };
+
 
 
         require([
