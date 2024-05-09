@@ -74,35 +74,36 @@
         }
 
         function onPlayerStateChange(event) {
-            switch (event.data) {
-                case YT.PlayerState.PLAYING:
-                    videoStarted = true;
-                    videoStarting = false;
-                    if (!bearingUpdateIntervalId) {
-                        startWatchingBearingChanges();
-                    }
-                    checkTimeUpdate();
-                    break;
-                case YT.PlayerState.PAUSED:
-                    console.log("Video paused, maintaining current highlights and FOV.");
-                    break;
-                case YT.PlayerState.ENDED:
-                    clearAllHighlightsAndFOV();
-                    console.log("Video ended, cleared all highlights and FOV.");
-                    stopWatchingBearingChanges();
-                    break;
-                case YT.PlayerState.BUFFERING:
-                    console.log("Video buffering, adjustments are paused.");
-                    break;
-                case YT.PlayerState.CUED:
-                    console.log("Video cued, ready to play.");
-                    break;
-                case YT.PlayerState.SEEKING:
-                case YT.PlayerState.SEEKED:
-                    console.log("Video was panned or seeked, checking for new orientation.");
-                    break;
-            }
-        }
+    switch (event.data) {
+        case YT.PlayerState.PLAYING:
+            videoStarted = true;
+            videoStarting = false;
+            startWatchingBearingChanges();
+            checkTimeUpdate();
+            break;
+        case YT.PlayerState.PAUSED:
+            console.log("Video paused, maintaining current highlights and FOV.");
+            stopWatchingBearingChanges(); // Stop the automatic bearing change
+            startWatchingBearingChanges(true); // Start manual updates
+            break;
+        case YT.PlayerState.ENDED:
+            clearAllHighlightsAndFOV();
+            console.log("Video ended, cleared all highlights and FOV.");
+            stopWatchingBearingChanges();
+            break;
+        case YT.PlayerState.BUFFERING:
+            console.log("Video buffering, adjustments are paused.");
+            break;
+        case YT.PlayerState.CUED:
+            console.log("Video cued, ready to play.");
+            break;
+        case YT.PlayerState.SEEKING:
+        case YT.PlayerState.SEEKED:
+            console.log("Video was panned or seeked, checking for new orientation.");
+            break;
+    }
+}
+
 
         function checkTimeUpdate() {
             if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
@@ -142,10 +143,15 @@
     }
 }
 
-        // Throttling mechanism
-function startWatchingBearingChanges() {
+        function startWatchingBearingChanges(manual = false) {
     clearBearingUpdateInterval();
-    bearingUpdateIntervalId = setInterval(watchBearingChange, 100); // Adjust the frequency to 100 ms
+    if (manual) {
+        bearingUpdateIntervalId = setInterval(watchBearingChange, 100);
+    } else {
+        if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+            bearingUpdateIntervalId = setInterval(watchBearingChange, 100);
+        }
+    }
 }
 
         function stopWatchingBearingChanges() {
