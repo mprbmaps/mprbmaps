@@ -156,19 +156,21 @@ function stopWatchingBearingChanges() {
         }
 
         function clearAndHighlight(feature, layer) {
-    console.log("Clearing and highlighting for layer:", layer.id);
+    console.log("Attempting to clear and highlight feature on layer:", layer.id);
     Object.keys(highlights).forEach(function(layerId) {
         if (highlights[layerId]) {
             highlights[layerId].remove();
             highlights[layerId] = null;
-            console.log("Cleared highlight for layer:", layerId);
+            console.log("Highlight cleared for layer:", layerId);
         }
     });
 
-    activeLayerId = layer.id;
+    activeLayerId = layer.id;  // Ensure this is correctly updated
+    persistentBearing = feature.attributes.bearing;  // Reset the persistent bearing
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
         console.log("New highlight set for feature on layer:", layer.id);
+        drawFOVCone(feature, layerView);  // Ensure this call is correctly made
     }).catch(function(error) {
         console.error("Error in highlighting feature: ", error);
     });
@@ -347,16 +349,18 @@ function stopWatchingBearingChanges() {
             }
 
             window.drawFOVCone = function(feature, layerView) {
+    console.log("Drawing FOV cone for feature with bearing:", persistentBearing);
     require([
         "esri/geometry/Polygon",
         "esri/Graphic"
     ], function(Polygon, Graphic) {
-        var coneLength = 30; // Length of the cone in meters
-        var coneWidth = 47; // Half angle of the FOV cone in degrees
+        if (!feature.geometry) {
+            console.error("Invalid geometry for feature:", feature);
+            return;
+        }
 
-        console.log("Drawing FOV cone at bearing:", persistentBearing);
-
-        fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
+        var coneLength = 30; // Adjust as needed
+        var coneWidth = 47; // Adjust as needed
 
         var centerPoint = feature.geometry.clone();
         var cone = createCone(centerPoint, persistentBearing, coneWidth, coneLength);
@@ -369,18 +373,19 @@ function stopWatchingBearingChanges() {
             geometry: polygon,
             symbol: {
                 type: "simple-fill",
-                color: [255, 165, 0, 0.1], // Semi-transparent orange
+                color: [255, 165, 0, 0.1],
                 outline: {
-                    color: [255, 165, 0.2], // Orange outline
-                    width: 2
+                    color: [255, 165, 0],
+                    width: 1
                 }
             }
         });
 
         fovGraphicsLayer.graphics.add(fovGraphic);
-        console.log("FOV cone added to graphics layer.");
+        console.log("FOV cone graphic added to layer.");
     });
 };
+
 
 
             function createCone(centerPoint, bearing, width, length) {
