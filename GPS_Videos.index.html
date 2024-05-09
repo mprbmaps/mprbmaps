@@ -100,7 +100,7 @@
         function checkTimeUpdate() {
     if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
         var currentSecond = Math.floor(player.getCurrentTime());
-        console.log("Checking time update at second:", currentSecond);
+        console.log("Video playing at second:", currentSecond);
         Object.keys(featureLayers).forEach(function(layerId) {
             var featureLayer = featureLayers[layerId];
             if (featureLayer && featureLayer.id === activeLayerId) {
@@ -110,6 +110,7 @@
         setTimeout(checkTimeUpdate, 1000); // Ensure this is called every second
     }
 }
+
 
 
         function watchBearingChange() {
@@ -156,29 +157,25 @@ function stopWatchingBearingChanges() {
         }
 
         function clearAndHighlight(feature, layer) {
-    console.log("Attempting to clear and highlight feature on layer:", layer.id);
-    
-    // Clear existing highlights across all layers
+    console.log("Clearing old highlights and setting new highlight for layer:", layer.id);
     Object.keys(highlights).forEach(function(layerId) {
         if (highlights[layerId]) {
             highlights[layerId].remove();
             highlights[layerId] = null;
-            console.log("Highlight cleared for layer:", layerId);
         }
     });
-
     activeLayerId = layer.id;
-    persistentBearing = feature.attributes.bearing;  // Ensure bearing is updated if needed
+    persistentBearing = feature.attributes.bearing;
 
-    // Set the new highlight
     window.view.whenLayerView(layer).then(function(layerView) {
         highlights[layer.id] = layerView.highlight(feature);
-        console.log("New highlight set for feature on layer:", layer.id);
-        drawFOVCone(feature, layerView);  // Draw the FOV cone with the new highlight
+        console.log("Feature highlighted on layer:", layer.id);
+        drawFOVCone(feature, layerView);
     }).catch(function(error) {
-        console.error("Error in highlighting feature: ", error);
+        console.error("Error in setting highlight for feature:", error);
     });
 }
+
 
 
         function clearHighlight(layer) {
