@@ -76,30 +76,22 @@
         function onPlayerStateChange(event) {
     switch (event.data) {
         case YT.PlayerState.PLAYING:
-            videoStarted = true;
-            videoStarting = false;
-            startWatchingBearingChanges();
-            checkTimeUpdate();
-            break;
-        case YT.PlayerState.PAUSED:
-            console.log("Video paused, maintaining current highlights and FOV.");
-            stopWatchingBearingChanges(); // Stop the automatic bearing change
-            startWatchingBearingChanges(true); // Start manual updates
+        case YT.PlayerState.PAUSED: // Handle both playing and paused similarly
+            if (!bearingUpdateIntervalId) {
+                startWatchingBearingChanges();
+            }
             break;
         case YT.PlayerState.ENDED:
             clearAllHighlightsAndFOV();
-            console.log("Video ended, cleared all highlights and FOV.");
             stopWatchingBearingChanges();
             break;
         case YT.PlayerState.BUFFERING:
-            console.log("Video buffering, adjustments are paused.");
-            break;
         case YT.PlayerState.CUED:
-            console.log("Video cued, ready to play.");
+            // Optionally handle these states if needed
             break;
         case YT.PlayerState.SEEKING:
         case YT.PlayerState.SEEKED:
-            console.log("Video was panned or seeked, checking for new orientation.");
+            // Optionally refresh FOV position after seeking
             break;
     }
 }
@@ -124,9 +116,8 @@
         if (props && typeof props.yaw !== 'undefined') {
             var currentYaw = ((props.yaw % 360) + 360) % 360;
             var yawChange = currentYaw - lastValidYaw;
-            
-            if (Math.abs(yawChange) > 1) { // Update only if change is greater than 1 degree
-                globalYawChange -= yawChange; // Continue to invert the yaw change
+            if (Math.abs(yawChange) > 0.5) { // Adjust this threshold based on sensitivity preference
+                globalYawChange -= yawChange;
                 var newBearing = (persistentBearing + globalYawChange + 360) % 360;
                 updateFOVConeDirection(newBearing);
                 lastValidYaw = currentYaw;
@@ -143,23 +134,17 @@
     }
 }
 
-        function startWatchingBearingChanges(manual = false) {
+        function startWatchingBearingChanges() {
     clearBearingUpdateInterval();
-    if (manual) {
-        bearingUpdateIntervalId = setInterval(watchBearingChange, 100);
-    } else {
-        if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-            bearingUpdateIntervalId = setInterval(watchBearingChange, 100);
-        }
-    }
+    bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Frequent checks for smooth updates
 }
 
-        function stopWatchingBearingChanges() {
-            if (bearingUpdateIntervalId !== null) {
-                clearInterval(bearingUpdateIntervalId);
-                bearingUpdateIntervalId = null;
-            }
-        }
+function stopWatchingBearingChanges() {
+    if (bearingUpdateIntervalId !== null) {
+        clearInterval(bearingUpdateIntervalId);
+        bearingUpdateIntervalId = null;
+    }
+}
 
         function clearAllHighlightsAndFOV() {
             Object.keys(featureLayers).forEach(function(layerId) {
