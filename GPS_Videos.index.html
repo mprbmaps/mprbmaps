@@ -55,15 +55,13 @@
         var videoBearingUpdated = false;
         var manualPanningActive = false;
         var bearingUpdateIntervalId = null;
+        var debounceTimer;
         var lastValidYaw = 0;
         var bearingManuallyUpdated = false;
         var persistentBearing = 0;
         var videoStarted = false; // Flag to track whether the video has started playing
         var videoStarting = false; // Flag to track whether the video is in the process of starting
         var globalYawChange = 0; // This will accumulate changes in yaw
-        var yawSmoothingFactor = 0.3; // Smoothing factor to stabilize yaw updates
-        var yawValues = []; // Array to store recent yaw values for smoothing
-        var maxSamples = 5; // Number of samples to use for smoothing
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -120,150 +118,91 @@
         }
 
         function watchBearingChange() {
-    if (player && player.getSphericalProperties) {
-        var props = player.getSphericalProperties();
-        var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize the yaw value
-        yawValues.push(currentYaw);
-        if (yawValues.length > maxSamples) {
-            yawValues.shift(); // Maintain the buffer size
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties();
+                if (props && typeof props.yaw !== 'undefined') {
+                    var currentYaw = ((props.yaw % 360) + 360) % 360;
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(function() {
+                        var yawChange = currentYaw - lastValidYaw;
+                        if (Math.abs(yawChange) > 1) {
+                            globalYawChange -= yawChange; // Continue to invert the yaw change
+                            var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                            updateFOVConeDirection(newBearing);
+                            lastValidYaw = currentYaw;
+                        }
+                    }, 50); // Reduced timeout for faster updates
+                } else {
+                    console.warn("Spherical properties are not available or video is not a 360° video.");
+                }
+            }
         }
 
-        var smoothedYaw = averageYaw(yawValues);
-        var yawChange = (smoothedYaw - lastValidYaw + 540) % 360 - 180; // Normalize the change
-
-        if (Math.abs(yawChange) > 5) { // Only update if change is significant
-            globalYawChange += yawChange;
-            var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-            updateFOVConeDirection(newBearing);
-            lastValidYaw = smoothedYaw;
-        }
+        function clearBearingUpdateInterval() {
+    if (bearingUpdateIntervalId !== null) {
+        clearInterval(bearingUpdateIntervalId);
+        bearingUpdateIntervalId = null;
     }
 }
 
-
-
-        function averageYaw(yawArray) {
-            var sum = yawArray.reduce(function(a, b) { return a + b; }, 0);
-            return sum / yawArray.length;
+        function startWatchingBearingChanges() {
+            clearBearingUpdateInterval();
+            bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Increased frequency
         }
 
-        function startWatchingBearingChanges() {
-    clearBearingUpdateInterval();
-    bearingUpdateIntervalId = setInterval(watchBearingChange, 200); // Adjusted interval to 200 ms
-}
-
-        function clearBearingUpdateInterval() {
+        function stopWatchingBearingChanges() {
             if (bearingUpdateIntervalId !== null) {
                 clearInterval(bearingUpdateIntervalId);
                 bearingUpdateIntervalId = null;
             }
         }
 
-        function stopWatchingBearingChanges() {
-            clearBearingUpdateInterval();
-        }
-
         function clearAllHighlightsAndFOV() {
             Object.keys(featureLayers).forEach(function(layerId) {
+                clearHighlight(featureLayers[layerId]);
+                fovGraphicsLayer.graphics.removeAll();
+            });
+        }
+
+        function clearAndHighlight(feature, layer) {
+            Object.keys(highlights).forEach(function(layerId) {
                 if (highlights[layerId]) {
                     highlights[layerId].remove();
                     highlights[layerId] = null;
                 }
-                if (fovGraphicsLayer) {
-                    fovGraphicsLayer.graphics.removeAll();
-                }
             });
+
+            activeLayerId = layer.id;
+            persistentBearing = (feature.attributes.bearing + globalYawChange + 360) % 360; // Apply global yaw change
+
+            console.log("Highlighted feature bearing:", persistentBearing);
+
+            window.view.whenLayerView(layer).then(function(layerView) {
+                highlights[layer.id] = layerView.highlight(feature);
+                window.drawFOVCone(feature, layerView, persistentBearing); // Draw FOV using the updated bearing
+                lastHighlightedFeature = feature;
+                startWatchingBearingChanges();
+            }).catch(function(error) {
+                console.error("Error in highlighting feature: ", error);
+            });
+        }
+
+        function clearHighlight(layer) {
+            if (highlights[layer.id]) {
+                highlights[layer.id].remove();  // Assuming this removes the highlight from the layer
+                highlights[layer.id] = null;  // Reset the reference to null
+                console.log("Highlight cleared for layer:", layer.id);
+            }
         }
 
         function updateFOVConeDirection(newBearing) {
             console.log("Updating FOV Bearing to:", newBearing);
             persistentBearing = newBearing; // Update persistent bearing regardless of current highlight
+            bearingManuallyUpdated = true; // Mark as manually updated
+
             if (lastHighlightedFeature) {
-                drawFOVCone(lastHighlightedFeature, window.view);
+                drawFOVCone(lastHighlightedFeature);
             }
-        }
-
-        function clearAndHighlight(feature, layer) {
-    // Clear all existing highlights
-    Object.keys(highlights).forEach(function(layerId) {
-        if (highlights[layerId]) {
-            highlights[layerId].remove();
-            highlights[layerId] = null;
-        }
-    });
-
-    activeLayerId = layer.id;
-    if (lastHighlightedFeature === null || lastHighlightedFeature.attributes.OBJECTID !== feature.attributes.OBJECTID) {
-        // Reset bearing only if it's a new feature
-        if (!bearingManuallyUpdated) {
-            persistentBearing = feature.attributes.bearing;
-            console.log("Bearing reset to feature default:", persistentBearing);
-        }
-    }
-
-    window.view.whenLayerView(layer).then(function(layerView) {
-        highlights[layer.id] = layerView.highlight(feature);
-        window.drawFOVCone(feature, layerView, persistentBearing); // Always use persistent bearing
-        lastHighlightedFeature = feature; // Update last highlighted feature
-        startWatchingBearingChanges();
-    }).catch(function(error) {
-        console.error("Error in highlighting feature: ", error);
-    });
-}
-
-
-
-
-        window.drawFOVCone = function(feature, view) {
-            require([
-                "esri/geometry/Polygon",
-                "esri/Graphic"
-            ], function(Polygon, Graphic) {
-                var coneLength = 30; // Length of the cone in meters
-                var coneWidth = 47; // Half angle of the FOV cone in degrees
-                fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
-
-                var centerPoint = feature.geometry.clone();
-                var cone = createCone(centerPoint, persistentBearing, coneWidth, coneLength);
-                var polygon = new Polygon({
-                    rings: cone,
-                    spatialReference: { wkid: 102100 }
-                });
-
-                var fovGraphic = new Graphic({
-                    geometry: polygon,
-                    symbol: {
-                        type: "simple-fill",
-                        color: [255, 165, 0, 0.3],
-                        outline: {
-                            color: [255, 165, 0, 0.2],
-                            width: 1
-                        }
-                    }
-                });
-
-                fovGraphicsLayer.graphics.add(fovGraphic);
-            });
-        };
-
-        function createCone(centerPoint, bearing, width, length) {
-            var points = [];
-            points.push([centerPoint.x, centerPoint.y]); // Cone Apex
-            var startBearing = bearing - width;
-            var endBearing = bearing + width;
-
-            points.push(calculatePoint(centerPoint, startBearing, length));
-            points.push(calculatePoint(centerPoint, endBearing, length));
-            points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
-
-            return [points];
-        }
-
-        function calculatePoint(center, bearing, distance) {
-            var angleRad = (Math.PI / 180) * bearing;
-            var dx = distance * Math.sin(angleRad);
-            var dy = distance * Math.cos(angleRad);
-            return [center.x + dx, center.y + dy];
         }
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
@@ -417,6 +356,59 @@
                         console.error("Error during hitTest:", error);
                     });
                 });
+            }
+
+            window.drawFOVCone = function(feature, layerView) {
+                require([
+                    "esri/geometry/Polygon",
+                    "esri/Graphic"
+                ], function(Polygon, Graphic) {
+                    var coneLength = 30; // Length of the cone in meters
+                    var coneWidth = 47; // Half angle of the FOV cone in degrees
+
+                    fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
+
+                    var centerPoint = feature.geometry.clone();
+                    var cone = createCone(centerPoint, persistentBearing, coneWidth, coneLength);
+                    var polygon = new Polygon({
+                        rings: cone,
+                        spatialReference: { wkid: 102100 }
+                    });
+
+                    var fovGraphic = new Graphic({
+                        geometry: polygon,
+                        symbol: {
+                            type: "simple-fill",
+                            color: [255, 165, 0, 0.1],
+                            outline: {
+                                color: [255, 165, 0.2],
+                                width: 1
+                            }
+                        }
+                    });
+
+                    fovGraphicsLayer.graphics.add(fovGraphic);
+                });
+            };
+
+            function createCone(centerPoint, bearing, width, length) {
+                var points = [];
+                points.push([centerPoint.x, centerPoint.y]); // Cone Apex
+                var startBearing = bearing - width;
+                var endBearing = bearing + width;
+
+                points.push(calculatePoint(centerPoint, startBearing, length));
+                points.push(calculatePoint(centerPoint, endBearing, length));
+                points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
+
+                return [points];
+            }
+
+            function calculatePoint(center, bearing, distance) {
+                var angleRad = (Math.PI / 180) * bearing;
+                var dx = distance * Math.sin(angleRad);
+                var dy = distance * Math.cos(angleRad);
+                return [center.x + dx, center.y + dy];
             }
         });
 
