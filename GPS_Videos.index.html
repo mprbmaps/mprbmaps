@@ -100,6 +100,7 @@
         function checkTimeUpdate() {
     if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
         var currentSecond = Math.floor(player.getCurrentTime());
+        console.log("Checking time update at second:", currentSecond);
         Object.keys(featureLayers).forEach(function(layerId) {
             var featureLayer = featureLayers[layerId];
             if (featureLayer && featureLayer.id === activeLayerId) {
@@ -155,27 +156,23 @@ function stopWatchingBearingChanges() {
         }
 
         function clearAndHighlight(feature, layer) {
-            Object.keys(highlights).forEach(function(layerId) {
-                if (highlights[layerId]) {
-                    highlights[layerId].remove();
-                    highlights[layerId] = null;
-                }
-            });
-
-            activeLayerId = layer.id;
-            persistentBearing = (feature.attributes.bearing + globalYawChange + 360) % 360; // Apply global yaw change
-
-            console.log("Highlighted feature bearing:", persistentBearing);
-
-            window.view.whenLayerView(layer).then(function(layerView) {
-                highlights[layer.id] = layerView.highlight(feature);
-                window.drawFOVCone(feature, layerView, persistentBearing); // Draw FOV using the updated bearing
-                lastHighlightedFeature = feature;
-                startWatchingBearingChanges();
-            }).catch(function(error) {
-                console.error("Error in highlighting feature: ", error);
-            });
+    console.log("Clearing and highlighting for layer:", layer.id);
+    Object.keys(highlights).forEach(function(layerId) {
+        if (highlights[layerId]) {
+            highlights[layerId].remove();
+            highlights[layerId] = null;
+            console.log("Cleared highlight for layer:", layerId);
         }
+    });
+
+    activeLayerId = layer.id;
+    window.view.whenLayerView(layer).then(function(layerView) {
+        highlights[layer.id] = layerView.highlight(feature);
+        console.log("New highlight set for feature on layer:", layer.id);
+    }).catch(function(error) {
+        console.error("Error in highlighting feature: ", error);
+    });
+}
 
         function clearHighlight(layer) {
             if (highlights[layer.id]) {
@@ -200,12 +197,10 @@ function stopWatchingBearingChanges() {
         console.error("Start DateTimeS not set yet for " + featureLayer.id);
         return;
     }
-    if (featureLayer.id !== activeLayerId) {
-        return;
-    }
     var queryDateTime = new Date(startDateTimeMap[featureLayer.id]);
     queryDateTime.setSeconds(queryDateTime.getSeconds() + currentSecond);
     var queryDateTimeStr = queryDateTime.toISOString().replace(/\.\d+Z$/, 'Z');
+    console.log("Querying for features at:", queryDateTimeStr);
     view.whenLayerView(featureLayer).then(function(layerView) {
         layerView.queryFeatures({
             where: "DateTimeS = '" + queryDateTimeStr + "'",
@@ -213,11 +208,12 @@ function stopWatchingBearingChanges() {
             outFields: ["*"]
         }).then(function(results) {
             if (results.features.length > 0) {
+                console.log("Feature found, highlighting...");
                 var feature = results.features[0];
                 clearAndHighlight(feature, featureLayer);
             } else {
                 console.log("No features found to highlight for DateTimeS:", queryDateTimeStr);
-                clearHighlight(layerView.layer); // Clear highlight if no corresponding feature is found
+                clearHighlight(layerView.layer); // Ensure highlights are cleared if no feature matches
             }
         }).catch(function(error) {
             console.error("Error highlighting feature based on DateTimeS:", error);
