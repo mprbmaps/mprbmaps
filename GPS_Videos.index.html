@@ -122,17 +122,20 @@ function watchBearingChange() {
         var props = player.getSphericalProperties();
         if (props && typeof props.yaw !== 'undefined') {
             var currentYaw = ((props.yaw % 360) + 360) % 360;
-            var yawChange = currentYaw - lastValidYaw;
-            var dampingFactor = 0.1; // Adjust this value as needed
-            if (Math.abs(yawChange) > 1) {
-                globalYawChange -= yawChange * dampingFactor; // Apply the damping factor here
-                var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                updateFOVConeDirection(newBearing); // Update the FOV cone direction here
-                lastValidYaw = currentYaw;
-            }
-        }         
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(function() {
+                var yawChange = currentYaw - lastValidYaw;
+                if (Math.abs(yawChange) > 1) {
+                    globalYawChange -= yawChange; // Continue to invert the yaw change
+                    var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                    updateFOVConeDirection(newBearing);
+                    lastValidYaw = currentYaw;
+                }
+            }, 50); // Reduced timeout for faster updates
+        } 
     }
 }
+
 
 // Call watchBearingChange every 100 milliseconds
 setInterval(watchBearingChange, 100);
