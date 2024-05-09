@@ -62,9 +62,6 @@
         var videoStarted = false; // Flag to track whether the video has started playing
         var videoStarting = false; // Flag to track whether the video is in the process of starting
         var globalYawChange = 0; // This will accumulate changes in yaw
-        var manualYawChange = 0; // This will accumulate changes in yaw due to manual panning/rotation
-        var isPanning = false;
-        var newYaw = null;
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -77,40 +74,35 @@
         }
 
         function onPlayerStateChange(event) {
-    switch (event.data) {
-        case YT.PlayerState.PLAYING:
-            // When the video starts playing, reset the manualYawChange
-            manualYawChange = 0;
-            videoStarted = true;
-            videoStarting = false;
-            if (!bearingUpdateIntervalId) {
-                startWatchingBearingChanges();
+            switch (event.data) {
+                case YT.PlayerState.PLAYING:
+                    videoStarted = true;
+                    videoStarting = false;
+                    if (!bearingUpdateIntervalId) {
+                        startWatchingBearingChanges();
+                    }
+                    checkTimeUpdate();
+                    break;
+                case YT.PlayerState.PAUSED:
+                    console.log("Video paused, maintaining current highlights and FOV.");
+                    break;
+                case YT.PlayerState.ENDED:
+                    clearAllHighlightsAndFOV();
+                    console.log("Video ended, cleared all highlights and FOV.");
+                    stopWatchingBearingChanges();
+                    break;
+                case YT.PlayerState.BUFFERING:
+                    console.log("Video buffering, adjustments are paused.");
+                    break;
+                case YT.PlayerState.CUED:
+                    console.log("Video cued, ready to play.");
+                    break;
+                case YT.PlayerState.SEEKING:
+                case YT.PlayerState.SEEKED:
+                    console.log("Video was panned or seeked, checking for new orientation.");
+                    break;
             }
-            checkTimeUpdate();
-            break;
-        case YT.PlayerState.PAUSED:
-            // When the video is paused, update the globalYawChange based on the manualYawChange
-            globalYawChange += manualYawChange;
-            manualYawChange = 0;
-            console.log("Video paused, maintaining current highlights and FOV.");
-            break;
-        case YT.PlayerState.ENDED:
-            clearAllHighlightsAndFOV();
-            console.log("Video ended, cleared all highlights and FOV.");
-            stopWatchingBearingChanges();
-            break;
-        case YT.PlayerState.BUFFERING:
-            console.log("Video buffering, adjustments are paused.");
-            break;
-        case YT.PlayerState.CUED:
-            console.log("Video cued, ready to play.");
-            break;
-        case YT.PlayerState.SEEKING:
-        case YT.PlayerState.SEEKED:
-            console.log("Video was panned or seeked, checking for new orientation.");
-            break;
-    }
-}
+        }
 
         function checkTimeUpdate() {
             if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
@@ -126,33 +118,32 @@
         }
 
         function watchBearingChange() {
-    if (player && player.getSphericalProperties) {
-        var props = player.getSphericalProperties();
-        if (props && typeof props.yaw !== 'undefined') {
-            var currentYaw = ((props.yaw % 360) + 360) % 360;
-            var yawChange = currentYaw - lastValidYaw;
-            var yawChangeThreshold = 5; // Adjust this value as needed
-            if (Math.abs(yawChange) > yawChangeThreshold) {
-                manualYawChange -= yawChange; // Continue to invert the yaw change
-                var newBearing = (persistentBearing + globalYawChange + manualYawChange + 360) % 360;
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(function() {
-                    updateFOVConeDirection(newBearing);
-                }, 200); // Reduced timeout for faster updates
-                lastValidYaw = currentYaw;
+            if (player && player.getSphericalProperties) {
+                var props = player.getSphericalProperties();
+                if (props && typeof props.yaw !== 'undefined') {
+                    var currentYaw = ((props.yaw % 360) + 360) % 360;
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(function() {
+                        var yawChange = currentYaw - lastValidYaw;
+                        if (Math.abs(yawChange) > 1) {
+                            globalYawChange -= yawChange; // Continue to invert the yaw change
+                            var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                            updateFOVConeDirection(newBearing);
+                            lastValidYaw = currentYaw;
+                        }
+                    }, 50); // Reduced timeout for faster updates
+                } else {
+                    console.warn("Spherical properties are not available or video is not a 360° video.");
+                }
             }
-        } else {
-            console.warn("Spherical properties are not available or video is not a 360° video.");
         }
-    }
-}
 
         function clearBearingUpdateInterval() {
-            if (bearingUpdateIntervalId !== null) {
-                clearInterval(bearingUpdateIntervalId);
-                bearingUpdateIntervalId = null;
-            }
-        }
+    if (bearingUpdateIntervalId !== null) {
+        clearInterval(bearingUpdateIntervalId);
+        bearingUpdateIntervalId = null;
+    }
+}
 
         function startWatchingBearingChanges() {
             clearBearingUpdateInterval();
@@ -174,41 +165,45 @@
         }
 
         function clearAndHighlight(feature, layer) {
-    Object.keys(highlights).forEach(function(layerId) {
-        if (highlights[layerId]) {
-            highlights[layerId].remove();
-            highlights[layerId] = null;
+            Object.keys(highlights).forEach(function(layerId) {
+                if (highlights[layerId]) {
+                    highlights[layerId].remove();
+                    highlights[layerId] = null;
+                }
+            });
+
+            activeLayerId = layer.id;
+            persistentBearing = (feature.attributes.bearing + globalYawChange + 360) % 360; // Apply global yaw change
+
+            console.log("Highlighted feature bearing:", persistentBearing);
+
+            window.view.whenLayerView(layer).then(function(layerView) {
+                highlights[layer.id] = layerView.highlight(feature);
+                window.drawFOVCone(feature, layerView, persistentBearing); // Draw FOV using the updated bearing
+                lastHighlightedFeature = feature;
+                startWatchingBearingChanges();
+            }).catch(function(error) {
+                console.error("Error in highlighting feature: ", error);
+            });
         }
-    });
 
-    activeLayerId = layer.id;
-
-    // Only update persistentBearing when a new video starts playing
-    if (!videoStarted && !videoStarting) {
-        persistentBearing = (feature.attributes.bearing + globalYawChange + 360) % 360; // Apply global yaw change
-    }
-
-    console.log("Highlighted feature bearing:", persistentBearing);
-
-    window.view.whenLayerView(layer).then(function(layerView) {
-        highlights[layer.id] = layerView.highlight(feature);
-        window.drawFOVCone(feature, layerView, persistentBearing); // Draw FOV using the updated bearing
-        lastHighlightedFeature = feature;
-        startWatchingBearingChanges();
-    }).catch(function(error) {
-        console.error("Error in highlighting feature: ", error);
-    });
-}
+        function clearHighlight(layer) {
+            if (highlights[layer.id]) {
+                highlights[layer.id].remove();  // Assuming this removes the highlight from the layer
+                highlights[layer.id] = null;  // Reset the reference to null
+                console.log("Highlight cleared for layer:", layer.id);
+            }
+        }
 
         function updateFOVConeDirection(newBearing) {
-    console.log("Updating FOV Bearing to:", newBearing);
-    persistentBearing = newBearing; // Update persistent bearing regardless of current highlight
+            console.log("Updating FOV Bearing to:", newBearing);
+            persistentBearing = newBearing; // Update persistent bearing regardless of current highlight
+            bearingManuallyUpdated = true; // Mark as manually updated
 
-    if (lastHighlightedFeature) {
-        window.drawFOVCone(lastHighlightedFeature);
-    }
-}
-
+            if (lastHighlightedFeature) {
+                drawFOVCone(lastHighlightedFeature);
+            }
+        }
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
             if (!startDateTimeMap[featureLayer.id]) {
@@ -239,217 +234,217 @@
             });
         };
 
-            require([
-                "esri/WebMap",
-                "esri/views/MapView",
-                "esri/layers/FeatureLayer",
-                "esri/geometry/Extent",
-                "esri/identity/OAuthInfo",
-                "esri/identity/IdentityManager",
-                "esri/renderers/SimpleRenderer",
-                "esri/symbols/PictureMarkerSymbol",
-                "esri/layers/GraphicsLayer",
-                "esri/Graphic",
-                "esri/geometry/Polygon"
-            ], function(
-                WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicsLayer, Graphic, Polygon
-            ) {
-                var info = new OAuthInfo({
-                    appId: "ti3fi1FqvHE2Hhyw",
-                    popup: true
-                });
-                IdentityManager.registerOAuthInfos([info]);
+        require([
+            "esri/WebMap",
+            "esri/views/MapView",
+            "esri/layers/FeatureLayer",
+            "esri/geometry/Extent",
+            "esri/identity/OAuthInfo",
+            "esri/identity/IdentityManager",
+            "esri/renderers/SimpleRenderer",
+            "esri/symbols/PictureMarkerSymbol",
+            "esri/layers/GraphicsLayer",
+            "esri/Graphic",
+            "esri/geometry/Polygon"
+        ], function(
+            WebMap, MapView, FeatureLayer, Extent, OAuthInfo, IdentityManager, SimpleRenderer, PictureMarkerSymbol, GraphicsLayer, Graphic, Polygon
+        ) {
+            var info = new OAuthInfo({
+                appId: "ti3fi1FqvHE2Hhyw",
+                popup: true
+            });
+            IdentityManager.registerOAuthInfos([info]);
 
-                IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
-                    console.log("Signed in successfully");
-                    displayMap();
-                }).catch(function(error) {
-                    console.error("Sign-in failed: ", error);
-                    displayMap();
+            IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+                console.log("Signed in successfully");
+                displayMap();
+            }).catch(function(error) {
+                console.error("Sign-in failed: ", error);
+                displayMap();
+            });
+
+            function displayMap() {
+                var webmap = new WebMap({
+                    portalItem: {
+                        id: "08386264ca8d480286748e95b89558b4"
+                    }
                 });
 
-                function displayMap() {
-                    var webmap = new WebMap({
-                        portalItem: {
-                            id: "08386264ca8d480286748e95b89558b4"
+                window.view = new MapView({
+                    container: "viewDiv",
+                    map: webmap,
+                    center: [-93.2650, 44.9778],
+                    zoom: 11.75
+                });
+
+                fovGraphicsLayer = new GraphicsLayer();
+                webmap.add(fovGraphicsLayer);
+
+                var layerUrls = {
+                    creek: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek_insta360_gpx_ProjectLatLong/FeatureServer/0"
+                };
+
+                Object.keys(layerUrls).forEach(function(key) {
+                    featureLayers[key] = new FeatureLayer({
+                        url: layerUrls[key],
+                        outFields: ["*"],
+                        renderer: new SimpleRenderer({
+                            symbol: new PictureMarkerSymbol({
+                                url: "https://i.ibb.co/2FtSs09/youtube-video.png",
+                                width: "20px",
+                                height: "20px"
+                            })
+                        })
+                    });
+
+                    webmap.add(featureLayers[key]);
+
+                    featureLayers[key].queryFeatures({
+                        where: "1=1",
+                        orderByFields: ["DateTimeS ASC"],
+                        returnGeometry: false,
+                        outFields: ["DateTimeS"],
+                        num: 1
+                    }).then(function(response) {
+                        if (response.features.length > 0) {
+                            startDateTimeMap[featureLayers[key].id] = response.features[0].attributes.DateTimeS;
+                            console.log(key + " Start DateTimeS set for " + featureLayers[key].id + ": ", startDateTimeMap[featureLayers[key].id]);
+                        } else {
+                            console.error("No features found to set startDateTime for " + key);
+                        }
+                    }).catch(function(error) {
+                        console.error("Error fetching start DateTimeS for " + key + ":", error);
+                    });
+                });
+
+                window.view.on("click", function(event) {
+                    window.view.hitTest(event).then(function(response) {
+                        if (response.results.length > 0) {
+                            var result = response.results[0];
+                            var feature = result.graphic;
+                            var layer = result.graphic.layer;
+
+                            if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
+                                var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
+                                var videoId = videoMap[layerId];
+                                var layerStartDateTime = startDateTimeMap[layer.id];
+
+                                if (feature.attributes.DateTimeS && layerStartDateTime) {
+                                    var featureTime = new Date(feature.attributes.DateTimeS).getTime();
+                                    var startTime = new Date(layerStartDateTime).getTime();
+                                    var timeDifference = featureTime - startTime;
+                                    var seekTime = timeDifference / 1000;
+
+                                    console.log("Attempting to play video", videoId, "at", seekTime, "seconds");
+
+                                    // Set the videoStarting flag and load the video
+                                    videoStarting = true;
+                                    if (player && typeof player.loadVideoById === "function") {
+                                        player.loadVideoById({ videoId: videoId, startSeconds: seekTime });
+                                    } else {
+                                        console.error("YouTube player is not ready or `loadVideoById` is not available.");
+                                        videoStarting = false; // Reset the flag if the video loading fails
+                                    }
+                                } else {
+                                    console.error("Missing valid DateTimeS or startDateTime is not set.");
+                                }
+
+                                clearAndHighlight(feature, layer);
+                            }
+                        }
+                    }).catch(function(error) {
+                        console.error("Error during hitTest:", error);
+                    });
+                });
+            }
+
+            window.drawFOVCone = function(feature, layerView) {
+                require([
+                    "esri/geometry/Polygon",
+                    "esri/Graphic"
+                ], function(Polygon, Graphic) {
+                    var coneLength = 30; // Length of the cone in meters
+                    var coneWidth = 47; // Half angle of the FOV cone in degrees
+
+                    fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
+
+                    var centerPoint = feature.geometry.clone();
+                    var cone = createCone(centerPoint, persistentBearing, coneWidth, coneLength);
+                    var polygon = new Polygon({
+                        rings: cone,
+                        spatialReference: { wkid: 102100 }
+                    });
+
+                    var fovGraphic = new Graphic({
+                        geometry: polygon,
+                        symbol: {
+                            type: "simple-fill",
+                            color: [255, 165, 0, 0.1],
+                            outline: {
+                                color: [255, 165, 0.2],
+                                width: 1
+                            }
                         }
                     });
 
-                    window.view = new MapView({
-                        container: "viewDiv",
-                        map: webmap,
-                        center: [-93.2650, 44.9778],
-                        zoom: 11.75
-                    });
+                    fovGraphicsLayer.graphics.add(fovGraphic);
+                });
+            };
 
-                    fovGraphicsLayer = new GraphicsLayer();
-                    webmap.add(fovGraphicsLayer);
+            function createCone(centerPoint, bearing, width, length) {
+                var points = [];
+                points.push([centerPoint.x, centerPoint.y]); // Cone Apex
+                var startBearing = bearing - width;
+                var endBearing = bearing + width;
 
-                    var layerUrls = {
-                        creek: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/creek_insta360_gpx_ProjectLatLong/FeatureServer/0"
-                    };
+                points.push(calculatePoint(centerPoint, startBearing, length));
+                points.push(calculatePoint(centerPoint, endBearing, length));
+                points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
 
-                    Object.keys(layerUrls).forEach(function(key) {
-                        featureLayers[key] = new FeatureLayer({
-                            url: layerUrls[key],
-                            outFields: ["*"],
-                            renderer: new SimpleRenderer({
-                                symbol: new PictureMarkerSymbol({
-                                    url: "https://i.ibb.co/2FtSs09/youtube-video.png",
-                                    width: "20px",
-                                    height: "20px"
-                                })
-                            })
-                        });
+                return [points];
+            }
 
-                        webmap.add(featureLayers[key]);
+            function calculatePoint(center, bearing, distance) {
+                var angleRad = (Math.PI / 180) * bearing;
+                var dx = distance * Math.sin(angleRad);
+                var dy = distance * Math.cos(angleRad);
+                return [center.x + dx, center.y + dy];
+            }
+        });
 
-                        featureLayers[key].queryFeatures({
-                            where: "1=1",
-                            orderByFields: ["DateTimeS ASC"],
-                            returnGeometry: false,
-                            outFields: ["DateTimeS"],
-                            num: 1
-                        }).then(function(response) {
-                            if (response.features.length > 0) {
-                                startDateTimeMap[featureLayers[key].id] = response.features[0].attributes.DateTimeS;
-                                console.log(key + " Start DateTimeS set for " + featureLayers[key].id + ": ", startDateTimeMap[featureLayers[key].id]);
-                            } else {
-                                console.error("No features found to set startDateTime for " + key);
-                            }
-                        }).catch(function(error) {
-                            console.error("Error fetching start DateTimeS for " + key + ":", error);
-                        });
-                    });
+        document.addEventListener('DOMContentLoaded', function() {
+            var videoWindow = document.querySelector("#videoWindow");
+            var active = false;
+            var initialX, initialY, xOffset = 0, yOffset = 0;
 
-                    window.view.on("click", function(event) {
-                        window.view.hitTest(event).then(function(response) {
-                            if (response.results.length > 0) {
-                                var result = response.results[0];
-                                var feature = result.graphic;
-                                var layer = result.graphic.layer;
-
-                                if (featureLayers.creek === layer || featureLayers.insta360Test === layer) {
-                                    var layerId = Object.keys(featureLayers).find(key => featureLayers[key] === layer);
-                                    var videoId = videoMap[layerId];
-                                    var layerStartDateTime = startDateTimeMap[layer.id];
-
-                                    if (feature.attributes.DateTimeS && layerStartDateTime) {
-                                        var featureTime = new Date(feature.attributes.DateTimeS).getTime();
-                                        var startTime = new Date(layerStartDateTime).getTime();
-                                        var timeDifference = featureTime - startTime;
-                                        var seekTime = timeDifference / 1000;
-
-                                        console.log("Attempting to play video", videoId, "at", seekTime, "seconds");
-
-                                        // Set the videoStarting flag and load the video
-                                        videoStarting = true;
-                                        if (player && typeof player.loadVideoById === "function") {
-                                            player.loadVideoById({ videoId: videoId, startSeconds: seekTime });
-                                        } else {
-                                            console.error("YouTube player is not ready or `loadVideoById` is not available.");
-                                            videoStarting = false; // Reset the flag if the video loading fails
-                                        }
-                                    } else {
-                                        console.error("Missing valid DateTimeS or startDateTime is not set.");
-                                    }
-
-                                    clearAndHighlight(feature, layer);
-                                }
-                            }
-                        }).catch(function(error) {
-                            console.error("Error during hitTest:", error);
-                        });
-                    });
-                }
-
-                window.drawFOVCone = function(feature, layerView) {
-                    require([
-                        "esri/geometry/Polygon",
-                        "esri/Graphic"
-                    ], function(Polygon, Graphic) {
-                        var coneLength = 30; // Length of the cone in meters
-                        var coneWidth = 47; // Half angle of the FOV cone in degrees
-
-                        fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
-
-                        var centerPoint = feature.geometry.clone();
-                        var cone = createCone(centerPoint, persistentBearing, coneWidth, coneLength);
-                        var polygon = new Polygon({
-                            rings: cone,
-                            spatialReference: { wkid: 102100 }
-                        });
-
-                        var fovGraphic = new Graphic({
-                            geometry: polygon,
-                            symbol: {
-                                type: "simple-fill",
-                                color: [255, 165, 0, 0.1],
-                                outline: {
-                                    color: [255, 165, 0.2],
-                                    width: 1
-                                }
-                            }
-                        });
-
-                        fovGraphicsLayer.graphics.add(fovGraphic);
-                    });
-                };
-
-                function createCone(centerPoint, bearing, width, length) {
-                    var points = [];
-                    points.push([centerPoint.x, centerPoint.y]); // Cone Apex
-                    var startBearing = bearing - width;
-                    var endBearing = bearing + width;
-
-                    points.push(calculatePoint(centerPoint, startBearing, length));
-                    points.push(calculatePoint(centerPoint, endBearing, length));
-                    points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
-
-                    return [points];
-                }
-
-                function calculatePoint(center, bearing, distance) {
-                    var angleRad = (Math.PI / 180) * bearing;
-                    var dx = distance * Math.sin(angleRad);
-                    var dy = distance * Math.cos(angleRad);
-                    return [center.x + dx, center.y + dy];
+            document.addEventListener("mousedown", function(e) {
+                if (e.target === videoWindow || videoWindow.contains(e.target)) {
+                    active = true;
+                    initialX = e.clientX - xOffset;
+                    initialY = e.clientY - yOffset;
+                    e.preventDefault();
                 }
             });
 
-            document.addEventListener('DOMContentLoaded', function() {
-                var videoWindow = document.querySelector("#videoWindow");
-                var active = false;
-                var initialX, initialY, xOffset = 0, yOffset = 0;
+            document.addEventListener("mousemove", function(e) {
+                if (active) {
+                    var currentX = e.clientX - initialX;
+                    var currentY = e.clientY - initialY;
 
-                document.addEventListener("mousedown", function(e) {
-                    if (e.target === videoWindow || videoWindow.contains(e.target)) {
-                        active = true;
-                        initialX = e.clientX - xOffset;
-                        initialY = e.clientY - yOffset;
-                        e.preventDefault();
-                    }
-                });
+                    xOffset = currentX;
+                    yOffset = currentY;
 
-                document.addEventListener("mousemove", function(e) {
-                    if (active) {
-                                                var currentX = e.clientX - initialX;
-                        var currentY = e.clientY - initialY;
-
-                        xOffset = currentX;
-                        yOffset = currentY;
-
-                        videoWindow.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
-                        e.preventDefault();
-                    }
-                });
-
-                document.addEventListener("mouseup", function() {
-                    active = false;
-                    initialX = xOffset;
-                    initialY = yOffset;
-                });
+                    videoWindow.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
+                    e.preventDefault();
+                }
             });
+
+            document.addEventListener("mouseup", function() {
+                active = false;
+                initialX = xOffset;
+                initialY = yOffset;
+            });
+        });
     </script>
 </body>
 </html>
