@@ -347,50 +347,56 @@ function stopWatchingBearingChanges() {
             }
 
             window.drawFOVCone = function(feature, layerView) {
-                require([
-                    "esri/geometry/Polygon",
-                    "esri/Graphic"
-                ], function(Polygon, Graphic) {
-                    var coneLength = 30; // Length of the cone in meters
-                    var coneWidth = 47; // Half angle of the FOV cone in degrees
+    require([
+        "esri/geometry/Polygon",
+        "esri/Graphic"
+    ], function(Polygon, Graphic) {
+        var coneLength = 30; // Length of the cone in meters
+        var coneWidth = 47; // Half angle of the FOV cone in degrees
 
-                    fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
+        console.log("Drawing FOV cone at bearing:", persistentBearing);
 
-                    var centerPoint = feature.geometry.clone();
-                    var cone = createCone(centerPoint, persistentBearing, coneWidth, coneLength);
-                    var polygon = new Polygon({
-                        rings: cone,
-                        spatialReference: { wkid: 102100 }
-                    });
+        fovGraphicsLayer.graphics.removeAll(); // Clear existing graphics
 
-                    var fovGraphic = new Graphic({
-                        geometry: polygon,
-                        symbol: {
-                            type: "simple-fill",
-                            color: [255, 165, 0, 0.1],
-                            outline: {
-                                color: [255, 165, 0.2],
-                                width: 1
-                            }
-                        }
-                    });
+        var centerPoint = feature.geometry.clone();
+        var cone = createCone(centerPoint, persistentBearing, coneWidth, coneLength);
+        var polygon = new Polygon({
+            rings: cone,
+            spatialReference: { wkid: 102100 }
+        });
 
-                    fovGraphicsLayer.graphics.add(fovGraphic);
-                });
-            };
+        var fovGraphic = new Graphic({
+            geometry: polygon,
+            symbol: {
+                type: "simple-fill",
+                color: [255, 165, 0, 0.1], // Semi-transparent orange
+                outline: {
+                    color: [255, 165, 0.2], // Orange outline
+                    width: 2
+                }
+            }
+        });
+
+        fovGraphicsLayer.graphics.add(fovGraphic);
+        console.log("FOV cone added to graphics layer.");
+    });
+};
+
 
             function createCone(centerPoint, bearing, width, length) {
-                var points = [];
-                points.push([centerPoint.x, centerPoint.y]); // Cone Apex
-                var startBearing = bearing - width;
-                var endBearing = bearing + width;
+    var points = [];
+    points.push([centerPoint.x, centerPoint.y]); // Cone Apex
+    var startBearing = (bearing - width + 360) % 360;
+    var endBearing = (bearing + width + 360) % 360;
 
-                points.push(calculatePoint(centerPoint, startBearing, length));
-                points.push(calculatePoint(centerPoint, endBearing, length));
-                points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
+    points.push(calculatePoint(centerPoint, startBearing, length));
+    points.push(calculatePoint(centerPoint, endBearing, length));
+    points.push([centerPoint.x, centerPoint.y]); // Close the polygon by returning to the apex
 
-                return [points];
-            }
+    console.log("Cone created with points:", points);
+    return [points];
+}
+
 
             function calculatePoint(center, bearing, distance) {
                 var angleRad = (Math.PI / 180) * bearing;
