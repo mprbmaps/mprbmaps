@@ -63,6 +63,8 @@
         var videoStarted = false; // Flag to track whether the video has started playing
         var videoStarting = false; // Flag to track whether the video is in the process of starting
         var globalYawChange = 0; // This will accumulate changes in yaw
+        var exponentialFactor = 0.3;  // Smoothing factor for exponential smoothing
+        var yawChangeDeadzone = 1.5;  // Deadzone to ignore minor yaw changes
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -123,14 +125,13 @@
         var props = player.getSphericalProperties();
         if (props && typeof props.yaw !== 'undefined') {
             var currentYaw = ((props.yaw % 360) + 360) % 360;
-            var yawChange = currentYaw - lastValidYaw;
+            var rawYawChange = currentYaw - lastValidYaw;
 
-            // Smoothing the yaw change
-            var smoothingFactor = 10;
-            var smoothedYawChange = (yawChange + lastYawChange * (smoothingFactor - 1)) / smoothingFactor;
-            lastYawChange = smoothedYawChange;
+            // Apply deadzone
+            if (Math.abs(rawYawChange) > yawChangeDeadzone) {
+                var smoothedYawChange = rawYawChange * exponentialFactor + lastYawChange * (1 - exponentialFactor);
+                lastYawChange = smoothedYawChange;
 
-            if (Math.abs(smoothedYawChange) > 1) { // Threshold to update the bearing
                 globalYawChange -= smoothedYawChange; // Inverting the yaw change
                 var newBearing = (persistentBearing + globalYawChange + 360) % 360;
                 updateFOVConeDirection(newBearing);
