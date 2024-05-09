@@ -120,27 +120,29 @@
         }
 
         function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                if (props && typeof props.yaw !== 'undefined') {
-                    var currentYaw = ((props.yaw % 360) + 360) % 360;
-                    yawValues.push(currentYaw);
-                    if (yawValues.length > maxSamples) {
-                        yawValues.shift(); // Remove the oldest value to maintain size
-                    }
+    if (player && player.getSphericalProperties) {
+        var props = player.getSphericalProperties();
+        if (props && typeof props.yaw !== 'undefined') {
+            var currentYaw = ((props.yaw % 360) + 360) % 360;
+            yawValues.push(currentYaw);
+            if (yawValues.length > maxSamples) {
+                yawValues.shift(); // Remove the oldest value to maintain size
+            }
 
-                    var smoothedYaw = averageYaw(yawValues);
-                    var yawChange = (smoothedYaw - lastValidYaw + 540) % 360 - 180; // Properly handle transitions from 0 to 360 and vice versa
+            var smoothedYaw = averageYaw(yawValues);
+            var yawChange = (smoothedYaw - lastValidYaw + 540) % 360 - 180; // Properly handle transitions from 0 to 360 and vice versa
 
-                    if (Math.abs(yawChange) > 1) { // Threshold to avoid micro-adjustments
-                        globalYawChange += yawChange;
-                        var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                        updateFOVConeDirection(newBearing);
-                        lastValidYaw = smoothedYaw;
-                    }
-                }
+            console.log("Smoothed Yaw:", smoothedYaw, "Yaw Change:", yawChange);
+
+            if (Math.abs(yawChange) > 5) { // Increased threshold to 5 degrees to avoid micro-adjustments
+                globalYawChange += yawChange;
+                var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                updateFOVConeDirection(newBearing);
+                lastValidYaw = smoothedYaw;
             }
         }
+    }
+}
 
         function averageYaw(yawArray) {
             var sum = yawArray.reduce(function(a, b) { return a + b; }, 0);
@@ -148,9 +150,9 @@
         }
 
         function startWatchingBearingChanges() {
-            clearBearingUpdateInterval();
-            bearingUpdateIntervalId = setInterval(watchBearingChange, 100); // Adjusted to balance real-time updates with performance
-        }
+    clearBearingUpdateInterval();
+    bearingUpdateIntervalId = setInterval(watchBearingChange, 200); // Adjusted interval to 200 ms
+}
 
         function clearBearingUpdateInterval() {
             if (bearingUpdateIntervalId !== null) {
@@ -229,7 +231,7 @@
                     geometry: polygon,
                     symbol: {
                         type: "simple-fill",
-                        color: [255, 165, 0, 0.1],
+                        color: [255, 165, 0, 0.3],
                         outline: {
                             color: [255, 165, 0, 0.2],
                             width: 1
