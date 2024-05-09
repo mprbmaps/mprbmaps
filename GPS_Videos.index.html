@@ -118,25 +118,24 @@
         }
 
         function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                if (props && typeof props.yaw !== 'undefined') {
-                    var currentYaw = ((props.yaw % 360) + 360) % 360;
-                    clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(function() {
-                        var yawChange = currentYaw - lastValidYaw;
-                        if (Math.abs(yawChange) > 1) {
-                            globalYawChange -= yawChange; // Continue to invert the yaw change
-                            var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                            updateFOVConeDirection(newBearing);
-                            lastValidYaw = currentYaw;
-                        }
-                    }, 50); // Reduced timeout for faster updates
-                } else {
-                    console.warn("Spherical properties are not available or video is not a 360° video.");
-                }
+    if (player && player.getSphericalProperties) {
+        var props = player.getSphericalProperties();
+        if (props && typeof props.yaw !== 'undefined') {
+            var currentYaw = ((props.yaw % 360) + 360) % 360;
+
+            var yawChange = currentYaw - lastValidYaw;
+            if (Math.abs(yawChange) > 1) { // You can adjust the sensitivity here
+                globalYawChange -= yawChange; // Continue to invert the yaw change
+                var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                updateFOVConeDirection(newBearing);
+                lastValidYaw = currentYaw;
             }
+        } else {
+            console.warn("Spherical properties are not available or video is not a 360° video.");
         }
+    }
+}
+
 
         function clearBearingUpdateInterval() {
     if (bearingUpdateIntervalId !== null) {
@@ -146,9 +145,10 @@
 }
 
         function startWatchingBearingChanges() {
-            clearBearingUpdateInterval();
-            bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Increased frequency
-        }
+    clearBearingUpdateInterval();
+    bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Check frequently for a smooth update
+}
+
 
         function stopWatchingBearingChanges() {
             if (bearingUpdateIntervalId !== null) {
