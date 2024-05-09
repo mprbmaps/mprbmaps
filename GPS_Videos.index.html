@@ -55,13 +55,13 @@
         var videoBearingUpdated = false;
         var manualPanningActive = false;
         var bearingUpdateIntervalId = null;
-        var debounceTimer;
         var lastValidYaw = 0;
         var bearingManuallyUpdated = false;
         var persistentBearing = 0;
         var videoStarted = false; // Flag to track whether the video has started playing
         var videoStarting = false; // Flag to track whether the video is in the process of starting
         var globalYawChange = 0; // This will accumulate changes in yaw
+        var yawSmoothingFactor = 0.3; // Smoothing factor to stabilize yaw updates
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -123,7 +123,8 @@
                 if (props && typeof props.yaw !== 'undefined') {
                     var currentYaw = ((props.yaw % 360) + 360) % 360;
                     var yawChange = currentYaw - lastValidYaw;
-                    if (Math.abs(yawChange) > 1) {
+                    yawChange = yawSmoothingFactor * yawChange + (1 - yawSmoothingFactor) * (lastValidYaw - currentYaw); // Apply smoothing
+                    if (Math.abs(yawChange) > 0.5) { // Adjust threshold to avoid micro-adjustments
                         globalYawChange -= yawChange; // Continue to invert the yaw change
                         var newBearing = (persistentBearing + globalYawChange + 360) % 360;
                         updateFOVConeDirection(newBearing);
@@ -412,7 +413,7 @@
             var initialX, initialY, xOffset = 0, yOffset = 0;
 
             document.addEventListener("mousedown", function(e) {
-                if (e.target === videoWindow || videoWindow.contains(e.target)) {
+                if (e.target === videoWindow or videoWindow.contains(e.target)) {
                     active = true;
                     initialX = e.clientX - xOffset;
                     initialY = e.clientY - yOffset;
