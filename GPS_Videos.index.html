@@ -186,30 +186,33 @@
         }
 
         function clearAndHighlight(feature, layer) {
-            Object.keys(highlights).forEach(function(layerId) {
-                if (highlights[layerId]) {
-                    highlights[layerId].remove();
-                    highlights[layerId] = null;
-                }
-            });
-
-            activeLayerId = layer.id;
-            if (!bearingManuallyUpdated) { // Only reset bearing if it was not manually updated
-                persistentBearing = feature.attributes.bearing;
-            } else {
-                // Log bearing to see if it carries over
-                console.log("Carrying over bearing:", persistentBearing);
-            }
-
-            window.view.whenLayerView(layer).then(function(layerView) {
-                highlights[layer.id] = layerView.highlight(feature);
-                window.drawFOVCone(feature, layerView, persistentBearing); // Always use persistent bearing
-                lastHighlightedFeature = feature;
-                startWatchingBearingChanges();
-            }).catch(function(error) {
-                console.error("Error in highlighting feature: ", error);
-            });
+    Object.keys(highlights).forEach(function(layerId) {
+        if (highlights[layerId]) {
+            highlights[layerId].remove();
+            highlights[layerId] = null;
         }
+    });
+
+    activeLayerId = layer.id;
+    // Check if it's the same video context or if manual update has been made
+    if (!bearingManuallyUpdated || feature.attributes.DateTimeS !== lastHighlightedFeature.attributes.DateTimeS) {
+        persistentBearing = feature.attributes.bearing; // Only reset if it's a different context
+        console.log("Bearing reset to feature default:", persistentBearing);
+    } else {
+        // Log bearing to see if it carries over
+        console.log("Carrying over bearing:", persistentBearing);
+    }
+
+    window.view.whenLayerView(layer).then(function(layerView) {
+        highlights[layer.id] = layerView.highlight(feature);
+        window.drawFOVCone(feature, layerView, persistentBearing); // Always use persistent bearing
+        lastHighlightedFeature = feature;
+        startWatchingBearingChanges();
+    }).catch(function(error) {
+        console.error("Error in highlighting feature: ", error);
+    });
+}
+
 
         window.drawFOVCone = function(feature, view) {
             require([
