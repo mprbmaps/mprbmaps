@@ -123,10 +123,13 @@
         if (props && typeof props.yaw !== 'undefined') {
             var currentYaw = ((props.yaw % 360) + 360) % 360;
             var yawChange = currentYaw - lastValidYaw;
-            globalYawChange -= yawChange; // Continue to invert the yaw change
-            var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-            updateFOVConeDirection(newBearing);
-            lastValidYaw = currentYaw;
+            
+            if (Math.abs(yawChange) > 1) { // Update only if change is greater than 1 degree
+                globalYawChange -= yawChange; // Continue to invert the yaw change
+                var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                updateFOVConeDirection(newBearing);
+                lastValidYaw = currentYaw;
+            }
         } else {
             console.warn("Spherical properties are not available or video is not a 360° video.");
         }
@@ -139,10 +142,11 @@
     }
 }
 
-        function startWatchingBearingChanges() {
-            clearBearingUpdateInterval();
-            bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Increased frequency
-        }
+        // Throttling mechanism
+function startWatchingBearingChanges() {
+    clearBearingUpdateInterval();
+    bearingUpdateIntervalId = setInterval(watchBearingChange, 100); // Adjust the frequency to 100 ms
+}
 
         function stopWatchingBearingChanges() {
             if (bearingUpdateIntervalId !== null) {
