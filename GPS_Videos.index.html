@@ -57,14 +57,11 @@
         var bearingUpdateIntervalId = null;
         var debounceTimer;
         var lastValidYaw = 0;
-        var lastYawChange = 0;
         var bearingManuallyUpdated = false;
         var persistentBearing = 0;
         var videoStarted = false; // Flag to track whether the video has started playing
         var videoStarting = false; // Flag to track whether the video is in the process of starting
         var globalYawChange = 0; // This will accumulate changes in yaw
-        var exponentialFactor = 0.3;  // Smoothing factor for exponential smoothing
-        var yawChangeDeadzone = 1.5;  // Deadzone to ignore minor yaw changes
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -125,14 +122,9 @@
         var props = player.getSphericalProperties();
         if (props && typeof props.yaw !== 'undefined') {
             var currentYaw = ((props.yaw % 360) + 360) % 360;
-            var rawYawChange = currentYaw - lastValidYaw;
-
-            // Apply deadzone
-            if (Math.abs(rawYawChange) > yawChangeDeadzone) {
-                var smoothedYawChange = rawYawChange * exponentialFactor + lastYawChange * (1 - exponentialFactor);
-                lastYawChange = smoothedYawChange;
-
-                globalYawChange -= smoothedYawChange; // Inverting the yaw change
+            var yawChange = currentYaw - lastValidYaw;
+            if (Math.abs(yawChange) > 1) {
+                globalYawChange -= yawChange; // Continue to invert the yaw change
                 var newBearing = (persistentBearing + globalYawChange + 360) % 360;
                 updateFOVConeDirection(newBearing);
                 lastValidYaw = currentYaw;
@@ -144,8 +136,6 @@
 }
 
 
-
-
         function clearBearingUpdateInterval() {
     if (bearingUpdateIntervalId !== null) {
         clearInterval(bearingUpdateIntervalId);
@@ -154,10 +144,9 @@
 }
 
         function startWatchingBearingChanges() {
-    clearBearingUpdateInterval();
-    bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Check frequently for a smooth update
-}
-
+            clearBearingUpdateInterval();
+            bearingUpdateIntervalId = setInterval(watchBearingChange, 50); // Increased frequency
+        }
 
         function stopWatchingBearingChanges() {
             if (bearingUpdateIntervalId !== null) {
