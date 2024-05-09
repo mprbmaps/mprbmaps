@@ -118,25 +118,26 @@
         }
 
         function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                if (props && typeof props.yaw !== 'undefined') {
-                    var currentYaw = ((props.yaw % 360) + 360) % 360;
-                    clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(function() {
-                        var yawChange = currentYaw - lastValidYaw;
-                        if (Math.abs(yawChange) > 1) {
-                            globalYawChange -= yawChange; // Continue to invert the yaw change
-                            var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                            updateFOVConeDirection(newBearing);
-                            lastValidYaw = currentYaw;
-                        }
-                    }, 50); // Reduced timeout for faster updates
-                } else {
-                    console.warn("Spherical properties are not available or video is not a 360° video.");
-                }
+    if (player && player.getSphericalProperties) {
+        var props = player.getSphericalProperties();
+        if (props && typeof props.yaw !== 'undefined') {
+            var currentYaw = ((props.yaw % 360) + 360) % 360;
+            var yawChange = currentYaw - lastValidYaw;
+            if (Math.abs(yawChange) > 1) {
+                globalYawChange -= yawChange; // Continue to invert the yaw change
+                var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                updateFOVConeDirection(newBearing); // Update the FOV cone direction here
+                lastValidYaw = currentYaw;
             }
+        } else {
+            console.warn("Spherical properties are not available or video is not a 360° video.");
         }
+    }
+}
+
+// Call watchBearingChange every 100 milliseconds
+setInterval(watchBearingChange, 100);
+
 
         function clearBearingUpdateInterval() {
     if (bearingUpdateIntervalId !== null) {
