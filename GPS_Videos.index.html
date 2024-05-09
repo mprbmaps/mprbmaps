@@ -123,7 +123,9 @@
         if (props && typeof props.yaw !== 'undefined') {
             var currentYaw = ((props.yaw % 360) + 360) % 360;
             var yawChange = currentYaw - lastValidYaw;
-            if (Math.abs(yawChange) > 1) {
+            // Introduce a threshold for the yaw change
+            var yawChangeThreshold = 5; // Adjust this value as needed
+            if (Math.abs(yawChange) > yawChangeThreshold) {
                 globalYawChange -= yawChange; // Continue to invert the yaw change
                 var newBearing = (persistentBearing + globalYawChange + 360) % 360;
                 updateFOVConeDirection(newBearing);
@@ -134,6 +136,7 @@
         }
     }
 }
+
 
 
         function clearBearingUpdateInterval() {
