@@ -124,10 +124,11 @@
     if (player && player.getSphericalProperties) {
         var props = player.getSphericalProperties();
         if (props && typeof props.yaw !== 'undefined') {
-            var currentYaw = ((props.yaw % 360) + 360) % 360;
+            var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize yaw
             var yawChange = currentYaw - lastValidYaw;
-            if (Math.abs(yawChange) > 0.5) { // Reducing sensitivity to very minor changes
-                globalYawChange -= yawChange; // Subtract to invert the direction
+            if (Math.abs(yawChange) > 0.5) { // Adjust sensitivity to prevent micro-adjustments
+                // Apply a damping factor to smooth out the effect of rapid changes
+                globalYawChange -= (yawChange * 0.5); // Damping factor to smooth updates
                 var newBearing = (persistentBearing + globalYawChange + 360) % 360;
                 updateFOVConeDirection(newBearing);
                 lastValidYaw = currentYaw;
@@ -137,6 +138,7 @@
         }
     }
 }
+
 
 
 
@@ -205,6 +207,7 @@
         drawFOVCone(lastHighlightedFeature);
     }
 }
+
 
 
 
