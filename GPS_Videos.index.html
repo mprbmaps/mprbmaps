@@ -73,18 +73,17 @@
             });
         }
 
-        function onPlayerStateChange(event) {
+                function onPlayerStateChange(event) {
             switch (event.data) {
                 case YT.PlayerState.PLAYING:
                     videoStarted = true;
                     videoStarting = false;
-                    if (!bearingUpdateIntervalId) {
-                        startWatchingBearingChanges();
-                    }
+                    startWatchingBearingChanges(); // Ensure this runs continuously while playing
                     checkTimeUpdate();
                     break;
                 case YT.PlayerState.PAUSED:
                     console.log("Video paused, maintaining current highlights and FOV.");
+                    startWatchingBearingChanges(); // Continue updating while paused if interaction is possible
                     break;
                 case YT.PlayerState.ENDED:
                     clearAllHighlightsAndFOV();
@@ -93,6 +92,7 @@
                     break;
                 case YT.PlayerState.BUFFERING:
                     console.log("Video buffering, adjustments are paused.");
+                    stopWatchingBearingChanges();
                     break;
                 case YT.PlayerState.CUED:
                     console.log("Video cued, ready to play.");
@@ -100,9 +100,11 @@
                 case YT.PlayerState.SEEKING:
                 case YT.PlayerState.SEEKED:
                     console.log("Video was panned or seeked, checking for new orientation.");
+                    startWatchingBearingChanges(); // Ensure updates during and after seeking
                     break;
             }
         }
+
 
         function checkTimeUpdate() {
             if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
@@ -117,26 +119,24 @@
             }
         }
 
-        function watchBearingChange() {
+                function watchBearingChange() {
             if (player && player.getSphericalProperties) {
                 var props = player.getSphericalProperties();
                 if (props && typeof props.yaw !== 'undefined') {
                     var currentYaw = ((props.yaw % 360) + 360) % 360;
-                    clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(function() {
-                        var yawChange = currentYaw - lastValidYaw;
-                        if (Math.abs(yawChange) > 1) {
-                            globalYawChange -= yawChange; // Continue to invert the yaw change
-                            var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                            updateFOVConeDirection(newBearing);
-                            lastValidYaw = currentYaw;
-                        }
-                    }, 50); // Reduced timeout for faster updates
+                    var yawChange = currentYaw - lastValidYaw;
+                    if (Math.abs(yawChange) > 1) { // Update even small changes
+                        globalYawChange -= yawChange; // Continue to invert the yaw change
+                        var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                        updateFOVConeDirection(newBearing);
+                        lastValidYaw = currentYaw;
+                    }
                 } else {
                     console.warn("Spherical properties are not available or video is not a 360° video.");
                 }
             }
         }
+
 
         function clearBearingUpdateInterval() {
     if (bearingUpdateIntervalId !== null) {
