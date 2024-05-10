@@ -120,22 +120,26 @@
         }
 
                 function watchBearingChange() {
-            if (player && player.getSphericalProperties) {
-                var props = player.getSphericalProperties();
-                if (props && typeof props.yaw !== 'undefined') {
-                    var currentYaw = ((props.yaw % 360) + 360) % 360;
-                    var yawChange = currentYaw - lastValidYaw;
-                    if (Math.abs(yawChange) > 1) { // Update even small changes
-                        globalYawChange -= yawChange; // Continue to invert the yaw change
-                        var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                        updateFOVConeDirection(newBearing);
-                        lastValidYaw = currentYaw;
-                    }
-                } else {
-                    console.warn("Spherical properties are not available or video is not a 360° video.");
-                }
+    if (player && player.getSphericalProperties) {
+        var props = player.getSphericalProperties();
+        if (props && typeof props.yaw !== 'undefined') {
+            var currentYaw = ((props.yaw % 360) + 360) % 360;
+            var yawChange = currentYaw - lastValidYaw;
+
+            if (Math.abs(yawChange) > 1) { // Applying updates only if significant change is detected
+                // Smoothing out the yaw changes by averaging them over time could help
+                globalYawChange = (0.9 * globalYawChange) - (0.1 * yawChange); // Applying a smoothing factor
+
+                var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                updateFOVConeDirection(newBearing, true); // Passing a flag to indicate real-time update
+                lastValidYaw = currentYaw;
             }
+        } else {
+            console.warn("Spherical properties are not available or video is not a 360° video.");
         }
+    }
+}
+
 
 
         function clearBearingUpdateInterval() {
@@ -195,15 +199,18 @@
             }
         }
 
-        function updateFOVConeDirection(newBearing) {
-            console.log("Updating FOV Bearing to:", newBearing);
-            persistentBearing = newBearing; // Update persistent bearing regardless of current highlight
-            bearingManuallyUpdated = true; // Mark as manually updated
+        function updateFOVConeDirection(newBearing, isRealTime = false) {
+    console.log("Updating FOV Bearing to:", newBearing);
+    if (!isRealTime) {
+        persistentBearing = newBearing; // Update persistent bearing only when not in real-time mode
+    }
+    bearingManuallyUpdated = true; // Mark as manually updated
 
-            if (lastHighlightedFeature) {
-                drawFOVCone(lastHighlightedFeature);
-            }
-        }
+    if (lastHighlightedFeature) {
+        drawFOVCone(lastHighlightedFeature);
+    }
+}
+
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
             if (!startDateTimeMap[featureLayer.id]) {
