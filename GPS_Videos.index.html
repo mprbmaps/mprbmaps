@@ -62,6 +62,8 @@
         var videoStarted = false; // Flag to track whether the video has started playing
         var videoStarting = false; // Flag to track whether the video is in the process of starting
         var globalYawChange = 0; // This will accumulate changes in yaw
+        var yawHistory = []; // To store history for smoothing
+        var historySize = 5; // Size of the history for averaging
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -125,13 +127,18 @@
         var props = player.getSphericalProperties();
         if (props && typeof props.yaw !== 'undefined') {
             var currentYaw = ((props.yaw % 360) + 360) % 360; // Normalize yaw
-            var yawChange = currentYaw - lastValidYaw;
-            if (Math.abs(yawChange) > 0.5) { // Adjust sensitivity to prevent micro-adjustments
-                // Apply a damping factor to smooth out the effect of rapid changes
-                globalYawChange -= (yawChange * 0.5); // Damping factor to smooth updates
+            yawHistory.push(currentYaw);
+            if (yawHistory.length > historySize) {
+                yawHistory.shift(); // Maintain only the latest readings
+            }
+
+            var averageYaw = yawHistory.reduce((a, b) => a + b, 0) / yawHistory.length;
+            var yawChange = averageYaw - lastValidYaw;
+            if (Math.abs(yawChange) > 0.5) { // Sensitivity to significant changes only
+                globalYawChange -= yawChange;
                 var newBearing = (persistentBearing + globalYawChange + 360) % 360;
                 updateFOVConeDirection(newBearing);
-                lastValidYaw = currentYaw;
+                lastValidYaw = averageYaw;
             }
         } else {
             console.warn("Spherical properties are not available or video is not a 360° video.");
@@ -207,6 +214,7 @@
         drawFOVCone(lastHighlightedFeature);
     }
 }
+
 
 
 
