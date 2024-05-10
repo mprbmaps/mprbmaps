@@ -74,36 +74,37 @@
         }
 
                 function onPlayerStateChange(event) {
-            switch (event.data) {
-                case YT.PlayerState.PLAYING:
-                    videoStarted = true;
-                    videoStarting = false;
-                    startWatchingBearingChanges(); // Ensure this runs continuously while playing
-                    checkTimeUpdate();
-                    break;
-                case YT.PlayerState.PAUSED:
-                    console.log("Video paused, maintaining current highlights and FOV.");
-                    startWatchingBearingChanges(); // Continue updating while paused if interaction is possible
-                    break;
-                case YT.PlayerState.ENDED:
-                    clearAllHighlightsAndFOV();
-                    console.log("Video ended, cleared all highlights and FOV.");
-                    stopWatchingBearingChanges();
-                    break;
-                case YT.PlayerState.BUFFERING:
-                    console.log("Video buffering, adjustments are paused.");
-                    stopWatchingBearingChanges();
-                    break;
-                case YT.PlayerState.CUED:
-                    console.log("Video cued, ready to play.");
-                    break;
-                case YT.PlayerState.SEEKING:
-                case YT.PlayerState.SEEKED:
-                    console.log("Video was panned or seeked, checking for new orientation.");
-                    startWatchingBearingChanges(); // Ensure updates during and after seeking
-                    break;
-            }
-        }
+    switch (event.data) {
+        case YT.PlayerState.PLAYING:
+            videoStarted = true;
+            videoStarting = false;
+            startWatchingBearingChanges();
+            checkTimeUpdate();
+            break;
+        case YT.PlayerState.PAUSED:
+            console.log("Video paused, maintaining current highlights and FOV.");
+            startWatchingBearingChanges(); // Continue watching changes even while paused
+            break;
+        case YT.PlayerState.ENDED:
+            clearAllHighlightsAndFOV();
+            console.log("Video ended, cleared all highlights and FOV.");
+            stopWatchingBearingChanges();
+            break;
+        case YT.PlayerState.BUFFERING:
+            console.log("Video buffering, adjustments are paused.");
+            stopWatchingBearingChanges();
+            break;
+        case YT.PlayerState.CUED:
+            console.log("Video cued, ready to play.");
+            break;
+        case YT.PlayerState.SEEKING:
+        case YT.PlayerState.SEEKED:
+            console.log("Video was panned or seeked, checking for new orientation.");
+            startWatchingBearingChanges();
+            break;
+    }
+}
+
 
 
         function checkTimeUpdate() {
@@ -125,13 +126,10 @@
         if (props && typeof props.yaw !== 'undefined') {
             var currentYaw = ((props.yaw % 360) + 360) % 360;
             var yawChange = currentYaw - lastValidYaw;
-
-            if (Math.abs(yawChange) > 1) { // Applying updates only if significant change is detected
-                // Smoothing out the yaw changes by averaging them over time could help
-                globalYawChange = (0.9 * globalYawChange) - (0.1 * yawChange); // Applying a smoothing factor
-
+            if (Math.abs(yawChange) > 0.5) { // Reducing sensitivity to very minor changes
+                globalYawChange -= yawChange; // Subtract to invert the direction
                 var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                updateFOVConeDirection(newBearing, true); // Passing a flag to indicate real-time update
+                updateFOVConeDirection(newBearing);
                 lastValidYaw = currentYaw;
             }
         } else {
@@ -139,6 +137,7 @@
         }
     }
 }
+
 
 
 
@@ -199,17 +198,14 @@
             }
         }
 
-        function updateFOVConeDirection(newBearing, isRealTime = false) {
+        function updateFOVConeDirection(newBearing) {
     console.log("Updating FOV Bearing to:", newBearing);
-    if (!isRealTime) {
-        persistentBearing = newBearing; // Update persistent bearing only when not in real-time mode
-    }
-    bearingManuallyUpdated = true; // Mark as manually updated
-
+    persistentBearing = newBearing; // Always update the persistent bearing
     if (lastHighlightedFeature) {
         drawFOVCone(lastHighlightedFeature);
     }
 }
+
 
 
         window.highlightFeatureAtTime = function(currentSecond, featureLayer, view) {
