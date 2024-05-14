@@ -123,7 +123,9 @@
                     var currentYaw = ((props.yaw % 360) + 360) % 360;
                     var yawChange = currentYaw - lastValidYaw;
                     if (Math.abs(yawChange) > 1) {
-                        globalYawChange += yawChange; // Correct yaw change handling
+                        globalYawChange -= yawChange; // Inverting yaw change
+                        console.log("Yaw change: ", yawChange);
+                        console.log("Global Yaw Change: ", globalYawChange);
                         var newBearing = (persistentBearing + globalYawChange + 360) % 360;
                         updateFOVConeDirection(newBearing);
                         lastValidYaw = currentYaw;
