@@ -61,6 +61,7 @@
         var videoStarted = false; // Flag to track whether the video has started playing
         var videoStarting = false; // Flag to track whether the video is in the process of starting
         var globalYawChange = 0; // This will accumulate changes in yaw
+        var lastYaw = 0;
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtubePlayer', {
@@ -121,14 +122,19 @@
                 var props = player.getSphericalProperties();
                 if (props && typeof props.yaw !== 'undefined') {
                     var currentYaw = ((props.yaw % 360) + 360) % 360;
-                    var yawChange = currentYaw - lastValidYaw;
+                    var yawChange = currentYaw - lastYaw;
+                    if (yawChange > 180) {
+                        yawChange -= 360;
+                    } else if (yawChange < -180) {
+                        yawChange += 360;
+                    }
                     if (Math.abs(yawChange) > 1) {
-                        globalYawChange -= yawChange; // Inverting yaw change
+                        globalYawChange += yawChange; // Correct yaw change handling
                         console.log("Yaw change: ", yawChange);
                         console.log("Global Yaw Change: ", globalYawChange);
                         var newBearing = (persistentBearing + globalYawChange + 360) % 360;
                         updateFOVConeDirection(newBearing);
-                        lastValidYaw = currentYaw;
+                        lastYaw = currentYaw;
                     }
                 } else {
                     console.warn("Spherical properties are not available or video is not a 360° video.");
