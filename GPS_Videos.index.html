@@ -55,6 +55,7 @@
         var videoBearingUpdated = false;
         var manualPanningActive = false;
         var bearingUpdateIntervalId = null;
+        var debounceTimer;
         var lastValidYaw = 0;
         var bearingManuallyUpdated = false;
         var persistentBearing = 0;
@@ -121,20 +122,16 @@
                 var props = player.getSphericalProperties();
                 if (props && typeof props.yaw !== 'undefined') {
                     var currentYaw = ((props.yaw % 360) + 360) % 360;
-                    var yawChange = currentYaw - lastValidYaw;
-                    if (yawChange > 180) {
-                        yawChange -= 360;
-                    } else if (yawChange < -180) {
-                        yawChange += 360;
-                    }
-                    if (Math.abs(yawChange) > 1) {
-                        globalYawChange -= yawChange; // Invert yaw change
-                        console.log("Yaw change: ", yawChange);
-                        console.log("Global Yaw Change: ", globalYawChange);
-                        var newBearing = (persistentBearing + globalYawChange + 360) % 360;
-                        updateFOVConeDirection(newBearing);
-                        lastValidYaw = currentYaw;
-                    }
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(function() {
+                        var yawChange = currentYaw - lastValidYaw;
+                        if (Math.abs(yawChange) > 1) {
+                            globalYawChange -= yawChange; // Continue to invert the yaw change
+                            var newBearing = (persistentBearing + globalYawChange + 360) % 360;
+                            updateFOVConeDirection(newBearing);
+                            lastValidYaw = currentYaw;
+                        }
+                    }, 50); // Reduced timeout for faster updates
                 } else {
                     console.warn("Spherical properties are not available or video is not a 360° video.");
                 }
@@ -142,11 +139,11 @@
         }
 
         function clearBearingUpdateInterval() {
-            if (bearingUpdateIntervalId !== null) {
-                clearInterval(bearingUpdateIntervalId);
-                bearingUpdateIntervalId = null;
-            }
-        }
+    if (bearingUpdateIntervalId !== null) {
+        clearInterval(bearingUpdateIntervalId);
+        bearingUpdateIntervalId = null;
+    }
+}
 
         function startWatchingBearingChanges() {
             clearBearingUpdateInterval();
