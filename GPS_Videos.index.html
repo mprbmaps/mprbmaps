@@ -74,35 +74,37 @@
         }
 
         function onPlayerStateChange(event) {
-            switch (event.data) {
-                case YT.PlayerState.PLAYING:
-                    videoStarted = true;
-                    videoStarting = false;
-                    if (!bearingUpdateIntervalId) {
-                        startWatchingBearingChanges();
-                    }
-                    checkTimeUpdate();
-                    break;
-                case YT.PlayerState.PAUSED:
-                    console.log("Video paused, maintaining current highlights and FOV.");
-                    break;
-                case YT.PlayerState.ENDED:
-                    clearAllHighlightsAndFOV();
-                    console.log("Video ended, cleared all highlights and FOV.");
-                    stopWatchingBearingChanges();
-                    break;
-                case YT.PlayerState.BUFFERING:
-                    console.log("Video buffering, adjustments are paused.");
-                    break;
-                case YT.PlayerState.CUED:
-                    console.log("Video cued, ready to play.");
-                    break;
-                case YT.PlayerState.SEEKING:
-                case YT.PlayerState.SEEKED:
-                    console.log("Video was panned or seeked, checking for new orientation.");
-                    break;
+    switch (event.data) {
+        case YT.PlayerState.PLAYING:
+            videoStarted = true;
+            videoStarting = false;
+            if (!bearingUpdateIntervalId) {
+                startWatchingBearingChanges();
             }
-        }
+            checkTimeUpdate();
+            break;
+        case YT.PlayerState.PAUSED:
+            console.log("Video paused, maintaining current highlights and FOV.");
+            watchBearingChange(); // Call the function that adjusts the FOV cones
+            break;
+        case YT.PlayerState.ENDED:
+            clearAllHighlightsAndFOV();
+            console.log("Video ended, cleared all highlights and FOV.");
+            stopWatchingBearingChanges();
+            break;
+        case YT.PlayerState.BUFFERING:
+            console.log("Video buffering, adjustments are paused.");
+            break;
+        case YT.PlayerState.CUED:
+            console.log("Video cued, ready to play.");
+            break;
+        case YT.PlayerState.SEEKING:
+        case YT.PlayerState.SEEKED:
+            console.log("Video was panned or seeked, checking for new orientation.");
+            break;
+    }
+}
+
 
         function checkTimeUpdate() {
             if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
