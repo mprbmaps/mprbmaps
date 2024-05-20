@@ -4,7 +4,7 @@
     <title>Gantt Chart for Vehicle Activity</title>
     <link rel="stylesheet" href="https://js.arcgis.com/4.21/esri/themes/light/main.css">
     <script src="https://js.arcgis.com/4.21/"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <style>
         #chartContainer {
             width: 100%;
@@ -13,9 +13,7 @@
     </style>
 </head>
 <body>
-    <div id="chartContainer">
-        <canvas id="ganttChart"></canvas>
-    </div>
+    <div id="chartContainer"></div>
 
     <script>
         require([
@@ -63,13 +61,7 @@
                     const currentDate = new Date();
                     const resultsArray = [];
 
-                    // Function to get the day of the week as a string
-                    function getDayOfWeek(dayOfWeekNum) {
-                        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                        return days[dayOfWeekNum];
-                    }
-
-                    // Loop through each feature in the initial filtered feature set
+                    // Process each feature and prepare the data for the Gantt chart
                     features.forEach(function(feature) {
                         const attributes = feature.attributes;
                         if (attributes.lastserviced) {
@@ -77,70 +69,51 @@
                             const dateDiffResult = Math.floor((currentDate - lastServicedDate) / (1000 * 60 * 60 * 24));
 
                             if (dateDiffResult <= 21) {
-                                const dayOfWeekNum = lastServicedDate.getDay();
-                                const dayOfWeek = getDayOfWeek(dayOfWeekNum);
-
-                                const result = {
-                                    'vehicleid': attributes.vehicleid,
-                                    'Monday': dayOfWeek === 'Monday' ? 'Active' : 'Inactive',
-                                    'Tuesday': dayOfWeek === 'Tuesday' ? 'Active' : 'Inactive',
-                                    'Wednesday': dayOfWeek === 'Wednesday' ? 'Active' : 'Inactive',
-                                    'Thursday': dayOfWeek === 'Thursday' ? 'Active' : 'Inactive',
-                                    'Friday': dayOfWeek === 'Friday' ? 'Active' : 'Inactive',
-                                    'Saturday': dayOfWeek === 'Saturday' ? 'Active' : 'Inactive',
-                                    'Sunday': dayOfWeek === 'Sunday' ? 'Active' : 'Inactive'
-                                };
-
-                                resultsArray.push(result);
+                                const endDate = new Date(lastServicedDate);
+                                endDate.setDate(lastServicedDate.getDate() + 1); // Assume 1 day of service
+                                resultsArray.push([
+                                    attributes.vehicleid,
+                                    attributes.vehicleid,
+                                    lastServicedDate,
+                                    endDate,
+                                    null,
+                                    100,
+                                    null
+                                ]);
                             }
                         }
                     });
 
-                    // Prepare data for Chart.js
-                    const labels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-                    const datasets = resultsArray.map(result => {
-                        return {
-                            label: result.vehicleid,
-                            data: labels.map(day => result[day] === 'Active' ? 1 : 0),
-                            backgroundColor: labels.map(day => result[day] === 'Active' ? 'green' : 'black')
-                        };
-                    });
-
-                    // Create the Gantt chart using Chart.js
-                    const ctx = document.getElementById('ganttChart').getContext('2d');
-                    new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: labels,
-                            datasets: datasets
-                        },
-                        options: {
-                            scales: {
-                                x: {
-                                    stacked: true
-                                },
-                                y: {
-                                    stacked: true,
-                                    ticks: {
-                                        display: false
-                                    }
-                                }
-                            },
-                            plugins: {
-                                legend: {
-                                    display: false
-                                },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function(tooltipItem) {
-                                            return tooltipItem.dataset.label + ': ' + (tooltipItem.raw ? 'Active' : 'Inactive');
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                    // Load the Google Charts library and create the Gantt chart
+                    google.charts.load('current', {'packages':['gantt']});
+                    google.charts.setOnLoadCallback(function() {
+                        drawChart(resultsArray);
                     });
                 });
+            }
+
+            function drawChart(dataArray) {
+                var data = new google.visualization.DataTable();
+                data.addColumn('string', 'Task ID');
+                data.addColumn('string', 'Task Name');
+                data.addColumn('date', 'Start Date');
+                data.addColumn('date', 'End Date');
+                data.addColumn('string', 'Resource');
+                data.addColumn('number', 'Duration');
+                data.addColumn('number', 'Percent Complete');
+                data.addColumn('string', 'Dependencies');
+
+                data.addRows(dataArray);
+
+                var options = {
+                    height: 400,
+                    gantt: {
+                        trackHeight: 30
+                    }
+                };
+
+                var chart = new google.visualization.Gantt(document.getElementById('chartContainer'));
+                chart.draw(data, options);
             }
         });
     </script>
