@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gantt Chart for Vehicle Activity</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.21/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.21/"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        #chartContainer {
+            width: 100%;
+            height: 600px;
+        }
+    </style>
+</head>
+<body>
+    <div id="chartContainer">
+        <canvas id="ganttChart"></canvas>
+    </div>
+
+    <script>
+        require([
+            "esri/Map",
+            "esri/views/MapView",
+            "esri/layers/FeatureLayer",
+            "esri/identity/OAuthInfo",
+            "esri/identity/IdentityManager"
+        ], function(Map, MapView, FeatureLayer, OAuthInfo, IdentityManager) {
+
+            // OAuth configuration
+            const info = new OAuthInfo({
+                appId: "ti3fi1FqvHE2Hhyw",
+                popup: true
+            });
+
+            IdentityManager.registerOAuthInfos([info]);
+
+            IdentityManager.checkSignInStatus(info.portalUrl + "/sharing")
+                .then(function() {
+                    initializeApp();
+                })
+                .catch(function() {
+                    IdentityManager.getCredential(info.portalUrl + "/sharing")
+                        .then(function() {
+                            initializeApp();
+                        });
+                });
+
+            function initializeApp() {
+                const layerUrl = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/MowingStatus7/FeatureServer/0";
+
+                // Query the feature layer
+                const featureLayer = new FeatureLayer({
+                    url: layerUrl
+                });
+
+                const query = featureLayer.createQuery();
+                query.where = "makemodel = 'Toro Groundsmaster 5900'";
+                query.outFields = ["vehicleid", "lastserviced"];
+                query.returnGeometry = false;
+
+                featureLayer.queryFeatures(query).then(function(results) {
+                    const features = results.features;
+                    const currentDate = new Date();
+                    const resultsArray = [];
+
+                    // Function to get the day of the week as a string
+                    function getDayOfWeek(dayOfWeekNum) {
+                        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                        return days[dayOfWeekNum];
+                    }
+
+                    // Loop through each feature in the initial filtered feature set
+                    features.forEach(function(feature) {
+                        const attributes = feature.attributes;
+                        if (attributes.lastserviced) {
+                            const lastServicedDate = new Date(attributes.lastserviced);
+                            const dateDiffResult = Math.floor((currentDate - lastServicedDate) / (1000 * 60 * 60 * 24));
+
+                            if (dateDiffResult <= 21) {
+                                const dayOfWeekNum = lastServicedDate.getDay();
+                                const dayOfWeek = getDayOfWeek(dayOfWeekNum);
+
+                                const result = {
+                                    'vehicleid': attributes.vehicleid,
+                                    'Monday': dayOfWeek === 'Monday' ? 'Active' : 'Inactive',
+                                    'Tuesday': dayOfWeek === 'Tuesday' ? 'Active' : 'Inactive',
+                                    'Wednesday': dayOfWeek === 'Wednesday' ? 'Active' : 'Inactive',
+                                    'Thursday': dayOfWeek === 'Thursday' ? 'Active' : 'Inactive',
+                                    'Friday': dayOfWeek === 'Friday' ? 'Active' : 'Inactive',
+                                    'Saturday': dayOfWeek === 'Saturday' ? 'Active' : 'Inactive',
+                                    'Sunday': dayOfWeek === 'Sunday' ? 'Active' : 'Inactive'
+                                };
+
+                                resultsArray.push(result);
+                            }
+                        }
+                    });
+
+                    // Prepare data for Chart.js
+                    const labels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+                    const datasets = resultsArray.map(result => {
+                        return {
+                            label: result.vehicleid,
+                            data: labels.map(day => result[day] === 'Active' ? 1 : 0),
+                            backgroundColor: labels.map(day => result[day] === 'Active' ? 'green' : 'black')
+                        };
+                    });
+
+                    // Create the Gantt chart using Chart.js
+                    const ctx = document.getElementById('ganttChart').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: datasets
+                        },
+                        options: {
+                            scales: {
+                                x: {
+                                    stacked: true
+                                },
+                                y: {
+                                    stacked: true,
+                                    ticks: {
+                                        display: false
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(tooltipItem) {
+                                            return tooltipItem.dataset.label + ': ' + (tooltipItem.raw ? 'Active' : 'Inactive');
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>
