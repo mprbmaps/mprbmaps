@@ -178,8 +178,9 @@ require([
     "esri/layers/FeatureLayer",
     "esri/Graphic",
     "esri/layers/GraphicsLayer",
-    "esri/WebMap"
-], function(Map, MapView, FeatureLayer, Graphic, GraphicsLayer, WebMap) {
+    "esri/WebMap",
+    "esri/widgets/Editor" // Add the Editor widget
+], function(Map, MapView, FeatureLayer, Graphic, GraphicsLayer, WebMap, Editor) {
     const webmap = new WebMap({
         portalItem: {
             id: "32aa25434f284e48a88fc9ff499b0fd8"
@@ -294,7 +295,7 @@ require([
                         });
                     } else {
                         var noAttachmentMsg = document.createElement("p");
-                        noAttachmentMsg.textContent = "No photo submitted.";
+                        noAttachmentMsg.textContent = "No attachments found for this feature.";
                         attachmentContainer.appendChild(noAttachmentMsg);
                     }
 
@@ -325,6 +326,13 @@ require([
     openRequestsStack.appendChild(noOpenRequestsMsg);
 }
         });
+
+        // Add the Editor widget to the view
+        var editor = new Editor({
+            view: view
+        });
+
+        view.ui.add(editor, "top-right");
     });
 
     function showModal(src) {
