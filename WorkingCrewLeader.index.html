@@ -140,7 +140,7 @@ require([
 
         var query = layer.createQuery();
         query.where = "1=1";
-        query.outFields = ["Name_Primary", "ASMCrewLeader", "ASMCrewLeaderPhone", "ASMCrewLeaderEmail", "Maintenance_SA", "OBJECTID"];
+        query.outFields = ["Name_Primary", "ASMCrewLeader", "ASMCrewLeaderPhone", "ASMCrewLeaderEmail", "ASM_SA", "OBJECTID"];
         query.returnGeometry = false;
         layer.queryFeatures(query).then(function(response) {
             processFeatures(response.features);
@@ -152,12 +152,12 @@ require([
         const crewLeaders = new Map();
 
         features.forEach(function(feature) {
-            const { Maintenance_SA, Name_Primary, ASMCrewLeader, OBJECTID } = feature.attributes;
+            const { ASM_SA, Name_Primary, ASMCrewLeader, OBJECTID } = feature.attributes;
             if (ASMCrewLeader) {
                 crewLeaders.set(OBJECTID, ASMCrewLeader);
             }
 
-            const serviceAreas = Maintenance_SA.split(',').map(sa => sa.trim());
+            const serviceAreas = ASM_SA.split(',').map(sa => sa.trim());
             serviceAreas.forEach(function(serviceArea) {
                 if (!serviceAreasMap[serviceArea]) {
                     serviceAreasMap[serviceArea] = {};
