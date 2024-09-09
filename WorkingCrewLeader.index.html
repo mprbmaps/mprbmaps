@@ -103,8 +103,8 @@
     }
 
     .park-and-leaders-container .crew-leader {
-        margin-left: 100px;
-    }
+    margin-left: 100px;
+}
     </style>
 </head>
 <body>
@@ -157,17 +157,15 @@ require([
                 crewLeaders.set(OBJECTID, ASMCrewLeader);
             }
 
-            // Properly trim the park name and store it in an array
-            const parkNames = [Name_Primary.trim()];
             const serviceAreas = Maintenance_SA.split(',').map(sa => sa.trim());
-
-            // Map the parks to the correct service area
             serviceAreas.forEach(function(serviceArea) {
                 if (!serviceAreasMap[serviceArea]) {
                     serviceAreasMap[serviceArea] = {};
                 }
 
+                const parkNames = Name_Primary.split('"').filter(Boolean);
                 parkNames.forEach(function(parkName) {
+                    parkName = parkName.trim();
                     if (!serviceAreasMap[serviceArea][parkName]) {
                         serviceAreasMap[serviceArea][parkName] = new Set();
                     }
@@ -313,98 +311,108 @@ require([
         }
     }
 
-    function handleCrewLeaderReplacement(event) {
-        console.log("handleCrewLeaderReplacement function started");
-        const newCrewLeaderName = event.target.textContent;
-        console.log("newCrewLeaderName:", newCrewLeaderName);
+    // Modified handleCrewLeaderReplacement function with logging
+  function handleCrewLeaderReplacement(event) {
+    console.log("handleCrewLeaderReplacement function started");
+    const newCrewLeaderName = event.target.textContent;
+    console.log("newCrewLeaderName:", newCrewLeaderName);
 
-        const parkContainer = event.target.closest('.park-and-leaders-container');
-        console.log("parkContainer:", parkContainer);
+    const parkContainer = event.target.closest('.park-and-leaders-container');
+    console.log("parkContainer:", parkContainer);
 
-        const parkName = parkContainer.querySelector('.park').textContent;
-        console.log("parkName:", parkName);
+    const parkName = parkContainer.querySelector('.park').textContent;
+    console.log("parkName:", parkName);
 
-        const crewLeaderLayer = new FeatureLayer({
-            url: 'https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0'
-        });
+    // 1. Fetch Crew Leader details from CrewLeaderAssignments layer
+    console.log("Fetching crew leader details...");
+    const crewLeaderLayer = new FeatureLayer({
+        url: 'https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/CrewleaderAssignments/FeatureServer/0'
+    });
 
-        const crewLeaderQuery = crewLeaderLayer.createQuery();
-        crewLeaderQuery.where = `ASMCrewLeader = '${newCrewLeaderName}'`;
-        crewLeaderQuery.outFields = ['OBJECTID', 'ASMCrewLeaderPhone', 'ASMCrewLeaderEmail'];
-        crewLeaderQuery.returnGeometry = false;
+    const crewLeaderQuery = crewLeaderLayer.createQuery();
+    crewLeaderQuery.where = `ASMCrewLeader = '${newCrewLeaderName}'`;
+    crewLeaderQuery.outFields = ['OBJECTID', 'ASMCrewLeaderPhone', 'ASMCrewLeaderEmail'];
+    crewLeaderQuery.returnGeometry = false;
 
-        crewLeaderLayer.queryFeatures(crewLeaderQuery)
-            .then(results => {
-                if (results.features.length === 0) {
-                    console.error("Error: Crew Leader not found.");
-                    return;
-                }
+    crewLeaderLayer.queryFeatures(crewLeaderQuery)
+        .then(results => {
+            if (results.features.length === 0) {
+                console.error("Error: Crew Leader not found.");
+                return;
+            }
 
-                const crewLeaderDetails = results.features[0].attributes;
-                console.log("Crew Leader details:", crewLeaderDetails);
+            const crewLeaderDetails = results.features[0].attributes;
+            console.log("Crew Leader details:", crewLeaderDetails);
 
-                const objectId = crewLeaderDetails.OBJECTID;
-                const newCrewLeaderPhone = crewLeaderDetails.ASMCrewLeaderPhone;
-                const newCrewLeaderEmail = crewLeaderDetails.ASMCrewLeaderEmail;
+            const objectId = crewLeaderDetails.OBJECTID;
+            const newCrewLeaderPhone = crewLeaderDetails.ASMCrewLeaderPhone;
+            const newCrewLeaderEmail = crewLeaderDetails.ASMCrewLeaderEmail;
 
-                const updateLayer = new FeatureLayer({
-                    url: 'https://utility.arcgis.com/usrsvcs/servers/d752181f819b4ac590982066e78addd9/rest/services/MPRB_Location_InternalEdits/FeatureServer/0'
-                });
+            // 2. Query MPRB_Locations to find the feature to update
+            console.log("Starting ArcGIS Query to find feature to update");
+            const updateLayer = new FeatureLayer({
+                url: 'https://utility.arcgis.com/usrsvcs/servers/d752181f819b4ac590982066e78addd9/rest/services/MPRB_Location_InternalEdits/FeatureServer/0'
+            });
 
-                const updateQuery = updateLayer.createQuery();
-                updateQuery.where = `Name_Primary = '${parkName}'`;
-                updateQuery.outFields = ['*'];
-                updateQuery.returnGeometry = false;
+            const updateQuery = updateLayer.createQuery();
+            updateQuery.where = `Name_Primary = '${parkName}'`;
+            updateQuery.outFields = ['*'];
+            updateQuery.returnGeometry = false;
 
-                updateLayer.queryFeatures(updateQuery)
-                    .then(results => {
-                        if (results.features.length === 0) {
-                            console.error("Error: Park not found with the given name.");
-                            return;
+            updateLayer.queryFeatures(updateQuery)
+                .then(results => {
+                    if (results.features.length === 0) {
+                        console.error("Error: Park not found with the given name.");
+                        return;
+                    }
+
+                    const featureToUpdate = results.features[0];
+                    console.log("Feature to update:", featureToUpdate);
+
+                    // Prepare updates
+                    const updates = [{
+                        attributes: {
+                            OBJECTID: featureToUpdate.attributes.OBJECTID,
+                            ASMCrewLeader: newCrewLeaderName,
+                            ASMCrewLeaderPhone: newCrewLeaderPhone,
+                            ASMCrewLeaderEmail: newCrewLeaderEmail
                         }
+                    }];
 
-                        const featureToUpdate = results.features[0];
-                        console.log("Feature to update:", featureToUpdate);
+                    console.log("Data to be updated:", updates);
 
-                        const updates = [{
-                            attributes: {
-                                OBJECTID: featureToUpdate.attributes.OBJECTID,
-                                ASMCrewLeader: newCrewLeaderName,
-                                ASMCrewLeaderPhone: newCrewLeaderPhone,
-                                ASMCrewLeaderEmail: newCrewLeaderEmail
+                    // Applying edits to the feature layer
+                    console.log("Applying edits to feature layer...");
+                    updateLayer.applyEdits({
+                        updateFeatures: updates
+                    }).then(function(editResults) {
+                        if (editResults.updateFeatureResults.length > 0) {
+                            var updateResult = editResults.updateFeatureResults[0];
+                            if (updateResult.error) {
+                                console.error("Update failed:", updateResult.error);
+                            } else {
+                                console.log("Update successful, OBJECTID:", updateResult.objectId);
+                                // Display popup message
+                                displayPopupMessage(newCrewLeaderName, parkName);
                             }
-                        }];
+                        }
+                    }).catch(function(error) {
+                        console.error("ApplyEdits failed:", error);
+                    });
+                })
+                .catch(error => console.error("MPRB_Locations Query Error:", error));
+        })
+        .catch(error => console.error("CrewLeaderAssignments Query Error:", error));
+}
 
-                        console.log("Data to be updated:", updates);
-
-                        updateLayer.applyEdits({
-                            updateFeatures: updates
-                        }).then(function(editResults) {
-                            if (editResults.updateFeatureResults.length > 0) {
-                                var updateResult = editResults.updateFeatureResults[0];
-                                if (updateResult.error) {
-                                    console.error("Update failed:", updateResult.error);
-                                } else {
-                                    console.log("Update successful, OBJECTID:", updateResult.objectId);
-                                    displayPopupMessage(newCrewLeaderName, parkName);
-                                }
-                            }
-                        }).catch(function(error) {
-                            console.error("ApplyEdits failed:", error);
-                        });
-                    })
-                    .catch(error => console.error("MPRB_Locations Query Error:", error));
-            })
-            .catch(error => console.error("CrewLeaderAssignments Query Error:", error));
-    }
-
-    function displayPopupMessage(newCrewLeaderName, parkName) {
-        const message = `${newCrewLeaderName} has been successfully assigned to ${parkName}.`;
-        console.log("Popup message:", message);
-        alert(message);
-    }
+function displayPopupMessage(newCrewLeaderName, parkName) {
+    const message = `${newCrewLeaderName} has been successfully assigned to ${parkName}.`;
+    console.log("Popup message:", message); // For debugging
+    alert(message); // Example of displaying the message, consider using a more sophisticated method in production
+}
 
 });
+
 </script>
 </body>
 </html>
