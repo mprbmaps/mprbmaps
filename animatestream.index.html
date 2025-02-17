@@ -16,10 +16,6 @@
     <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
 
-    <!-- Three.js (for GLTF Model Loading) -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-
     <style>
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
@@ -77,8 +73,23 @@
         setInterval(loadVehicleData, 30000); // Refresh vehicles every 30 sec
     });
 
-    require(["esri/request"], function(esriRequest) {
+    require(["esri/request", "esri/identity/OAuthInfo", "esri/identity/IdentityManager"], function(esriRequest, OAuthInfo, IdentityManager) {
         const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
+
+        // ✅ ArcGIS OAuth Authentication
+        const info = new OAuthInfo({
+            appId: "ti3fi1FqvHE2Hhyw", // Your ArcGIS App ID
+            popup: true
+        });
+        IdentityManager.registerOAuthInfos([info]);
+
+        // ✅ Check sign-in status
+        IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
+            console.log("✅ Signed in successfully");
+            loadVehicleData();
+        }).catch(error => {
+            console.error("❌ Sign-in failed:", error);
+        });
 
         async function loadVehicleData() {
             if (!tb) {
@@ -132,25 +143,17 @@
         }
 
         function loadGLTFModel(url, coordinates, heading, vehicleId) {
-            const loader = new THREE.GLTFLoader();
-            loader.load(url, function (gltf) {
-                console.log("✅ GLTF Model Loaded Successfully:", gltf);
-                
-                // ✅ Wrap model in a Threebox object
-                const model = new tb.Object3D({
-                    obj: gltf.scene,
-                    type: "gltf",
-                    scale: 2,
-                    units: "meters",
-                    rotation: { x: 0, y: heading, z: 0 },
-                    anchor: "center"
-                });
-
+            tb.loadGLTF({
+                obj: url,
+                type: "gltf",
+                scale: 2,
+                units: "meters",
+                rotation: { x: 0, y: heading, z: 0 },
+                anchor: "center"
+            }, function (model) {
                 model.setCoords([coordinates[0], coordinates[1], 0]);
                 tb.add(model);
                 vehicleModels[vehicleId] = model;
-            }, undefined, function (error) {
-                console.error("❌ Error loading GLTF model:", error);
             });
         }
     });
