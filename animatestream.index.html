@@ -39,8 +39,9 @@
         antialias: true
     });
 
+    let vehicleMarkers = {}; // Store vehicle markers
     let vehicleModels = {}; // Store vehicle models by ID
-    const vehicleLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0/query";
+    const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
 
     require([
         "esri/request",
@@ -63,55 +64,97 @@
             console.error("❌ Sign-in failed:", error);
         });
 
-        function loadVehicleData() {
-            console.log("🔄 Fetching vehicle data...");
+        async function loadVehicleData() {
+            try {
+                console.log("🔄 Fetching vehicle data...");
 
-            esriRequest(vehicleLayerURL, {
-                query: {
-                    where: "1=1",
-                    outFields: "objectid,heading,Kmph",
-                    returnGeometry: true,
-                    f: "geojson"
-                },
-                responseType: "json"
-            }).then(response => {
-                const data = response.data;
-                if (!data.features || data.features.length === 0) {
+                // ✅ Use esriRequest to fetch vehicle data
+                const response = await esriRequest(featureLayerURL + "/query", {
+                    query: {
+                        where: "1=1",
+                        outFields: "objectid,heading,Kmph",
+                        returnGeometry: true,
+                        f: "geojson"
+                    },
+                    responseType: "json"
+                });
+
+                const vehicles = response.data.features;
+
+                if (!vehicles || vehicles.length === 0) {
                     console.warn("⚠️ No vehicles found in ArcGIS Feature Layer.");
                     return;
                 }
 
-                data.features.forEach(vehicle => {
+                // ✅ Update or create vehicle markers and 3D models
+                vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.objectid;
+                    
+                    // ✅ Fix: Prevent errors due to null values
+                    const speed = vehicle.properties.speedmph ?? 0;
                     const heading = vehicle.properties.heading ?? 0;
-                    const speed = vehicle.properties.Kmph ?? 0;
 
-                    if (vehicleModels[vehicleId]) {
-                        // ✅ Update existing vehicle position & rotation
-                        vehicleModels[vehicleId].setCoords(coordinates);
-                        vehicleModels[vehicleId].setRotation({ x: 0, y: heading, z: 0 });
+                    // ✅ 2D Marker
+                    if (vehicleMarkers[vehicleId]) {
+                        animateMarker(vehicleMarkers[vehicleId], coordinates);
                     } else {
-                        // ✅ Load GLB 3D Model for new vehicles
-                        window.tb.loadGLTF({
-                            obj: "uploads_files_5264196_papercar.glb",
-                            type: "gltf",
-                            scale: 1,
-                            units: "meters",
-                            rotation: { x: 90, y: 0, z: heading },
-                            anchor: "center"
-                        }).then(function (model) {
-                            console.log("✅ GLB model loaded successfully", model);
-                            model.setCoords(coordinates);
-                            model.setRotation({ x: 0, y: heading, z: 0 });
-                            window.tb.add(model);
-                            vehicleModels[vehicleId] = model;
-                        }).catch(error => console.error("❌ Error loading 3D model:", error));
+                        const marker = new mapboxgl.Marker({ color: "#FF0000" })
+                            .setLngLat(coordinates)
+                            .setPopup(new mapboxgl.Popup().setText(`🚛 Speed: ${speed} Km/h`)) 
+                            .addTo(map);
+                        vehicleMarkers[vehicleId] = marker;
+                    }
+
+                    // ✅ 3D Vehicle Model
+                    if (window.tb) {
+                        if (vehicleModels[vehicleId]) {
+                            vehicleModels[vehicleId].setCoords(coordinates);
+                            vehicleModels[vehicleId].setRotation({ x: 0, y: heading, z: 0 });
+                        } else {
+                            window.tb.loadGLTF({
+                                obj: "uploads_files_5264196_papercar.glb",
+                                type: "gltf",
+                                scale: 1,
+                                units: "meters",
+                                rotation: { x: 90, y: 0, z: heading },
+                                anchor: "center"
+                            }).then(function (model) {
+                                console.log("✅ GLB model loaded successfully", model);
+                                model.setCoords(coordinates);
+                                model.setRotation({ x: 0, y: heading, z: 0 });
+                                window.tb.add(model);
+                                vehicleModels[vehicleId] = model;
+                            }).catch(error => console.error("❌ Error loading 3D model:", error));
+                        }
                     }
                 });
 
-                console.log(`✅ Vehicles Updated: ${data.features.length}`);
-            }).catch(error => console.error("❌ Error loading vehicle data:", error));
+                console.log(`✅ Vehicles Updated: ${vehicles.length}`);
+            } catch (error) {
+                console.error("❌ Error loading vehicle data:", error);
+            }
+        }
+
+        function animateMarker(marker, newCoords) {
+            const duration = 1000; // 1-second animation
+            const start = performance.now();
+            const oldCoords = marker.getLngLat();
+
+            function step(timestamp) {
+                const elapsed = timestamp - start;
+                const progress = Math.min(elapsed / duration, 1);
+                const interpolatedLng = oldCoords.lng + (newCoords[0] - oldCoords.lng) * progress;
+                const interpolatedLat = oldCoords.lat + (newCoords[1] - oldCoords.lat) * progress;
+
+                marker.setLngLat([interpolatedLng, interpolatedLat]);
+
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                }
+            }
+
+            requestAnimationFrame(step);
         }
 
         map.on('load', function () {
