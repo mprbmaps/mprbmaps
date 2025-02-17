@@ -13,8 +13,8 @@
     <script src="https://unpkg.com/three@0.135.0/build/three.min.js"></script>
     <script src="https://unpkg.com/@threebox/threebox-plugin@2.2.0/dist/threebox.min.js"></script>
 
-    <!-- ✅ Esri Loader (to avoid multipleDefine errors) -->
-    <script src="https://unpkg.com/esri-loader@3.3.0/dist/esri-loader.js"></script>
+    <!-- ✅ ArcGIS JavaScript API -->
+    <script src="https://js.arcgis.com/4.27/"></script>
 
     <style>
         body { margin: 0; padding: 0; }
@@ -66,15 +66,14 @@
     });
 
     let vehicleModels = {}; // Store vehicle models by ID
-    const vehicleLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0/query?where=1=1&outFields=objectid,heading,Kmph&returnGeometry=true&f=geojson";
+    const vehicleLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0/query";
 
-    // ✅ Load ArcGIS IdentityManager dynamically
-    esriLoader.loadModules([
+    // ✅ Load ArcGIS IdentityManager
+    require([
+        "esri/request",
         "esri/identity/OAuthInfo",
         "esri/identity/IdentityManager"
-    ], {
-        url: "https://js.arcgis.com/4.27/"
-    }).then(([OAuthInfo, IdentityManager]) => {
+    ], function(esriRequest, OAuthInfo, IdentityManager) {
 
         // ✅ ArcGIS OAuth Authentication
         const info = new OAuthInfo({
@@ -96,8 +95,17 @@
                 console.log("🔄 Fetching vehicle data...");
 
                 // ✅ Query ArcGIS Feature Layer for JSON data
-                const response = await fetch(vehicleLayerURL);
-                const json = await response.json();
+                const response = await esriRequest(vehicleLayerURL, {
+                    query: {
+                        where: "1=1",
+                        outFields: "objectid,heading,Kmph",
+                        returnGeometry: true,
+                        f: "geojson"
+                    },
+                    responseType: "json"
+                });
+
+                const json = response.data;
 
                 if (!json.features || json.features.length === 0) {
                     console.warn("⚠️ No vehicles found in ArcGIS Feature Layer.");
@@ -147,8 +155,6 @@
                 console.warn("⚠️ User not signed in, skipping vehicle update.");
             });
         }, 30000);
-    }).catch(error => {
-        console.error("❌ Error loading ArcGIS Identity Manager:", error);
     });
 
 </script>
