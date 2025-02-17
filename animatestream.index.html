@@ -12,9 +12,12 @@
     <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
 
-    <!-- Threebox for 3D models -->
+    <!-- Three.js and Threebox -->
     <script src="threebox.min.js"></script>
     <link href="threebox.css" rel="stylesheet" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
 
     <style>
         body { margin: 0; padding: 0; }
@@ -101,20 +104,7 @@
                             vehicleModels[vehicleId].setCoords(coordinates);
                             vehicleModels[vehicleId].setRotation({ x: 0, y: heading, z: 0 });
                         } else {
-                            window.tb.loadGLTF({
-                                obj: "uploads_files_5264196_papercar.glb",
-                                type: "gltf",
-                                scale: 1,
-                                units: "meters",
-                                rotation: { x: 90, y: 0, z: heading },
-                                anchor: "center"
-                            }).then(function (model) {
-                                console.log("✅ GLB model loaded successfully", model);
-                                model.setCoords(coordinates);
-                                model.setRotation({ x: 0, y: heading, z: 0 });
-                                window.tb.add(model);
-                                vehicleModels[vehicleId] = model;
-                            }).catch(error => console.error("❌ Error loading 3D model:", error));
+                            loadGLTFModel("uploads_files_5264196_papercar.glb", coordinates, heading, vehicleId);
                         }
                     }
                 });
@@ -123,6 +113,29 @@
             } catch (error) {
                 console.error("❌ Error loading vehicle data:", error);
             }
+        }
+
+        function loadGLTFModel(url, coordinates, heading, vehicleId) {
+            const loader = new THREE.GLTFLoader();
+            loader.load(url, function (gltf) {
+                console.log("✅ GLB model loaded successfully", gltf);
+                
+                // Wrap the model in Threebox object
+                const model = new window.tb.Object3D({
+                    obj: gltf.scene,
+                    type: "gltf",
+                    scale: 1,
+                    units: "meters",
+                    rotation: { x: 0, y: heading, z: 0 },
+                    anchor: "center"
+                });
+
+                model.setCoords(coordinates);
+                window.tb.add(model);
+                vehicleModels[vehicleId] = model;
+            }, undefined, function (error) {
+                console.error("❌ Error loading GLTF model:", error);
+            });
         }
 
         map.on('load', function () {
