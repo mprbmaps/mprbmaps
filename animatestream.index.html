@@ -20,7 +20,7 @@
     <script>
         require([
             "esri/WebMap",
-            "esri/views/SceneView",
+            "esri/views/MapView",
             "esri/identity/OAuthInfo",
             "esri/identity/IdentityManager",
             "esri/layers/FeatureLayer",
@@ -30,11 +30,10 @@
             "esri/widgets/Zoom",
             "esri/geometry/Point",
             "esri/geometry/geometryEngine",
-            "esri/symbols/PointSymbol3D",
-            "esri/symbols/ObjectSymbol3DLayer"
+            "esri/symbols/SimpleMarkerSymbol"
         ], function (
-            WebMap, SceneView, OAuthInfo, IdentityManager, FeatureLayer, GraphicsLayer, Graphic, Home, Zoom,
-            Point, geometryEngine, PointSymbol3D, ObjectSymbol3DLayer
+            WebMap, MapView, OAuthInfo, IdentityManager, FeatureLayer, GraphicsLayer, Graphic, Home, Zoom,
+            Point, geometryEngine, SimpleMarkerSymbol
         ) {
 
             // 🔹 OAuth Authentication
@@ -47,27 +46,17 @@
             IdentityManager.getCredential(info.portalUrl + "/sharing").then(() => {
                 console.log("✅ Authenticated successfully!");
 
-                // 🔹 Load WebMap
+                // 🔹 Load WebMap (2D)
                 const webmap = new WebMap({
                     portalItem: { id: "c759548dfa1d4ed69e4601ae37850443" }
                 });
 
-                // 🔹 Set Basemap for Better 3D Rendering
-                webmap.basemap = "arcgis-imagery";
-
-                // 🔹 Create SceneView
-                const view = new SceneView({
+                // 🔹 Create MapView (2D)
+                const view = new MapView({
                     container: "viewDiv",
                     map: webmap,
-                    camera: {
-                        position: [-93.265, 44.9778, 1500],
-                        tilt: 60
-                    },
-                    qualityProfile: "high",
-                    environment: {
-                        atmosphere: { quality: "high" },
-                        lighting: { type: "sun" }
-                    }
+                    center: [-93.265, 44.9778], // Adjust as needed
+                    zoom: 12
                 });
 
                 // 🔹 Add Zoom & Home Widgets
@@ -88,13 +77,11 @@
                 const vehicleGraphicsLayer = new GraphicsLayer();
                 webmap.add(vehicleGraphicsLayer);
 
-                // 🔹 3D Vehicle Model (Truck)
-                const vehicleSymbol = new PointSymbol3D({
-                    symbolLayers: [new ObjectSymbol3DLayer({
-                        resource: { href: "https://static.arcgis.com/models/transportation/truck.json" },
-                        height: 15,
-                        width: 10
-                    })]
+                // 🔹 Vehicle Symbol (Simple Marker for 2D Map)
+                const vehicleSymbol = new SimpleMarkerSymbol({
+                    color: "blue",
+                    outline: { color: "white", width: 1 },
+                    size: 10
                 });
 
                 let vehicleGraphics = {};  // Stores vehicle objects
@@ -103,14 +90,6 @@
                 webmap.when(() => {
                     const layers = webmap.layers.items;
                     let roadLayer = layers.find(layer => layer.type === "feature");
-
-                    // 🔹 Hide Unsupported CIM Line Layers
-                    webmap.layers.forEach(layer => {
-                        if (layer.type === "feature" && layer.renderer && layer.renderer.symbol && layer.renderer.symbol.type === "cim") {
-                            console.warn(`⚠️ Hiding unsupported CIM layer: ${layer.title}`);
-                            layer.visible = false;
-                        }
-                    });
 
                     // 🔹 Function to Fetch Vehicle Locations
                     function updateVehicles() {
@@ -145,7 +124,7 @@
                                             point = new Point({
                                                 x: nearestRoadPoint.coordinate.x,
                                                 y: nearestRoadPoint.coordinate.y,
-                                                z: point.z || 10
+                                                spatialReference: view.spatialReference
                                             });
                                         }
                                         updateVehicle(vehicleId, point);
@@ -165,14 +144,10 @@
                             let newGraphic = new Graphic({
                                 geometry: newPoint,
                                 symbol: vehicleSymbol,
-                                attributes: { id: vehicleId },
-                                elevationInfo: {
-                                    mode: "relative-to-ground",
-                                    offset: 2
-                                }
+                                attributes: { id: vehicleId }
                             });
 
-                            console.log("✅ Adding 3D Vehicle:", newGraphic);
+                            console.log("✅ Adding 2D Vehicle:", newGraphic);
                             vehicleGraphics[vehicleId] = newGraphic;
                             vehicleGraphicsLayer.add(newGraphic);
                         }
@@ -189,13 +164,15 @@
                             let oldPoint = vehicle.geometry;
                             let dx = (target.x - oldPoint.x) * 0.02; // Small step per frame
                             let dy = (target.y - oldPoint.y) * 0.02;
-                            let dz = (target.z - oldPoint.z) * 0.02;
 
                             let newX = oldPoint.x + dx;
                             let newY = oldPoint.y + dy;
-                            let newZ = oldPoint.z + dz;
 
-                            vehicle.geometry = new Point({ x: newX, y: newY, z: newZ });
+                            vehicle.geometry = new Point({
+                                x: newX,
+                                y: newY,
+                                spatialReference: view.spatialReference
+                            });
                         });
 
                         requestAnimationFrame(animateVehicles);
