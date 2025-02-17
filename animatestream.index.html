@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + OpenStreetMap 3D Buildings + ArcGIS Vehicles</title>
+    <title>Mapbox + Threebox 3D Vehicles</title>
 
     <!-- Mapbox GL JS -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
@@ -31,38 +31,8 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    // ✅ Use OpenStreetMap 3D Buildings basemap
-    const map = new mapboxgl.Map({
-        container: 'map',
-        style: 'mapbox://styles/mapbox/outdoors-v12', // ✅ OSM-based outdoors map
-        center: [-93.2650, 44.9778], // Minneapolis, MN
-        zoom: 14,
-        pitch: 60, // 3D Perspective
-        bearing: 0,
-        antialias: true
-    });
-
-    map.on('load', function () {
-        console.log("✅ Map Loaded!");
-
-        // ✅ Add OpenStreetMap 3D Buildings
-        map.addLayer({
-            id: 'osm-3d-buildings',
-            source: 'composite',
-            'source-layer': 'building',
-            type: 'fill-extrusion',
-            minzoom: 15,
-            paint: {
-                'fill-extrusion-color': '#aaa',
-                'fill-extrusion-height': ['get', 'height'],
-                'fill-extrusion-base': ['get', 'min_height'],
-                'fill-extrusion-opacity': 0.6
-            }
-        });
-        console.log("✅ OSM 3D Buildings Layer Added");
-    });
-
-    let vehicleMarkers = {}; // Store vehicle markers
+    let vehicleModels = {}; // Store 3D models and movement history
+    let map, tb;
 
     require([
         "esri/request",
@@ -70,38 +40,81 @@
         "esri/identity/IdentityManager"
     ], function(esriRequest, OAuthInfo, IdentityManager) {
 
-        // ✅ ArcGIS OAuth Authentication
-        const info = new OAuthInfo({
-            appId: "ti3fi1FqvHE2Hhyw", // Your ArcGIS App ID
+        // ✅ Use authentication format from your other working project
+        var info = new OAuthInfo({
+            appId: "ti3fi1FqvHE2Hhyw",
             popup: true
         });
+
         IdentityManager.registerOAuthInfos([info]);
 
-        // ✅ Check sign-in status
-        IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
+        // ✅ Check if user is signed in
+        IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
             console.log("✅ Signed in successfully");
-            loadVehicleData();
-        }).catch(error => {
-            console.error("❌ Sign-in failed:", error);
+            initializeMap();  // Start the map after sign-in
+        }).catch(function(error) {
+            console.error("❌ Sign-in failed: ", error);
+            initializeMap();  // Continue even if authentication fails
+        });
+    });
+
+    function initializeMap() {
+        map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/outdoors-v12',
+            center: [-93.2650, 44.9778], 
+            zoom: 14,
+            pitch: 60, 
+            bearing: 0,
+            antialias: true
         });
 
-        const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
+        map.on('style.load', function () {  
+            console.log("✅ Map Style Loaded!");
 
-        async function loadVehicleData() {
-            try {
-                console.log("🔄 Fetching vehicle data...");
+            // ✅ Ensure Threebox initializes before loading models
+            tb = new Threebox(
+                map,
+                map.getCanvas().getContext('webgl'),
+                { defaultLights: true }
+            );
 
-                // ✅ Use esriRequest to fetch vehicle data
-                const response = await esriRequest(featureLayerURL + "/query", {
-                    query: {
-                        where: "1=1",
-                        outFields: "objectid,heading,vehicleid,speedmph",
-                        returnGeometry: true,
-                        f: "geojson"
-                    },
-                    responseType: "json"
-                });
+            map.addLayer({
+                id: 'osm-3d-buildings',
+                source: 'composite',
+                'source-layer': 'building',
+                type: 'fill-extrusion',
+                minzoom: 15,
+                paint: {
+                    'fill-extrusion-color': '#aaa',
+                    'fill-extrusion-height': ['get', 'height'],
+                    'fill-extrusion-base': ['get', 'min_height'],
+                    'fill-extrusion-opacity': 0.6
+                }
+            });
 
+            console.log("✅ Threebox initialized");
+
+            // ✅ Fetch vehicle data after the map is ready
+            loadVehicleData();
+        });
+    }
+
+    function loadVehicleData() {
+        require(["esri/request"], function(esriRequest) {
+            console.log("🔄 Fetching vehicle data...");
+
+            const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
+
+            esriRequest(featureLayerURL + "/query", {
+                query: {
+                    where: "1=1",
+                    outFields: "objectid,heading,vehicleid,speedmph",
+                    returnGeometry: true,
+                    f: "geojson"
+                },
+                responseType: "json"
+            }).then(response => {
                 const vehicles = response.data.features;
 
                 if (!vehicles || vehicles.length === 0) {
@@ -109,67 +122,85 @@
                     return;
                 }
 
-                // ✅ Update or create markers for each vehicle
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
-                    
-                    // ✅ Fix: Prevent errors due to null values
                     const speed = vehicle.properties.speedmph ?? 0;
                     const heading = vehicle.properties.heading ?? 0;
 
-                    if (vehicleMarkers[vehicleId]) {
-                        // Smoothly animate marker movement
-                        animateMarker(vehicleMarkers[vehicleId], coordinates);
-                    } else {
-                        // Create a new marker if it doesn't exist
-                        const marker = new mapboxgl.Marker({
-                            color: "#FF0000"
-                        })
-                        .setLngLat(coordinates)
-                        .setPopup(new mapboxgl.Popup().setText(`🚛 Speed: ${speed} MPH`)) // ✅ Show speed in popup
-                        .addTo(map);
+                    if (!vehicleModels[vehicleId]) {
+                        vehicleModels[vehicleId] = {
+                            positions: [],
+                            model: null
+                        };
 
-                        vehicleMarkers[vehicleId] = marker;
+                        if (!tb) {
+                            console.warn("⚠️ Threebox is not ready. Retrying in 2s...");
+                            setTimeout(loadVehicleData, 2000);
+                            return;
+                        }
+
+                        const loader = new THREE.GLTFLoader();
+                        loader.load("uploads_files_5264196_papercar.glb", function (gltf) {
+                            const model = gltf.scene;
+                            model.scale.set(3, 3, 3);
+                            model.rotation.set(THREE.MathUtils.degToRad(90), 0, THREE.MathUtils.degToRad(heading));
+
+                            tb.add(model);
+                            model.setCoords(coordinates);
+                            vehicleModels[vehicleId].model = model;
+                        });
+                    }
+
+                    let positions = vehicleModels[vehicleId].positions;
+                    positions.push({ lng: coordinates[0], lat: coordinates[1], speed, heading });
+
+                    if (positions.length > 3) {
+                        positions.shift();
+                    }
+
+                    if (positions.length >= 3) {
+                        animateVehicle(vehicleModels[vehicleId].model, positions[1], positions[2]);
                     }
                 });
 
                 console.log(`✅ Vehicles Updated: ${vehicles.length}`);
-            } catch (error) {
-                console.error("❌ Error loading vehicle data:", error);
-            }
-        }
-
-        function animateMarker(marker, newCoords) {
-            const duration = 1000; // 1-second animation
-            const start = performance.now();
-            const oldCoords = marker.getLngLat();
-
-            function step(timestamp) {
-                const elapsed = timestamp - start;
-                const progress = Math.min(elapsed / duration, 1);
-                const interpolatedLng = oldCoords.lng + (newCoords[0] - oldCoords.lng) * progress;
-                const interpolatedLat = oldCoords.lat + (newCoords[1] - oldCoords.lat) * progress;
-
-                marker.setLngLat([interpolatedLng, interpolatedLat]);
-
-                if (progress < 1) {
-                    requestAnimationFrame(step);
-                }
-            }
-
-            requestAnimationFrame(step);
-        }
-
-        // ✅ Auto-refresh vehicles every 30 seconds if signed in
-        setInterval(() => {
-            IdentityManager.getCredential(info.portalUrl + "/sharing").then(() => {
-                loadVehicleData();
             }).catch(error => {
-                console.warn("⚠️ User not signed in, skipping vehicle update.");
+                console.error("❌ Error loading vehicle data:", error);
             });
-        }, 30000);
-    });
+        });
+    }
+
+    function animateVehicle(model, startCoords, endCoords) {
+        if (!model || !startCoords || !endCoords) return;
+
+        const duration = 1000;
+        const start = performance.now();
+
+        function step(timestamp) {
+            const elapsed = timestamp - start;
+            const progress = Math.min(elapsed / duration, 1);
+            const interpolatedLng = startCoords.lng + (endCoords.lng - startCoords.lng) * progress;
+            const interpolatedLat = startCoords.lat + (endCoords.lat - startCoords.lat) * progress;
+
+            model.setCoords([interpolatedLng, interpolatedLat]);
+
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            }
+        }
+
+        requestAnimationFrame(step);
+    }
+
+    // Auto-refresh every 30 seconds
+    setInterval(() => {
+        if (tb) {
+            loadVehicleData();
+        } else {
+            console.log("⚠️ Waiting for Threebox to initialize...");
+        }
+    }, 30000);
 
 </script>
 
