@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + ArcGIS (2D Animated Vehicles)</title>
+    <title>Mapbox + ArcGIS OAuth (2D Animated Vehicles)</title>
 
     <!-- Mapbox GL JS -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
@@ -27,7 +27,7 @@
     // Initialize Mapbox map
     const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/standard', // Uses the OpenStreetMap 3D basemap
+        style: 'mapbox://styles/mapbox/standard', // Uses OpenStreetMap 3D basemap
         center: [-93.2650, 44.9778], // Minneapolis, MN
         zoom: 14,
         pitch: 60, // 3D View
@@ -37,14 +37,34 @@
 
     let vehicleMarkers = {}; // Store vehicle markers
 
-    require(["esri/request"], function(esriRequest) {
+    require([
+        "esri/request",
+        "esri/identity/OAuthInfo",
+        "esri/identity/IdentityManager"
+    ], function(esriRequest, OAuthInfo, IdentityManager) {
+
+        // ✅ ArcGIS OAuth Authentication
+        const info = new OAuthInfo({
+            appId: "ti3fi1FqvHE2Hhyw", // Your ArcGIS App ID
+            popup: true
+        });
+        IdentityManager.registerOAuthInfos([info]);
+
+        // ✅ Check sign-in status
+        IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
+            console.log("✅ Signed in successfully");
+            loadVehicleData();
+        }).catch(error => {
+            console.error("❌ Sign-in failed:", error);
+        });
+
         const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
 
         async function loadVehicleData() {
             try {
-                console.log("Fetching vehicle data...");
+                console.log("🔄 Fetching vehicle data...");
 
-                // Use esriRequest to fetch vehicle data as GeoJSON
+                // ✅ Use esriRequest to fetch vehicle data
                 const response = await esriRequest(featureLayerURL + "/query", {
                     query: {
                         where: "1=1",
@@ -58,7 +78,7 @@
                 const vehicles = response.data.features;
 
                 if (!vehicles || vehicles.length === 0) {
-                    console.warn("No vehicles found in ArcGIS Feature Layer.");
+                    console.warn("⚠️ No vehicles found in ArcGIS Feature Layer.");
                     return;
                 }
 
@@ -68,7 +88,7 @@
                     const vehicleId = vehicle.properties.vehicleid;
 
                     if (vehicleMarkers[vehicleId]) {
-                        // Smoothly animate the marker to the new position
+                        // Smoothly animate marker movement
                         animateMarker(vehicleMarkers[vehicleId], coordinates);
                     } else {
                         // Create a new marker if it doesn't exist
@@ -82,14 +102,14 @@
                     }
                 });
 
-                console.log("Vehicles Updated:", vehicles.length);
+                console.log(`✅ Vehicles Updated: ${vehicles.length}`);
             } catch (error) {
-                console.error("Error loading vehicle data:", error);
+                console.error("❌ Error loading vehicle data:", error);
             }
         }
 
         function animateMarker(marker, newCoords) {
-            const duration = 1000; // Animation duration (1 second)
+            const duration = 1000; // 1-second animation
             const start = performance.now();
             const oldCoords = marker.getLngLat();
 
@@ -109,9 +129,14 @@
             requestAnimationFrame(step);
         }
 
-        // ✅ Initial load and auto-refresh every 30 seconds
-        setTimeout(loadVehicleData, 3000);
-        setInterval(loadVehicleData, 30000);
+        // ✅ Auto-refresh vehicles every 30 seconds if signed in
+        setInterval(() => {
+            IdentityManager.getCredential(info.portalUrl + "/sharing").then(() => {
+                loadVehicleData();
+            }).catch(error => {
+                console.warn("⚠️ User not signed in, skipping vehicle update.");
+            });
+        }, 30000);
     });
 
 </script>
