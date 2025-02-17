@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + ArcGIS OAuth (3D Buildings + 2D Vehicles)</title>
+    <title>Mapbox + OpenStreetMap 3D Buildings + ArcGIS Vehicles</title>
 
     <!-- Mapbox GL JS -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
@@ -24,13 +24,13 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    // ✅ Mapbox 3D Buildings Fix
+    // ✅ Use OpenStreetMap 3D Buildings basemap
     const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/mapbox-streets-v12', // ✅ Supports 3D Buildings
+        style: 'mapbox://styles/mapbox/outdoors-v12', // ✅ OSM-based outdoors map
         center: [-93.2650, 44.9778], // Minneapolis, MN
         zoom: 14,
-        pitch: 60, // 3D View
+        pitch: 60, // 3D Perspective
         bearing: 0,
         antialias: true
     });
@@ -38,9 +38,9 @@
     map.on('load', function () {
         console.log("✅ Map Loaded!");
 
-        // ✅ Add 3D Buildings Layer
+        // ✅ Add OpenStreetMap 3D Buildings
         map.addLayer({
-            id: '3d-buildings',
+            id: 'osm-3d-buildings',
             source: 'composite',
             'source-layer': 'building',
             type: 'fill-extrusion',
@@ -52,7 +52,7 @@
                 'fill-extrusion-opacity': 0.6
             }
         });
-        console.log("✅ 3D Buildings Layer Added");
+        console.log("✅ OSM 3D Buildings Layer Added");
     });
 
     let vehicleMarkers = {}; // Store vehicle markers
