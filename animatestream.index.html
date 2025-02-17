@@ -40,7 +40,7 @@
     });
 
     let vehicleMarkers = {}; // Store vehicle markers
-    let vehicleModels = {}; // Store vehicle models by ID
+    let vehicleModels = {}; // Store vehicle models
     const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
 
     require([
@@ -56,7 +56,7 @@
         });
         IdentityManager.registerOAuthInfos([info]);
 
-        // ✅ Check sign-in status
+        // ✅ Ensure authentication before fetching vehicle data
         IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
             console.log("✅ Signed in successfully");
             loadVehicleData();
@@ -68,7 +68,7 @@
             try {
                 console.log("🔄 Fetching vehicle data...");
 
-                // ✅ Use esriRequest to fetch vehicle data
+                // ✅ Query vehicle data from ArcGIS Feature Layer
                 const response = await esriRequest(featureLayerURL + "/query", {
                     query: {
                         where: "1=1",
