@@ -50,13 +50,21 @@
                     portalItem: { id: "c759548dfa1d4ed69e4601ae37850443" }  // Your WebMap ID
                 });
 
-                // 🔹 Create 3D Scene View
+                // 🔹 Set Basemap to Improve 3D Rendering
+                webmap.basemap = "arcgis-imagery";  // Supports 3D objects better
+
+                // 🔹 Create 3D Scene View with High Quality Rendering
                 const view = new SceneView({
                     container: "viewDiv",
                     map: webmap,
                     camera: {
                         position: [-93.265, 44.9778, 1500],  // Adjust location as needed
                         tilt: 60
+                    },
+                    qualityProfile: "high",  // Ensure high-quality rendering
+                    environment: {
+                        atmosphere: { quality: "high" },
+                        lighting: { type: "sun" }
                     }
                 });
 
@@ -68,11 +76,12 @@
                 });
                 webmap.add(plowLayer);
 
-                // 🔹 3D Snowplow Symbol
+                // 🔹 3D Snowplow Symbol (Increased Size for Better Visibility)
                 const snowplowSymbol = new PointSymbol3D({
                     symbolLayers: [ new ObjectSymbol3DLayer({
                         resource: { href: "https://static.arcgis.com/models/transportation/snowplow.json" }, 
-                        height: 6, width: 3
+                        height: 15,  // Increased size
+                        width: 10
                     })]
                 });
 
@@ -88,11 +97,17 @@
                         plowLayer.queryFeatures({
                             where: "1=1",  // Get all plows
                             returnGeometry: true,
-                            outFields: ["OBJECTID"]
+                            outFields: ["objectid"]
                         }).then((results) => {
                             console.log(`✅ Retrieved ${results.features.length} plows`);
                             results.features.forEach(feature => {
-                                let vehicleId = feature.attributes.OBJECTID.toString();
+                                // 🔹 Ensure objectid exists before using it
+                                if (!feature.attributes || !feature.attributes.objectid) {
+                                    console.warn("⚠️ Missing objectid for a feature:", feature);
+                                    return;  // Skip this feature if objectid is missing
+                                }
+
+                                let vehicleId = feature.attributes.objectid.toString();
                                 let point = feature.geometry;
 
                                 // 🔹 Snap to road if road layer exists
@@ -122,14 +137,18 @@
 
                     // 🔹 Function to Update Plow Locations on Map
                     function updateVehicle(vehicleId, newPoint) {
+                        console.log(`🚜 Updating Plow ID: ${vehicleId} at`, newPoint);
+
                         if (vehicleGraphics[vehicleId]) {
                             animateVehicle(vehicleGraphics[vehicleId], newPoint);
                         } else {
                             let newGraphic = new Graphic({
                                 geometry: newPoint,
-                                symbol: snowplowSymbol,
+                                symbol: snowplowSymbol,  // Ensure symbol is assigned
                                 attributes: { id: vehicleId }
                             });
+
+                            console.log("✅ Adding Snowplow Model:", newGraphic);
                             vehicleGraphics[vehicleId] = newGraphic;
                             view.graphics.add(newGraphic);
                         }
