@@ -3,115 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vehicle Animation with Three.js & Threebox</title>
-    
-    <!-- Mapbox GL JS -->
-    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
-    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
-
-    <!-- Three.js & Threebox -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://unpkg.com/threebox-plugin@2.2.0/dist/threebox.min.js"></script>
-
+    <title>Mapbox 3D Vehicles</title>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.js'></script>
+    <script src='https://unpkg.com/threebox-plugin/dist/threebox.min.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.css' rel='stylesheet' />
     <style>
         body { margin: 0; padding: 0; }
-        #map { width: 100vw; height: 100vh; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
     </style>
 </head>
 <body>
-    <div id="map"></div>
-
+    <div id='map'></div>
     <script>
         mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
-
+        
         const map = new mapboxgl.Map({
             container: 'map',
-            style: 'mapbox://styles/mapbox/light-v11',  // No satellite
-            center: [-93.265, 44.9778],  // Minneapolis
+            style: 'mapbox://styles/mapbox/light-v11', // Light map style
+            center: [-93.265, 44.977], // Center on Minneapolis (adjust as needed)
             zoom: 14,
-            pitch: 60,
-            bearing: 0,
+            pitch: 60, // Tilt for better 3D effect
+            bearing: -20,
             antialias: true
         });
 
-        // Wait for the map to load
         map.on('load', function () {
-            console.log("Map Loaded");
-
-            // 📌 ADD 3D BUILDINGS
+            // Add 3D Buildings
             map.addLayer({
                 id: '3d-buildings',
                 source: 'composite',
                 'source-layer': 'building',
                 type: 'fill-extrusion',
+                minzoom: 12,
                 paint: {
-                    'fill-extrusion-color': '#aaa',
+                    'fill-extrusion-color': '#d1d1d1',
                     'fill-extrusion-height': ['get', 'height'],
-                    'fill-extrusion-base': ['get', 'min_height'],
                     'fill-extrusion-opacity': 0.6
                 }
             });
-
-            // 📌 LOAD VEHICLE LOCATIONS
-            loadVehicles();
-        });
-
-        // 🚜 Function to Load Vehicle Locations from ArcGIS Online
-        function loadVehicles() {
-            const arcGISURL = "https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/kubota_stream_public/MapServer/0/query?where=1%3D1&outFields=*&f=geojson";
             
-            fetch(arcGISURL)
-                .then(response => response.json())
-                .then(data => {
-                    if (!data || !data.features) {
-                        throw new Error("ArcGIS Online data is undefined or missing features.");
-                    }
-
-                    console.log("Vehicle Data Loaded:", data);
-
-                    // Add vehicles as a Mapbox layer
-                    map.addSource("vehicles", {
-                        type: "geojson",
-                        data: data
-                    });
-
-                    map.addLayer({
-                        id: "vehicles-layer",
-                        type: "symbol",
-                        source: "vehicles",
-                        layout: {
-                            "icon-image": "bus-15",  // Change to custom snowplow icon if available
-                            "icon-size": 1.5
-                        }
-                    });
-
-                })
-                .catch(error => console.error("Error loading vehicle data:", error));
-        }
-
-        // 📌 THREEBOX SETUP FOR 3D VEHICLE MODEL
-        let tb;
-        map.on("style.load", function () {
-            tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
-
+            // Load Threebox for 3D models
+            window.tb = new Threebox(map, map.getCanvasContainer(), {
+                defaultLights: true,
+            });
+            
+            // Add a source for the ArcGIS Online vehicle locations
+            map.addSource('vehicles', {
+                type: 'geojson',
+                data: 'https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/kubota_stream_public/MapServer/0/query?where=1=1&outFields=*&f=geojson',
+                cluster: true,
+                clusterMaxZoom: 14,
+                clusterRadius: 50
+            });
+            
+            // Add vehicle points
             map.addLayer({
-                id: "custom-threebox",
-                type: "custom",
-                renderingMode: "3d",
-                onAdd: function (map, mbxContext) {
-                    const loader = new THREE.GLTFLoader();
-                    loader.load('https://models.readyplayer.me/avatar.glb', function (gltf) {
-                        const model = gltf.scene;
-                        model.scale.set(10, 10, 10);
-                        tb.add(model);
-                    });
-                },
-                render: function () {
-                    tb.update();
+                id: 'vehicle-points',
+                type: 'symbol',
+                source: 'vehicles',
+                layout: {
+                    'icon-image': 'bus', // Placeholder icon; customize with your own
+                    'icon-size': 1.5
                 }
             });
+            
+            // Fetch and add 3D snowplow model to each vehicle
+            function addVehicles() {
+                fetch('https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/kubota_stream_public/MapServer/0/query?where=1=1&outFields=*&f=geojson')
+                    .then(response => response.json())
+                    .then(data => {
+                        data.features.forEach(vehicle => {
+                            const coords = vehicle.geometry.coordinates;
+                            tb.loadGLTF('https://your-server.com/snowplow.glb', model => {
+                                model.setCoords(coords);
+                                model.setRotation({x: 90, y: 0, z: 0});
+                                model.setScale(5);
+                                tb.add(model);
+                            });
+                        });
+                    });
+            }
+            
+            map.on('style.load', () => {
+                map.addLayer(tb.layer);
+                addVehicles();
+            });
         });
-
     </script>
 </body>
 </html>
