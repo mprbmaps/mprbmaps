@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-Time Snowplow Animation</title>
+    <title>Real-Time Plow Locations</title>
     <script src="https://js.arcgis.com/4.28/"></script>
     <style>
         html, body, #viewDiv {
@@ -23,7 +23,6 @@
             "esri/views/SceneView",
             "esri/identity/OAuthInfo",
             "esri/identity/IdentityManager",
-            "esri/layers/StreamLayer",
             "esri/layers/FeatureLayer",
             "esri/Graphic",
             "esri/geometry/Point",
@@ -31,22 +30,22 @@
             "esri/symbols/PointSymbol3D",
             "esri/symbols/ObjectSymbol3DLayer"
         ], function (
-            WebMap, SceneView, OAuthInfo, IdentityManager, StreamLayer, FeatureLayer, Graphic, 
+            WebMap, SceneView, OAuthInfo, IdentityManager, FeatureLayer, Graphic, 
             Point, geometryEngine, PointSymbol3D, ObjectSymbol3DLayer
         ) {
 
-            // 🔹 OAuth Authentication - Uses ArcGIS Online App ID
+            // 🔹 OAuth Authentication (SSO Login)
             const info = new OAuthInfo({
-                appId: "ti3fi1FqvHE2Hhyw",  // Your OAuth App ID
+                appId: "ti3fi1FqvHE2Hhyw",  // Your ArcGIS OAuth App ID
                 popup: true
             });
             IdentityManager.registerOAuthInfos([info]);
 
             // 🔹 Authenticate User & Load Map
             IdentityManager.getCredential(info.portalUrl + "/sharing").then(() => {
-                console.log("Authenticated successfully!");
+                console.log("✅ Authenticated successfully!");
 
-                // 🔹 Load Your WebMap
+                // 🔹 Load WebMap
                 const webmap = new WebMap({
                     portalItem: { id: "c759548dfa1d4ed69e4601ae37850443" }  // Your WebMap ID
                 });
@@ -56,19 +55,20 @@
                     container: "viewDiv",
                     map: webmap,
                     camera: {
-                        position: [-93.265, 44.9778, 1500],  // Adjust to your location
+                        position: [-93.265, 44.9778, 1500],  // Adjust location as needed
                         tilt: 60
                     }
                 });
 
-                // 🔹 Add the Vehicle GPS Stream Layer (Not in WebMap)
-                const streamLayer = new StreamLayer({
-                    url: "https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/VehicleStream_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer/0",
-                    purgeOptions: { displayCount: 100 }
+                // 🔹 Add "Last Plow Locations" Feature Layer
+                const plowLayer = new FeatureLayer({
+                    url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0",
+                    outFields: ["*"],  // Get all attributes
+                    popupEnabled: true
                 });
-                webmap.add(streamLayer);
+                webmap.add(plowLayer);
 
-                // 🔹 Snowplow 3D Model
+                // 🔹 3D Snowplow Symbol
                 const snowplowSymbol = new PointSymbol3D({
                     symbolLayers: [ new ObjectSymbol3DLayer({
                         resource: { href: "https://static.arcgis.com/models/transportation/snowplow.json" }, 
@@ -76,82 +76,95 @@
                     })]
                 });
 
-                let vehicleGraphics = {}; // Store vehicle graphics
+                let vehicleGraphics = {}; // Store plow positions
 
                 // 🔹 Wait for WebMap to Load
                 webmap.when(() => {
                     const layers = webmap.layers.items;
-                    let roadLayer = layers.find(layer => layer.type === "feature");  // Look for road layer in WebMap
+                    let roadLayer = layers.find(layer => layer.type === "feature");  // Check if a road layer exists in WebMap
 
-                    // 🔹 Listen for new vehicle locations from Stream Layer
-                    streamLayer.on("track-added", function (event) {
-                        let vehicle = event.graphic;
-                        let vehicleId = vehicle.attributes.OBJECTID;
-                        let point = vehicle.geometry;
+                    // 🔹 Function to Fetch Plow Locations and Update Graphics
+                    function updatePlows() {
+                        plowLayer.queryFeatures({
+                            where: "1=1",  // Get all plows
+                            returnGeometry: true,
+                            outFields: ["OBJECTID"]
+                        }).then((results) => {
+                            console.log(`✅ Retrieved ${results.features.length} plows`);
+                            results.features.forEach(feature => {
+                                let vehicleId = feature.attributes.OBJECTID.toString();
+                                let point = feature.geometry;
 
-                        // 🔹 Snap to road if a road layer exists
-                        if (roadLayer) {
-                            roadLayer.queryFeatures({
-                                geometry: point,
-                                returnGeometry: true,
-                                spatialRelationship: "intersects",
-                                outFields: []
-                            }).then(function (results) {
-                                if (results.features.length > 0) {
-                                    let nearestRoadPoint = geometryEngine.nearestCoordinate(results.features[0].geometry, point);
-                                    point = new Point({
-                                        x: nearestRoadPoint.coordinate.x,
-                                        y: nearestRoadPoint.coordinate.y,
-                                        z: point.z || 10
+                                // 🔹 Snap to road if road layer exists
+                                if (roadLayer) {
+                                    roadLayer.queryFeatures({
+                                        geometry: point,
+                                        returnGeometry: true,
+                                        spatialRelationship: "intersects",
+                                        outFields: []
+                                    }).then(function (roadResults) {
+                                        if (roadResults.features.length > 0) {
+                                            let nearestRoadPoint = geometryEngine.nearestCoordinate(roadResults.features[0].geometry, point);
+                                            point = new Point({
+                                                x: nearestRoadPoint.coordinate.x,
+                                                y: nearestRoadPoint.coordinate.y,
+                                                z: point.z || 10
+                                            });
+                                        }
+                                        updateVehicle(vehicleId, point);
                                     });
+                                } else {
+                                    updateVehicle(vehicleId, point);
                                 }
-                                updateVehicle(vehicleId, point);
                             });
+                        });
+                    }
+
+                    // 🔹 Function to Update Plow Locations on Map
+                    function updateVehicle(vehicleId, newPoint) {
+                        if (vehicleGraphics[vehicleId]) {
+                            animateVehicle(vehicleGraphics[vehicleId], newPoint);
                         } else {
-                            updateVehicle(vehicleId, point);
+                            let newGraphic = new Graphic({
+                                geometry: newPoint,
+                                symbol: snowplowSymbol,
+                                attributes: { id: vehicleId }
+                            });
+                            vehicleGraphics[vehicleId] = newGraphic;
+                            view.graphics.add(newGraphic);
                         }
-                    });
+                    }
+
+                    // 🔹 Smooth Animation Function
+                    function animateVehicle(graphic, newPoint) {
+                        let oldPoint = graphic.geometry;
+                        let frame = 0;
+                        let totalFrames = 30;  // Adjust for smoother or faster movement
+
+                        function step() {
+                            if (frame < totalFrames) {
+                                let x = oldPoint.x + ((newPoint.x - oldPoint.x) * (frame / totalFrames));
+                                let y = oldPoint.y + ((newPoint.y - oldPoint.y) * (frame / totalFrames));
+                                let z = oldPoint.z + ((newPoint.z - oldPoint.z) * (frame / totalFrames));
+
+                                graphic.geometry = new Point({ x, y, z });
+                                frame++;
+                                requestAnimationFrame(step);
+                            } else {
+                                graphic.geometry = newPoint;
+                            }
+                        }
+                        step();
+                    }
+
+                    // 🔹 Refresh Plow Locations Every 30 Seconds
+                    updatePlows();
+                    setInterval(updatePlows, 30000);  // Adjust interval as needed
+
                 });
 
-                // 🔹 Function to update vehicle position
-                function updateVehicle(vehicleId, newPoint) {
-                    if (vehicleGraphics[vehicleId]) {
-                        animateVehicle(vehicleGraphics[vehicleId], newPoint);
-                    } else {
-                        let newGraphic = new Graphic({
-                            geometry: newPoint,
-                            symbol: snowplowSymbol,
-                            attributes: { id: vehicleId }
-                        });
-                        vehicleGraphics[vehicleId] = newGraphic;
-                        view.graphics.add(newGraphic);
-                    }
-                }
-
-                // 🔹 Smooth Animation Function
-                function animateVehicle(graphic, newPoint) {
-                    let oldPoint = graphic.geometry;
-                    let frame = 0;
-                    let totalFrames = 30;  // Adjust for smoother or faster movement
-
-                    function step() {
-                        if (frame < totalFrames) {
-                            let x = oldPoint.x + ((newPoint.x - oldPoint.x) * (frame / totalFrames));
-                            let y = oldPoint.y + ((newPoint.y - oldPoint.y) * (frame / totalFrames));
-                            let z = oldPoint.z + ((newPoint.z - oldPoint.z) * (frame / totalFrames));
-
-                            graphic.geometry = new Point({ x, y, z });
-                            frame++;
-                            requestAnimationFrame(step);
-                        } else {
-                            graphic.geometry = newPoint;
-                        }
-                    }
-                    step();
-                }
-
             }).catch(err => {
-                console.error("Authentication failed: ", err);
+                console.error("❌ Authentication failed: ", err);
             });
 
         });
