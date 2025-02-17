@@ -71,11 +71,11 @@
             try {
                 console.log("🔄 Fetching vehicle data...");
 
-                // ✅ Query vehicle data from ArcGIS Feature Layer
+                // ✅ Use esriRequest properly
                 const response = await esriRequest(featureLayerURL + "/query", {
                     query: {
                         where: "1=1",
-                        outFields: "objectid,heading,speedmph",
+                        outFields: "objectid,heading,Kmph",
                         returnGeometry: true,
                         f: "geojson"
                     },
@@ -95,7 +95,7 @@
                     const vehicleId = vehicle.properties.objectid;
                     
                     // ✅ Prevent errors due to null values
-                    const speed = vehicle.properties.speedmph ?? 0;
+                    const speed = vehicle.properties.Kmph ?? 0;
                     const heading = vehicle.properties.heading ?? 0;
 
                     // ✅ Load or move 3D model
