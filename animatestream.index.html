@@ -5,15 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mapbox + OpenStreetMap 3D Buildings + ArcGIS Vehicles</title>
 
-    <!-- ✅ Mapbox GL JS -->
+    <!-- Mapbox GL JS -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
 
-    <!-- ✅ Three.js & Threebox -->
-    <script src="https://unpkg.com/three@0.135.0/build/three.min.js"></script>
-    <script src="https://unpkg.com/@threebox/threebox-plugin@2.2.0/dist/threebox.min.js"></script>
-
-    <!-- ✅ ArcGIS JavaScript API -->
+    <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
 
     <style>
@@ -39,12 +35,6 @@
         antialias: true
     });
 
-    let tb; // ✅ Declare Threebox instance
-    map.on('style.load', function () {
-        tb = new Threebox(map, map.getCanvas().getContext('webgl'), { defaultLights: true });
-        console.log("✅ Threebox Loaded");
-    });
-
     map.on('load', function () {
         console.log("✅ Map Loaded!");
 
@@ -65,16 +55,13 @@
         console.log("✅ OSM 3D Buildings Layer Added");
     });
 
-    let vehicleModels = {}; // Store vehicle models by ID
+    let vehicleMarkers = {}; // Store vehicle markers
 
-    // ✅ CORRECTED: Use full query URL to get GeoJSON data
-    const vehicleLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0/query?where=1=1&outFields=*&f=geojson";
-
-    // ✅ Load ArcGIS IdentityManager
     require([
+        "esri/request",
         "esri/identity/OAuthInfo",
         "esri/identity/IdentityManager"
-    ], function(OAuthInfo, IdentityManager) {
+    ], function(esriRequest, OAuthInfo, IdentityManager) {
 
         // ✅ ArcGIS OAuth Authentication
         const info = new OAuthInfo({
@@ -91,52 +78,80 @@
             console.error("❌ Sign-in failed:", error);
         });
 
+        const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
+
         async function loadVehicleData() {
             try {
                 console.log("🔄 Fetching vehicle data...");
 
-                // ✅ Query ArcGIS Feature Layer directly for JSON output
-                const response = await fetch(vehicleLayerURL);
-                const json = await response.json();
+                // ✅ Use esriRequest to fetch vehicle data
+                const response = await esriRequest(featureLayerURL + "/query", {
+                    query: {
+                        where: "1=1",
+                        outFields: "objectid,heading,vehicleid,speedmph",
+                        returnGeometry: true,
+                        f: "geojson"
+                    },
+                    responseType: "json"
+                });
 
-                if (!json.features || json.features.length === 0) {
+                const vehicles = response.data.features;
+
+                if (!vehicles || vehicles.length === 0) {
                     console.warn("⚠️ No vehicles found in ArcGIS Feature Layer.");
                     return;
                 }
 
-                json.features.forEach(vehicle => {
-                    const coordinates = vehicle.geometry?.coordinates;
-                    const vehicleId = vehicle.properties.objectid; // Unique ID
-                    const speed = vehicle.properties.Kmph ?? 0;
+                // ✅ Update or create markers for each vehicle
+                vehicles.forEach(vehicle => {
+                    const coordinates = vehicle.geometry.coordinates;
+                    const vehicleId = vehicle.properties.vehicleid;
+                    
+                    // ✅ Fix: Prevent errors due to null values
+                    const speed = vehicle.properties.speedmph ?? 0;
                     const heading = vehicle.properties.heading ?? 0;
 
-                    if (!coordinates || coordinates.length < 2) {
-                        console.warn(`⚠️ Vehicle ${vehicleId} has invalid coordinates.`);
-                        return;
-                    }
-
-                    if (vehicleModels[vehicleId]) {
-                        // ✅ Update model position & rotation
-                        vehicleModels[vehicleId].setCoords([coordinates[0], coordinates[1], 0]);
-                        vehicleModels[vehicleId].setRotation(0, heading, 0);
+                    if (vehicleMarkers[vehicleId]) {
+                        // Smoothly animate marker movement
+                        animateMarker(vehicleMarkers[vehicleId], coordinates);
                     } else {
-                        // ✅ Load the 3D model if it doesn't exist
-                        tb.loadObj(
-                            { obj: 'https://example.com/snowplow.gltf', type: 'gltf', scale: 10 }, 
-                            function(model) {
-                                model.setCoords([coordinates[0], coordinates[1], 0]);
-                                model.setRotation(0, heading, 0);
-                                tb.add(model);
-                                vehicleModels[vehicleId] = model;
-                            }
-                        );
+                        // Create a new marker if it doesn't exist
+                        const marker = new mapboxgl.Marker({
+                            color: "#FF0000"
+                        })
+                        .setLngLat(coordinates)
+                        .setPopup(new mapboxgl.Popup().setText(`🚛 Speed: ${speed} MPH`)) // ✅ Show speed in popup
+                        .addTo(map);
+
+                        vehicleMarkers[vehicleId] = marker;
                     }
                 });
 
-                console.log(`✅ Vehicles Updated: ${json.features.length}`);
+                console.log(`✅ Vehicles Updated: ${vehicles.length}`);
             } catch (error) {
                 console.error("❌ Error loading vehicle data:", error);
             }
+        }
+
+        function animateMarker(marker, newCoords) {
+            const duration = 1000; // 1-second animation
+            const start = performance.now();
+            const oldCoords = marker.getLngLat();
+
+            function step(timestamp) {
+                const elapsed = timestamp - start;
+                const progress = Math.min(elapsed / duration, 1);
+                const interpolatedLng = oldCoords.lng + (newCoords[0] - oldCoords.lng) * progress;
+                const interpolatedLat = oldCoords.lat + (newCoords[1] - oldCoords.lat) * progress;
+
+                marker.setLngLat([interpolatedLng, interpolatedLat]);
+
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                }
+            }
+
+            requestAnimationFrame(step);
         }
 
         // ✅ Auto-refresh vehicles every 30 seconds if signed in
