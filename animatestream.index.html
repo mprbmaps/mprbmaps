@@ -12,9 +12,9 @@
     <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
 
-    <!-- Threebox (3D Rendering for Mapbox) -->
-    <script src="threebox.js"></script>
-    <link href="threebox.css" rel="stylesheet" />
+    <!-- Threebox (for 3D vehicle models) -->
+    <script src="threebox.min.js"></script>
+    <link href="threebox.css" rel="stylesheet">
 
     <style>
         body { margin: 0; padding: 0; }
@@ -28,10 +28,10 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    // ✅ Use OpenStreetMap 3D Buildings basemap
+    // ✅ Initialize Mapbox
     const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/outdoors-v12', // ✅ OSM-based outdoors map
+        style: 'mapbox://styles/mapbox/outdoors-v12', // ✅ OpenStreetMap-based outdoors map
         center: [-93.2650, 44.9778], // Minneapolis, MN
         zoom: 14,
         pitch: 60, // 3D Perspective
@@ -39,16 +39,19 @@
         antialias: true
     });
 
-    let tb;
-    let vehicleModels = {}; // Store vehicle 3D models by ID
-
     map.on('load', function () {
         console.log("✅ Map Loaded!");
 
-        // ✅ Add OpenStreetMap 3D Buildings
+        // ✅ Add OSM 3D Buildings source explicitly
+        map.addSource('osm-3d-buildings', {
+            type: 'vector',
+            url: 'mapbox://mapbox.mapbox-streets-v8'
+        });
+
+        // ✅ Add OpenStreetMap 3D Buildings layer
         map.addLayer({
             id: 'osm-3d-buildings',
-            source: 'composite',
+            source: 'osm-3d-buildings',
             'source-layer': 'building',
             type: 'fill-extrusion',
             minzoom: 15,
@@ -61,13 +64,16 @@
         });
         console.log("✅ OSM 3D Buildings Layer Added");
 
-        // ✅ Initialize Threebox for 3D models
-        tb = new Threebox(map, map.getCanvas().getContext('webgl'), { realSunlight: false });
-        map.addLayer(tb.layer);
+        // ✅ Initialize Threebox for 3D vehicle models
+        window.tb = new Threebox(map, map.getCanvas().getContext('webgl'), {
+            defaultLights: true
+        });
         console.log("✅ Threebox Initialized!");
 
-        loadVehicleData(); // Load vehicle locations and models
+        loadVehicleData();
     });
+
+    let vehicleModels = {}; // Store vehicle models by ID
 
     require([
         "esri/request",
@@ -96,11 +102,11 @@
             try {
                 console.log("🔄 Fetching vehicle data...");
 
-                // ✅ Use esriRequest to fetch vehicle data
+                // ✅ Query vehicle data from ArcGIS Feature Layer
                 const response = await esriRequest(featureLayerURL + "/query", {
                     query: {
                         where: "1=1",
-                        outFields: "objectid,heading,vehicleid,Kmph",
+                        outFields: "objectid,heading,vehicleid,speedmph",
                         returnGeometry: true,
                         f: "geojson"
                     },
@@ -114,34 +120,32 @@
                     return;
                 }
 
-                // ✅ Update or create 3D models for each vehicle
+                // ✅ Update or create vehicle models
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
-
+                    
                     // ✅ Fix: Prevent errors due to null values
-                    const speed = vehicle.properties.Kmph ?? 0;
+                    const speed = vehicle.properties.speedmph ?? 0;
                     const heading = vehicle.properties.heading ?? 0;
 
                     if (vehicleModels[vehicleId]) {
-                        // ✅ Move the existing 3D model
-                        animateVehicle(vehicleModels[vehicleId], coordinates, heading);
+                        // Smoothly animate model movement
+                        animateModel(vehicleModels[vehicleId], coordinates, heading);
                     } else {
-                        // ✅ Load and place a new 3D snowplow model
-                        tb.load(
-                            {
-                                obj: "./uploads_files_5264196_papercar.glb", // ✅ Ensure correct file path
-                                type: "gltf",
-                                scale: 5, // Adjust scale for visibility
-                                anchor: "center"
-                            },
-                            function(model) {
-                                model.setCoords(coordinates);
-                                model.setRotation({ x: 0, y: heading, z: 0 }); // Rotate based on heading
-                                tb.add(model);
-                                vehicleModels[vehicleId] = model; // Store model reference
-                            }
-                        );
+                        // Load GLTF 3D model if not already added
+                        window.tb.loadGLTF({
+                            obj: 'uploads_files_5264196_papercar.glb', // ✅ Corrected GLB file name
+                            type: 'gltf',
+                            scale: 10,
+                            units: 'meters',
+                            rotation: { x: 90, y: 0, z: heading },
+                            anchor: 'center'
+                        }, function (model) {
+                            model.setCoords(coordinates);
+                            window.tb.add(model);
+                            vehicleModels[vehicleId] = model;
+                        });
                     }
                 });
 
@@ -151,7 +155,7 @@
             }
         }
 
-        function animateVehicle(model, newCoords, heading) {
+        function animateModel(model, newCoords, heading) {
             const duration = 1000; // 1-second animation
             const start = performance.now();
             const oldCoords = model.coordinates;
@@ -163,7 +167,7 @@
                 const interpolatedLat = oldCoords[1] + (newCoords[1] - oldCoords[1]) * progress;
 
                 model.setCoords([interpolatedLng, interpolatedLat]);
-                model.setRotation({ x: 0, y: heading, z: 0 });
+                model.setRotation({ x: 90, y: 0, z: heading });
 
                 if (progress < 1) {
                     requestAnimationFrame(step);
@@ -173,7 +177,7 @@
             requestAnimationFrame(step);
         }
 
-        // ✅ Auto-refresh vehicles every 30 seconds if signed in
+        // ✅ Auto-refresh vehicle locations every 30 seconds
         setInterval(() => {
             IdentityManager.getCredential(info.portalUrl + "/sharing").then(() => {
                 loadVehicleData();
