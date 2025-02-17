@@ -31,7 +31,7 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    let vehicleModels = {}; // Store 3D models and movement history
+    let vehicleModels = {}; // Store vehicle models and movement history
     let map, tb;
 
     require([
@@ -40,7 +40,6 @@
         "esri/identity/IdentityManager"
     ], function(esriRequest, OAuthInfo, IdentityManager) {
 
-        // ✅ Use authentication format from your other working project
         var info = new OAuthInfo({
             appId: "ti3fi1FqvHE2Hhyw",
             popup: true
@@ -48,13 +47,12 @@
 
         IdentityManager.registerOAuthInfos([info]);
 
-        // ✅ Check if user is signed in
         IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
             console.log("✅ Signed in successfully");
-            initializeMap();  // Start the map after sign-in
+            initializeMap();
         }).catch(function(error) {
             console.error("❌ Sign-in failed: ", error);
-            initializeMap();  // Continue even if authentication fails
+            initializeMap();
         });
     });
 
@@ -72,7 +70,7 @@
         map.on('style.load', function () {  
             console.log("✅ Map Style Loaded!");
 
-            // ✅ Ensure Threebox initializes before loading models
+            // ✅ Initialize Threebox
             tb = new Threebox(
                 map,
                 map.getCanvas().getContext('webgl'),
@@ -95,7 +93,7 @@
 
             console.log("✅ Threebox initialized");
 
-            // ✅ Fetch vehicle data after the map is ready
+            // ✅ Fetch vehicle data
             loadVehicleData();
         });
     }
@@ -140,6 +138,7 @@
                             return;
                         }
 
+                        // ✅ Load 3D Model using GLTFLoader
                         const loader = new THREE.GLTFLoader();
                         loader.load("uploads_files_5264196_papercar.glb", function (gltf) {
                             const model = gltf.scene;
