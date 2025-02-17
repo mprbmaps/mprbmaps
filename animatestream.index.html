@@ -9,9 +9,9 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
 
-    <!-- Threebox for 3D Models -->
+    <!-- Three.js & Threebox -->
     <script src="https://unpkg.com/three@0.132.2/build/three.min.js"></script>
-    <script src="https://unpkg.com/threebox-plugin@2.2.0/dist/threebox.min.js"></script>
+    <script src="https://rawgit.com/jscastro76/threebox/master/dist/threebox.min.js"></script>
 
     <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
@@ -39,8 +39,14 @@
         antialias: true
     });
 
-    map.on('load', function () {
+    let tb; // Threebox instance
+    let vehicleModels = {}; // Store 3D models by vehicle ID
+
+    map.on('style.load', function () {
         console.log("✅ Map Loaded!");
+
+        // ✅ Initialize Threebox
+        tb = new Threebox(map, map.getCanvas().getContext('webgl'), { defaultLights: true });
 
         // ✅ Add OpenStreetMap 3D Buildings
         map.addLayer({
@@ -59,16 +65,9 @@
 
         console.log("✅ OSM 3D Buildings Layer Added");
 
-        // ✅ Initialize Threebox after map is loaded
-        window.tb = new Threebox(map, map.getCanvas().getContext('webgl'), {
-            defaultLights: true
-        });
-
-        // ✅ Load Vehicles once Threebox is ready
+        // ✅ Load vehicle data after Threebox is ready
         loadVehicleData();
     });
-
-    let vehicleModels = {}; // Store 3D models by vehicle ID
 
     require([
         "esri/request",
@@ -126,7 +125,7 @@
                     if (vehicleModels[vehicleId]) {
                         // ✅ Update existing model
                         animateModel(vehicleModels[vehicleId], coordinates, heading);
-                    } else {
+                    } else if (tb) { // ✅ Only load if Threebox is initialized
                         // ✅ Create new 3D model
                         tb.loadGLTF("https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Snowplow/Snowplow.gltf", model => {
                             model.setCoords(coordinates);
