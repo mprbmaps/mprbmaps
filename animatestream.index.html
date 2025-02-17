@@ -12,7 +12,7 @@
     <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
 
-    <!-- Threebox (Ensure these files exist in your main directory) -->
+    <!-- Threebox (3D Rendering for Mapbox) -->
     <script src="threebox.js"></script>
     <link href="threebox.css" rel="stylesheet" />
 
@@ -28,19 +28,19 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    // ✅ Initialize Mapbox map
+    // ✅ Use OpenStreetMap 3D Buildings basemap
     const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/outdoors-v12',
+        style: 'mapbox://styles/mapbox/outdoors-v12', // ✅ OSM-based outdoors map
         center: [-93.2650, 44.9778], // Minneapolis, MN
         zoom: 14,
-        pitch: 60,
+        pitch: 60, // 3D Perspective
         bearing: 0,
         antialias: true
     });
 
-    let tb; // Threebox instance
-    let vehicleModels = {}; // Store vehicle models
+    let tb;
+    let vehicleModels = {}; // Store vehicle 3D models by ID
 
     map.on('load', function () {
         console.log("✅ Map Loaded!");
@@ -61,17 +61,12 @@
         });
         console.log("✅ OSM 3D Buildings Layer Added");
 
-        // ✅ Initialize Threebox
-        if (typeof Threebox !== "undefined") {
-            tb = new Threebox(
-                map,
-                map.getCanvas().getContext('webgl'),
-                { defaultLights: true }
-            );
-            console.log("✅ Threebox Initialized!");
-        } else {
-            console.error("❌ Threebox failed to load.");
-        }
+        // ✅ Initialize Threebox for 3D models
+        tb = new Threebox(map, map.getCanvas().getContext('webgl'), { realSunlight: false });
+        map.addLayer(tb.layer);
+        console.log("✅ Threebox Initialized!");
+
+        loadVehicleData(); // Load vehicle locations and models
     });
 
     require([
@@ -82,7 +77,7 @@
 
         // ✅ ArcGIS OAuth Authentication
         const info = new OAuthInfo({
-            appId: "ti3fi1FqvHE2Hhyw",
+            appId: "ti3fi1FqvHE2Hhyw", // Your ArcGIS App ID
             popup: true
         });
         IdentityManager.registerOAuthInfos([info]);
@@ -95,17 +90,17 @@
             console.error("❌ Sign-in failed:", error);
         });
 
-        const vehicleLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
+        const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
 
         async function loadVehicleData() {
             try {
                 console.log("🔄 Fetching vehicle data...");
 
-                // ✅ Fetch vehicle data from ArcGIS Feature Layer
-                const response = await esriRequest(vehicleLayerURL + "/query", {
+                // ✅ Use esriRequest to fetch vehicle data
+                const response = await esriRequest(featureLayerURL + "/query", {
                     query: {
                         where: "1=1",
-                        outFields: "objectid,heading,vehicleid,speedmph",
+                        outFields: "objectid,heading,vehicleid,Kmph",
                         returnGeometry: true,
                         f: "geojson"
                     },
@@ -123,29 +118,30 @@
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
-                    
-                    // ✅ Handle null values
-                    const speed = vehicle.properties.speedmph ?? 0;
+
+                    // ✅ Fix: Prevent errors due to null values
+                    const speed = vehicle.properties.Kmph ?? 0;
                     const heading = vehicle.properties.heading ?? 0;
 
-                    if (tb) {
-                        if (vehicleModels[vehicleId]) {
-                            // ✅ Animate model movement
-                            animateModel(vehicleModels[vehicleId], coordinates, heading);
-                        } else {
-                            // ✅ Load a 3D snowplow model (Ensure "snowplow.glb" exists in your directory)
-                            tb.loadGLTF({
+                    if (vehicleModels[vehicleId]) {
+                        // ✅ Move the existing 3D model
+                        animateVehicle(vehicleModels[vehicleId], coordinates, heading);
+                    } else {
+                        // ✅ Load and place a new 3D snowplow model
+                        tb.load(
+                            {
+                                obj: "./uploads_files_5264196_papercar.glb", // ✅ Ensure correct file path
                                 type: "gltf",
-                                model: "snowplow.glb",
-                                scale: 5,
+                                scale: 5, // Adjust scale for visibility
                                 anchor: "center"
-                            }, (model) => {
+                            },
+                            function(model) {
                                 model.setCoords(coordinates);
-                                model.setRotation({ x: 0, y: heading, z: 0 });
+                                model.setRotation({ x: 0, y: heading, z: 0 }); // Rotate based on heading
                                 tb.add(model);
-                                vehicleModels[vehicleId] = model;
-                            });
-                        }
+                                vehicleModels[vehicleId] = model; // Store model reference
+                            }
+                        );
                     }
                 });
 
@@ -155,7 +151,7 @@
             }
         }
 
-        function animateModel(model, newCoords, heading) {
+        function animateVehicle(model, newCoords, heading) {
             const duration = 1000; // 1-second animation
             const start = performance.now();
             const oldCoords = model.coordinates;
