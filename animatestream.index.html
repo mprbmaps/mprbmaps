@@ -9,6 +9,9 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
 
+    <!-- Threebox (For 3D Models) -->
+    <script src="https://unpkg.com/threebox-plugin/dist/threebox.min.js"></script>
+
     <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
 
@@ -27,7 +30,7 @@
     // ✅ Use OpenStreetMap 3D Buildings basemap
     const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/standard', // ✅ OSM-based standard map with 3D buildings
+        style: 'mapbox://styles/mapbox/outdoors-v12', // ✅ Corrected Basemap
         center: [-93.2650, 44.9778], // Minneapolis, MN
         zoom: 14,
         pitch: 60, // 3D Perspective
@@ -53,9 +56,17 @@
             }
         });
         console.log("✅ OSM 3D Buildings Layer Added");
+
+        // ✅ Initialize Threebox
+        window.tb = new Threebox(
+            map,
+            map.getCanvas().getContext('webgl'),
+            { defaultLights: true }
+        );
+        console.log("✅ Threebox Initialized");
     });
 
-    let vehicleMarkers = {}; // Store vehicle markers
+    let vehicleModels = {}; // Store vehicle models
 
     require([
         "esri/request",
@@ -88,7 +99,7 @@
                 const response = await esriRequest(featureLayerURL + "/query", {
                     query: {
                         where: "1=1",
-                        outFields: "objectid,heading,vehicleid,speedmph",
+                        outFields: "objectid,heading,vehicleid,Kmph",
                         returnGeometry: true,
                         f: "geojson"
                     },
@@ -102,28 +113,29 @@
                     return;
                 }
 
-                // ✅ Update or create markers for each vehicle
+                // ✅ Update or create models for each vehicle
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
                     
-                    // ✅ Fix: Prevent errors due to null values
-                    const speed = vehicle.properties.speedmph ?? 0;
+                    const speed = vehicle.properties.Kmph ?? 0;
                     const heading = vehicle.properties.heading ?? 0;
 
-                    if (vehicleMarkers[vehicleId]) {
-                        // Smoothly animate marker movement
-                        animateMarker(vehicleMarkers[vehicleId], coordinates);
+                    if (vehicleModels[vehicleId]) {
+                        // Update model position & rotation
+                        vehicleModels[vehicleId].setCoords([coordinates[0], coordinates[1], 0]);
+                        vehicleModels[vehicleId].setRotation(0, heading, 0);
                     } else {
-                        // Create a new marker if it doesn't exist
-                        const marker = new mapboxgl.Marker({
-                            color: "#FF0000"
-                        })
-                        .setLngLat(coordinates)
-                        .setPopup(new mapboxgl.Popup().setText(`🚛 Speed: ${speed} MPH`)) // ✅ Show speed in popup
-                        .addTo(map);
-
-                        vehicleMarkers[vehicleId] = marker;
+                        // Load the 3D model if it doesn't exist
+                        tb.loadObj(
+                            { obj: 'https://example.com/snowplow.gltf', type: 'gltf', scale: 10 }, 
+                            function(model) {
+                                model.setCoords([coordinates[0], coordinates[1], 0]);
+                                model.setRotation(0, heading, 0);
+                                tb.add(model);
+                                vehicleModels[vehicleId] = model;
+                            }
+                        );
                     }
                 });
 
@@ -131,27 +143,6 @@
             } catch (error) {
                 console.error("❌ Error loading vehicle data:", error);
             }
-        }
-
-        function animateMarker(marker, newCoords) {
-            const duration = 1000; // 1-second animation
-            const start = performance.now();
-            const oldCoords = marker.getLngLat();
-
-            function step(timestamp) {
-                const elapsed = timestamp - start;
-                const progress = Math.min(elapsed / duration, 1);
-                const interpolatedLng = oldCoords.lng + (newCoords[0] - oldCoords.lng) * progress;
-                const interpolatedLat = oldCoords.lat + (newCoords[1] - oldCoords.lat) * progress;
-
-                marker.setLngLat([interpolatedLng, interpolatedLat]);
-
-                if (progress < 1) {
-                    requestAnimationFrame(step);
-                }
-            }
-
-            requestAnimationFrame(step);
         }
 
         // ✅ Auto-refresh vehicles every 30 seconds if signed in
