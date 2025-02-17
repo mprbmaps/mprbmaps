@@ -3,11 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + OpenStreetMap 3D Buildings + ArcGIS Vehicles</title>
+    <title>Mapbox + Threebox 3D Vehicles</title>
 
     <!-- Mapbox GL JS -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
+
+    <!-- Three.js (Required for Threebox) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- Threebox for 3D Models -->
+    <script src="threebox.min.js"></script>
+    <link href="threebox.css" rel="stylesheet" />
 
     <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
@@ -24,10 +31,9 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    // ✅ OpenStreetMap 3D Buildings basemap
     const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/outdoors-v12', 
+        style: 'mapbox://styles/mapbox/outdoors-v12',
         center: [-93.2650, 44.9778], 
         zoom: 14,
         pitch: 60, 
@@ -35,10 +41,20 @@
         antialias: true
     });
 
+    let tb;  // Threebox instance
+    let vehicleModels = {}; // Store 3D models and movement history
+
     map.on('load', function () {
         console.log("✅ Map Loaded!");
 
-        // ✅ Add OpenStreetMap 3D Buildings
+        tb = new Threebox(
+            map,
+            map.getCanvas().getContext('webgl'),
+            {
+                defaultLights: true,
+            }
+        );
+
         map.addLayer({
             id: 'osm-3d-buildings',
             source: 'composite',
@@ -52,10 +68,9 @@
                 'fill-extrusion-opacity': 0.6
             }
         });
-        console.log("✅ OSM 3D Buildings Layer Added");
-    });
 
-    let vehicleData = {}; // Store vehicle movement history
+        console.log("✅ Threebox initialized");
+    });
 
     require([
         "esri/request",
@@ -63,7 +78,6 @@
         "esri/identity/IdentityManager"
     ], function(esriRequest, OAuthInfo, IdentityManager) {
 
-        // ✅ ArcGIS OAuth Authentication
         const info = new OAuthInfo({
             appId: "ti3fi1FqvHE2Hhyw",
             popup: true
@@ -83,7 +97,6 @@
             try {
                 console.log("🔄 Fetching vehicle data...");
 
-                // ✅ Use esriRequest to fetch vehicle data
                 const response = await esriRequest(featureLayerURL + "/query", {
                     query: {
                         where: "1=1",
@@ -101,34 +114,41 @@
                     return;
                 }
 
-                // ✅ Process each vehicle
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
                     const speed = vehicle.properties.speedmph ?? 0;
                     const heading = vehicle.properties.heading ?? 0;
 
-                    if (!vehicleData[vehicleId]) {
-                        vehicleData[vehicleId] = {
-                            marker: new mapboxgl.Marker({ color: "#FF0000" })
-                                .setLngLat(coordinates)
-                                .setPopup(new mapboxgl.Popup().setText(`🚛 Speed: ${speed} MPH`))
-                                .addTo(map),
-                            positions: [] // Maintain last 3 positions
+                    if (!vehicleModels[vehicleId]) {
+                        vehicleModels[vehicleId] = {
+                            positions: [],
+                            model: null
                         };
+
+                        // ✅ Load 3D vehicle model (papercar.glb from local folder)
+                        tb.loadGLTF({
+                            url: 'uploads_files_5264196_papercar.glb',
+                            scale: 3,
+                            rotation: { x: 90, y: 0, z: heading },
+                            anchor: 'center'
+                        }, function (model) {
+                            model.setCoords(coordinates);
+                            tb.add(model);
+                            vehicleModels[vehicleId].model = model;
+                        });
                     }
 
-                    // Store the last 3 positions for animation
-                    let positions = vehicleData[vehicleId].positions;
+                    // ✅ Store last 3 positions
+                    let positions = vehicleModels[vehicleId].positions;
                     positions.push({ lng: coordinates[0], lat: coordinates[1], speed, heading });
 
                     if (positions.length > 3) {
-                        positions.shift(); // Keep only last 3 positions
+                        positions.shift();
                     }
 
-                    // ✅ Animate between the 3rd and 2nd most recent positions
                     if (positions.length >= 3) {
-                        animateMarker(vehicleData[vehicleId].marker, positions[1], positions[2]);
+                        animateVehicle(vehicleModels[vehicleId].model, positions[1], positions[2]);
                     }
                 });
 
@@ -138,10 +158,10 @@
             }
         }
 
-        function animateMarker(marker, startCoords, endCoords) {
-            if (!startCoords || !endCoords) return;
+        function animateVehicle(model, startCoords, endCoords) {
+            if (!model || !startCoords || !endCoords) return;
 
-            const duration = 1000; // 1-second animation
+            const duration = 1000;
             const start = performance.now();
 
             function step(timestamp) {
@@ -150,7 +170,7 @@
                 const interpolatedLng = startCoords.lng + (endCoords.lng - startCoords.lng) * progress;
                 const interpolatedLat = startCoords.lat + (endCoords.lat - startCoords.lat) * progress;
 
-                marker.setLngLat([interpolatedLng, interpolatedLat]);
+                model.setCoords([interpolatedLng, interpolatedLat]);
 
                 if (progress < 1) {
                     requestAnimationFrame(step);
@@ -160,7 +180,7 @@
             requestAnimationFrame(step);
         }
 
-        // ✅ Auto-refresh vehicles every 30 seconds if signed in
+        // Auto-refresh every 30 seconds
         setInterval(() => {
             IdentityManager.getCredential(info.portalUrl + "/sharing").then(() => {
                 loadVehicleData();
