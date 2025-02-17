@@ -10,14 +10,15 @@
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
 
     <!-- ArcGIS JavaScript API -->
-    <script src="https://js.arcgis.com/4.27/"></script>
+    <script src="https://js.arcgis.com/4.27/init.js"></script>
 
-    <!-- Three.js and Threebox -->
+    <!-- Threebox -->
     <script src="threebox.min.js"></script>
     <link href="threebox.css" rel="stylesheet" />
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
+    <!-- Three.js (Load only once) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
     <style>
         body { margin: 0; padding: 0; }
@@ -34,10 +35,10 @@
     // ✅ Initialize Mapbox
     const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/outdoors-v12', // ✅ OSM-based outdoors map
-        center: [-93.2650, 44.9778], // Minneapolis, MN
+        style: 'mapbox://styles/mapbox/outdoors-v12',
+        center: [-93.2650, 44.9778],
         zoom: 14,
-        pitch: 60, // 3D Perspective
+        pitch: 60,
         bearing: 0,
         antialias: true
     });
@@ -48,16 +49,16 @@
         "esri/request",
         "esri/identity/OAuthInfo",
         "esri/identity/IdentityManager"
-    ], function(esriRequest, OAuthInfo, IdentityManager) {
+    ], function (esriRequest, OAuthInfo, IdentityManager) {
 
-        // ✅ ArcGIS OAuth Authentication
+        // ✅ Fix OAuth Authentication Issue
         const info = new OAuthInfo({
-            appId: "ti3fi1FqvHE2Hhyw", // Your ArcGIS App ID
-            popup: true
+            appId: "ti3fi1FqvHE2Hhyw",
+            popup: false
         });
         IdentityManager.registerOAuthInfos([info]);
 
-        // ✅ Ensure authentication before fetching vehicle data
+        // ✅ Authenticate before fetching data
         IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
             console.log("✅ Signed in successfully");
             loadVehicleData();
@@ -71,7 +72,7 @@
             try {
                 console.log("🔄 Fetching vehicle data...");
 
-                // ✅ Use esriRequest properly
+                // ✅ Ensure `esriRequest` is properly used
                 const response = await esriRequest(featureLayerURL + "/query", {
                     query: {
                         where: "1=1",
@@ -94,7 +95,7 @@
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.objectid;
                     
-                    // ✅ Prevent errors due to null values
+                    // ✅ Fix: Prevent errors due to null values
                     const speed = vehicle.properties.Kmph ?? 0;
                     const heading = vehicle.properties.heading ?? 0;
 
