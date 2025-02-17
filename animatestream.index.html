@@ -3,15 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + ArcGIS + Threebox (3D Snowplows)</title>
+    <title>Mapbox + ArcGIS (2D Animated Vehicles)</title>
 
     <!-- Mapbox GL JS -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
-
-    <!-- Threebox for 3D models -->
-    <script src="https://rawgit.com/jscastro76/Threebox/master/dist/threebox.js"></script>
-    <link href="https://rawgit.com/jscastro76/Threebox/master/dist/threebox.css" rel="stylesheet">
 
     <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
@@ -31,7 +27,7 @@
     // Initialize Mapbox map
     const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/standard', // 🌍 Uses the OpenStreetMap 3D basemap
+        style: 'mapbox://styles/mapbox/standard', // Uses the OpenStreetMap 3D basemap
         center: [-93.2650, 44.9778], // Minneapolis, MN
         zoom: 14,
         pitch: 60, // 3D View
@@ -39,48 +35,12 @@
         antialias: true
     });
 
-    let tb; // Threebox instance
+    let vehicleMarkers = {}; // Store vehicle markers
 
-    map.on('style.load', function () {
-        console.log("Mapbox Style Loaded");
-
-        // ✅ Initialize Threebox AFTER Mapbox is fully loaded
-        tb = new Threebox(map, map.getCanvas(), { defaultLights: true });
-
-        // ✅ Wait for the composite source to load before adding 3D buildings
-        map.addLayer({
-            id: '3d-buildings',
-            source: 'composite',
-            'source-layer': 'building',
-            type: 'fill-extrusion',
-            minzoom: 10,
-            paint: {
-                'fill-extrusion-color': '#ddd',
-                'fill-extrusion-height': [
-                    "interpolate", ["linear"], ["zoom"],
-                    10, 0,
-                    16, ["get", "height"]
-                ],
-                'fill-extrusion-opacity': 0.8
-            }
-        });
-
-        console.log("3D Buildings Layer Added");
-
-        // ✅ Load vehicle data AFTER Threebox is initialized
-        setTimeout(loadVehicleData, 3000);
-        setInterval(loadVehicleData, 30000); // Refresh vehicles every 30 sec
-    });
-
-    require(["esri/layers/FeatureLayer", "esri/request"], function(FeatureLayer, esriRequest) {
+    require(["esri/request"], function(esriRequest) {
         const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
 
         async function loadVehicleData() {
-            if (!tb) {
-                console.error("Threebox not initialized yet.");
-                return;
-            }
-
             try {
                 console.log("Fetching vehicle data...");
 
@@ -102,25 +62,24 @@
                     return;
                 }
 
-                // ✅ Clear old vehicles before updating
-                tb.clear();
-
-                // ✅ Add 3D snowplows for each vehicle
+                // ✅ Update or create markers for each vehicle
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
-                    const heading = vehicle.properties.heading || 0;
+                    const vehicleId = vehicle.properties.vehicleid;
 
-                    tb.loadObj({
-                        obj: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/obj/male02/male02.obj', // Placeholder OBJ file
-                        type: 'mtl',
-                        scale: 2,
-                        units: 'meters',
-                        rotation: { x: 90, y: 0, z: heading },
-                        anchor: 'center'
-                    }, (model) => {
-                        model.setCoords([coordinates[0], coordinates[1], 0]);
-                        tb.add(model);
-                    });
+                    if (vehicleMarkers[vehicleId]) {
+                        // Smoothly animate the marker to the new position
+                        animateMarker(vehicleMarkers[vehicleId], coordinates);
+                    } else {
+                        // Create a new marker if it doesn't exist
+                        const marker = new mapboxgl.Marker({
+                            color: "#FF0000"
+                        })
+                        .setLngLat(coordinates)
+                        .addTo(map);
+
+                        vehicleMarkers[vehicleId] = marker;
+                    }
                 });
 
                 console.log("Vehicles Updated:", vehicles.length);
@@ -128,6 +87,31 @@
                 console.error("Error loading vehicle data:", error);
             }
         }
+
+        function animateMarker(marker, newCoords) {
+            const duration = 1000; // Animation duration (1 second)
+            const start = performance.now();
+            const oldCoords = marker.getLngLat();
+
+            function step(timestamp) {
+                const elapsed = timestamp - start;
+                const progress = Math.min(elapsed / duration, 1);
+                const interpolatedLng = oldCoords.lng + (newCoords[0] - oldCoords.lng) * progress;
+                const interpolatedLat = oldCoords.lat + (newCoords[1] - oldCoords.lat) * progress;
+
+                marker.setLngLat([interpolatedLng, interpolatedLat]);
+
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                }
+            }
+
+            requestAnimationFrame(step);
+        }
+
+        // ✅ Initial load and auto-refresh every 30 seconds
+        setTimeout(loadVehicleData, 3000);
+        setInterval(loadVehicleData, 30000);
     });
 
 </script>
