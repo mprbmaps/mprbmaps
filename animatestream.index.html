@@ -3,11 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + ArcGIS Online Vehicle Locations</title>
+    <title>Mapbox + ArcGIS Online Vehicles</title>
+
+    <!-- Mapbox GL JS -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
-    <script src="https://unpkg.com/three@0.133.1/build/three.min.js"></script>
-    <script src="https://unpkg.com/threebox-plugin/dist/threebox.min.js"></script>
+
+    <!-- Esri-Leaflet for ArcGIS Online -->
+    <script src="https://unpkg.com/esri-leaflet"></script>
+
     <style>
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
@@ -20,18 +24,18 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    // Initialize the map
+    // Initialize the Mapbox map
     const map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/mapbox/light-v11', // OpenStreetMap 3D buildings
-        center: [-93.2650, 44.9778], // Default center (Minneapolis)
+        center: [-93.2650, 44.9778], // Minneapolis, MN (Default center)
         zoom: 12,
-        pitch: 60, // Enables 3D view
+        pitch: 60, // 3D view
         bearing: 0,
         antialias: true
     });
 
-    // Load 3D Buildings Layer
+    // Load 3D Buildings
     map.on('load', function () {
         map.addLayer({
             id: '3d-buildings',
@@ -50,38 +54,39 @@
         setInterval(loadVehicleData, 30000); // Refresh every 30 sec
     });
 
-    // Fetch vehicle locations from ArcGIS Online Feature Layer
+    // Fetch vehicle locations from ArcGIS Online using Item ID
     async function loadVehicleData() {
-        const arcgisURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0/query?where=1=1&outFields=objectid,heading,vehicleid,speedmph&outSR=4326&f=geojson";
-        
+        const itemID = "252dafda1265439b98383967c7c9d442";
+        const arcgisURL = `https://services.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/${itemID}/FeatureServer/0/query?where=1=1&outFields=objectid,heading,vehicleid,speedmph&outSR=4326&f=geojson`;
+
         try {
             const response = await fetch(arcgisURL);
             const data = await response.json();
 
             if (!data || !data.features || data.features.length === 0) {
-                console.error("No vehicles found in ArcGIS layer.");
+                console.error("No vehicles found in ArcGIS Online.");
                 return;
             }
 
-            // Remove existing vehicles before adding new ones
+            // Remove old vehicle layer if exists
             if (map.getSource('vehicles')) {
                 map.removeLayer('vehicle-layer');
                 map.removeSource('vehicles');
             }
 
-            // Add vehicle locations as a Mapbox source
+            // Add new vehicle layer
             map.addSource('vehicles', {
                 type: 'geojson',
                 data: data
             });
 
-            // Add vehicle symbols to the map
+            // Display vehicle icons
             map.addLayer({
                 id: 'vehicle-layer',
                 type: 'symbol',
                 source: 'vehicles',
                 layout: {
-                    'icon-image': 'bus-15', // Default Mapbox icon
+                    'icon-image': 'bus-15', // Change this if needed
                     'icon-size': 1.5,
                     'icon-rotate': ['get', 'heading'],
                     'icon-allow-overlap': true
