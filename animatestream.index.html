@@ -4,91 +4,118 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mapbox 3D Vehicles</title>
-    <script src='https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.js'></script>
-    <script src='https://unpkg.com/threebox-plugin/dist/threebox.min.js'></script>
-    <link href='https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.css' rel='stylesheet' />
+    
+    <!-- Mapbox GL JS -->
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+
+    <!-- Threebox Plugin -->
+    <script src="https://unpkg.com/threebox-plugin/dist/threebox.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/threebox-plugin/dist/threebox.min.css">
+    
     <style>
-        body { margin: 0; padding: 0; }
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; }
+        #map { width: 100%; height: 100vh; }
     </style>
 </head>
 <body>
-    <div id='map'></div>
-    <script>
-        mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
-        
-        const map = new mapboxgl.Map({
-            container: 'map',
-            style: 'mapbox://styles/mapbox/light-v11', // Light map style
-            center: [-93.265, 44.977], // Center on Minneapolis (adjust as needed)
-            zoom: 14,
-            pitch: 60, // Tilt for better 3D effect
-            bearing: -20,
-            antialias: true
+
+<div id="map"></div>
+
+<script>
+    // Mapbox Access Token
+    mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
+
+    // Initialize Mapbox
+    const map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/light-v11',  // OpenStreetMap 3D basemap
+        center: [-93.2650, 44.9778], // Default to Minneapolis
+        zoom: 14,
+        pitch: 60,
+        bearing: 0,
+        antialias: true
+    });
+
+    // Add Navigation Controls
+    map.addControl(new mapboxgl.NavigationControl());
+
+    let tb;  // Threebox instance
+    let vehicleModels = {}; // Store 3D models of vehicles
+
+    // Load 3D Buildings
+    map.on('load', () => {
+        map.addLayer({
+            id: '3d-buildings',
+            source: 'composite',
+            'source-layer': 'building',
+            type: 'fill-extrusion',
+            paint: {
+                'fill-extrusion-color': '#D3D3D3',
+                'fill-extrusion-height': ['get', 'height'],
+                'fill-extrusion-opacity': 0.6
+            }
         });
 
-        map.on('load', function () {
-            // Add 3D Buildings
-            map.addLayer({
-                id: '3d-buildings',
-                source: 'composite',
-                'source-layer': 'building',
-                type: 'fill-extrusion',
-                minzoom: 12,
-                paint: {
-                    'fill-extrusion-color': '#d1d1d1',
-                    'fill-extrusion-height': ['get', 'height'],
-                    'fill-extrusion-opacity': 0.6
-                }
-            });
-            
-            // Load Threebox for 3D models
-            window.tb = new Threebox(map, map.getCanvasContainer(), {
-                defaultLights: true,
-            });
-            
-            // Add a source for the ArcGIS Online vehicle locations
-            map.addSource('vehicles', {
-                type: 'geojson',
-                data: 'https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/kubota_stream_public/MapServer/0/query?where=1=1&outFields=*&f=geojson',
-                cluster: true,
-                clusterMaxZoom: 14,
-                clusterRadius: 50
-            });
-            
-            // Add vehicle points
-            map.addLayer({
-                id: 'vehicle-points',
-                type: 'symbol',
-                source: 'vehicles',
-                layout: {
-                    'icon-image': 'bus', // Placeholder icon; customize with your own
-                    'icon-size': 1.5
-                }
-            });
-            
-            // Fetch and add 3D snowplow model to each vehicle
-            function addVehicles() {
-                fetch('https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/kubota_stream_public/MapServer/0/query?where=1=1&outFields=*&f=geojson')
-                    .then(response => response.json())
-                    .then(data => {
-                        data.features.forEach(vehicle => {
-                            const coords = vehicle.geometry.coordinates;
-                            tb.loadGLTF('https://your-server.com/snowplow.glb', model => {
-                                model.setCoords(coords);
-                                model.setRotation({x: 90, y: 0, z: 0});
-                                model.setScale(5);
-                                tb.add(model);
-                            });
-                        });
-                    });
+        // Initialize Threebox after Mapbox loads
+        tb = new Threebox(map, map.getCanvas().getContext('webgl'), { defaultLights: true });
+
+        // Load vehicles from ArcGIS Online
+        loadVehicleLocations();
+        setInterval(loadVehicleLocations, 5000); // Update every 5 seconds
+    });
+
+    // Fetch vehicle locations from ArcGIS Online
+    async function loadVehicleLocations() {
+        const url = "https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/kubota_stream_public/MapServer/0/query?where=1=1&outFields=*&f=json";
+
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (!data.features || data.features.length === 0) {
+                console.error("No vehicles found in ArcGIS layer.");
+                return;
             }
-            
-            map.on('style.load', () => {
-                map.addLayer(tb.layer);
-                addVehicles();
+
+            // Process each vehicle location
+            data.features.forEach(feature => {
+                const id = feature.attributes.OBJECTID;
+                const longitude = feature.geometry.x;
+                const latitude = feature.geometry.y;
+                const bearing = feature.attributes.bearing || 0;
+
+                // If the vehicle already exists, update its position
+                if (vehicleModels[id]) {
+                    vehicleModels[id].setCoords([longitude, latitude]);
+                    vehicleModels[id].setRotation({ z: bearing });
+                } else {
+                    // Create a new 3D model for this vehicle
+                    addVehicleModel(id, longitude, latitude, bearing);
+                }
             });
+
+        } catch (error) {
+            console.error("Error loading vehicle data:", error);
+        }
+    }
+
+    // Add a 3D Snowplow Model at given coordinates
+    function addVehicleModel(id, lon, lat, bearing) {
+        tb.loadObj({
+            obj: 'https://raw.githubusercontent.com/threebox/3D-models/master/vehicles/snowplow.obj',  // Example OBJ file
+            type: 'mtl',  // Material file included
+            scale: 5,  // Adjust scale
+            units: 'meters',
+            rotation: { x: 90, y: 0, z: bearing },
+            anchor: 'center'
+        }, model => {
+            model.setCoords([lon, lat]);
+            tb.add(model);
+            vehicleModels[id] = model;
         });
-    </script>
+    }
+</script>
+
 </body>
 </html>
