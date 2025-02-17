@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Snowplows on OpenStreetMap + ArcGIS Vehicles</title>
+    <title>Mapbox + OpenStreetMap 3D Buildings + ArcGIS Vehicles</title>
 
     <!-- Mapbox GL JS -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
 
-    <!-- Three.js & Threebox (Use official source) -->
-    <script src="https://unpkg.com/three@0.132.2/build/three.min.js"></script>
-    <script src="https://unpkg.com/threebox-plugin/dist/threebox.min.js"></script>
-
     <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
+
+    <!-- Threebox JS and CSS (Placed in the main directory) -->
+    <script src="threebox.min.js" type="text/javascript"></script>
+    <link href="threebox.css" rel="stylesheet" />
 
     <style>
         body { margin: 0; padding: 0; }
@@ -28,25 +28,26 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    // ✅ Initialize Mapbox with OpenStreetMap 3D Buildings
+    // ✅ Use OpenStreetMap 3D Buildings basemap
     const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/outdoors-v12',
+        style: 'mapbox://styles/mapbox/outdoors-v12', // ✅ OSM-based outdoors map
         center: [-93.2650, 44.9778], // Minneapolis, MN
         zoom: 14,
-        pitch: 60,
+        pitch: 60, // 3D Perspective
         bearing: 0,
         antialias: true
     });
 
-    let tb; // Threebox instance
-    let vehicleModels = {}; // Store 3D models by vehicle ID
-
-    map.on('style.load', function () {
+    map.on('load', function () {
         console.log("✅ Map Loaded!");
 
-        // ✅ Initialize Threebox
-        tb = new Threebox(map, map.getCanvas().getContext('webgl'), { defaultLights: true });
+        // ✅ Initialize Threebox after style loads
+        window.tb = new Threebox(
+            map,
+            map.getCanvas().getContext('webgl'),
+            { defaultLights: true }
+        );
 
         // ✅ Add OpenStreetMap 3D Buildings
         map.addLayer({
@@ -62,12 +63,13 @@
                 'fill-extrusion-opacity': 0.6
             }
         });
-
         console.log("✅ OSM 3D Buildings Layer Added");
 
-        // ✅ Load vehicle data after Threebox is ready
+        // ✅ Load vehicle locations
         loadVehicleData();
     });
+
+    let vehicleModels = {}; // Store vehicle models
 
     require([
         "esri/request",
@@ -114,24 +116,29 @@
                     return;
                 }
 
+                // ✅ Update or create 3D models for each vehicle
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
-
-                    // ✅ Prevent null values
+                    
+                    // ✅ Fix: Prevent errors due to null values
                     const speed = vehicle.properties.speedmph ?? 0;
                     const heading = vehicle.properties.heading ?? 0;
 
                     if (vehicleModels[vehicleId]) {
-                        // ✅ Update existing model
+                        // ✅ Animate model movement
                         animateModel(vehicleModels[vehicleId], coordinates, heading);
-                    } else if (tb) { // ✅ Only load if Threebox is initialized
-                        // ✅ Create new 3D model
-                        tb.loadGLTF("https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Snowplow/Snowplow.gltf", model => {
+                    } else {
+                        // ✅ Load a 3D GLTF snowplow model for new vehicles
+                        tb.loadGLTF({
+                            type: "gltf",
+                            obj: "snowplow.gltf", // Ensure this file exists in your main directory
+                            scale: 5, // Adjust as needed
+                            rotation: { x: 90, y: 0, z: heading },
+                            anchor: "center"
+                        }, function(model) {
                             model.setCoords(coordinates);
-                            model.setRotation({ x: 0, y: heading, z: 0 });
-                            model.setScale(50); // Adjust scale if needed
-                            model.addTo(tb);
+                            tb.add(model);
                             vehicleModels[vehicleId] = model;
                         });
                     }
@@ -143,7 +150,7 @@
             }
         }
 
-        function animateModel(model, newCoords, heading) {
+        function animateModel(model, newCoords, newHeading) {
             const duration = 1000; // 1-second animation
             const start = performance.now();
             const oldCoords = model.coordinates;
@@ -155,7 +162,7 @@
                 const interpolatedLat = oldCoords[1] + (newCoords[1] - oldCoords[1]) * progress;
 
                 model.setCoords([interpolatedLng, interpolatedLat]);
-                model.setRotation({ x: 0, y: heading, z: 0 });
+                model.setRotation({ x: 90, y: 0, z: newHeading });
 
                 if (progress < 1) {
                     requestAnimationFrame(step);
@@ -165,7 +172,7 @@
             requestAnimationFrame(step);
         }
 
-        // ✅ Auto-refresh vehicles every 30 seconds
+        // ✅ Auto-refresh vehicles every 30 seconds if signed in
         setInterval(() => {
             IdentityManager.getCredential(info.portalUrl + "/sharing").then(() => {
                 loadVehicleData();
