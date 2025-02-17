@@ -85,20 +85,23 @@
 
             const info = new OAuthInfo({
                 appId: "ti3fi1FqvHE2Hhyw",  // Ensure this App ID is correct
+                portalUrl: "https://www.arcgis.com",  // ✅ Use correct ArcGIS portal URL
                 popup: true
             });
             IdentityManager.registerOAuthInfos([info]);
 
-            IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
+            // ✅ First, check sign-in status
+            IdentityManager.checkSignInStatus(info.portalUrl + "/sharing/rest").then(() => {
                 console.log("✅ Signed in successfully");
-
-                // ✅ Load data after sign-in
                 loadVehicleData();
             }).catch(error => {
                 console.error("❌ Sign-in failed:", error);
-                IdentityManager.getCredential(info.portalUrl + "/sharing")
-                    .then(() => loadVehicleData())
-                    .catch(authError => console.error("🚨 Authentication failed again:", authError));
+
+                // ✅ Force sign-in prompt if not authenticated
+                IdentityManager.getCredential(info.portalUrl + "/sharing").then(() => {
+                    console.log("🔄 Retrying after sign-in...");
+                    loadVehicleData();
+                }).catch(authError => console.error("🚨 Authentication failed again:", authError));
             });
         });
     }
