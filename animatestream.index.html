@@ -9,12 +9,12 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
 
-    <!-- ✅ ArcGIS JavaScript API -->
-    <script src="https://js.arcgis.com/4.27/"></script>
-
     <!-- ✅ Three.js & Threebox -->
     <script src="https://unpkg.com/three@0.135.0/build/three.min.js"></script>
     <script src="https://unpkg.com/@threebox/threebox-plugin@2.2.0/dist/threebox.min.js"></script>
+
+    <!-- ✅ Esri Loader (to avoid multipleDefine errors) -->
+    <script src="https://unpkg.com/esri-loader@3.3.0/dist/esri-loader.js"></script>
 
     <style>
         body { margin: 0; padding: 0; }
@@ -68,10 +68,13 @@
     let vehicleModels = {}; // Store vehicle models by ID
     const vehicleLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0/query?where=1=1&outFields=objectid,heading,Kmph&returnGeometry=true&f=geojson";
 
-    require([
+    // ✅ Load ArcGIS IdentityManager dynamically
+    esriLoader.loadModules([
         "esri/identity/OAuthInfo",
         "esri/identity/IdentityManager"
-    ], function(OAuthInfo, IdentityManager) {
+    ], {
+        url: "https://js.arcgis.com/4.27/"
+    }).then(([OAuthInfo, IdentityManager]) => {
 
         // ✅ ArcGIS OAuth Authentication
         const info = new OAuthInfo({
@@ -102,13 +105,13 @@
                 }
 
                 json.features.forEach(vehicle => {
-                    const coordinates = vehicle.geometry.coordinates;
+                    const coordinates = vehicle.geometry?.coordinates;
                     const vehicleId = vehicle.properties.objectid; // Unique ID
                     const speed = vehicle.properties.Kmph ?? 0;
                     const heading = vehicle.properties.heading ?? 0;
 
-                    if (!coordinates) {
-                        console.warn(`⚠️ Vehicle ${vehicleId} has no coordinates.`);
+                    if (!coordinates || coordinates.length < 2) {
+                        console.warn(`⚠️ Vehicle ${vehicleId} has invalid coordinates.`);
                         return;
                     }
 
@@ -144,6 +147,8 @@
                 console.warn("⚠️ User not signed in, skipping vehicle update.");
             });
         }, 30000);
+    }).catch(error => {
+        console.error("❌ Error loading ArcGIS Identity Manager:", error);
     });
 
 </script>
