@@ -12,7 +12,7 @@
     <!-- ✅ ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
 
-    <!-- ✅ Three.js & Threebox (From Official GitHub) -->
+    <!-- ✅ Three.js & Threebox -->
     <script src="https://unpkg.com/three@0.135.0/build/three.min.js"></script>
     <script src="https://unpkg.com/@threebox/threebox-plugin@2.2.0/dist/threebox.min.js"></script>
 
@@ -68,61 +68,84 @@
     let vehicleModels = {}; // Store vehicle models by ID
     const vehicleLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0/query?where=1=1&outFields=objectid,heading,Kmph&returnGeometry=true&f=geojson";
 
-    async function loadVehicleData() {
-        try {
-            console.log("🔄 Fetching vehicle data...");
+    require([
+        "esri/identity/OAuthInfo",
+        "esri/identity/IdentityManager"
+    ], function(OAuthInfo, IdentityManager) {
 
-            const response = await fetch(vehicleLayerURL);
-            const data = await response.json();
+        // ✅ ArcGIS OAuth Authentication
+        const info = new OAuthInfo({
+            appId: "ti3fi1FqvHE2Hhyw", // Your ArcGIS App ID
+            popup: true
+        });
+        IdentityManager.registerOAuthInfos([info]);
 
-            const vehicles = data.features;
+        // ✅ Check sign-in status
+        IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
+            console.log("✅ Signed in successfully");
+            loadVehicleData();
+        }).catch(error => {
+            console.error("❌ Sign-in failed:", error);
+        });
 
-            if (!vehicles || vehicles.length === 0) {
-                console.warn("⚠️ No vehicles found in ArcGIS Feature Layer.");
-                return;
-            }
+        async function loadVehicleData() {
+            try {
+                console.log("🔄 Fetching vehicle data...");
 
-            // ✅ Update or create models for each vehicle
-            vehicles.forEach(vehicle => {
-                const coordinates = vehicle.geometry.coordinates;
-                const vehicleId = vehicle.properties.objectid; // Unique ID
-                const speed = vehicle.properties.Kmph ?? 0;
-                const heading = vehicle.properties.heading ?? 0;
+                // ✅ Query ArcGIS Feature Layer for JSON data
+                const response = await fetch(vehicleLayerURL);
+                const json = await response.json();
 
-                if (!coordinates) {
-                    console.warn(`⚠️ Vehicle ${vehicleId} has no coordinates.`);
+                if (!json.features || json.features.length === 0) {
+                    console.warn("⚠️ No vehicles found in ArcGIS Feature Layer.");
                     return;
                 }
 
-                if (vehicleModels[vehicleId]) {
-                    // ✅ Update model position & rotation
-                    vehicleModels[vehicleId].setCoords([coordinates[0], coordinates[1], 0]);
-                    vehicleModels[vehicleId].setRotation(0, heading, 0);
-                } else {
-                    // ✅ Load the 3D model if it doesn't exist
-                    tb.loadObj(
-                        { obj: 'https://example.com/snowplow.gltf', type: 'gltf', scale: 10 }, 
-                        function(model) {
-                            model.setCoords([coordinates[0], coordinates[1], 0]);
-                            model.setRotation(0, heading, 0);
-                            tb.add(model);
-                            vehicleModels[vehicleId] = model;
-                        }
-                    );
-                }
-            });
+                json.features.forEach(vehicle => {
+                    const coordinates = vehicle.geometry.coordinates;
+                    const vehicleId = vehicle.properties.objectid; // Unique ID
+                    const speed = vehicle.properties.Kmph ?? 0;
+                    const heading = vehicle.properties.heading ?? 0;
 
-            console.log(`✅ Vehicles Updated: ${vehicles.length}`);
-        } catch (error) {
-            console.error("❌ Error loading vehicle data:", error);
+                    if (!coordinates) {
+                        console.warn(`⚠️ Vehicle ${vehicleId} has no coordinates.`);
+                        return;
+                    }
+
+                    if (vehicleModels[vehicleId]) {
+                        // ✅ Update model position & rotation
+                        vehicleModels[vehicleId].setCoords([coordinates[0], coordinates[1], 0]);
+                        vehicleModels[vehicleId].setRotation(0, heading, 0);
+                    } else {
+                        // ✅ Load the 3D model if it doesn't exist
+                        tb.loadObj(
+                            { obj: 'https://example.com/snowplow.gltf', type: 'gltf', scale: 10 }, 
+                            function(model) {
+                                model.setCoords([coordinates[0], coordinates[1], 0]);
+                                model.setRotation(0, heading, 0);
+                                tb.add(model);
+                                vehicleModels[vehicleId] = model;
+                            }
+                        );
+                    }
+                });
+
+                console.log(`✅ Vehicles Updated: ${json.features.length}`);
+            } catch (error) {
+                console.error("❌ Error loading vehicle data:", error);
+            }
         }
-    }
 
-    // ✅ Auto-refresh vehicles every 30 seconds
-    setInterval(loadVehicleData, 30000);
+        // ✅ Auto-refresh vehicles every 30 seconds if signed in
+        setInterval(() => {
+            IdentityManager.getCredential(info.portalUrl + "/sharing").then(() => {
+                loadVehicleData();
+            }).catch(error => {
+                console.warn("⚠️ User not signed in, skipping vehicle update.");
+            });
+        }, 30000);
+    });
 
-    // ✅ Load vehicle data on startup
-    loadVehicleData();
 </script>
 
 </body>
