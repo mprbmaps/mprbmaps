@@ -28,12 +28,13 @@
             "esri/Graphic",
             "esri/widgets/Home",
             "esri/widgets/Zoom",
+            "esri/widgets/Expand",
+            "esri/widgets/Legend",
             "esri/geometry/Point",
-            "esri/geometry/geometryEngine",
-            "esri/symbols/SimpleMarkerSymbol"
+            "esri/symbols/PictureMarkerSymbol"
         ], function (
-            WebMap, MapView, OAuthInfo, IdentityManager, FeatureLayer, GraphicsLayer, Graphic, Home, Zoom,
-            Point, geometryEngine, SimpleMarkerSymbol
+            WebMap, MapView, OAuthInfo, IdentityManager, FeatureLayer, GraphicsLayer, Graphic, 
+            Home, Zoom, Expand, Legend, Point, PictureMarkerSymbol
         ) {
 
             // 🔹 OAuth Authentication
@@ -46,7 +47,7 @@
             IdentityManager.getCredential(info.portalUrl + "/sharing").then(() => {
                 console.log("✅ Authenticated successfully!");
 
-                // 🔹 Load WebMap (2D)
+                // 🔹 Load WebMap
                 const webmap = new WebMap({
                     portalItem: { id: "c759548dfa1d4ed69e4601ae37850443" }
                 });
@@ -65,6 +66,15 @@
                 view.ui.add(homeWidget, "top-left");
                 view.ui.add(zoomWidget, "top-left");
 
+                // 🔹 Add Legend in an Expand Widget
+                const legend = new Legend({ view: view });
+                const legendExpand = new Expand({
+                    view: view,
+                    content: legend,
+                    expanded: false
+                });
+                view.ui.add(legendExpand, "top-right");
+
                 // 🔹 Feature Layer for Vehicle Locations
                 const vehicleLayer = new FeatureLayer({
                     url: "https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/kubota_stream_public/MapServer/0",
@@ -77,11 +87,11 @@
                 const vehicleGraphicsLayer = new GraphicsLayer();
                 webmap.add(vehicleGraphicsLayer);
 
-                // 🔹 Vehicle Symbol (Simple Marker for 2D Map)
-                const vehicleSymbol = new SimpleMarkerSymbol({
-                    color: "blue",
-                    outline: { color: "white", width: 1 },
-                    size: 10
+                // 🔹 Vehicle Symbol (Using a Picture Icon Instead of a Dot)
+                const vehicleSymbol = new PictureMarkerSymbol({
+                    url: "https://static.arcgis.com/images/Symbols/Transportation/Truck.png", // Vehicle icon
+                    width: "24px",
+                    height: "24px"
                 });
 
                 let vehicleGraphics = {};  // Stores vehicle objects
@@ -111,27 +121,7 @@
                                 // Store the target location for movement
                                 vehicleTargets[vehicleId] = point;
 
-                                // Snap to road if road layer exists
-                                if (roadLayer) {
-                                    roadLayer.queryFeatures({
-                                        geometry: point,
-                                        returnGeometry: true,
-                                        spatialRelationship: "intersects",
-                                        outFields: []
-                                    }).then(function (roadResults) {
-                                        if (roadResults.features.length > 0) {
-                                            let nearestRoadPoint = geometryEngine.nearestCoordinate(roadResults.features[0].geometry, point);
-                                            point = new Point({
-                                                x: nearestRoadPoint.coordinate.x,
-                                                y: nearestRoadPoint.coordinate.y,
-                                                spatialReference: view.spatialReference
-                                            });
-                                        }
-                                        updateVehicle(vehicleId, point);
-                                    });
-                                } else {
-                                    updateVehicle(vehicleId, point);
-                                }
+                                updateVehicle(vehicleId, point);
                             });
                         });
                     }
@@ -147,7 +137,7 @@
                                 attributes: { id: vehicleId }
                             });
 
-                            console.log("✅ Adding 2D Vehicle:", newGraphic);
+                            console.log("✅ Adding Vehicle Icon:", newGraphic);
                             vehicleGraphics[vehicleId] = newGraphic;
                             vehicleGraphicsLayer.add(newGraphic);
                         }
