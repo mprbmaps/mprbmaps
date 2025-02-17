@@ -13,6 +13,12 @@
     <script src="threebox.min.js"></script>
     <link href="threebox.css" rel="stylesheet" />
 
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- GLTFLoader.js (Required for loading .glb models) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
     <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
 
@@ -84,13 +90,7 @@
 
         IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
             console.log("✅ Signed in successfully");
-            // ✅ Ensure Threebox is initialized before loading vehicle data
-            if (window.tb) {
-                loadVehicleData();
-            } else {
-                console.log("⚠️ Waiting for Threebox to initialize...");
-                setTimeout(loadVehicleData, 3000);
-            }
+            loadVehicleData();
         }).catch(error => {
             console.error("❌ Sign-in failed:", error);
         });
@@ -139,18 +139,18 @@
                             return;
                         }
 
-                        // ✅ Use `window.tb.load()`
-                        window.tb.load(
-                            "uploads_files_5264196_papercar.glb",
-                            function (model) {
-                                model.setCoords(coordinates);
-                                model.setRotation({ x: 90, y: 0, z: heading });
-                                model.setScale(3);
-                                window.tb.add(model);
-                                vehicleModels[vehicleId].model = model;
-                            },
-                            { scaleToMeters: true, units: "meters" }
-                        );
+                        // ✅ Use `GLTFLoader` to load .glb files
+                        const loader = new THREE.GLTFLoader();
+                        loader.load("uploads_files_5264196_papercar.glb", function (gltf) {
+                            const model = gltf.scene;
+                            model.scale.set(3, 3, 3);
+                            model.rotation.set(THREE.MathUtils.degToRad(90), 0, THREE.MathUtils.degToRad(heading));
+
+                            window.tb.add(model);
+                            model.setCoords(coordinates);
+
+                            vehicleModels[vehicleId].model = model;
+                        });
                     }
 
                     // ✅ Store last 3 positions
@@ -197,11 +197,7 @@
         // Auto-refresh every 30 seconds
         setInterval(() => {
             IdentityManager.getCredential(info.portalUrl + "/sharing").then(() => {
-                if (window.tb) {
-                    loadVehicleData();
-                } else {
-                    console.log("⚠️ Waiting for Threebox to initialize...");
-                }
+                loadVehicleData();
             }).catch(error => {
                 console.warn("⚠️ User not signed in, skipping vehicle update.");
             });
