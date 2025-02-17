@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Snowplow Animation</title>
+    <script src="https://js.arcgis.com/4.28/"></script>
+    <style>
+        html, body, #viewDiv {
+            padding: 0;
+            margin: 0;
+            height: 100%;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="viewDiv"></div>
+
+    <script>
+        require([
+            "esri/WebMap",
+            "esri/views/SceneView",
+            "esri/layers/StreamLayer",
+            "esri/layers/FeatureLayer",
+            "esri/Graphic",
+            "esri/geometry/Point",
+            "esri/geometry/geometryEngine",
+            "esri/symbols/PointSymbol3D",
+            "esri/symbols/ObjectSymbol3DLayer"
+        ], function (
+            WebMap, SceneView, StreamLayer, FeatureLayer, Graphic, Point, geometryEngine, 
+            PointSymbol3D, ObjectSymbol3DLayer
+        ) {
+            
+            // Load the WebMap from ArcGIS Online
+            const webmap = new WebMap({
+                portalItem: { id: "c759548dfa1d4ed69e4601ae37850443" }  // Your WebMap ID
+            });
+
+            // Create 3D Scene View
+            const view = new SceneView({
+                container: "viewDiv",
+                map: webmap,
+                camera: {
+                    position: [-93.265, 44.9778, 1500],  // Adjust to your location
+                    tilt: 60
+                }
+            });
+
+            // Define the Snowplow 3D Model
+            const snowplowSymbol = new PointSymbol3D({
+                symbolLayers: [ new ObjectSymbol3DLayer({
+                    resource: { href: "https://static.arcgis.com/models/transportation/snowplow.json" }, 
+                    height: 6, width: 3
+                })]
+            });
+
+            // Dictionary to store vehicle graphics
+            let vehicleGraphics = {};
+
+            // Wait for the WebMap to load, then find the layers
+            webmap.when(() => {
+                const layers = webmap.layers.items;
+                let streamLayer = layers.find(layer => layer.type === "stream");
+                let roadLayer = layers.find(layer => layer.type === "feature");  // Ensure road layer exists
+
+                if (!streamLayer) {
+                    console.error("No Stream Layer found in WebMap.");
+                    return;
+                }
+                console.log("Stream Layer loaded:", streamLayer.url);
+
+                // Listen for real-time vehicle updates
+                streamLayer.on("track-added", function (event) {
+                    let vehicle = event.graphic;
+                    let vehicleId = vehicle.attributes.OBJECTID;
+                    let point = vehicle.geometry;
+
+                    // Snap to nearest road if road layer exists
+                    if (roadLayer) {
+                        roadLayer.queryFeatures({
+                            geometry: point,
+                            returnGeometry: true,
+                            spatialRelationship: "intersects",
+                            outFields: []
+                        }).then(function (results) {
+                            if (results.features.length > 0) {
+                                let nearestRoadPoint = geometryEngine.nearestCoordinate(results.features[0].geometry, point);
+                                point = new Point({
+                                    x: nearestRoadPoint.coordinate.x,
+                                    y: nearestRoadPoint.coordinate.y,
+                                    z: point.z || 10
+                                });
+                            }
+
+                            updateVehicle(vehicleId, point);
+                        });
+                    } else {
+                        updateVehicle(vehicleId, point);
+                    }
+                });
+            });
+
+            // Function to smoothly animate vehicle updates
+            function updateVehicle(vehicleId, newPoint) {
+                if (vehicleGraphics[vehicleId]) {
+                    animateVehicle(vehicleGraphics[vehicleId], newPoint);
+                } else {
+                    let newGraphic = new Graphic({
+                        geometry: newPoint,
+                        symbol: snowplowSymbol,
+                        attributes: { id: vehicleId }
+                    });
+                    vehicleGraphics[vehicleId] = newGraphic;
+                    view.graphics.add(newGraphic);
+                }
+            }
+
+            // Smooth animation function
+            function animateVehicle(graphic, newPoint) {
+                let oldPoint = graphic.geometry;
+                let frame = 0;
+                let totalFrames = 30;  // Adjust for smoother or faster movement
+
+                function step() {
+                    if (frame < totalFrames) {
+                        let x = oldPoint.x + ((newPoint.x - oldPoint.x) * (frame / totalFrames));
+                        let y = oldPoint.y + ((newPoint.y - oldPoint.y) * (frame / totalFrames));
+                        let z = oldPoint.z + ((newPoint.z - oldPoint.z) * (frame / totalFrames));
+
+                        graphic.geometry = new Point({ x, y, z });
+                        frame++;
+                        requestAnimationFrame(step);
+                    } else {
+                        graphic.geometry = newPoint;
+                    }
+                }
+                step();
+            }
+
+        });
+    </script>
+</body>
+</html>
