@@ -142,11 +142,16 @@
                         const loader = new THREE.GLTFLoader();
                         loader.load("uploads_files_5264196_papercar.glb", function (gltf) {
                             const model = gltf.scene;
+
+                            // ✅ Scale & Rotate model properly
                             model.scale.set(3, 3, 3);
                             model.rotation.set(THREE.MathUtils.degToRad(90), 0, THREE.MathUtils.degToRad(heading));
 
+                            // ✅ Convert map coordinates to Three.js coordinates
+                            let mapCoords = tb.projectToWorld([coordinates[0], coordinates[1]]);
+                            model.position.set(mapCoords.x, mapCoords.y, 0);  // Place model on the ground
+
                             tb.add(model);
-                            model.setCoords(coordinates);
                             vehicleModels[vehicleId].model = model;
                         });
                     }
@@ -179,10 +184,14 @@
         function step(timestamp) {
             const elapsed = timestamp - start;
             const progress = Math.min(elapsed / duration, 1);
-            const interpolatedLng = startCoords.lng + (endCoords.lng - startCoords.lng) * progress;
-            const interpolatedLat = startCoords.lat + (endCoords.lat - startCoords.lat) * progress;
 
-            model.setCoords([interpolatedLng, interpolatedLat]);
+            let startPos = tb.projectToWorld([startCoords.lng, startCoords.lat]);
+            let endPos = tb.projectToWorld([endCoords.lng, endCoords.lat]);
+
+            let interpolatedX = startPos.x + (endPos.x - startPos.x) * progress;
+            let interpolatedY = startPos.y + (endPos.y - startPos.y) * progress;
+
+            model.position.set(interpolatedX, interpolatedY, 0);  // Keep model on the ground
 
             if (progress < 1) {
                 requestAnimationFrame(step);
