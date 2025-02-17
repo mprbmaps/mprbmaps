@@ -9,7 +9,7 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet" />
 
-    <!-- Three.js (required for Threebox) -->
+    <!-- Three.js (Required for Threebox) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <!-- Threebox (Correct Version) -->
@@ -39,7 +39,7 @@
         // Initialize the Mapbox map
         const map = new mapboxgl.Map({
             container: 'map',
-            style: 'mapbox://styles/mapbox/satellite-streets-v11', // Change basemap if needed
+            style: 'mapbox://styles/mapbox/light-v11', // OpenStreetMap 3D basemap
             center: [-93.265, 44.977], // Default center (Minneapolis)
             zoom: 15,
             pitch: 60, // Tilting the map for better 3D visualization
@@ -55,81 +55,102 @@
 
         // Load ArcGIS feature layer as GeoJSON
         map.on('load', () => {
-            map.addSource('vehicles', {
-                type: 'geojson',
-                data: arcgisLayerUrl
-            });
+            fetch(arcgisLayerUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data || !data.features) {
+                        console.error("Error: ArcGIS Online data is undefined or missing features.");
+                        return;
+                    }
 
-            map.addLayer({
-                id: 'vehicle-layer',
-                type: 'circle',
-                source: 'vehicles',
-                paint: {
-                    'circle-radius': 6,
-                    'circle-color': '#ff0000'
-                }
-            });
+                    map.addSource('vehicles', {
+                        type: 'geojson',
+                        data: data
+                    });
 
-            // Add Threebox 3D Model Layer
-            tb = new Threebox(map, map.getCanvas().getContext('webgl'), {
-                defaultLights: true
-            });
+                    map.addLayer({
+                        id: 'vehicle-layer',
+                        type: 'circle',
+                        source: 'vehicles',
+                        paint: {
+                            'circle-radius': 6,
+                            'circle-color': '#ff0000'
+                        }
+                    });
 
-            map.addLayer({
-                id: 'custom-3d-models',
-                type: 'custom',
-                renderingMode: '3d',
-                onAdd: function(map, gl) {
-                    tb.setupDefaultLights();
-                    loadVehicles();
-                },
-                render: function(gl, matrix) {
-                    tb.update();
-                }
-            });
+                    // Add Threebox 3D Model Layer
+                    tb = new Threebox(map, map.getCanvas().getContext('webgl'), {
+                        defaultLights: true
+                    });
+
+                    map.addLayer({
+                        id: 'custom-3d-models',
+                        type: 'custom',
+                        renderingMode: '3d',
+                        onAdd: function(map, gl) {
+                            tb.setupDefaultLights();
+                            loadVehicles(data);
+                        },
+                        render: function(gl, matrix) {
+                            tb.update();
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading vehicle data:', error);
+                });
         });
 
         let tb; // Threebox instance
         let snowPlows = {}; // Store 3D models
 
-        // Fetch and load vehicle locations into Mapbox with Threebox
-        async function loadVehicles() {
-            try {
-                const response = await fetch(arcgisLayerUrl);
-                const data = await response.json();
-                
-                data.features.forEach(vehicle => {
-                    const coords = vehicle.geometry.coordinates;
-                    const vehicleId = vehicle.properties.objectid; // Adjust based on actual field
-                    const bearing = vehicle.properties.bearing || 0;
+        // Function to load vehicle locations with Threebox
+        function loadVehicles(data) {
+            data.features.forEach(vehicle => {
+                if (!vehicle.geometry || !vehicle.geometry.coordinates) {
+                    console.warn("Skipping feature with missing coordinates:", vehicle);
+                    return;
+                }
 
-                    if (snowPlows[vehicleId]) {
-                        // Update existing model position
-                        snowPlows[vehicleId].setCoords([coords[0], coords[1], 0]);
-                        snowPlows[vehicleId].setRotation({ x: 0, y: bearing, z: 0 });
-                    } else {
-                        // Load new 3D model
-                        tb.loadObj({
-                            obj: 'https://models.example.com/snowplow.obj', // Replace with actual model
-                            type: 'mtl',
-                            scale: 5,
-                            units: 'meters',
-                            rotation: { x: 0, y: bearing, z: 0 },
-                            anchor: 'center'
-                        }, (model) => {
-                            model.setCoords([coords[0], coords[1], 0]);
-                            snowPlows[vehicleId] = model;
-                            tb.add(model);
-                        });
-                    }
-                });
-            } catch (error) {
-                console.error('Error loading vehicle data:', error);
-            }
+                const coords = vehicle.geometry.coordinates;
+                const vehicleId = vehicle.properties.objectid || vehicle.properties.id; // Adjust field if needed
+                const bearing = vehicle.properties.bearing || 0;
+
+                if (snowPlows[vehicleId]) {
+                    // Update existing model position
+                    snowPlows[vehicleId].setCoords([coords[0], coords[1], 0]);
+                    snowPlows[vehicleId].setRotation({ x: 0, y: bearing, z: 0 });
+                } else {
+                    // Load new 3D model
+                    tb.loadObj({
+                        obj: 'https://models.example.com/snowplow.obj', // Replace with actual model
+                        type: 'mtl',
+                        scale: 5,
+                        units: 'meters',
+                        rotation: { x: 0, y: bearing, z: 0 },
+                        anchor: 'center'
+                    }, (model) => {
+                        model.setCoords([coords[0], coords[1], 0]);
+                        snowPlows[vehicleId] = model;
+                        tb.add(model);
+                    });
+                }
+            });
         }
 
         // Refresh vehicle positions every 30 seconds
-        setInterval(loadVehicles, 30000);
+        setInterval(() => {
+            fetch(arcgisLayerUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data || !data.features) {
+                        console.error("No valid data received.");
+                        return;
+                    }
+                    loadVehicles(data);
+                })
+                .catch(error => console.error('Error refreshing vehicle data:', error));
+        }, 30000);
     </script>
 
 </body>
