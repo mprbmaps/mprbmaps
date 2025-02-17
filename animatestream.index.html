@@ -3,11 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + OpenStreetMap 3D Buildings + ArcGIS Vehicles</title>
+    <title>Mapbox + Threebox 3D Vehicles</title>
 
     <!-- Mapbox GL JS -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
+
+    <!-- Threebox for 3D Models -->
+    <script src="threebox.min.js"></script>
+    <link href="threebox.css" rel="stylesheet" />
+
+    <!-- GLTFLoader.js (Required for loading .glb models) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
     <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
@@ -78,23 +85,21 @@
             console.error("❌ Sign-in failed:", error);
         });
 
-        const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
+    function loadVehicleData() {
+        require(["esri/request"], function(esriRequest) {
+            console.log("🔄 Fetching vehicle data...");
 
-        async function loadVehicleData() {
-            try {
-                console.log("🔄 Fetching vehicle data...");
+            const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
 
-                // ✅ Use esriRequest to fetch vehicle data
-                const response = await esriRequest(featureLayerURL + "/query", {
-                    query: {
-                        where: "1=1",
-                        outFields: "objectid,heading,vehicleid,speedmph",
-                        returnGeometry: true,
-                        f: "geojson"
-                    },
-                    responseType: "json"
-                });
-
+            esriRequest(featureLayerURL + "/query", {
+                query: {
+                    where: "1=1",
+                    outFields: "objectid,heading,vehicleid,speedmph",
+                    returnGeometry: true,
+                    f: "geojson"
+                },
+                responseType: "json"
+            }).then(response => {
                 const vehicles = response.data.features;
 
                 if (!vehicles || vehicles.length === 0) {
@@ -102,67 +107,88 @@
                     return;
                 }
 
-                // ✅ Update or create markers for each vehicle
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
-                    
-                    // ✅ Fix: Prevent errors due to null values
                     const speed = vehicle.properties.speedmph ?? 0;
                     const heading = vehicle.properties.heading ?? 0;
 
-                    if (vehicleMarkers[vehicleId]) {
-                        // Smoothly animate marker movement
-                        animateMarker(vehicleMarkers[vehicleId], coordinates);
-                    } else {
-                        // Create a new marker if it doesn't exist
-                        const marker = new mapboxgl.Marker({
-                            color: "#FF0000"
-                        })
-                        .setLngLat(coordinates)
-                        .setPopup(new mapboxgl.Popup().setText(`🚛 Speed: ${speed} MPH`)) // ✅ Show speed in popup
-                        .addTo(map);
+                    if (!vehicleModels[vehicleId]) {
+                        vehicleModels[vehicleId] = {
+                            positions: [],
+                            model: null
+                        };
 
-                        vehicleMarkers[vehicleId] = marker;
+                        if (!tb) {
+                            console.warn("⚠️ Threebox is not ready. Retrying in 2s...");
+                            setTimeout(loadVehicleData, 2000);
+                            return;
+                        }
+
+                        const loader = new THREE.GLTFLoader();
+                        loader.load("uploads_files_5264196_papercar.glb", function (gltf) {
+                            const model = gltf.scene;
+                            model.scale.set(3, 3, 3);
+                            model.rotation.set(THREE.MathUtils.degToRad(90), 0, THREE.MathUtils.degToRad(heading));
+
+                            tb.add(model);
+                            model.setCoords(coordinates);
+                            vehicleModels[vehicleId].model = model;
+                        });
+                    }
+
+                    let positions = vehicleModels[vehicleId].positions;
+                    positions.push({ lng: coordinates[0], lat: coordinates[1], speed, heading });
+
+                    if (positions.length > 3) {
+                        positions.shift();
+                    }
+
+                    if (positions.length >= 3) {
+                        animateVehicle(vehicleModels[vehicleId].model, positions[1], positions[2]);
                     }
                 });
 
                 console.log(`✅ Vehicles Updated: ${vehicles.length}`);
-            } catch (error) {
-                console.error("❌ Error loading vehicle data:", error);
-            }
-        }
-
-        function animateMarker(marker, newCoords) {
-            const duration = 1000; // 1-second animation
-            const start = performance.now();
-            const oldCoords = marker.getLngLat();
-
-            function step(timestamp) {
-                const elapsed = timestamp - start;
-                const progress = Math.min(elapsed / duration, 1);
-                const interpolatedLng = oldCoords.lng + (newCoords[0] - oldCoords.lng) * progress;
-                const interpolatedLat = oldCoords.lat + (newCoords[1] - oldCoords.lat) * progress;
-
-                marker.setLngLat([interpolatedLng, interpolatedLat]);
-
-                if (progress < 1) {
-                    requestAnimationFrame(step);
-                }
-            }
-
-            requestAnimationFrame(step);
-        }
-
-        // ✅ Auto-refresh vehicles every 30 seconds if signed in
-        setInterval(() => {
-            IdentityManager.getCredential(info.portalUrl + "/sharing").then(() => {
-                loadVehicleData();
             }).catch(error => {
-                console.warn("⚠️ User not signed in, skipping vehicle update.");
+                console.error("❌ Error loading vehicle data:", error);
             });
-        }, 30000);
-    });
+        });
+    }
+
+    function animateVehicle(model, startCoords, endCoords) {
+        if (!model || !startCoords || !endCoords) return;
+
+        const duration = 1000;
+        const start = performance.now();
+
+        function step(timestamp) {
+            const elapsed = timestamp - start;
+            const progress = Math.min(elapsed / duration, 1);
+            const interpolatedLng = startCoords.lng + (endCoords.lng - startCoords.lng) * progress;
+            const interpolatedLat = startCoords.lat + (endCoords.lat - startCoords.lat) * progress;
+
+            model.setCoords([interpolatedLng, interpolatedLat]);
+
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            }
+        }
+
+        requestAnimationFrame(step);
+    }
+
+    // Initialize the map first
+    initializeMap();
+
+    // Auto-refresh every 30 seconds
+    setInterval(() => {
+        if (tb) {
+            loadVehicleData();
+        } else {
+            console.log("⚠️ Waiting for Threebox to initialize...");
+        }
+    }, 30000);
 
 </script>
 
