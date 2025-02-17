@@ -24,13 +24,16 @@
             "esri/identity/OAuthInfo",
             "esri/identity/IdentityManager",
             "esri/layers/FeatureLayer",
+            "esri/layers/GraphicsLayer",
             "esri/Graphic",
+            "esri/widgets/Home",
+            "esri/widgets/Zoom",
             "esri/geometry/Point",
             "esri/geometry/geometryEngine",
             "esri/symbols/PointSymbol3D",
             "esri/symbols/ObjectSymbol3DLayer"
         ], function (
-            WebMap, SceneView, OAuthInfo, IdentityManager, FeatureLayer, Graphic, 
+            WebMap, SceneView, OAuthInfo, IdentityManager, FeatureLayer, GraphicsLayer, Graphic, Home, Zoom,
             Point, geometryEngine, PointSymbol3D, ObjectSymbol3DLayer
         ) {
 
@@ -50,7 +53,7 @@
                     portalItem: { id: "c759548dfa1d4ed69e4601ae37850443" }  // Your WebMap ID
                 });
 
-                // 🔹 Set Basemap to Improve 3D Rendering
+                // 🔹 Set Basemap for Better 3D Rendering
                 webmap.basemap = "arcgis-imagery";  // Supports 3D objects better
 
                 // 🔹 Create 3D Scene View with High Quality Rendering
@@ -68,19 +71,29 @@
                     }
                 });
 
-                // 🔹 Add "Last Plow Locations" Feature Layer
+                // 🔹 Add Zoom & Home Widgets
+                const homeWidget = new Home({ view });
+                const zoomWidget = new Zoom({ view });
+                view.ui.add(homeWidget, "top-left");
+                view.ui.add(zoomWidget, "top-left");
+
+                // 🔹 Feature Layer for Plow Locations (Points)
                 const plowLayer = new FeatureLayer({
                     url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0",
-                    outFields: ["*"],  // Get all attributes
+                    outFields: ["*"],
                     popupEnabled: true
                 });
                 webmap.add(plowLayer);
 
-                // 🔹 3D Snowplow Symbol (Increased Size for Better Visibility)
+                // 🔹 Create GraphicsLayer for 3D Snowplows
+                const snowplowLayer = new GraphicsLayer();
+                webmap.add(snowplowLayer);
+
+                // 🔹 3D Snowplow Symbol (Increased Size & Elevated Above Ground)
                 const snowplowSymbol = new PointSymbol3D({
-                    symbolLayers: [ new ObjectSymbol3DLayer({
-                        resource: { href: "https://static.arcgis.com/models/transportation/snowplow.json" }, 
-                        height: 15,  // Increased size
+                    symbolLayers: [new ObjectSymbol3DLayer({
+                        resource: { href: "https://static.arcgis.com/models/transportation/snowplow.json" },
+                        height: 15,
                         width: 10
                     })]
                 });
@@ -104,7 +117,7 @@
                                 // 🔹 Ensure objectid exists before using it
                                 if (!feature.attributes || !feature.attributes.objectid) {
                                     console.warn("⚠️ Missing objectid for a feature:", feature);
-                                    return;  // Skip this feature if objectid is missing
+                                    return;
                                 }
 
                                 let vehicleId = feature.attributes.objectid.toString();
@@ -145,12 +158,16 @@
                             let newGraphic = new Graphic({
                                 geometry: newPoint,
                                 symbol: snowplowSymbol,  // Ensure symbol is assigned
-                                attributes: { id: vehicleId }
+                                attributes: { id: vehicleId },
+                                elevationInfo: {
+                                    mode: "relative-to-ground",  // Keeps snowplow above ground level
+                                    offset: 2  // Adjusts height to prevent sinking into terrain
+                                }
                             });
 
                             console.log("✅ Adding Snowplow Model:", newGraphic);
                             vehicleGraphics[vehicleId] = newGraphic;
-                            view.graphics.add(newGraphic);
+                            snowplowLayer.add(newGraphic);
                         }
                     }
 
@@ -178,8 +195,7 @@
 
                     // 🔹 Refresh Plow Locations Every 30 Seconds
                     updatePlows();
-                    setInterval(updatePlows, 30000);  // Adjust interval as needed
-
+                    setInterval(updatePlows, 30000);
                 });
 
             }).catch(err => {
