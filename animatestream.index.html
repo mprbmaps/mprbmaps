@@ -91,14 +91,20 @@
             console.error("❌ Sign-in failed:", error);
         });
 
-        const vehicleLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0/query?where=1=1&outFields=*&f=geojson";
+        const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
 
         async function loadVehicleData() {
             try {
                 console.log("🔄 Fetching vehicle data...");
 
-                // ✅ Fetch vehicle data as GeoJSON
-                const response = await esriRequest(vehicleLayerURL, {
+                // ✅ Use esriRequest to fetch vehicle data
+                const response = await esriRequest(featureLayerURL + "/query", {
+                    query: {
+                        where: "1=1",
+                        outFields: "objectid,heading,vehicleid,speedmph",
+                        returnGeometry: true,
+                        f: "geojson"
+                    },
                     responseType: "json"
                 });
 
