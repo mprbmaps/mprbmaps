@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-Time Plow Locations</title>
+    <title>Real-Time Vehicle Animation</title>
     <script src="https://js.arcgis.com/4.28/"></script>
     <style>
         html, body, #viewDiv {
@@ -37,34 +37,33 @@
             Point, geometryEngine, PointSymbol3D, ObjectSymbol3DLayer
         ) {
 
-            // 🔹 OAuth Authentication (SSO Login)
+            // 🔹 OAuth Authentication
             const info = new OAuthInfo({
-                appId: "ti3fi1FqvHE2Hhyw",  // Your ArcGIS OAuth App ID
+                appId: "ti3fi1FqvHE2Hhyw",
                 popup: true
             });
             IdentityManager.registerOAuthInfos([info]);
 
-            // 🔹 Authenticate User & Load Map
             IdentityManager.getCredential(info.portalUrl + "/sharing").then(() => {
                 console.log("✅ Authenticated successfully!");
 
                 // 🔹 Load WebMap
                 const webmap = new WebMap({
-                    portalItem: { id: "c759548dfa1d4ed69e4601ae37850443" }  // Your WebMap ID
+                    portalItem: { id: "c759548dfa1d4ed69e4601ae37850443" }
                 });
 
                 // 🔹 Set Basemap for Better 3D Rendering
-                webmap.basemap = "arcgis-imagery";  // Supports 3D objects better
+                webmap.basemap = "arcgis-imagery";
 
-                // 🔹 Create 3D Scene View with High Quality Rendering
+                // 🔹 Create SceneView
                 const view = new SceneView({
                     container: "viewDiv",
                     map: webmap,
                     camera: {
-                        position: [-93.265, 44.9778, 1500],  // Adjust location as needed
+                        position: [-93.265, 44.9778, 1500],
                         tilt: 60
                     },
-                    qualityProfile: "high",  // Ensure high-quality rendering
+                    qualityProfile: "high",
                     environment: {
                         atmosphere: { quality: "high" },
                         lighting: { type: "sun" }
@@ -77,44 +76,51 @@
                 view.ui.add(homeWidget, "top-left");
                 view.ui.add(zoomWidget, "top-left");
 
-                // 🔹 Feature Layer for Plow Locations (Points)
-                const plowLayer = new FeatureLayer({
-                    url: "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0",
+                // 🔹 Feature Layer for Vehicle Locations
+                const vehicleLayer = new FeatureLayer({
+                    url: "https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/kubota_stream_public/MapServer/0",
                     outFields: ["*"],
                     popupEnabled: true
                 });
-                webmap.add(plowLayer);
+                webmap.add(vehicleLayer);
 
-                // 🔹 Create GraphicsLayer for 3D Snowplows
-                const snowplowLayer = new GraphicsLayer();
-                webmap.add(snowplowLayer);
+                // 🔹 Create GraphicsLayer for Animated Vehicles
+                const vehicleGraphicsLayer = new GraphicsLayer();
+                webmap.add(vehicleGraphicsLayer);
 
-                // 🔹 3D Snowplow Symbol (Increased Size & Elevated Above Ground)
-                const snowplowSymbol = new PointSymbol3D({
+                // 🔹 3D Vehicle Model (Truck)
+                const vehicleSymbol = new PointSymbol3D({
                     symbolLayers: [new ObjectSymbol3DLayer({
-                        resource: { href: "https://static.arcgis.com/models/transportation/snowplow.json" },
+                        resource: { href: "https://static.arcgis.com/models/transportation/truck.json" },
                         height: 15,
                         width: 10
                     })]
                 });
 
-                let vehicleGraphics = {}; // Store plow positions
+                let vehicleGraphics = {};  // Stores vehicle objects
+                let vehicleTargets = {};   // Stores the last known locations to move towards
 
-                // 🔹 Wait for WebMap to Load
                 webmap.when(() => {
                     const layers = webmap.layers.items;
-                    let roadLayer = layers.find(layer => layer.type === "feature");  // Check if a road layer exists in WebMap
+                    let roadLayer = layers.find(layer => layer.type === "feature");
 
-                    // 🔹 Function to Fetch Plow Locations and Update Graphics
-                    function updatePlows() {
-                        plowLayer.queryFeatures({
-                            where: "1=1",  // Get all plows
+                    // 🔹 Hide Unsupported CIM Line Layers
+                    webmap.layers.forEach(layer => {
+                        if (layer.type === "feature" && layer.renderer && layer.renderer.symbol && layer.renderer.symbol.type === "cim") {
+                            console.warn(`⚠️ Hiding unsupported CIM layer: ${layer.title}`);
+                            layer.visible = false;
+                        }
+                    });
+
+                    // 🔹 Function to Fetch Vehicle Locations
+                    function updateVehicles() {
+                        vehicleLayer.queryFeatures({
+                            where: "1=1",
                             returnGeometry: true,
                             outFields: ["objectid"]
                         }).then((results) => {
-                            console.log(`✅ Retrieved ${results.features.length} plows`);
+                            console.log(`✅ Retrieved ${results.features.length} vehicles`);
                             results.features.forEach(feature => {
-                                // 🔹 Ensure objectid exists before using it
                                 if (!feature.attributes || !feature.attributes.objectid) {
                                     console.warn("⚠️ Missing objectid for a feature:", feature);
                                     return;
@@ -123,7 +129,10 @@
                                 let vehicleId = feature.attributes.objectid.toString();
                                 let point = feature.geometry;
 
-                                // 🔹 Snap to road if road layer exists
+                                // Store the target location for movement
+                                vehicleTargets[vehicleId] = point;
+
+                                // Snap to road if road layer exists
                                 if (roadLayer) {
                                     roadLayer.queryFeatures({
                                         geometry: point,
@@ -148,54 +157,56 @@
                         });
                     }
 
-                    // 🔹 Function to Update Plow Locations on Map
+                    // 🔹 Function to Update or Add a Vehicle
                     function updateVehicle(vehicleId, newPoint) {
-                        console.log(`🚜 Updating Plow ID: ${vehicleId} at`, newPoint);
-
                         if (vehicleGraphics[vehicleId]) {
-                            animateVehicle(vehicleGraphics[vehicleId], newPoint);
+                            vehicleGraphics[vehicleId].targetLocation = newPoint; // Set new target
                         } else {
                             let newGraphic = new Graphic({
                                 geometry: newPoint,
-                                symbol: snowplowSymbol,  // Ensure symbol is assigned
+                                symbol: vehicleSymbol,
                                 attributes: { id: vehicleId },
                                 elevationInfo: {
-                                    mode: "relative-to-ground",  // Keeps snowplow above ground level
-                                    offset: 2  // Adjusts height to prevent sinking into terrain
+                                    mode: "relative-to-ground",
+                                    offset: 2
                                 }
                             });
 
-                            console.log("✅ Adding Snowplow Model:", newGraphic);
+                            console.log("✅ Adding 3D Vehicle:", newGraphic);
                             vehicleGraphics[vehicleId] = newGraphic;
-                            snowplowLayer.add(newGraphic);
+                            vehicleGraphicsLayer.add(newGraphic);
                         }
                     }
 
-                    // 🔹 Smooth Animation Function
-                    function animateVehicle(graphic, newPoint) {
-                        let oldPoint = graphic.geometry;
-                        let frame = 0;
-                        let totalFrames = 30;  // Adjust for smoother or faster movement
+                    // 🔹 Continuous Smooth Movement Animation
+                    function animateVehicles() {
+                        Object.keys(vehicleGraphics).forEach(vehicleId => {
+                            let vehicle = vehicleGraphics[vehicleId];
+                            let target = vehicleTargets[vehicleId];
 
-                        function step() {
-                            if (frame < totalFrames) {
-                                let x = oldPoint.x + ((newPoint.x - oldPoint.x) * (frame / totalFrames));
-                                let y = oldPoint.y + ((newPoint.y - oldPoint.y) * (frame / totalFrames));
-                                let z = oldPoint.z + ((newPoint.z - oldPoint.z) * (frame / totalFrames));
+                            if (!target) return;
 
-                                graphic.geometry = new Point({ x, y, z });
-                                frame++;
-                                requestAnimationFrame(step);
-                            } else {
-                                graphic.geometry = newPoint;
-                            }
-                        }
-                        step();
+                            let oldPoint = vehicle.geometry;
+                            let dx = (target.x - oldPoint.x) * 0.02; // Small step per frame
+                            let dy = (target.y - oldPoint.y) * 0.02;
+                            let dz = (target.z - oldPoint.z) * 0.02;
+
+                            let newX = oldPoint.x + dx;
+                            let newY = oldPoint.y + dy;
+                            let newZ = oldPoint.z + dz;
+
+                            vehicle.geometry = new Point({ x: newX, y: newY, z: newZ });
+                        });
+
+                        requestAnimationFrame(animateVehicles);
                     }
 
-                    // 🔹 Refresh Plow Locations Every 30 Seconds
-                    updatePlows();
-                    setInterval(updatePlows, 30000);
+                    // 🔹 Start Animation Loop
+                    animateVehicles();
+
+                    // 🔹 Fetch New GPS Data Every 30 Seconds
+                    updateVehicles();
+                    setInterval(updateVehicles, 30000);
                 });
 
             }).catch(err => {
