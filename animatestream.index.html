@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + ArcGIS OAuth (2D Animated Vehicles)</title>
+    <title>Mapbox + ArcGIS OAuth (3D Buildings + 2D Vehicles)</title>
 
     <!-- Mapbox GL JS -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
@@ -24,15 +24,35 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    // ✅ FIX: Use a valid Mapbox basemap style
+    // ✅ Mapbox 3D Buildings Fix
     const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/outdoors-v12', // ✅ Changed to a valid Mapbox style
+        style: 'mapbox://styles/mapbox/mapbox-streets-v12', // ✅ Supports 3D Buildings
         center: [-93.2650, 44.9778], // Minneapolis, MN
         zoom: 14,
         pitch: 60, // 3D View
         bearing: 0,
         antialias: true
+    });
+
+    map.on('load', function () {
+        console.log("✅ Map Loaded!");
+
+        // ✅ Add 3D Buildings Layer
+        map.addLayer({
+            id: '3d-buildings',
+            source: 'composite',
+            'source-layer': 'building',
+            type: 'fill-extrusion',
+            minzoom: 15,
+            paint: {
+                'fill-extrusion-color': '#aaa',
+                'fill-extrusion-height': ['get', 'height'],
+                'fill-extrusion-base': ['get', 'min_height'],
+                'fill-extrusion-opacity': 0.6
+            }
+        });
+        console.log("✅ 3D Buildings Layer Added");
     });
 
     let vehicleMarkers = {}; // Store vehicle markers
@@ -86,6 +106,10 @@
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
+                    
+                    // ✅ Fix: Prevent errors due to null values
+                    const speed = vehicle.properties.speedmph ?? 0;
+                    const heading = vehicle.properties.heading ?? 0;
 
                     if (vehicleMarkers[vehicleId]) {
                         // Smoothly animate marker movement
@@ -96,6 +120,7 @@
                             color: "#FF0000"
                         })
                         .setLngLat(coordinates)
+                        .setPopup(new mapboxgl.Popup().setText(`🚛 Speed: ${speed} MPH`)) // ✅ Show speed in popup
                         .addTo(map);
 
                         vehicleMarkers[vehicleId] = marker;
