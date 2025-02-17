@@ -9,12 +9,6 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
 
-    <!-- Three.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    
-    <!-- Three.js GLTFLoader -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-
     <!-- Threebox for 3D Models -->
     <script src="threebox.min.js"></script>
     <link href="threebox.css" rel="stylesheet" />
@@ -118,8 +112,10 @@
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
-                    const speed = vehicle.properties.speedmph ?? 0;
-                    const heading = vehicle.properties.heading ?? 0;
+
+                    // ✅ Fix null values
+                    const speed = vehicle.properties.speedmph !== null ? vehicle.properties.speedmph : 0;
+                    const heading = vehicle.properties.heading !== null ? vehicle.properties.heading : 0;
 
                     if (!vehicleModels[vehicleId]) {
                         vehicleModels[vehicleId] = {
@@ -128,17 +124,16 @@
                         };
 
                         // ✅ Load 3D GLB model properly
-                        tb.load(
-                            "uploads_files_5264196_papercar.glb",
-                            function (model) {
-                                model.setCoords(coordinates);
-                                model.setRotation({ x: 90, y: 0, z: heading });
-                                model.setScale(3);
-                                tb.add(model);
-                                vehicleModels[vehicleId].model = model;
-                            },
-                            { scaleToMeters: true, units: "meters" }
-                        );
+                        tb.loadGLTF({
+                            url: 'uploads_files_5264196_papercar.glb',
+                            scale: 3,
+                            rotation: { x: 90, y: 0, z: heading },
+                            anchor: 'center'
+                        }, function (model) {
+                            model.setCoords(coordinates);
+                            tb.add(model);
+                            vehicleModels[vehicleId].model = model;
+                        });
                     }
 
                     // ✅ Store last 3 positions
