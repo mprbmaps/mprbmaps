@@ -38,13 +38,13 @@
         antialias: true
     });
 
-    let tb;  // Threebox instance
     let vehicleModels = {}; // Store 3D models and movement history
 
     map.on('load', function () {
         console.log("✅ Map Loaded!");
 
-        tb = new Threebox(
+        // ✅ Make Threebox Global
+        window['tb'] = new Threebox(
             map,
             map.getCanvas().getContext('webgl'),
             { defaultLights: true }
@@ -123,14 +123,14 @@
                             model: null
                         };
 
-                        // ✅ Corrected: Use `tb.load()` for Threebox models
-                        tb.load(
+                        // ✅ Use `window['tb']` for Threebox models
+                        window['tb'].load(
                             "uploads_files_5264196_papercar.glb",
                             function (model) {
                                 model.setCoords(coordinates);
                                 model.setRotation({ x: 90, y: 0, z: heading });
                                 model.setScale(3);
-                                tb.add(model);
+                                window['tb'].add(model);
                                 vehicleModels[vehicleId].model = model;
                             },
                             { scaleToMeters: true, units: "meters" }
