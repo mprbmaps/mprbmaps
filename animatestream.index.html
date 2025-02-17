@@ -12,8 +12,8 @@
     <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
 
-    <!-- Threebox JS and CSS (Placed in the main directory) -->
-    <script src="threebox.min.js" type="text/javascript"></script>
+    <!-- Threebox (Ensure these files are in your main directory and accessible) -->
+    <script src="threebox.js"></script>
     <link href="threebox.css" rel="stylesheet" />
 
     <style>
@@ -42,13 +42,6 @@
     map.on('load', function () {
         console.log("✅ Map Loaded!");
 
-        // ✅ Initialize Threebox after style loads
-        window.tb = new Threebox(
-            map,
-            map.getCanvas().getContext('webgl'),
-            { defaultLights: true }
-        );
-
         // ✅ Add OpenStreetMap 3D Buildings
         map.addLayer({
             id: 'osm-3d-buildings',
@@ -65,8 +58,17 @@
         });
         console.log("✅ OSM 3D Buildings Layer Added");
 
-        // ✅ Load vehicle locations
-        loadVehicleData();
+        // ✅ Initialize Threebox for 3D Models
+        if (typeof Threebox !== "undefined") {
+            window.tb = new Threebox(
+                map,
+                map.getCanvas().getContext('webgl'),
+                { defaultLights: true }
+            );
+            console.log("✅ Threebox Initialized!");
+        } else {
+            console.error("❌ Threebox failed to load.");
+        }
     });
 
     let vehicleModels = {}; // Store vehicle models
@@ -92,14 +94,14 @@
             console.error("❌ Sign-in failed:", error);
         });
 
-        const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
+        const vehicleLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
 
         async function loadVehicleData() {
             try {
                 console.log("🔄 Fetching vehicle data...");
 
                 // ✅ Use esriRequest to fetch vehicle data
-                const response = await esriRequest(featureLayerURL + "/query", {
+                const response = await esriRequest(vehicleLayerURL + "/query", {
                     query: {
                         where: "1=1",
                         outFields: "objectid,heading,vehicleid,speedmph",
@@ -125,22 +127,20 @@
                     const speed = vehicle.properties.speedmph ?? 0;
                     const heading = vehicle.properties.heading ?? 0;
 
-                    if (vehicleModels[vehicleId]) {
-                        // ✅ Animate model movement
-                        animateModel(vehicleModels[vehicleId], coordinates, heading);
-                    } else {
-                        // ✅ Load a 3D GLTF snowplow model for new vehicles
-                        tb.loadGLTF({
-                            type: "gltf",
-                            obj: "snowplow.gltf", // Ensure this file exists in your main directory
-                            scale: 5, // Adjust as needed
-                            rotation: { x: 90, y: 0, z: heading },
-                            anchor: "center"
-                        }, function(model) {
-                            model.setCoords(coordinates);
-                            tb.add(model);
-                            vehicleModels[vehicleId] = model;
-                        });
+                    if (window.tb) {
+                        if (vehicleModels[vehicleId]) {
+                            // Move the existing model smoothly
+                            animateModel(vehicleModels[vehicleId], coordinates, heading);
+                        } else {
+                            // ✅ Load a 3D snow plow GLTF model
+                            window.tb.loadGLTF("snowplow.glb", (model) => {
+                                model.setCoords(coordinates);
+                                model.setRotation({ x: 0, y: heading, z: 0 });
+                                model.setScale(5); // Adjust size if needed
+                                window.tb.add(model);
+                                vehicleModels[vehicleId] = model;
+                            });
+                        }
                     }
                 });
 
@@ -150,7 +150,7 @@
             }
         }
 
-        function animateModel(model, newCoords, newHeading) {
+        function animateModel(model, newCoords, heading) {
             const duration = 1000; // 1-second animation
             const start = performance.now();
             const oldCoords = model.coordinates;
@@ -162,7 +162,7 @@
                 const interpolatedLat = oldCoords[1] + (newCoords[1] - oldCoords[1]) * progress;
 
                 model.setCoords([interpolatedLng, interpolatedLat]);
-                model.setRotation({ x: 90, y: 0, z: newHeading });
+                model.setRotation({ x: 0, y: heading, z: 0 });
 
                 if (progress < 1) {
                     requestAnimationFrame(step);
