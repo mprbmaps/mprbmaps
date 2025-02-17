@@ -68,7 +68,7 @@
 
         console.log("✅ 3D Buildings Layer Added");
 
-        // ✅ Load vehicle data AFTER Threebox is initialized
+        // ✅ Load vehicle data ONLY AFTER Threebox is initialized
         setTimeout(loadVehicleData, 3000);
         setInterval(loadVehicleData, 30000); // Refresh vehicles every 30 sec
     });
@@ -86,6 +86,8 @@
         // ✅ Check sign-in status
         IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
             console.log("✅ Signed in successfully");
+
+            // ✅ Ensure vehicle data loads only after authentication
             loadVehicleData();
         }).catch(error => {
             console.error("❌ Sign-in failed:", error);
@@ -125,7 +127,7 @@
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.objectid;
-                    const heading = vehicle.properties.heading || 0;
+                    const heading = vehicle.properties.heading ?? 0; // Default to 0 if null
 
                     // ✅ Check if model already exists, update instead of reloading
                     if (vehicleModels[vehicleId]) {
