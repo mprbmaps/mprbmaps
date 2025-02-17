@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + OpenStreetMap 3D Buildings + ArcGIS Vehicles</title>
+    <title>Mapbox + ArcGIS + Threebox (3D Snowplows)</title>
 
     <!-- Mapbox GL JS -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
 
-    <!-- ArcGIS JavaScript API -->
-    <script src="https://js.arcgis.com/4.27/init.js"></script>
-
-    <!-- Threebox -->
+    <!-- Threebox for 3D models -->
     <script src="threebox.min.js"></script>
     <link href="threebox.css" rel="stylesheet" />
 
-    <!-- Three.js (Load only once) -->
+    <!-- ArcGIS JavaScript API -->
+    <script src="https://js.arcgis.com/4.27/"></script>
+
+    <!-- Three.js (for GLTF Model Loading) -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
@@ -32,47 +32,64 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    // ✅ Initialize Mapbox
+    // Initialize Mapbox map
     const map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/mapbox/outdoors-v12',
-        center: [-93.2650, 44.9778],
+        center: [-93.2650, 44.9778], // Minneapolis, MN
         zoom: 14,
-        pitch: 60,
+        pitch: 60, // 3D View
         bearing: 0,
         antialias: true
     });
 
+    let tb; // Threebox instance
     let vehicleModels = {}; // Store 3D vehicle models
 
-    require([
-        "esri/request",
-        "esri/identity/OAuthInfo",
-        "esri/identity/IdentityManager"
-    ], function (esriRequest, OAuthInfo, IdentityManager) {
+    map.on('style.load', function () {
+        console.log("✅ Mapbox Style Loaded");
 
-        // ✅ Fix OAuth Authentication Issue
-        const info = new OAuthInfo({
-            appId: "ti3fi1FqvHE2Hhyw",
-            popup: false
+        // ✅ Initialize Threebox AFTER Mapbox is fully loaded
+        tb = new Threebox(map, map.getCanvas(), { defaultLights: true });
+
+        // ✅ Wait for the composite source to load before adding 3D buildings
+        map.addLayer({
+            id: '3d-buildings',
+            source: 'composite',
+            'source-layer': 'building',
+            type: 'fill-extrusion',
+            minzoom: 10,
+            paint: {
+                'fill-extrusion-color': '#ddd',
+                'fill-extrusion-height': [
+                    "interpolate", ["linear"], ["zoom"],
+                    10, 0,
+                    16, ["get", "height"]
+                ],
+                'fill-extrusion-opacity': 0.8
+            }
         });
-        IdentityManager.registerOAuthInfos([info]);
 
-        // ✅ Authenticate before fetching data
-        IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
-            console.log("✅ Signed in successfully");
-            loadVehicleData();
-        }).catch(error => {
-            console.error("❌ Sign-in failed:", error);
-        });
+        console.log("✅ 3D Buildings Layer Added");
 
+        // ✅ Load vehicle data AFTER Threebox is initialized
+        setTimeout(loadVehicleData, 3000);
+        setInterval(loadVehicleData, 30000); // Refresh vehicles every 30 sec
+    });
+
+    require(["esri/request"], function(esriRequest) {
         const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
 
         async function loadVehicleData() {
+            if (!tb) {
+                console.error("❌ Threebox not initialized yet.");
+                return;
+            }
+
             try {
                 console.log("🔄 Fetching vehicle data...");
 
-                // ✅ Ensure `esriRequest` is properly used
+                // ✅ Use esriRequest to fetch vehicle data as GeoJSON
                 const response = await esriRequest(featureLayerURL + "/query", {
                     query: {
                         where: "1=1",
@@ -90,23 +107,21 @@
                     return;
                 }
 
-                // ✅ Update or create vehicle models
+                // ✅ Remove old 3D models before updating
+                tb.clear();
+
+                // ✅ Load 3D Snowplow Models for each vehicle
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.objectid;
-                    
-                    // ✅ Fix: Prevent errors due to null values
-                    const speed = vehicle.properties.Kmph ?? 0;
-                    const heading = vehicle.properties.heading ?? 0;
+                    const heading = vehicle.properties.heading || 0;
 
-                    // ✅ Load or move 3D model
-                    if (window.tb) {
-                        if (vehicleModels[vehicleId]) {
-                            vehicleModels[vehicleId].setCoords(coordinates);
-                            vehicleModels[vehicleId].setRotation({ x: 0, y: heading, z: 0 });
-                        } else {
-                            loadGLTFModel("uploads_files_5264196_papercar.glb", coordinates, heading, vehicleId);
-                        }
+                    // ✅ Check if model already exists, update instead of reloading
+                    if (vehicleModels[vehicleId]) {
+                        vehicleModels[vehicleId].setCoords([coordinates[0], coordinates[1], 0]);
+                        vehicleModels[vehicleId].setRotation({ x: 0, y: heading, z: 0 });
+                    } else {
+                        loadGLTFModel("uploads_files_5264196_papercar.glb", coordinates, heading, vehicleId);
                     }
                 });
 
@@ -119,65 +134,27 @@
         function loadGLTFModel(url, coordinates, heading, vehicleId) {
             const loader = new THREE.GLTFLoader();
             loader.load(url, function (gltf) {
-                console.log("✅ GLB model loaded successfully", gltf);
+                console.log("✅ GLTF Model Loaded Successfully:", gltf);
                 
-                // Wrap the model in Threebox object
-                const model = new window.tb.Object3D({
+                // ✅ Wrap model in a Threebox object
+                const model = new tb.Object3D({
                     obj: gltf.scene,
                     type: "gltf",
-                    scale: 1,
+                    scale: 2,
                     units: "meters",
                     rotation: { x: 0, y: heading, z: 0 },
                     anchor: "center"
                 });
 
-                model.setCoords(coordinates);
-                window.tb.add(model);
+                model.setCoords([coordinates[0], coordinates[1], 0]);
+                tb.add(model);
                 vehicleModels[vehicleId] = model;
             }, undefined, function (error) {
                 console.error("❌ Error loading GLTF model:", error);
             });
         }
-
-        map.on('load', function () {
-            console.log("✅ Map Loaded!");
-
-            // ✅ Add OpenStreetMap 3D Buildings
-            map.addLayer({
-                id: 'osm-3d-buildings',
-                source: 'composite',
-                'source-layer': 'building',
-                type: 'fill-extrusion',
-                minzoom: 15,
-                paint: {
-                    'fill-extrusion-color': '#aaa',
-                    'fill-extrusion-height': ['get', 'height'],
-                    'fill-extrusion-base': ['get', 'min_height'],
-                    'fill-extrusion-opacity': 0.6
-                }
-            });
-            console.log("✅ OSM 3D Buildings Layer Added");
-
-            // ✅ Initialize Threebox
-            window.tb = new Threebox(map, map.getCanvas().getContext('webgl'), {
-                defaultLights: true
-            });
-
-            console.log("✅ Threebox Initialized!");
-
-            // ✅ Load Vehicle Data
-            loadVehicleData();
-
-            // ✅ Auto-refresh vehicles every 30 seconds
-            setInterval(() => {
-                IdentityManager.getCredential(info.portalUrl + "/sharing").then(() => {
-                    loadVehicleData();
-                }).catch(error => {
-                    console.warn("⚠️ User not signed in, skipping vehicle update.");
-                });
-            }, 30000);
-        });
     });
+
 </script>
 
 </body>
