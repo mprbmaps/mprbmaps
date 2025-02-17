@@ -3,14 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + ArcGIS Online Vehicles</title>
+    <title>Mapbox + ArcGIS + Threebox (3D Snowplows)</title>
 
     <!-- Mapbox GL JS -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
 
-    <!-- Esri-Leaflet for ArcGIS Online -->
-    <script src="https://unpkg.com/esri-leaflet"></script>
+    <!-- ArcGIS JavaScript API -->
+    <script src="https://js.arcgis.com/4.27/"></script>
+
+    <!-- Threebox for 3D models -->
+    <script src="https://unpkg.com/threebox-plugin@2.2.1/dist/threebox.min.js"></script>
+    <link href="https://unpkg.com/threebox-plugin@2.2.1/dist/threebox.css" rel="stylesheet">
 
     <style>
         body { margin: 0; padding: 0; }
@@ -24,10 +28,10 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    // Initialize the Mapbox map
+    // Initialize Mapbox map
     const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/light-v11', // OpenStreetMap 3D buildings
+        style: 'mapbox://styles/mapbox/light-v11', // OpenStreetMap 3D
         center: [-93.2650, 44.9778], // Minneapolis, MN (Default center)
         zoom: 12,
         pitch: 60, // 3D view
@@ -35,69 +39,91 @@
         antialias: true
     });
 
-    // Load 3D Buildings
-    map.on('load', function () {
-        map.addLayer({
-            id: '3d-buildings',
-            source: 'composite',
-            'source-layer': 'building',
-            type: 'fill-extrusion',
-            paint: {
-                'fill-extrusion-color': '#aaa',
-                'fill-extrusion-height': ['get', 'height'],
-                'fill-extrusion-opacity': 0.6
-            }
-        });
+    let tb; // Threebox instance
 
-        // Load vehicle locations from ArcGIS Online
-        loadVehicleData();
-        setInterval(loadVehicleData, 30000); // Refresh every 30 sec
-    });
+    // Load ArcGIS JavaScript API
+    require(["esri/layers/FeatureLayer"], function(FeatureLayer) {
 
-    // Fetch vehicle locations from ArcGIS Online using Item ID
-    async function loadVehicleData() {
-        const itemID = "252dafda1265439b98383967c7c9d442";
-        const arcgisURL = `https://services.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/${itemID}/FeatureServer/0/query?where=1=1&outFields=objectid,heading,vehicleid,speedmph&outSR=4326&f=geojson`;
+        // Feature Layer from ArcGIS Online (using item ID)
+        const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
 
-        try {
-            const response = await fetch(arcgisURL);
-            const data = await response.json();
-
-            if (!data || !data.features || data.features.length === 0) {
-                console.error("No vehicles found in ArcGIS Online.");
-                return;
-            }
-
-            // Remove old vehicle layer if exists
-            if (map.getSource('vehicles')) {
-                map.removeLayer('vehicle-layer');
-                map.removeSource('vehicles');
-            }
-
-            // Add new vehicle layer
-            map.addSource('vehicles', {
-                type: 'geojson',
-                data: data
+        map.on('style.load', function () {
+            // Initialize Threebox for 3D models
+            tb = new Threebox(map, map.getCanvas(), {
+                defaultLights: true
             });
 
-            // Display vehicle icons
+            // Add 3D buildings layer
             map.addLayer({
-                id: 'vehicle-layer',
-                type: 'symbol',
-                source: 'vehicles',
-                layout: {
-                    'icon-image': 'bus-15', // Change this if needed
-                    'icon-size': 1.5,
-                    'icon-rotate': ['get', 'heading'],
-                    'icon-allow-overlap': true
+                id: '3d-buildings',
+                source: 'composite',
+                'source-layer': 'building',
+                type: 'fill-extrusion',
+                paint: {
+                    'fill-extrusion-color': '#aaa',
+                    'fill-extrusion-height': ['get', 'height'],
+                    'fill-extrusion-opacity': 0.6
                 }
             });
 
-            console.log("Vehicles updated:", data.features.length);
-        } catch (error) {
-            console.error("Error loading vehicle data:", error);
+            // Load vehicle locations
+            loadVehicleData();
+            setInterval(loadVehicleData, 30000); // Refresh every 30 sec
+        });
+
+        // Fetch vehicle locations using ArcGIS JS API
+        async function loadVehicleData() {
+            try {
+                const layer = new FeatureLayer({ url: featureLayerURL });
+
+                // Query all features
+                const query = layer.createQuery();
+                query.where = "1=1";
+                query.outFields = ["objectid", "heading", "vehicleid", "speedmph"];
+                query.returnGeometry = true;
+
+                const results = await layer.queryFeatures(query);
+
+                if (!results || !results.features || results.features.length === 0) {
+                    console.error("No vehicles found in ArcGIS Feature Layer.");
+                    return;
+                }
+
+                // Convert ArcGIS Features to GeoJSON
+                const geojson = results.features.map(feature => ({
+                    id: feature.attributes.objectid,
+                    coordinates: [feature.geometry.longitude, feature.geometry.latitude, 0], // 0 altitude
+                    properties: {
+                        vehicleid: feature.attributes.vehicleid,
+                        heading: feature.attributes.heading,
+                        speedmph: feature.attributes.speedmph
+                    }
+                }));
+
+                // Remove old 3D models
+                tb.clear();
+
+                // Load 3D snowplow models for each vehicle
+                geojson.forEach(vehicle => {
+                    tb.loadObj({
+                        obj: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/obj/male02/male02.obj', // Placeholder OBJ file
+                        type: 'mtl',
+                        scale: 2,
+                        units: 'meters',
+                        rotation: { x: 90, y: 0, z: vehicle.properties.heading },
+                        anchor: 'center'
+                    }, (model) => {
+                        model.setCoords(vehicle.coordinates);
+                        tb.add(model);
+                    });
+                });
+
+                console.log("Vehicles updated:", geojson.length);
+            } catch (error) {
+                console.error("Error loading vehicle data:", error);
+            }
         }
-    }
+    });
 </script>
 
 </body>
