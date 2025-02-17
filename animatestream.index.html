@@ -9,8 +9,11 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet" />
 
-    <!-- Threebox Plugin -->
-    <script src="https://unpkg.com/threebox-plugin"></script>
+    <!-- Three.js (required for Threebox) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- Threebox (Correct Version) -->
+    <script src="https://unpkg.com/threebox@2.2.0"></script>
 
     <style>
         body, html {
@@ -33,11 +36,11 @@
         // Set your Mapbox token
         mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-        // Initialize the Mapbox map with 3D buildings
+        // Initialize the Mapbox map
         const map = new mapboxgl.Map({
             container: 'map',
-            style: 'mapbox://styles/mapbox/satellite-streets-v11', // Use satellite basemap with streets
-            center: [-93.265, 44.977], // Default to Minneapolis
+            style: 'mapbox://styles/mapbox/satellite-streets-v11', // Change basemap if needed
+            center: [-93.265, 44.977], // Default center (Minneapolis)
             zoom: 15,
             pitch: 60, // Tilting the map for better 3D visualization
             bearing: 0,
@@ -47,26 +50,27 @@
         // Add navigation controls
         map.addControl(new mapboxgl.NavigationControl());
 
-        // ArcGIS Feature Layer URL
-        const arcgisUrl = 'https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/kubota_stream_public/MapServer/0/query?where=1%3D1&outFields=*&f=geojson';
+        // ArcGIS Feature Layer as a GeoJSON Source
+        const arcgisLayerUrl = 'https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/kubota_stream_public/MapServer/0/query?where=1%3D1&outFields=*&f=geojson';
 
-        let tb; // Threebox instance
-        let snowPlows = {}; // Store 3D models
+        // Load ArcGIS feature layer as GeoJSON
+        map.on('load', () => {
+            map.addSource('vehicles', {
+                type: 'geojson',
+                data: arcgisLayerUrl
+            });
 
-        // Load the map
-        map.on('style.load', () => {
             map.addLayer({
-                id: '3d-buildings',
-                source: 'composite',
-                'source-layer': 'building',
-                type: 'fill-extrusion',
+                id: 'vehicle-layer',
+                type: 'circle',
+                source: 'vehicles',
                 paint: {
-                    'fill-extrusion-color': '#aaa',
-                    'fill-extrusion-height': ['get', 'height'],
-                    'fill-extrusion-opacity': 0.6
+                    'circle-radius': 6,
+                    'circle-color': '#ff0000'
                 }
             });
 
+            // Add Threebox 3D Model Layer
             tb = new Threebox(map, map.getCanvas().getContext('webgl'), {
                 defaultLights: true
             });
@@ -85,25 +89,28 @@
             });
         });
 
-        // Fetch and load vehicle locations into Mapbox
+        let tb; // Threebox instance
+        let snowPlows = {}; // Store 3D models
+
+        // Fetch and load vehicle locations into Mapbox with Threebox
         async function loadVehicles() {
             try {
-                const response = await fetch(arcgisUrl);
+                const response = await fetch(arcgisLayerUrl);
                 const data = await response.json();
                 
                 data.features.forEach(vehicle => {
                     const coords = vehicle.geometry.coordinates;
-                    const vehicleId = vehicle.properties.objectid; // Assuming "objectid" is a unique identifier
-                    const bearing = vehicle.properties.bearing || 0; // Adjust based on your feature layer field name
+                    const vehicleId = vehicle.properties.objectid; // Adjust based on actual field
+                    const bearing = vehicle.properties.bearing || 0;
 
                     if (snowPlows[vehicleId]) {
-                        // Update position and rotation
+                        // Update existing model position
                         snowPlows[vehicleId].setCoords([coords[0], coords[1], 0]);
                         snowPlows[vehicleId].setRotation({ x: 0, y: bearing, z: 0 });
                     } else {
-                        // Load new 3D model for this vehicle
+                        // Load new 3D model
                         tb.loadObj({
-                            obj: 'https://models.example.com/snowplow.obj', // Replace with your 3D model URL
+                            obj: 'https://models.example.com/snowplow.obj', // Replace with actual model
                             type: 'mtl',
                             scale: 5,
                             units: 'meters',
