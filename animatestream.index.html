@@ -4,13 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-Time Vehicle Tracking</title>
-    
-    <!-- Mapbox & Threebox -->
-    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
-    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
-    
+
+    <!-- ✅ Mapbox GL JS (Downgraded to v1.13.0 for Threebox compatibility) -->
+    <script src="https://api.mapbox.com/mapbox-gl-js/v1.13.0/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v1.13.0/mapbox-gl.css" rel="stylesheet">
+
+    <!-- ✅ Three.js & Threebox -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://unpkg.com/threebox-plugin@2.2.0/dist/threebox.min.js"></script>
+    <script src="https://unpkg.com/threebox-plugin@2.2.0/dist/threebox.js"></script>
 
     <style>
         body { margin: 0; padding: 0; }
@@ -40,7 +41,7 @@
         let vehicleModels = {}; // Store active vehicles
 
         // ✅ Add 3D Buildings
-        map.on('style.load', () => {
+        map.on('load', () => {
             map.addLayer({
                 id: '3d-buildings',
                 source: 'composite',
@@ -59,13 +60,19 @@
                 map.getCanvas().getContext('webgl'),
                 { defaultLights: true }
             );
-            map.addLayer({ id: 'custom-3d-models', type: 'custom', renderingMode: '3d', onAdd: () => {}, render: () => tb.update() });
+            map.addLayer({
+                id: 'custom-3d-models',
+                type: 'custom',
+                renderingMode: '3d',
+                onAdd: function () {},
+                render: function () { tb.update(); }
+            });
 
             // ✅ Start Streaming Vehicles
             connectToStreamServer();
         });
 
-        // ✅ WebSocket URL for ArcGIS Velocity StreamServer
+        // ✅ ArcGIS Velocity StreamServer URL
         const streamUrl = "wss://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/streams/arcgis/rest/services/Test/StreamServer/subscribe";
 
         function connectToStreamServer() {
@@ -123,7 +130,7 @@
 
         // ✅ Load a 3D Snow Plow Model
         function addVehicleModel(id, lon, lat, bearing) {
-            const modelUrl = 'https://threejs.org/examples/models/gltf/SnowPlow.glb'; // Use a real 3D model URL
+            const modelUrl = 'https://threejs.org/examples/models/gltf/SnowPlow.glb'; // Replace with a real model URL
 
             tb.loadObj({ obj: modelUrl, type: 'gltf', scale: 5, units: 'meters' }, function(model) {
                 model.setCoords([lon, lat]);
