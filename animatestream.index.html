@@ -3,166 +3,168 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + ArcGIS Online Vehicles</title>
+    <title>Mapbox + OpenStreetMap 3D Buildings + ArcGIS Vehicles</title>
 
-    <!-- ✅ Mapbox GL -->
+    <!-- Mapbox GL JS -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
-    <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet" />
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
 
-    <!-- ✅ Three.js (Required for Threebox) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-    <!-- ✅ Threebox Plugin -->
-    <script src="https://unpkg.com/threebox-plugin@2.2.0/dist/threebox.min.js"></script>
+    <!-- ArcGIS JavaScript API -->
+    <script src="https://js.arcgis.com/4.27/"></script>
 
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; }
-        #map { width: 100%; height: 100vh; }
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
     </style>
 </head>
 <body>
 
-    <div id="map"></div>
+<div id="map"></div>
 
-    <script>
-        // ✅ Mapbox Access Token
-        mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
+<script>
+    mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-        // ✅ Initialize Mapbox Map
-        const map = new mapboxgl.Map({
-            container: 'map',
-            style: 'mapbox://styles/mapbox/light-v11', // ✅ OpenStreetMap (No Aerial)
-            center: [-93.265, 44.977], // ✅ Minneapolis, adjust as needed
-            zoom: 14,
-            pitch: 60, // ✅ Tilt for 3D view
-            bearing: 0,
-            antialias: true
+    // ✅ Use OpenStreetMap 3D Buildings basemap
+    const map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/outdoors-v12', // ✅ OSM-based outdoors map
+        center: [-93.2650, 44.9778], // Minneapolis, MN
+        zoom: 14,
+        pitch: 60, // 3D Perspective
+        bearing: 0,
+        antialias: true
+    });
+
+    map.on('load', function () {
+        console.log("✅ Map Loaded!");
+
+        // ✅ Add OpenStreetMap 3D Buildings
+        map.addLayer({
+            id: 'osm-3d-buildings',
+            source: 'composite',
+            'source-layer': 'building',
+            type: 'fill-extrusion',
+            minzoom: 15,
+            paint: {
+                'fill-extrusion-color': '#aaa',
+                'fill-extrusion-height': ['get', 'height'],
+                'fill-extrusion-base': ['get', 'min_height'],
+                'fill-extrusion-opacity': 0.6
+            }
+        });
+        console.log("✅ OSM 3D Buildings Layer Added");
+    });
+
+    let vehicleMarkers = {}; // Store vehicle markers
+
+    require([
+        "esri/request",
+        "esri/identity/OAuthInfo",
+        "esri/identity/IdentityManager"
+    ], function(esriRequest, OAuthInfo, IdentityManager) {
+
+        // ✅ ArcGIS OAuth Authentication
+        const info = new OAuthInfo({
+            appId: "ti3fi1FqvHE2Hhyw", // Your ArcGIS App ID
+            popup: true
+        });
+        IdentityManager.registerOAuthInfos([info]);
+
+        // ✅ Check sign-in status
+        IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
+            console.log("✅ Signed in successfully");
+            loadVehicleData();
+        }).catch(error => {
+            console.error("❌ Sign-in failed:", error);
         });
 
-        // ✅ Add navigation controls
-        map.addControl(new mapboxgl.NavigationControl());
+        const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
 
-        // ✅ ArcGIS Feature Layer URL (GeoJSON format)
-        const arcgisLayerUrl = 'https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/kubota_stream_public/MapServer/0/query?where=1%3D1&outFields=*&f=geojson';
+        async function loadVehicleData() {
+            try {
+                console.log("🔄 Fetching vehicle data...");
 
-        // ✅ Load 3D buildings
-        map.on('load', () => {
-            map.addLayer({
-                id: '3d-buildings',
-                source: 'composite',
-                'source-layer': 'building',
-                type: 'fill-extrusion',
-                minzoom: 15,
-                paint: {
-                    'fill-extrusion-color': '#aaa',
-                    'fill-extrusion-height': ['get', 'height'],
-                    'fill-extrusion-opacity': 0.6
-                }
-            });
+                // ✅ Use esriRequest to fetch vehicle data
+                const response = await esriRequest(featureLayerURL + "/query", {
+                    query: {
+                        where: "1=1",
+                        outFields: "objectid,heading,vehicleid,speedmph",
+                        returnGeometry: true,
+                        f: "geojson"
+                    },
+                    responseType: "json"
+                });
 
-            // ✅ Load ArcGIS Vehicles
-            loadArcGISLayer();
-        });
+                const vehicles = response.data.features;
 
-        // ✅ Fetch vehicle locations from ArcGIS Online
-        function loadArcGISLayer() {
-            fetch(arcgisLayerUrl)
-                .then(response => response.json())
-                .then(data => {
-                    if (!data || !data.features) {
-                        console.error("🚨 Error: ArcGIS data is undefined or missing features.");
-                        return;
-                    }
-
-                    console.log("✅ Vehicle Data Loaded:", data); // Debugging log
-
-                    map.addSource('vehicles', { type: 'geojson', data: data });
-
-                    map.addLayer({
-                        id: 'vehicle-layer',
-                        type: 'circle',
-                        source: 'vehicles',
-                        paint: {
-                            'circle-radius': 6,
-                            'circle-color': '#ff0000'
-                        }
-                    });
-
-                    // ✅ Load 3D Snow Plows
-                    loadThreeboxModels(data);
-                })
-                .catch(error => console.error('🚨 Error loading vehicle data:', error));
-        }
-
-        let tb; // ✅ Threebox instance
-        let snowPlows = {}; // ✅ Store 3D models
-
-        // ✅ Function to load vehicles as 3D models
-        function loadThreeboxModels(data) {
-            tb = new Threebox(map, map.getCanvas().getContext('webgl'), { defaultLights: true });
-
-            map.addLayer({
-                id: 'custom-3d-models',
-                type: 'custom',
-                renderingMode: '3d',
-                onAdd: function(map, gl) {
-                    tb.setupDefaultLights();
-                    addVehiclesToThreebox(data);
-                },
-                render: function(gl, matrix) {
-                    tb.update();
-                }
-            });
-        }
-
-        // ✅ Add vehicle 3D models
-        function addVehiclesToThreebox(data) {
-            data.features.forEach(vehicle => {
-                if (!vehicle.geometry || !vehicle.geometry.coordinates) {
-                    console.warn("🚨 Skipping feature with missing coordinates:", vehicle);
+                if (!vehicles || vehicles.length === 0) {
+                    console.warn("⚠️ No vehicles found in ArcGIS Feature Layer.");
                     return;
                 }
 
-                const coords = vehicle.geometry.coordinates;
-                const vehicleId = vehicle.properties.objectid || vehicle.properties.id;
-                const bearing = vehicle.properties.bearing || 0;
+                // ✅ Update or create markers for each vehicle
+                vehicles.forEach(vehicle => {
+                    const coordinates = vehicle.geometry.coordinates;
+                    const vehicleId = vehicle.properties.vehicleid;
+                    
+                    // ✅ Fix: Prevent errors due to null values
+                    const speed = vehicle.properties.speedmph ?? 0;
+                    const heading = vehicle.properties.heading ?? 0;
 
-                if (snowPlows[vehicleId]) {
-                    // ✅ Update existing model position
-                    snowPlows[vehicleId].setCoords([coords[0], coords[1], 0]);
-                    snowPlows[vehicleId].setRotation({ x: 0, y: bearing, z: 0 });
-                } else {
-                    // ✅ Load 3D Snow Plow Model
-                    tb.loadObj({
-                        obj: 'https://models.example.com/snowplow.obj', // Replace with actual model URL
-                        type: 'mtl',
-                        scale: 5,
-                        units: 'meters',
-                        rotation: { x: 0, y: bearing, z: 0 },
-                        anchor: 'center'
-                    }, (model) => {
-                        model.setCoords([coords[0], coords[1], 0]);
-                        snowPlows[vehicleId] = model;
-                        tb.add(model);
-                    });
-                }
-            });
+                    if (vehicleMarkers[vehicleId]) {
+                        // Smoothly animate marker movement
+                        animateMarker(vehicleMarkers[vehicleId], coordinates);
+                    } else {
+                        // Create a new marker if it doesn't exist
+                        const marker = new mapboxgl.Marker({
+                            color: "#FF0000"
+                        })
+                        .setLngLat(coordinates)
+                        .setPopup(new mapboxgl.Popup().setText(`🚛 Speed: ${speed} MPH`)) // ✅ Show speed in popup
+                        .addTo(map);
+
+                        vehicleMarkers[vehicleId] = marker;
+                    }
+                });
+
+                console.log(`✅ Vehicles Updated: ${vehicles.length}`);
+            } catch (error) {
+                console.error("❌ Error loading vehicle data:", error);
+            }
         }
 
-        // ✅ Refresh vehicle positions every 30 seconds
+        function animateMarker(marker, newCoords) {
+            const duration = 1000; // 1-second animation
+            const start = performance.now();
+            const oldCoords = marker.getLngLat();
+
+            function step(timestamp) {
+                const elapsed = timestamp - start;
+                const progress = Math.min(elapsed / duration, 1);
+                const interpolatedLng = oldCoords.lng + (newCoords[0] - oldCoords.lng) * progress;
+                const interpolatedLat = oldCoords.lat + (newCoords[1] - oldCoords.lat) * progress;
+
+                marker.setLngLat([interpolatedLng, interpolatedLat]);
+
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                }
+            }
+
+            requestAnimationFrame(step);
+        }
+
+        // ✅ Auto-refresh vehicles every 30 seconds if signed in
         setInterval(() => {
-            fetch(arcgisLayerUrl)
-                .then(response => response.json())
-                .then(data => {
-                    if (!data || !data.features) {
-                        console.error("🚨 No valid data received.");
-                        return;
-                    }
-                    addVehiclesToThreebox(data);
-                })
-                .catch(error => console.error('🚨 Error refreshing vehicle data:', error));
+            IdentityManager.getCredential(info.portalUrl + "/sharing").then(() => {
+                loadVehicleData();
+            }).catch(error => {
+                console.warn("⚠️ User not signed in, skipping vehicle update.");
+            });
         }, 30000);
-    </script>
+    });
+
+</script>
 
 </body>
 </html>
