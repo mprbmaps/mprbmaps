@@ -5,15 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mapbox + OpenStreetMap 3D Buildings + ArcGIS Vehicles</title>
 
-    <!-- Mapbox GL JS -->
+    <!-- ✅ Mapbox GL JS -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
 
-    <!-- Threebox (For 3D Models) -->
-    <script src="https://unpkg.com/threebox-plugin/dist/threebox.min.js"></script>
-
-    <!-- ArcGIS JavaScript API -->
+    <!-- ✅ ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
+
+    <!-- ✅ Threebox for 3D models -->
+    <script src="https://unpkg.com/threebox-plugin"></script>
 
     <style>
         body { margin: 0; padding: 0; }
@@ -30,12 +30,19 @@
     // ✅ Use OpenStreetMap 3D Buildings basemap
     const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/outdoors-v12', // ✅ Corrected Basemap
+        style: 'mapbox://styles/mapbox/outdoors-v12', // ✅ OSM-based outdoors map
         center: [-93.2650, 44.9778], // Minneapolis, MN
         zoom: 14,
         pitch: 60, // 3D Perspective
         bearing: 0,
         antialias: true
+    });
+
+    // ✅ Threebox for 3D models
+    let tb;
+    map.on('style.load', function () {
+        tb = new Threebox(map, map.getCanvas().getContext('webgl'), { defaultLights: true });
+        console.log("✅ Threebox Loaded");
     });
 
     map.on('load', function () {
@@ -56,17 +63,9 @@
             }
         });
         console.log("✅ OSM 3D Buildings Layer Added");
-
-        // ✅ Initialize Threebox
-        window.tb = new Threebox(
-            map,
-            map.getCanvas().getContext('webgl'),
-            { defaultLights: true }
-        );
-        console.log("✅ Threebox Initialized");
     });
 
-    let vehicleModels = {}; // Store vehicle models
+    let vehicleModels = {}; // Store 3D vehicle models
 
     require([
         "esri/request",
@@ -92,63 +91,62 @@
         const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
 
         async function loadVehicleData() {
-    try {
-        console.log("🔄 Fetching vehicle data...");
+            try {
+                console.log("🔄 Fetching vehicle data...");
 
-        // ✅ Correctly formatted query for ArcGIS Online Feature Service
-        const response = await esriRequest(featureLayerURL + "/query", {
-            query: {
-                where: "1=1",                // ✅ Get all features
-                outFields: "objectid,heading,vehicleid,Kmph",  // ✅ List all needed fields
-                returnGeometry: true,       // ✅ Ensure geometry is returned
-                geometryType: "esriGeometryPoint", // ✅ Specify point type for coordinates
-                spatialRel: "esriSpatialRelIntersects", // ✅ Proper spatial relationship
-                inSR: 4326,                 // ✅ Ensure WGS84 Spatial Reference
-                outSR: 4326,                // ✅ Convert output to WGS84
-                f: "geojson"                // ✅ Get data in GeoJSON format
-            },
-            responseType: "json"
-        });
+                // ✅ Correctly formatted query for ArcGIS Online Feature Service
+                const response = await esriRequest(featureLayerURL + "/query", {
+                    query: {
+                        where: "1=1",                // ✅ Get all features
+                        outFields: "objectid,heading,vehicleid,Kmph",  // ✅ List all needed fields
+                        returnGeometry: true,       // ✅ Ensure geometry is returned
+                        geometryType: "esriGeometryPoint", // ✅ Specify point type for coordinates
+                        spatialRel: "esriSpatialRelIntersects", // ✅ Proper spatial relationship
+                        inSR: 4326,                 // ✅ Ensure WGS84 Spatial Reference
+                        outSR: 4326,                // ✅ Convert output to WGS84
+                        f: "geojson"                // ✅ Get data in GeoJSON format
+                    },
+                    responseType: "json"
+                });
 
-        const vehicles = response.data.features;
+                const vehicles = response.data.features;
 
-        if (!vehicles || vehicles.length === 0) {
-            console.warn("⚠️ No vehicles found in ArcGIS Feature Layer.");
-            return;
-        }
+                if (!vehicles || vehicles.length === 0) {
+                    console.warn("⚠️ No vehicles found in ArcGIS Feature Layer.");
+                    return;
+                }
 
-        // ✅ Update or create models for each vehicle
-        vehicles.forEach(vehicle => {
-            const coordinates = vehicle.geometry.coordinates;
-            const vehicleId = vehicle.properties.vehicleid;
+                // ✅ Update or create models for each vehicle
+                vehicles.forEach(vehicle => {
+                    const coordinates = vehicle.geometry.coordinates;
+                    const vehicleId = vehicle.properties.vehicleid;
 
-            const speed = vehicle.properties.Kmph ?? 0;
-            const heading = vehicle.properties.heading ?? 0;
+                    const speed = vehicle.properties.Kmph ?? 0;
+                    const heading = vehicle.properties.heading ?? 0;
 
-            if (vehicleModels[vehicleId]) {
-                // Update model position & rotation
-                vehicleModels[vehicleId].setCoords([coordinates[0], coordinates[1], 0]);
-                vehicleModels[vehicleId].setRotation(0, heading, 0);
-            } else {
-                // Load the 3D model if it doesn't exist
-                tb.loadObj(
-                    { obj: 'https://example.com/snowplow.gltf', type: 'gltf', scale: 10 }, 
-                    function(model) {
-                        model.setCoords([coordinates[0], coordinates[1], 0]);
-                        model.setRotation(0, heading, 0);
-                        tb.add(model);
-                        vehicleModels[vehicleId] = model;
+                    if (vehicleModels[vehicleId]) {
+                        // Update model position & rotation
+                        vehicleModels[vehicleId].setCoords([coordinates[0], coordinates[1], 0]);
+                        vehicleModels[vehicleId].setRotation(0, heading, 0);
+                    } else {
+                        // Load the 3D model if it doesn't exist
+                        tb.loadObj(
+                            { obj: 'https://example.com/snowplow.gltf', type: 'gltf', scale: 10 }, 
+                            function(model) {
+                                model.setCoords([coordinates[0], coordinates[1], 0]);
+                                model.setRotation(0, heading, 0);
+                                tb.add(model);
+                                vehicleModels[vehicleId] = model;
+                            }
+                        );
                     }
-                );
+                });
+
+                console.log(`✅ Vehicles Updated: ${vehicles.length}`);
+            } catch (error) {
+                console.error("❌ Error loading vehicle data:", error);
             }
-        });
-
-        console.log(`✅ Vehicles Updated: ${vehicles.length}`);
-    } catch (error) {
-        console.error("❌ Error loading vehicle data:", error);
-    }
-}
-
+        }
 
         // ✅ Auto-refresh vehicles every 30 seconds if signed in
         setInterval(() => {
