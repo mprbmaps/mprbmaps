@@ -147,12 +147,14 @@
                             model.scale.set(3, 3, 3);
                             model.rotation.set(THREE.MathUtils.degToRad(90), 0, THREE.MathUtils.degToRad(heading));
 
-                            // ✅ Convert map coordinates to Three.js coordinates
-                            let mapCoords = tb.projectToWorld([coordinates[0], coordinates[1]]);
-                            model.position.set(mapCoords.x, mapCoords.y, 0);  // Place model on the ground
+                            // ✅ Add model at vehicle coordinates
+                            tb.addAtCoordinate(model, [coordinates[0], coordinates[1], 0], { scaleToLatitude: true });
 
-                            tb.add(model);
+                            // ✅ Store model reference
                             vehicleModels[vehicleId].model = model;
+                            
+                            // ✅ Sync Threebox Rendering
+                            tb.update();
                         });
                     }
 
@@ -185,16 +187,16 @@
             const elapsed = timestamp - start;
             const progress = Math.min(elapsed / duration, 1);
 
-            let startPos = tb.projectToWorld([startCoords.lng, startCoords.lat]);
-            let endPos = tb.projectToWorld([endCoords.lng, endCoords.lat]);
-
-            let interpolatedX = startPos.x + (endPos.x - startPos.x) * progress;
-            let interpolatedY = startPos.y + (endPos.y - startPos.y) * progress;
-
-            model.position.set(interpolatedX, interpolatedY, 0);  // Keep model on the ground
+            // ✅ Move vehicle using Threebox function
+            tb.moveObject(model, {
+                position: [endCoords.lng, endCoords.lat, 0],
+                rotation: [0, 0, THREE.MathUtils.degToRad(endCoords.heading)]
+            });
 
             if (progress < 1) {
                 requestAnimationFrame(step);
+            } else {
+                tb.update();
             }
         }
 
