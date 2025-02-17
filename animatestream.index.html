@@ -24,13 +24,13 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    // ✅ Use OpenStreetMap 3D Buildings basemap
+    // ✅ OpenStreetMap 3D Buildings basemap
     const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/outdoors-v12', // ✅ OSM-based outdoors map
-        center: [-93.2650, 44.9778], // Minneapolis, MN
+        style: 'mapbox://styles/mapbox/outdoors-v12', 
+        center: [-93.2650, 44.9778], 
         zoom: 14,
-        pitch: 60, // 3D Perspective
+        pitch: 60, 
         bearing: 0,
         antialias: true
     });
@@ -55,7 +55,7 @@
         console.log("✅ OSM 3D Buildings Layer Added");
     });
 
-    let vehicleMarkers = {}; // Store vehicle markers
+    let vehicleData = {}; // Store vehicle movement history
 
     require([
         "esri/request",
@@ -65,12 +65,11 @@
 
         // ✅ ArcGIS OAuth Authentication
         const info = new OAuthInfo({
-            appId: "ti3fi1FqvHE2Hhyw", // Your ArcGIS App ID
+            appId: "ti3fi1FqvHE2Hhyw",
             popup: true
         });
         IdentityManager.registerOAuthInfos([info]);
 
-        // ✅ Check sign-in status
         IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
             console.log("✅ Signed in successfully");
             loadVehicleData();
@@ -102,28 +101,34 @@
                     return;
                 }
 
-                // ✅ Update or create markers for each vehicle
+                // ✅ Process each vehicle
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
-                    
-                    // ✅ Fix: Prevent errors due to null values
                     const speed = vehicle.properties.speedmph ?? 0;
                     const heading = vehicle.properties.heading ?? 0;
 
-                    if (vehicleMarkers[vehicleId]) {
-                        // Smoothly animate marker movement
-                        animateMarker(vehicleMarkers[vehicleId], coordinates);
-                    } else {
-                        // Create a new marker if it doesn't exist
-                        const marker = new mapboxgl.Marker({
-                            color: "#FF0000"
-                        })
-                        .setLngLat(coordinates)
-                        .setPopup(new mapboxgl.Popup().setText(`🚛 Speed: ${speed} MPH`)) // ✅ Show speed in popup
-                        .addTo(map);
+                    if (!vehicleData[vehicleId]) {
+                        vehicleData[vehicleId] = {
+                            marker: new mapboxgl.Marker({ color: "#FF0000" })
+                                .setLngLat(coordinates)
+                                .setPopup(new mapboxgl.Popup().setText(`🚛 Speed: ${speed} MPH`))
+                                .addTo(map),
+                            positions: [] // Maintain last 3 positions
+                        };
+                    }
 
-                        vehicleMarkers[vehicleId] = marker;
+                    // Store the last 3 positions for animation
+                    let positions = vehicleData[vehicleId].positions;
+                    positions.push({ lng: coordinates[0], lat: coordinates[1], speed, heading });
+
+                    if (positions.length > 3) {
+                        positions.shift(); // Keep only last 3 positions
+                    }
+
+                    // ✅ Animate between the 3rd and 2nd most recent positions
+                    if (positions.length >= 3) {
+                        animateMarker(vehicleData[vehicleId].marker, positions[1], positions[2]);
                     }
                 });
 
@@ -133,16 +138,17 @@
             }
         }
 
-        function animateMarker(marker, newCoords) {
+        function animateMarker(marker, startCoords, endCoords) {
+            if (!startCoords || !endCoords) return;
+
             const duration = 1000; // 1-second animation
             const start = performance.now();
-            const oldCoords = marker.getLngLat();
 
             function step(timestamp) {
                 const elapsed = timestamp - start;
                 const progress = Math.min(elapsed / duration, 1);
-                const interpolatedLng = oldCoords.lng + (newCoords[0] - oldCoords.lng) * progress;
-                const interpolatedLat = oldCoords.lat + (newCoords[1] - oldCoords.lat) * progress;
+                const interpolatedLng = startCoords.lng + (endCoords.lng - startCoords.lng) * progress;
+                const interpolatedLat = startCoords.lat + (endCoords.lat - startCoords.lat) * progress;
 
                 marker.setLngLat([interpolatedLng, interpolatedLat]);
 
