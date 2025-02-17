@@ -66,15 +66,15 @@
     });
 
     let vehicleModels = {}; // Store vehicle models by ID
-    const vehicleLayerURL = "const vehicleLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0/query?where=1=1&outFields=*&f=geojson";
-";
+
+    // ✅ CORRECTED: Use full query URL to get GeoJSON data
+    const vehicleLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0/query?where=1=1&outFields=*&f=geojson";
 
     // ✅ Load ArcGIS IdentityManager
     require([
-        "esri/request",
         "esri/identity/OAuthInfo",
         "esri/identity/IdentityManager"
-    ], function(esriRequest, OAuthInfo, IdentityManager) {
+    ], function(OAuthInfo, IdentityManager) {
 
         // ✅ ArcGIS OAuth Authentication
         const info = new OAuthInfo({
@@ -95,18 +95,9 @@
             try {
                 console.log("🔄 Fetching vehicle data...");
 
-                // ✅ Query ArcGIS Feature Layer for JSON output
-                const response = await esriRequest(vehicleLayerURL, {
-                    query: {
-                        where: "1=1",
-                        outFields: "objectid,heading,Kmph",
-                        returnGeometry: true,
-                        f: "geojson"  // ✅ Request JSON output
-                    },
-                    responseType: "json"
-                });
-
-                const json = response.data;
+                // ✅ Query ArcGIS Feature Layer directly for JSON output
+                const response = await fetch(vehicleLayerURL);
+                const json = await response.json();
 
                 if (!json.features || json.features.length === 0) {
                     console.warn("⚠️ No vehicles found in ArcGIS Feature Layer.");
