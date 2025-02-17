@@ -3,11 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + OpenStreetMap 3D Buildings + ArcGIS Vehicles</title>
+    <title>3D Snowplows on OpenStreetMap + ArcGIS Vehicles</title>
 
     <!-- Mapbox GL JS -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
+
+    <!-- Threebox for 3D Models -->
+    <script src="https://unpkg.com/three@0.132.2/build/three.min.js"></script>
+    <script src="https://unpkg.com/threebox-plugin@2.2.0/dist/threebox.min.js"></script>
 
     <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
@@ -24,13 +28,13 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    // ✅ Use OpenStreetMap 3D Buildings basemap
+    // ✅ Initialize Mapbox with OpenStreetMap 3D Buildings
     const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/outdoors-v12', // ✅ OSM-based outdoors map
+        style: 'mapbox://styles/mapbox/outdoors-v12',
         center: [-93.2650, 44.9778], // Minneapolis, MN
         zoom: 14,
-        pitch: 60, // 3D Perspective
+        pitch: 60,
         bearing: 0,
         antialias: true
     });
@@ -52,10 +56,19 @@
                 'fill-extrusion-opacity': 0.6
             }
         });
+
         console.log("✅ OSM 3D Buildings Layer Added");
+
+        // ✅ Initialize Threebox after map is loaded
+        window.tb = new Threebox(map, map.getCanvas().getContext('webgl'), {
+            defaultLights: true
+        });
+
+        // ✅ Load Vehicles once Threebox is ready
+        loadVehicleData();
     });
 
-    let vehicleMarkers = {}; // Store vehicle markers
+    let vehicleModels = {}; // Store 3D models by vehicle ID
 
     require([
         "esri/request",
@@ -78,20 +91,14 @@
             console.error("❌ Sign-in failed:", error);
         });
 
-        const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
+        const vehicleLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0/query?where=1=1&outFields=*&f=geojson";
 
         async function loadVehicleData() {
             try {
                 console.log("🔄 Fetching vehicle data...");
 
-                // ✅ Use esriRequest to fetch vehicle data
-                const response = await esriRequest(featureLayerURL + "/query", {
-                    query: {
-                        where: "1=1",
-                        outFields: "objectid,heading,vehicleid,speedmph",
-                        returnGeometry: true,
-                        f: "geojson"
-                    },
+                // ✅ Fetch vehicle data as GeoJSON
+                const response = await esriRequest(vehicleLayerURL, {
                     responseType: "json"
                 });
 
@@ -102,28 +109,26 @@
                     return;
                 }
 
-                // ✅ Update or create markers for each vehicle
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
-                    
-                    // ✅ Fix: Prevent errors due to null values
+
+                    // ✅ Prevent null values
                     const speed = vehicle.properties.speedmph ?? 0;
                     const heading = vehicle.properties.heading ?? 0;
 
-                    if (vehicleMarkers[vehicleId]) {
-                        // Smoothly animate marker movement
-                        animateMarker(vehicleMarkers[vehicleId], coordinates);
+                    if (vehicleModels[vehicleId]) {
+                        // ✅ Update existing model
+                        animateModel(vehicleModels[vehicleId], coordinates, heading);
                     } else {
-                        // Create a new marker if it doesn't exist
-                        const marker = new mapboxgl.Marker({
-                            color: "#FF0000"
-                        })
-                        .setLngLat(coordinates)
-                        .setPopup(new mapboxgl.Popup().setText(`🚛 Speed: ${speed} MPH`)) // ✅ Show speed in popup
-                        .addTo(map);
-
-                        vehicleMarkers[vehicleId] = marker;
+                        // ✅ Create new 3D model
+                        tb.loadGLTF("https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Snowplow/Snowplow.gltf", model => {
+                            model.setCoords(coordinates);
+                            model.setRotation({ x: 0, y: heading, z: 0 });
+                            model.setScale(50); // Adjust scale if needed
+                            model.addTo(tb);
+                            vehicleModels[vehicleId] = model;
+                        });
                     }
                 });
 
@@ -133,18 +138,19 @@
             }
         }
 
-        function animateMarker(marker, newCoords) {
+        function animateModel(model, newCoords, heading) {
             const duration = 1000; // 1-second animation
             const start = performance.now();
-            const oldCoords = marker.getLngLat();
+            const oldCoords = model.coordinates;
 
             function step(timestamp) {
                 const elapsed = timestamp - start;
                 const progress = Math.min(elapsed / duration, 1);
-                const interpolatedLng = oldCoords.lng + (newCoords[0] - oldCoords.lng) * progress;
-                const interpolatedLat = oldCoords.lat + (newCoords[1] - oldCoords.lat) * progress;
+                const interpolatedLng = oldCoords[0] + (newCoords[0] - oldCoords[0]) * progress;
+                const interpolatedLat = oldCoords[1] + (newCoords[1] - oldCoords[1]) * progress;
 
-                marker.setLngLat([interpolatedLng, interpolatedLat]);
+                model.setCoords([interpolatedLng, interpolatedLat]);
+                model.setRotation({ x: 0, y: heading, z: 0 });
 
                 if (progress < 1) {
                     requestAnimationFrame(step);
@@ -154,7 +160,7 @@
             requestAnimationFrame(step);
         }
 
-        // ✅ Auto-refresh vehicles every 30 seconds if signed in
+        // ✅ Auto-refresh vehicles every 30 seconds
         setInterval(() => {
             IdentityManager.getCredential(info.portalUrl + "/sharing").then(() => {
                 loadVehicleData();
