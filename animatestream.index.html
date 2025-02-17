@@ -113,9 +113,9 @@
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
 
-                    // ✅ Fix null values
-                    const speed = vehicle.properties.speedmph !== null ? vehicle.properties.speedmph : 0;
-                    const heading = vehicle.properties.heading !== null ? vehicle.properties.heading : 0;
+                    // ✅ Fix null values (replace null with 0)
+                    const speed = vehicle.properties.speedmph ?? 0;
+                    const heading = vehicle.properties.heading ?? 0;
 
                     if (!vehicleModels[vehicleId]) {
                         vehicleModels[vehicleId] = {
@@ -123,17 +123,18 @@
                             model: null
                         };
 
-                        // ✅ Load 3D GLB model properly
-                        tb.loadGLTF({
-                            url: 'uploads_files_5264196_papercar.glb',
-                            scale: 3,
-                            rotation: { x: 90, y: 0, z: heading },
-                            anchor: 'center'
-                        }, function (model) {
-                            model.setCoords(coordinates);
-                            tb.add(model);
-                            vehicleModels[vehicleId].model = model;
-                        });
+                        // ✅ Corrected: Use `tb.load()` for Threebox models
+                        tb.load(
+                            "uploads_files_5264196_papercar.glb",
+                            function (model) {
+                                model.setCoords(coordinates);
+                                model.setRotation({ x: 90, y: 0, z: heading });
+                                model.setScale(3);
+                                tb.add(model);
+                                vehicleModels[vehicleId].model = model;
+                            },
+                            { scaleToMeters: true, units: "meters" }
+                        );
                     }
 
                     // ✅ Store last 3 positions
