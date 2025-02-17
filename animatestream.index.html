@@ -9,9 +9,9 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
 
-    <!-- Threebox for 3D models -->
-    <script src="https://unpkg.com/threebox-plugin@2.2.1/dist/threebox.min.js"></script>
-    <link href="https://unpkg.com/threebox-plugin@2.2.1/dist/threebox.css" rel="stylesheet">
+    <!-- Threebox for 3D models (Compatible Version) -->
+    <script src="https://rawgit.com/jscastro76/Threebox/master/dist/threebox.js"></script>
+    <link href="https://rawgit.com/jscastro76/Threebox/master/dist/threebox.css" rel="stylesheet">
 
     <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
@@ -32,7 +32,7 @@
     const map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/mapbox/light-v11', // OpenStreetMap 3D
-        center: [-93.2650, 44.9778], // Minneapolis, MN (Default center)
+        center: [-93.2650, 44.9778], // Minneapolis, MN
         zoom: 12,
         pitch: 60, // 3D view
         bearing: 0,
@@ -66,8 +66,7 @@
         setInterval(loadVehicleData, 30000); // Refresh every 30 sec
     });
 
-    require(["esri/layers/FeatureLayer"], function(FeatureLayer) {
-
+    require(["esri/layers/FeatureLayer", "esri/request"], function(FeatureLayer, esriRequest) {
         const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
 
         async function loadVehicleData() {
@@ -78,51 +77,47 @@
 
             try {
                 console.log("Fetching vehicle data...");
-                const layer = new FeatureLayer({ url: featureLayerURL });
 
-                // Query all features
-                const query = layer.createQuery();
-                query.where = "1=1";
-                query.outFields = ["objectid", "heading", "vehicleid", "speedmph"];
-                query.returnGeometry = true;
+                // Use esriRequest to fetch feature layer as JSON
+                const response = await esriRequest(featureLayerURL + "/query", {
+                    query: {
+                        where: "1=1",
+                        outFields: "objectid,heading,vehicleid,speedmph",
+                        returnGeometry: true,
+                        f: "geojson"
+                    },
+                    responseType: "json"
+                });
 
-                const results = await layer.queryFeatures(query);
+                const vehicles = response.data.features;
 
-                if (!results || !results.features || results.features.length === 0) {
+                if (!vehicles || vehicles.length === 0) {
                     console.warn("No vehicles found in ArcGIS Feature Layer.");
                     return;
                 }
-
-                // Convert ArcGIS Features to GeoJSON
-                const geojson = results.features.map(feature => ({
-                    id: feature.attributes.objectid,
-                    coordinates: [feature.geometry.longitude, feature.geometry.latitude, 0], // 0 altitude
-                    properties: {
-                        vehicleid: feature.attributes.vehicleid,
-                        heading: feature.attributes.heading,
-                        speedmph: feature.attributes.speedmph
-                    }
-                }));
 
                 // Remove old 3D models
                 tb.clear();
 
                 // Load 3D snowplow models for each vehicle
-                geojson.forEach(vehicle => {
+                vehicles.forEach(vehicle => {
+                    const coordinates = vehicle.geometry.coordinates;
+                    const heading = vehicle.properties.heading || 0;
+
                     tb.loadObj({
                         obj: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/obj/male02/male02.obj', // Placeholder OBJ file
                         type: 'mtl',
                         scale: 2,
                         units: 'meters',
-                        rotation: { x: 90, y: 0, z: vehicle.properties.heading },
+                        rotation: { x: 90, y: 0, z: heading },
                         anchor: 'center'
                     }, (model) => {
-                        model.setCoords(vehicle.coordinates);
+                        model.setCoords([coordinates[0], coordinates[1], 0]);
                         tb.add(model);
                     });
                 });
 
-                console.log("Vehicles updated:", geojson.length);
+                console.log("Vehicles updated:", vehicles.length);
             } catch (error) {
                 console.error("Error loading vehicle data:", error);
             }
