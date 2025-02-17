@@ -12,7 +12,7 @@
     <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
 
-    <!-- Threebox (Ensure these files are in your main directory and accessible) -->
+    <!-- Threebox (Ensure these files exist in your main directory) -->
     <script src="threebox.js"></script>
     <link href="threebox.css" rel="stylesheet" />
 
@@ -28,16 +28,19 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    // ✅ Use OpenStreetMap 3D Buildings basemap
+    // ✅ Initialize Mapbox map
     const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/outdoors-v12', // ✅ OSM-based outdoors map
+        style: 'mapbox://styles/mapbox/outdoors-v12',
         center: [-93.2650, 44.9778], // Minneapolis, MN
         zoom: 14,
-        pitch: 60, // 3D Perspective
+        pitch: 60,
         bearing: 0,
         antialias: true
     });
+
+    let tb; // Threebox instance
+    let vehicleModels = {}; // Store vehicle models
 
     map.on('load', function () {
         console.log("✅ Map Loaded!");
@@ -58,9 +61,9 @@
         });
         console.log("✅ OSM 3D Buildings Layer Added");
 
-        // ✅ Initialize Threebox for 3D Models
+        // ✅ Initialize Threebox
         if (typeof Threebox !== "undefined") {
-            window.tb = new Threebox(
+            tb = new Threebox(
                 map,
                 map.getCanvas().getContext('webgl'),
                 { defaultLights: true }
@@ -71,8 +74,6 @@
         }
     });
 
-    let vehicleModels = {}; // Store vehicle models
-
     require([
         "esri/request",
         "esri/identity/OAuthInfo",
@@ -81,7 +82,7 @@
 
         // ✅ ArcGIS OAuth Authentication
         const info = new OAuthInfo({
-            appId: "ti3fi1FqvHE2Hhyw", // Your ArcGIS App ID
+            appId: "ti3fi1FqvHE2Hhyw",
             popup: true
         });
         IdentityManager.registerOAuthInfos([info]);
@@ -100,7 +101,7 @@
             try {
                 console.log("🔄 Fetching vehicle data...");
 
-                // ✅ Use esriRequest to fetch vehicle data
+                // ✅ Fetch vehicle data from ArcGIS Feature Layer
                 const response = await esriRequest(vehicleLayerURL + "/query", {
                     query: {
                         where: "1=1",
@@ -123,21 +124,25 @@
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
                     
-                    // ✅ Fix: Prevent errors due to null values
+                    // ✅ Handle null values
                     const speed = vehicle.properties.speedmph ?? 0;
                     const heading = vehicle.properties.heading ?? 0;
 
-                    if (window.tb) {
+                    if (tb) {
                         if (vehicleModels[vehicleId]) {
-                            // Move the existing model smoothly
+                            // ✅ Animate model movement
                             animateModel(vehicleModels[vehicleId], coordinates, heading);
                         } else {
-                            // ✅ Load a 3D snow plow GLTF model
-                            window.tb.loadGLTF("snowplow.glb", (model) => {
+                            // ✅ Load a 3D snowplow model (Ensure "snowplow.glb" exists in your directory)
+                            tb.loadGLTF({
+                                type: "gltf",
+                                model: "snowplow.glb",
+                                scale: 5,
+                                anchor: "center"
+                            }, (model) => {
                                 model.setCoords(coordinates);
                                 model.setRotation({ x: 0, y: heading, z: 0 });
-                                model.setScale(5); // Adjust size if needed
-                                window.tb.add(model);
+                                tb.add(model);
                                 vehicleModels[vehicleId] = model;
                             });
                         }
