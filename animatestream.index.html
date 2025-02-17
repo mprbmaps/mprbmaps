@@ -9,12 +9,12 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
 
-    <!-- ArcGIS JavaScript API -->
-    <script src="https://js.arcgis.com/4.27/"></script>
-
     <!-- Threebox for 3D models -->
     <script src="https://unpkg.com/threebox-plugin@2.2.1/dist/threebox.min.js"></script>
     <link href="https://unpkg.com/threebox-plugin@2.2.1/dist/threebox.css" rel="stylesheet">
+
+    <!-- ArcGIS JavaScript API -->
+    <script src="https://js.arcgis.com/4.27/"></script>
 
     <style>
         body { margin: 0; padding: 0; }
@@ -41,39 +41,43 @@
 
     let tb; // Threebox instance
 
-    // Load ArcGIS JavaScript API
-    require(["esri/layers/FeatureLayer"], function(FeatureLayer) {
+    map.on('style.load', function () {
+        console.log("Mapbox Style Loaded");
 
-        // Feature Layer from ArcGIS Online (using item ID)
-        const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
+        // Initialize Threebox for 3D models
+        tb = new Threebox(map, map.getCanvas(), { defaultLights: true });
+        console.log("Threebox Initialized");
 
-        map.on('style.load', function () {
-            // Initialize Threebox for 3D models
-            tb = new Threebox(map, map.getCanvas(), {
-                defaultLights: true
-            });
-
-            // Add 3D buildings layer
-            map.addLayer({
-                id: '3d-buildings',
-                source: 'composite',
-                'source-layer': 'building',
-                type: 'fill-extrusion',
-                paint: {
-                    'fill-extrusion-color': '#aaa',
-                    'fill-extrusion-height': ['get', 'height'],
-                    'fill-extrusion-opacity': 0.6
-                }
-            });
-
-            // Load vehicle locations
-            loadVehicleData();
-            setInterval(loadVehicleData, 30000); // Refresh every 30 sec
+        // Add 3D buildings layer
+        map.addLayer({
+            id: '3d-buildings',
+            source: 'composite',
+            'source-layer': 'building',
+            type: 'fill-extrusion',
+            paint: {
+                'fill-extrusion-color': '#aaa',
+                'fill-extrusion-height': ['get', 'height'],
+                'fill-extrusion-opacity': 0.6
+            }
         });
 
-        // Fetch vehicle locations using ArcGIS JS API
+        // Load vehicle locations once Threebox is ready
+        setTimeout(loadVehicleData, 3000); // Delay to ensure Threebox loads
+        setInterval(loadVehicleData, 30000); // Refresh every 30 sec
+    });
+
+    require(["esri/layers/FeatureLayer"], function(FeatureLayer) {
+
+        const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
+
         async function loadVehicleData() {
+            if (!tb) {
+                console.error("Threebox not initialized yet.");
+                return;
+            }
+
             try {
+                console.log("Fetching vehicle data...");
                 const layer = new FeatureLayer({ url: featureLayerURL });
 
                 // Query all features
@@ -85,7 +89,7 @@
                 const results = await layer.queryFeatures(query);
 
                 if (!results || !results.features || results.features.length === 0) {
-                    console.error("No vehicles found in ArcGIS Feature Layer.");
+                    console.warn("No vehicles found in ArcGIS Feature Layer.");
                     return;
                 }
 
@@ -124,6 +128,7 @@
             }
         }
     });
+
 </script>
 
 </body>
