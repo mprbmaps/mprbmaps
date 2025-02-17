@@ -28,7 +28,7 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    // ✅ Use OpenStreetMap 3D Buildings basemap
+    // ✅ Initialize Mapbox Map
     const map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/mapbox/outdoors-v12', // ✅ OSM-based outdoors map
@@ -40,6 +40,7 @@
     });
 
     let vehicleModels = {}; // Store vehicle models by ID
+    const vehicleLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0/query";
 
     require([
         "esri/request",
@@ -64,12 +65,11 @@
 
         function loadVehicleData() {
             console.log("🔄 Fetching vehicle data...");
-            const vehicleLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0/query";
 
             esriRequest(vehicleLayerURL, {
                 query: {
                     where: "1=1",
-                    outFields: "objectid,heading,speedmph",
+                    outFields: "objectid,heading,Kmph",
                     returnGeometry: true,
                     f: "geojson"
                 },
@@ -88,14 +88,18 @@
                     const speed = vehicle.properties.Kmph ?? 0;
 
                     if (vehicleModels[vehicleId]) {
+                        // ✅ Update existing vehicle position & rotation
                         vehicleModels[vehicleId].setCoords(coordinates);
                         vehicleModels[vehicleId].setRotation({ x: 0, y: heading, z: 0 });
                     } else {
-                        window.tb.loadObj({
+                        // ✅ Load GLB 3D Model for new vehicles
+                        window.tb.loadGLTF({
                             obj: "uploads_files_5264196_papercar.glb",
                             type: "gltf",
                             scale: 1,
-                            units: "meters"
+                            units: "meters",
+                            rotation: { x: 90, y: 0, z: heading },
+                            anchor: "center"
                         }).then(function (model) {
                             console.log("✅ GLB model loaded successfully", model);
                             model.setCoords(coordinates);
