@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-Time Vehicle Tracking</title>
+    <title>Snow Plow Tracking</title>
 
-    <!-- ✅ Mapbox GL JS (Downgraded to v1.13.0 for Threebox compatibility) -->
+    <!-- ✅ Mapbox GL JS (Downgraded for Threebox compatibility) -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v1.13.0/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v1.13.0/mapbox-gl.css" rel="stylesheet">
 
@@ -29,8 +29,8 @@
         // ✅ Initialize Mapbox
         const map = new mapboxgl.Map({
             container: 'map',
-            style: 'mapbox://styles/mapbox/light-v11', // 3D Buildings with OpenStreetMap
-            center: [-93.2650, 44.9778], // Default center (Minneapolis, adjust as needed)
+            style: 'mapbox://styles/mapbox/light-v11', // OpenStreetMap 3D buildings
+            center: [-93.2650, 44.9778], // Default center (Minneapolis)
             zoom: 14,
             pitch: 60,
             bearing: 0,
@@ -68,69 +68,51 @@
                 render: function () { tb.update(); }
             });
 
-            // ✅ Start Streaming Vehicles
-            connectToStreamServer();
+            // ✅ Start Fetching Vehicles
+            fetchVehicles();
+            setInterval(fetchVehicles, 10000); // Update every 10 seconds
         });
 
-        // ✅ ArcGIS Velocity StreamServer URL
-        const streamUrl = "wss://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/streams/arcgis/rest/services/Test/StreamServer/subscribe";
+        // ✅ ArcGIS Feature Layer URL
+        const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0/query?where=1=1&outFields=OBJECTID,bearing&outSR=4326&f=json";
 
-        function connectToStreamServer() {
-            console.log("🔗 Connecting to ArcGIS Velocity StreamServer...");
-
-            const socket = new WebSocket(streamUrl);
-
-            socket.onopen = function() {
-                console.log("✅ Connected to StreamServer");
-                socket.send(JSON.stringify({
-                    where: "1=1",
-                    outFields: "*",
-                    returnGeometry: true
-                }));
-            };
-
-            socket.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                if (!data.features || data.features.length === 0) {
-                    console.warn("⚠ No active vehicle updates received.");
-                    return;
-                }
-
-                data.features.forEach(feature => {
-                    if (!feature.geometry) {
-                        console.error("🚨 Error: Vehicle geometry is missing.");
+        // ✅ Fetch Vehicle Locations
+        function fetchVehicles() {
+            fetch(featureLayerURL)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.features || data.features.length === 0) {
+                        console.warn("⚠ No vehicles found.");
                         return;
                     }
 
-                    const id = feature.attributes.OBJECTID;
-                    const longitude = feature.geometry.x;
-                    const latitude = feature.geometry.y;
-                    const bearing = feature.attributes.bearing || 0;
+                    data.features.forEach(feature => {
+                        if (!feature.geometry) {
+                            console.error("🚨 Error: Vehicle geometry is missing.");
+                            return;
+                        }
 
-                    if (vehicleModels[id]) {
-                        // Update vehicle position and rotation
-                        vehicleModels[id].setCoords([longitude, latitude]);
-                        vehicleModels[id].setRotation({ z: bearing });
-                    } else {
-                        // Add a new vehicle model
-                        addVehicleModel(id, longitude, latitude, bearing);
-                    }
-                });
-            };
+                        const id = feature.attributes.OBJECTID;
+                        const longitude = feature.geometry.x;
+                        const latitude = feature.geometry.y;
+                        const bearing = feature.attributes.bearing || 0;
 
-            socket.onerror = function(error) {
-                console.error("🚨 WebSocket Error:", error);
-            };
-
-            socket.onclose = function() {
-                console.warn("⚠ StreamServer connection closed. Reconnecting in 5 seconds...");
-                setTimeout(connectToStreamServer, 5000); // Auto-reconnect after disconnect
-            };
+                        if (vehicleModels[id]) {
+                            // Update vehicle position and rotation
+                            vehicleModels[id].setCoords([longitude, latitude]);
+                            vehicleModels[id].setRotation({ z: bearing });
+                        } else {
+                            // Add a new vehicle model
+                            addVehicleModel(id, longitude, latitude, bearing);
+                        }
+                    });
+                })
+                .catch(error => console.error("🚨 Error loading vehicle data:", error));
         }
 
         // ✅ Load a 3D Snow Plow Model
         function addVehicleModel(id, lon, lat, bearing) {
-            const modelUrl = 'https://threejs.org/examples/models/gltf/SnowPlow.glb'; // Replace with a real model URL
+            const modelUrl = 'https://threejs.org/examples/models/gltf/SnowPlow.glb'; // Replace with actual .glb model
 
             tb.loadObj({ obj: modelUrl, type: 'gltf', scale: 5, units: 'meters' }, function(model) {
                 model.setCoords([lon, lat]);
