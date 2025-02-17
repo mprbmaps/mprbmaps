@@ -35,23 +35,23 @@
             Point, geometryEngine, PointSymbol3D, ObjectSymbol3DLayer
         ) {
 
-            // OAuth Authentication (Using Your App ID)
+            // 🔹 OAuth Authentication - Uses ArcGIS Online App ID
             const info = new OAuthInfo({
-                appId: "ti3fi1FqvHE2Hhyw",  // Your App ID
+                appId: "ti3fi1FqvHE2Hhyw",  // Your OAuth App ID
                 popup: true
             });
             IdentityManager.registerOAuthInfos([info]);
 
-            // Authenticate the user
+            // 🔹 Authenticate User & Load Map
             IdentityManager.getCredential(info.portalUrl + "/sharing").then(() => {
                 console.log("Authenticated successfully!");
 
-                // Load the WebMap from ArcGIS Online
+                // 🔹 Load Your WebMap
                 const webmap = new WebMap({
                     portalItem: { id: "c759548dfa1d4ed69e4601ae37850443" }  // Your WebMap ID
                 });
 
-                // Create a 3D Scene View
+                // 🔹 Create 3D Scene View
                 const view = new SceneView({
                     container: "viewDiv",
                     map: webmap,
@@ -61,7 +61,14 @@
                     }
                 });
 
-                // Snowplow 3D Model
+                // 🔹 Add the Vehicle GPS Stream Layer (Not in WebMap)
+                const streamLayer = new StreamLayer({
+                    url: "https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/VehicleStream_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer/0",
+                    purgeOptions: { displayCount: 100 }
+                });
+                webmap.add(streamLayer);
+
+                // 🔹 Snowplow 3D Model
                 const snowplowSymbol = new PointSymbol3D({
                     symbolLayers: [ new ObjectSymbol3DLayer({
                         resource: { href: "https://static.arcgis.com/models/transportation/snowplow.json" }, 
@@ -71,24 +78,18 @@
 
                 let vehicleGraphics = {}; // Store vehicle graphics
 
-                // Wait for the WebMap to load
+                // 🔹 Wait for WebMap to Load
                 webmap.when(() => {
                     const layers = webmap.layers.items;
-                    let streamLayer = layers.find(layer => layer.type === "stream");
-                    let roadLayer = layers.find(layer => layer.type === "feature"); 
+                    let roadLayer = layers.find(layer => layer.type === "feature");  // Look for road layer in WebMap
 
-                    if (!streamLayer) {
-                        console.error("No Stream Layer found in WebMap.");
-                        return;
-                    }
-
-                    // Listen for real-time vehicle updates
+                    // 🔹 Listen for new vehicle locations from Stream Layer
                     streamLayer.on("track-added", function (event) {
                         let vehicle = event.graphic;
                         let vehicleId = vehicle.attributes.OBJECTID;
                         let point = vehicle.geometry;
 
-                        // Snap to road if a road layer is available
+                        // 🔹 Snap to road if a road layer exists
                         if (roadLayer) {
                             roadLayer.queryFeatures({
                                 geometry: point,
@@ -112,7 +113,7 @@
                     });
                 });
 
-                // Function to update vehicle position
+                // 🔹 Function to update vehicle position
                 function updateVehicle(vehicleId, newPoint) {
                     if (vehicleGraphics[vehicleId]) {
                         animateVehicle(vehicleGraphics[vehicleId], newPoint);
@@ -127,11 +128,11 @@
                     }
                 }
 
-                // Smooth animation function
+                // 🔹 Smooth Animation Function
                 function animateVehicle(graphic, newPoint) {
                     let oldPoint = graphic.geometry;
                     let frame = 0;
-                    let totalFrames = 30;
+                    let totalFrames = 30;  // Adjust for smoother or faster movement
 
                     function step() {
                         if (frame < totalFrames) {
