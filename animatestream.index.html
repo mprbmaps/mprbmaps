@@ -48,6 +48,8 @@
 
     let vehicleModels = {}; // Store vehicle models, movement history, and labels
     let map, tb;
+    const updateInterval = 30000; // 30 seconds
+    let lastUpdateTime = performance.now();
 
     require([
         "esri/request",
@@ -121,6 +123,7 @@
 
             console.log("✅ Threebox initialized & 3D Buildings Restored");
             loadVehicleData();
+            animateVehicles();
         });
     }
 
@@ -140,11 +143,7 @@
                 responseType: "json"
             }).then(response => {
                 const vehicles = response.data.features;
-
-                if (!vehicles || vehicles.length === 0) {
-                    console.warn("⚠️ No vehicles found in ArcGIS Feature Layer.");
-                    return;
-                }
+                lastUpdateTime = performance.now();
 
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
@@ -164,7 +163,6 @@
                     } else {
                         vehicleModels[vehicleId].startPos = { ...vehicleModels[vehicleId].endPos };
                         vehicleModels[vehicleId].endPos = { lng: coordinates[0], lat: coordinates[1] };
-                        animateVehicle(vehicleModels[vehicleId]);
                     }
 
                     if (!vehicleModels[vehicleId].label) {
@@ -202,29 +200,22 @@
         });
     }
 
-    function animateVehicle(vehicle) {
-        const duration = 30000;
-        const start = performance.now();
+    function animateVehicles() {
+        requestAnimationFrame(() => animateVehicles());
 
-        function step(timestamp) {
-            const progress = Math.min((timestamp - start) / duration, 1);
+        let elapsedTime = performance.now() - lastUpdateTime;
+        let progress = Math.min(elapsedTime / updateInterval, 1);
+
+        Object.values(vehicleModels).forEach(vehicle => {
             let interpolatedLng = vehicle.startPos.lng + (vehicle.endPos.lng - vehicle.startPos.lng) * progress;
             let interpolatedLat = vehicle.startPos.lat + (vehicle.endPos.lat - vehicle.startPos.lat) * progress;
 
             vehicle.model.setCoords([interpolatedLng, interpolatedLat, 0]);
             vehicle.label.setLngLat([interpolatedLng, interpolatedLat]);
-
-            if (progress < 1) {
-                requestAnimationFrame(step);
-            }
-        }
-
-        requestAnimationFrame(step);
+        });
     }
 
-    setInterval(() => {
-        loadVehicleData();
-    }, 30000);
+    setInterval(loadVehicleData, updateInterval);
 </script>
 
 </body>
