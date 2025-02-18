@@ -158,7 +158,7 @@
                             type: "gltf",
                             scale: { x: scale, y: scale, z: scale },
                             units: "meters",
-                            rotation: { x: 0, y: 0, z: headingRadians } // ✅ Vehicles stay upright
+                            rotation: { x: -Math.PI / 2, y: headingRadians, z: 0 } // ✅ Fix: Vehicles are now upright
                         };
 
                         tb.loadObj(options, function(model) {
@@ -168,17 +168,6 @@
 
                             console.log(`✅ Model added for vehicle ${vehicleId} at ${coordinates[0]}, ${coordinates[1]} with heading: ${heading}`);
                         });
-                    }
-
-                    let positions = vehicleModels[vehicleId].positions;
-                    positions.push({ lng: coordinates[0], lat: coordinates[1], heading });
-
-                    if (positions.length > 3) {
-                        positions.shift();
-                    }
-
-                    if (positions.length >= 3) {
-                        animateVehicle(vehicleModels[vehicleId].model, positions[1], positions[2]);
                     }
                 });
 
