@@ -58,7 +58,7 @@
         // ✅ ArcGIS OAuth Authentication
         const info = new OAuthInfo({
             appId: "ti3fi1FqvHE2Hhyw", // ✅ Your ArcGIS App ID
-            popup: false
+            popup: false,
             flowType: "authorization-code"
         });
         IdentityManager.registerOAuthInfos([info]);
@@ -125,43 +125,33 @@
         });
     }
 
-    function connectWebSocket() {
-        console.log("🔗 Requesting ArcGIS Authentication Token...");
+    function connectWebSocket(token) {
+    console.log("🔗 Connecting to WebSocket with ArcGIS Token...");
 
-        require(["esri/identity/IdentityManager"], function(IdentityManager) {
-            IdentityManager.getCredential("https://us-iot.arcgis.com/sharing")
-                .then(credential => {
-                    console.log("✅ ArcGIS Token Retrieved");
+    const velocityWebSocketURL = `wss://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/streams/arcgis/ws/services/AVL_Snowplows_Feed/StreamServer?token=${token}`;
 
-                    const velocityWebSocketURL = `wss://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/streams/arcgis/ws/services/AVL_Snowplows_Feed/StreamServer?token=${credential.token}`;
+    let socket = new WebSocket(velocityWebSocketURL);
 
-                    console.log("🔗 Connecting to WebSocket with token...");
-                    let socket = new WebSocket(velocityWebSocketURL);
+    socket.onopen = function() {
+        console.log("✅ WebSocket Connected to Velocity!");
+    };
 
-                    socket.onopen = function() {
-                        console.log("✅ WebSocket Connected to Velocity!");
-                    };
+    socket.onmessage = function(event) {
+        let data = JSON.parse(event.data);
+        console.log("📡 Received Data:", data);
+        updateVehicles(data.features);
+    };
 
-                    socket.onmessage = function(event) {
-                        let data = JSON.parse(event.data);
-                        console.log("📡 Received Data:", data);
-                        updateVehicles(data.features);
-                    };
+    socket.onerror = function(error) {
+        console.error("❌ WebSocket Error:", error);
+    };
 
-                    socket.onerror = function(error) {
-                        console.error("❌ WebSocket Error:", error);
-                    };
+    socket.onclose = function() {
+        console.warn("⚠️ WebSocket Closed. Reconnecting in 5 seconds...");
+        setTimeout(() => connectWebSocket(token), 5000);
+    };
+}
 
-                    socket.onclose = function() {
-                        console.warn("⚠️ WebSocket Closed. Reconnecting in 5 seconds...");
-                        setTimeout(connectWebSocket, 5000);
-                    };
-                })
-                .catch(error => {
-                    console.error("❌ Failed to Retrieve ArcGIS Token:", error);
-                });
-        });
-    }
 
     function updateVehicles(vehicles) {
         if (!vehicles || vehicles.length === 0) {
