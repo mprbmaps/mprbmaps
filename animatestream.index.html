@@ -57,9 +57,9 @@
         map = new mapboxgl.Map({
             container: 'map',
             style: 'mapbox://styles/mapbox/outdoors-v12',
-            center: [-93.2650, 44.9778], 
+            center: [-93.2650, 44.9778],
             zoom: 14,
-            pitch: 60, 
+            pitch: 60,
             bearing: 0,
             antialias: true
         });
@@ -67,12 +67,14 @@
         map.on('style.load', function () {  
             console.log("✅ Map Style Loaded!");
 
+            // ✅ Initialize Threebox
             tb = new Threebox(
                 map,
                 map.getCanvas().getContext('webgl'),
                 { defaultLights: true }
             );
 
+            // ✅ Add Threebox as a custom Mapbox layer
             map.addLayer({
                 id: 'custom-threebox-layer',
                 type: 'custom',
@@ -85,7 +87,24 @@
                 }
             });
 
-            console.log("✅ Threebox initialized");
+            // ✅ Ensure 3D Buildings Layer is Added Back
+            map.addLayer({
+                id: 'osm-3d-buildings',
+                source: 'composite',
+                'source-layer': 'building',
+                type: 'fill-extrusion',
+                minzoom: 15,
+                paint: {
+                    'fill-extrusion-color': '#aaa',
+                    'fill-extrusion-height': ['get', 'height'],
+                    'fill-extrusion-base': ['get', 'min_height'],
+                    'fill-extrusion-opacity': 0.6
+                }
+            });
+
+            console.log("✅ Threebox initialized & 3D Buildings Restored");
+
+            // ✅ Fetch vehicle data
             loadVehicleData();
         });
     }
@@ -116,36 +135,22 @@
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
                     const speed = vehicle.properties.speedmph ?? 0;
+                    const heading = vehicle.properties.heading ?? 0; // Unique heading per vehicle
+                    const radians = heading * (Math.PI / 180); // Convert heading to radians
 
-                    // Store location history for each vehicle
                     if (!vehicleModels[vehicleId]) {
                         vehicleModels[vehicleId] = {
                             positions: [],
                             model: null
                         };
-                    }
 
-                    let positions = vehicleModels[vehicleId].positions;
-                    positions.push({ lng: coordinates[0], lat: coordinates[1] });
+                        if (!tb) {
+                            console.warn("⚠️ Threebox is not ready. Retrying in 2s...");
+                            setTimeout(loadVehicleData, 2000);
+                            return;
+                        }
 
-                    if (positions.length > 3) {
-                        positions.shift(); // Keep only last 3 positions
-                    }
-
-                    // Compute heading from last two positions
-                    let computedHeading = 0;
-                    if (positions.length >= 3) {
-                        let p1 = positions[0]; // Third most recent
-                        let p2 = positions[1]; // Second most recent
-                        computedHeading = Math.atan2(
-                            p2.lat - p1.lat,
-                            p2.lng - p1.lng
-                        ) * (180 / Math.PI); // Convert to degrees
-                    }
-
-                    let radians = computedHeading * (Math.PI / 180); // Convert to radians
-
-                    if (!vehicleModels[vehicleId].model) {
+                        // ✅ Load Individual Vehicle Model with Unique Heading
                         tb.loadObj({
                             obj: "truck.gltf",
                             type: "gltf",
@@ -153,16 +158,17 @@
                             units: "meters"
                         }, function(model) {
                             model.setCoords([coordinates[0], coordinates[1], 0]); // Keep on ground
-                            model.rotation.x = Math.PI / 2; // Keep the vehicle flat
-                            model.rotation.y = -radians; // Rotate per computed heading
-                            model.rotation.z = 0;
+
+                            // ✅ Apply correct rotation (use Three.js rotation)
+                            model.rotation.x = Math.PI / 2;  // Keep the vehicle flat
+                            model.rotation.y = -radians;     // Rotate per heading value
+                            model.rotation.z = 0;            // Ensure no unintended tilt
+
                             tb.add(model);
                             vehicleModels[vehicleId].model = model;
 
-                            console.log(`✅ Vehicle ${vehicleId} placed with computed heading: ${computedHeading}°`);
+                            console.log(`✅ Vehicle ${vehicleId} placed with heading: ${heading}° (Radians: ${radians})`);
                         });
-                    } else {
-                        animateVehicle(vehicleModels[vehicleId].model, positions[1], positions[2], radians);
                     }
                 });
 
@@ -173,32 +179,7 @@
         });
     }
 
-    function animateVehicle(model, startCoords, endCoords, headingRadians) {
-        if (!model || !startCoords || !endCoords) return;
-
-        const duration = 30000; // Smooth transition over 30 seconds
-        const start = performance.now();
-
-        function step(timestamp) {
-            const elapsed = timestamp - start;
-            const progress = Math.min(elapsed / duration, 1);
-
-            let interpolatedLng = startCoords.lng + (endCoords.lng - startCoords.lng) * progress;
-            let interpolatedLat = startCoords.lat + (endCoords.lat - startCoords.lat) * progress;
-
-            model.setCoords([interpolatedLng, interpolatedLat, 0]); // Keep on ground
-            model.rotation.y = -headingRadians; // Update heading smoothly
-
-            if (progress < 1) {
-                requestAnimationFrame(step);
-            } else {
-                tb.update();
-            }
-        }
-
-        requestAnimationFrame(step);
-    }
-
+    // Auto-refresh every 30 seconds
     setInterval(() => {
         if (tb) {
             loadVehicleData();
