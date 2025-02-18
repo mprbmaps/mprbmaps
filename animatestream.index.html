@@ -109,42 +109,44 @@
     function connectStreamLayer(StreamLayer) {
         console.log("🔄 Connecting to ArcGIS Stream Layer...");
 
-        IdentityManager.getCredential("https://us-iot.arcgis.com/sharing")
-            .then((credential) => {
-                console.log("✅ Using credential for StreamLayer:", credential);
+        require(["esri/identity/IdentityManager"], function(IdentityManager) {
+            IdentityManager.getCredential("https://us-iot.arcgis.com/sharing")
+                .then((credential) => {
+                    console.log("✅ Using credential for StreamLayer:", credential);
 
-                const streamLayer = new StreamLayer({
-                    url: "https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/streams/arcgis/rest/services/MPRBvehicleStream/StreamServer",
-                    authentication: credential,
-                    purgeOptions: { age: 5 }
-                });
+                    const streamLayer = new StreamLayer({
+                        url: "https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/streams/arcgis/rest/services/MPRBvehicleStream/StreamServer",
+                        authentication: credential,
+                        purgeOptions: { age: 5 }
+                    });
 
-                streamLayer.on("connected", function() {
-                    console.log("✅ StreamLayer Connected! Subscribing to stream...");
-                    streamLayer.subscribe();
-                });
+                    streamLayer.on("connected", function() {
+                        console.log("✅ StreamLayer Connected! Subscribing to stream...");
+                        streamLayer.subscribe();
+                    });
 
-                streamLayer.on("error", function(error) {
-                    console.error("❌ StreamLayer Error:", error);
-                });
+                    streamLayer.on("error", function(error) {
+                        console.error("❌ StreamLayer Error:", error);
+                    });
 
-                streamLayer.on("disconnected", function() {
-                    console.warn("⚠️ StreamLayer Disconnected. Retrying in 5 seconds...");
-                    setTimeout(() => streamLayer.subscribe(), 5000);
-                });
+                    streamLayer.on("disconnected", function() {
+                        console.warn("⚠️ StreamLayer Disconnected. Retrying in 5 seconds...");
+                        setTimeout(() => streamLayer.subscribe(), 5000);
+                    });
 
-                streamLayer.when(() => {
-                    map.addLayer(streamLayer);
-                    console.log("✅ StreamLayer added to map");
-                });
+                    streamLayer.when(() => {
+                        map.addLayer(streamLayer);
+                        console.log("✅ StreamLayer added to map");
+                    });
 
-                streamLayer.on("message", function(event) {
-                    console.log("📡 Received Stream Data:", event);
+                    streamLayer.on("message", function(event) {
+                        console.log("📡 Received Stream Data:", event);
+                    });
+                })
+                .catch(err => {
+                    console.error("❌ Authentication Failed for StreamLayer:", err);
                 });
-            })
-            .catch(err => {
-                console.error("❌ Authentication Failed for StreamLayer:", err);
-            });
+        });
     }
 </script>
 </body>
