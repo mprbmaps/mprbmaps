@@ -161,12 +161,17 @@
 
 
                         tb.loadObj(options, function(model) {
-                            model.setCoords([coordinates[0], coordinates[1], 1.5]); // ✅ Fix: Place slightly above ground
-                            tb.add(model);
-                            vehicleModels[vehicleId].model = model;
+    model.setCoords([coordinates[0], coordinates[1], 1.5]); // Keep above ground
 
-                            console.log(`✅ Model added for vehicle ${vehicleId} at ${coordinates[0]}, ${coordinates[1]}`);
-                        });
+    // ✅ Rotate each vehicle based on its own heading
+    model.setRotation({ x: 90, y: 0, z: -heading }); // Fix direction
+
+    tb.add(model);
+    vehicleModels[vehicleId].model = model;
+
+    console.log(`✅ Model added for vehicle ${vehicleId} at ${coordinates[0]}, ${coordinates[1]} with heading: ${heading}`);
+});
+
                     }
 
                     let positions = vehicleModels[vehicleId].positions;
