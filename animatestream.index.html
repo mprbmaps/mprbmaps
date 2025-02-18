@@ -87,7 +87,22 @@
                 }
             });
 
-            console.log("✅ Threebox initialized");
+            // ✅ Re-add 3D Buildings layer
+            map.addLayer({
+                id: 'osm-3d-buildings',
+                source: 'composite',
+                'source-layer': 'building',
+                type: 'fill-extrusion',
+                minzoom: 15,
+                paint: {
+                    'fill-extrusion-color': '#aaa',
+                    'fill-extrusion-height': ['get', 'height'],
+                    'fill-extrusion-base': ['get', 'min_height'],
+                    'fill-extrusion-opacity': 0.6
+                }
+            });
+
+            console.log("✅ Threebox initialized & 3D Buildings Restored");
 
             // ✅ Fetch vehicle data
             loadVehicleData();
@@ -134,22 +149,22 @@
                             return;
                         }
 
-                        // ✅ Correct Way to Load GLB Model in Threebox
-                        const scale = 1.67; // ✅ Scaled down by 1/3
+                        // ✅ Corrected Scale & Rotation
+                        const scale = 1.67;
                         const options = {
                             obj: "uploads_files_5264196_papercar.glb",
                             type: "gltf",
                             scale: { x: scale, y: scale, z: scale },
                             units: "meters",
-                            rotation: { x: -90, y: heading, z: 0 } // ✅ Corrected rotation
+                            rotation: { x: 90, y: 0, z: -heading } // ✅ Fixed rotation
                         };
 
                         tb.loadObj(options, function(model) {
-                            model.setCoords([coordinates[0], coordinates[1], 1.5]); // ✅ Elevate slightly above ground
+                            model.setCoords([coordinates[0], coordinates[1], 1.5]); // ✅ Slight elevation
                             tb.add(model);
                             vehicleModels[vehicleId].model = model;
 
-                            console.log(`✅ Model added for vehicle ${vehicleId} at ${coordinates[0]}, ${coordinates[1]}`);
+                            console.log(`✅ Model added for vehicle ${vehicleId} at ${coordinates[0]}, ${coordinates[1]} with heading: ${heading}`);
                         });
                     }
 
