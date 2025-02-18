@@ -87,13 +87,6 @@
                 }
             });
 
-            // ✅ Fix Mapbox layer filter errors (handles missing "layer" property)
-            map.setFilter('road-label', [
-                "all",
-                ["==", ["get", "structure"], "bridge"],
-                [">=", ["number", ["get", "layer"], 0], 2] // Fix: Provide default value for "layer"
-            ]);
-
             console.log("✅ Threebox initialized");
 
             // ✅ Fetch vehicle data
@@ -142,17 +135,17 @@
                         }
 
                         // ✅ Correct Way to Load GLB Model in Threebox
-                        const scale = 5;
+                        const scale = 1.67; // Scale 1/3 of previous size
                         const options = {
                             obj: "uploads_files_5264196_papercar.glb",
                             type: "gltf",
                             scale: { x: scale, y: scale, z: scale },
                             units: "meters",
-                            rotation: { x: 90, y: 0, z: heading }
+                            rotation: { x: 0, y: 0, z: heading } // Fix rotation so vehicle is parallel to map
                         };
 
                         tb.loadObj(options, function(model) {
-                            model.setCoords([coordinates[0], coordinates[1]]);
+                            model.setCoords([coordinates[0], coordinates[1], 1.5]); // ✅ Fix: Place slightly above ground
                             tb.add(model);
                             vehicleModels[vehicleId].model = model;
 
@@ -192,7 +185,7 @@
             let interpolatedLng = startCoords.lng + (endCoords.lng - startCoords.lng) * progress;
             let interpolatedLat = startCoords.lat + (endCoords.lat - startCoords.lat) * progress;
 
-            model.setCoords([interpolatedLng, interpolatedLat]);
+            model.setCoords([interpolatedLng, interpolatedLat, 1.5]); // ✅ Keep altitude to prevent clipping
 
             if (progress < 1) {
                 requestAnimationFrame(step);
