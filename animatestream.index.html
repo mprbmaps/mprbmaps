@@ -67,6 +67,22 @@
         map.on('style.load', function () {  
             console.log("✅ Map Style Loaded!");
 
+            // ✅ Restore 3D Buildings
+            map.addLayer({
+                id: 'osm-3d-buildings',
+                source: 'composite',
+                'source-layer': 'building',
+                type: 'fill-extrusion',
+                minzoom: 15,
+                paint: {
+                    'fill-extrusion-color': '#aaa',
+                    'fill-extrusion-height': ['get', 'height'],
+                    'fill-extrusion-base': ['get', 'min_height'],
+                    'fill-extrusion-opacity': 0.6
+                }
+            });
+
+            // ✅ Initialize Threebox
             tb = new Threebox(
                 map,
                 map.getCanvas().getContext('webgl'),
@@ -85,7 +101,7 @@
                 }
             });
 
-            console.log("✅ Threebox initialized");
+            console.log("✅ Threebox initialized & 3D Buildings Restored");
             loadVehicleData();
         });
     }
@@ -115,14 +131,14 @@
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
-                    const speed = vehicle.properties.speedmph ?? 0;
                     const heading = vehicle.properties.heading ?? 0;
                     const radians = heading * (Math.PI / 180); 
 
                     if (!vehicleModels[vehicleId]) {
                         vehicleModels[vehicleId] = {
                             positions: [],
-                            model: null
+                            model: null,
+                            lastHeading: radians // Store last known heading
                         };
                     }
 
@@ -133,16 +149,19 @@
                         positions.shift(); // Keep only last 3 positions
                     }
 
-                    // Compute heading from last two positions
-                    let computedHeading = radians;
+                    // Compute heading only if movement occurred
+                    let computedHeading = vehicleModels[vehicleId].lastHeading;
                     if (positions.length >= 3) {
                         let p1 = positions[0]; // Third most recent
                         let p2 = positions[1]; // Second most recent
-                        computedHeading = Math.atan2(
-                            p2.lat - p1.lat,
-                            p2.lng - p1.lng
-                        ) * (180 / Math.PI); // Convert to degrees
-                        computedHeading = computedHeading * (Math.PI / 180); // Convert to radians
+
+                        if (p1.lng !== p2.lng || p1.lat !== p2.lat) {
+                            computedHeading = Math.atan2(
+                                p2.lat - p1.lat,
+                                p2.lng - p1.lng
+                            ) * (Math.PI / 180); // Convert to radians
+                            vehicleModels[vehicleId].lastHeading = computedHeading; // Store last known heading
+                        }
                     }
 
                     if (!vehicleModels[vehicleId].model) {
