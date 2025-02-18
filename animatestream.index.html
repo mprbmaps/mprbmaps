@@ -19,6 +19,24 @@
     <style>
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+
+        /* 🔵 Circular label styles */
+        .vehicle-label {
+            width: 40px;
+            height: 40px;
+            background-color: rgba(255, 0, 0, 0.8);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: bold;
+            color: white;
+            border: 2px solid white;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -29,8 +47,8 @@
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
     let map, tb;
-    let vehicleModels = {}; // Store vehicle models
-    let esriRequest; // Store esriRequest globally
+    let vehicleModels = {}; // Store vehicle models, movement history, and labels
+    let esriRequest;
 
     require([
         "esri/request",
@@ -108,13 +126,27 @@
 
                 const coordinates = vehicle.geometry.coordinates;
                 const vehicleId = vehicle.properties.vehicle_number;
+                const lastFour = vehicleId.slice(-4);
                 const heading = vehicle.properties.heading ?? 0;
                 const radians = heading * (Math.PI / 180);
 
-                console.log(`📍 Vehicle Position: ${coordinates}`);
-
                 if (!vehicleModels[vehicleId]) {
-                    vehicleModels[vehicleId] = { model: null };
+                    vehicleModels[vehicleId] = { model: null, label: null, positions: [] };
+                }
+
+                vehicleModels[vehicleId].positions.push({ lng: coordinates[0], lat: coordinates[1] });
+                if (vehicleModels[vehicleId].positions.length > 3) {
+                    vehicleModels[vehicleId].positions.shift();
+                }
+
+                if (!vehicleModels[vehicleId].label) {
+                    let labelDiv = document.createElement('div');
+                    labelDiv.className = 'vehicle-label';
+                    labelDiv.innerText = lastFour;
+
+                    vehicleModels[vehicleId].label = new mapboxgl.Marker({ element: labelDiv })
+                        .setLngLat([coordinates[0], coordinates[1]])
+                        .addTo(map);
                 }
 
                 if (!vehicleModels[vehicleId].model) {
@@ -125,37 +157,18 @@
                         units: "meters"
                     }, function(model) {
                         model.setCoords([coordinates[0], coordinates[1], 0]);
-                        model.rotation.x = Math.PI / 2;
                         model.rotation.y = -radians;
                         tb.add(model);
                         vehicleModels[vehicleId].model = model;
-                        console.log(`🚚 3D Model Added for: ${vehicleId}`);
                     });
                 } else {
-                    vehicleModels[vehicleId].model.setCoords([coordinates[0], coordinates[1], 0]);
-                    vehicleModels[vehicleId].model.rotation.y = -radians;
+                    animateVehicle(vehicleModels[vehicleId].model, vehicleModels[vehicleId].label, vehicleModels[vehicleId].positions);
                 }
             });
-
-            console.log("✅ Vehicle data updated on the map");
         }).catch(error => {
             console.error("❌ Error fetching vehicle data:", error);
         });
     }
-
-    function startDataRefresh() {
-        if (!esriRequest) {
-            console.warn("⏳ Waiting for esriRequest to load...");
-            setTimeout(startDataRefresh, 1000);
-        } else {
-            setInterval(() => {
-                loadVehicleData();
-            }, 10000);
-        }
-    }
-
-    startDataRefresh();
-
 </script>
 </body>
 </html>
