@@ -49,30 +49,29 @@
     let map, tb;
 
     require([
-        "esri/identity/OAuthInfo",
-        "esri/identity/IdentityManager",
-        "esri/layers/StreamLayer",
-        "esri/Map",
-        "esri/views/MapView"
-    ], function(OAuthInfo, IdentityManager, StreamLayer, Map, MapView) {
-        
-        var info = new OAuthInfo({
-            appId: "ti3fi1FqvHE2Hhyw",
-            popup: true
-        });
-
-        IdentityManager.registerOAuthInfos([info]);
-
-        IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
-            console.log("✅ Signed in successfully");
-            initializeMap();
-        }).catch(error => {
-            console.error("❌ Sign-in failed: ", error);
-            initializeMap();
-        });
+    "esri/identity/OAuthInfo",
+    "esri/identity/IdentityManager",
+    "esri/layers/StreamLayer",
+    "esri/Map",
+    "esri/views/MapView"
+], function(OAuthInfo, IdentityManager, StreamLayer, Map, MapView) {
+    
+    var info = new OAuthInfo({
+        appId: "ti3fi1FqvHE2Hhyw",
+        popup: true
     });
 
-    function initializeMap() {
+    IdentityManager.registerOAuthInfos([info]);
+
+    IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
+        console.log("✅ Signed in successfully");
+        initializeMap(StreamLayer);
+    }).catch(error => {
+        console.error("❌ Sign-in failed: ", error);
+        initializeMap(StreamLayer);
+    });
+
+    function initializeMap(StreamLayer) {
         map = new mapboxgl.Map({
             container: 'map',
             style: 'mapbox://styles/mapbox/outdoors-v12',
@@ -100,11 +99,11 @@
             });
 
             console.log("✅ Threebox initialized");
-            connectStreamLayer();
+            connectStreamLayer(StreamLayer);
         });
     }
 
-    function connectStreamLayer() {
+    function connectStreamLayer(StreamLayer) {
         console.log("🔄 Connecting to ArcGIS Stream Layer...");
 
         const streamLayer = new StreamLayer({
@@ -114,6 +113,7 @@
 
         streamLayer.when(() => {
             map.addLayer(streamLayer);
+            console.log("✅ StreamLayer added to map");
         });
 
         streamLayer.on("message", function(event) {
@@ -162,6 +162,8 @@
             }
         });
     }
+});
+
 </script>
 </body>
 </html>
