@@ -74,19 +74,25 @@
                 { defaultLights: true }
             );
 
+            // ✅ Add Threebox as a custom Mapbox layer to ensure rendering
             map.addLayer({
-                id: 'osm-3d-buildings',
-                source: 'composite',
-                'source-layer': 'building',
-                type: 'fill-extrusion',
-                minzoom: 15,
-                paint: {
-                    'fill-extrusion-color': '#aaa',
-                    'fill-extrusion-height': ['get', 'height'],
-                    'fill-extrusion-base': ['get', 'min_height'],
-                    'fill-extrusion-opacity': 0.6
+                id: 'custom-threebox-layer',
+                type: 'custom',
+                renderingMode: '3d',
+                onAdd: function () {
+                    console.log("✅ Threebox custom layer added!");
+                },
+                render: function () {
+                    tb.update();
                 }
             });
+
+            // ✅ Fix Mapbox layer filter errors (handles missing "layer" property)
+            map.setFilter('road-label', [
+                "all",
+                ["==", ["get", "structure"], "bridge"],
+                [">=", ["number", ["get", "layer"], 0], 2] // Fix: Provide default value for "layer"
+            ]);
 
             console.log("✅ Threebox initialized");
 
@@ -149,6 +155,8 @@
                             model.setCoords([coordinates[0], coordinates[1]]);
                             tb.add(model);
                             vehicleModels[vehicleId].model = model;
+
+                            console.log(`✅ Model added for vehicle ${vehicleId} at ${coordinates[0]}, ${coordinates[1]}`);
                         });
                     }
 
