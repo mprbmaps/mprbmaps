@@ -46,12 +46,16 @@
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
     let vehicleModels = {}; // Store vehicle models, movement history, and labels
-    let map, tb, ws; // WebSocket connection
+    let map, tb;
 
     require([
         "esri/identity/OAuthInfo",
-        "esri/identity/IdentityManager"
-    ], function(OAuthInfo, IdentityManager) {
+        "esri/identity/IdentityManager",
+        "esri/layers/StreamLayer",
+        "esri/Map",
+        "esri/views/MapView"
+    ], function(OAuthInfo, IdentityManager, StreamLayer, Map, MapView) {
+        
         var info = new OAuthInfo({
             appId: "ti3fi1FqvHE2Hhyw",
             popup: true
@@ -61,102 +65,102 @@
 
         IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
             console.log("✅ Signed in successfully");
-            getTokenAndConnect();
+            initializeMap();
         }).catch(error => {
             console.error("❌ Sign-in failed: ", error);
-            getTokenAndConnect();
+            initializeMap();
         });
     });
 
-    function getTokenAndConnect() {
-        require(["esri/identity/IdentityManager"], function(IdentityManager) {
-            IdentityManager.getCredential("https://us-iot.arcgis.com/sharing/rest").then(credential => {
-                let token = credential.token;
-                connectWebSocket(token);
-            }).catch(error => {
-                console.error("❌ Failed to obtain token:", error);
+    function initializeMap() {
+        map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/outdoors-v12',
+            center: [-93.2650, 44.9778],
+            zoom: 14,
+            pitch: 60,
+            bearing: 0,
+            antialias: true
+        });
+
+        map.on("style.load", function () {
+            console.log("✅ Map Style Loaded!");
+            tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
+
+            map.addLayer({
+                id: "custom-threebox-layer",
+                type: "custom",
+                renderingMode: "3d",
+                onAdd: function () {
+                    console.log("✅ Threebox custom layer added!");
+                },
+                render: function () {
+                    tb.update();
+                }
             });
+
+            console.log("✅ Threebox initialized");
+            connectStreamLayer();
         });
     }
 
-    function connectWebSocket(token) {
-        console.log("🔄 Connecting to WebSocket...");
-        let wsUrl = `wss://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/streams/arcgis/ws/services/MPRBvehicleStream/StreamServer?token=${token}`;
-        ws = new WebSocket(wsUrl);
+    function connectStreamLayer() {
+        console.log("🔄 Connecting to ArcGIS Stream Layer...");
 
-        ws.onopen = function () {
-            console.log("✅ WebSocket connected!");
-            ws.send(JSON.stringify({
-                type: "subscribe",
-                where: "1=1",
-                outFields: "vehicle_number,latitude,longitude,directionDegrees,speedKmph",
-                returnGeometry: true
-            }));
-        };
+        const streamLayer = new StreamLayer({
+            url: "https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/streams/arcgis/rest/services/MPRBvehicleStream/StreamServer",
+            purgeOptions: { age: 5 }
+        });
 
-        ws.onmessage = function (event) {
-            const data = JSON.parse(event.data);
+        streamLayer.when(() => {
+            map.addLayer(streamLayer);
+        });
 
-            if (!data || !data.features) {
-                console.warn("⚠️ No vehicle data received.");
-                return;
+        streamLayer.on("message", function(event) {
+            if (!event || !event.geometry) return;
+            
+            const vehicleId = event.attributes.vehicle_number;
+            const lon = event.geometry.x;
+            const lat = event.geometry.y;
+            const heading = event.attributes.directionDegrees ?? 0;
+            const radians = heading * (Math.PI / 180);
+
+            if (!vehicleModels[vehicleId]) {
+                vehicleModels[vehicleId] = { positions: [], model: null, label: null };
             }
 
-            console.log("🚛 Real-time vehicle data received:", data);
+            vehicleModels[vehicleId].positions.push({ lng: lon, lat: lat });
+            if (vehicleModels[vehicleId].positions.length > 3) {
+                vehicleModels[vehicleId].positions.shift();
+            }
 
-            data.features.forEach(vehicle => {
-                const vehicleId = vehicle.attributes.vehicle_number;
-                const lat = vehicle.attributes.latitude;
-                const lon = vehicle.attributes.longitude;
-                const heading = vehicle.attributes.directionDegrees ?? 0;
-                const radians = heading * (Math.PI / 180);
+            if (!vehicleModels[vehicleId].label) {
+                let labelDiv = document.createElement("div");
+                labelDiv.className = "vehicle-label";
+                labelDiv.innerText = vehicleId.slice(-4);
 
-                if (!vehicleModels[vehicleId]) {
-                    vehicleModels[vehicleId] = { positions: [], model: null, label: null };
-                }
+                vehicleModels[vehicleId].label = new mapboxgl.Marker({
+                    element: labelDiv,
+                    anchor: "bottom"
+                }).setLngLat([lon, lat]).addTo(map);
+            } else {
+                vehicleModels[vehicleId].label.setLngLat([lon, lat]);
+            }
 
-                vehicleModels[vehicleId].positions.push({ lng: lon, lat: lat });
-                if (vehicleModels[vehicleId].positions.length > 3) {
-                    vehicleModels[vehicleId].positions.shift();
-                }
-
-                if (!vehicleModels[vehicleId].label) {
-                    let labelDiv = document.createElement("div");
-                    labelDiv.className = "vehicle-label";
-                    labelDiv.innerText = vehicleId.slice(-4);
-
-                    vehicleModels[vehicleId].label = new mapboxgl.Marker({
-                        element: labelDiv,
-                        anchor: "bottom"
-                    }).setLngLat([lon, lat]).addTo(map);
-                } else {
-                    vehicleModels[vehicleId].label.setLngLat([lon, lat]);
-                }
-
-                if (!vehicleModels[vehicleId].model) {
-                    tb.loadObj({
-                        obj: "truck.gltf",
-                        type: "gltf",
-                        scale: { x: 6.67, y: 6.67, z: 6.67 },
-                        units: "meters"
-                    }, function(model) {
-                        model.setCoords([lon, lat, 0]);
-                        model.rotation.y = -radians;
-                        tb.add(model);
-                        vehicleModels[vehicleId].model = model;
-                    });
-                }
-            });
-        };
-
-        ws.onerror = function (error) {
-            console.error("❌ WebSocket error:", error);
-        };
-
-        ws.onclose = function () {
-            console.warn("⚠️ WebSocket disconnected. Reconnecting in 5 seconds...");
-            setTimeout(() => connectWebSocket(token), 5000);
-        };
+            if (!vehicleModels[vehicleId].model) {
+                tb.loadObj({
+                    obj: "truck.gltf",
+                    type: "gltf",
+                    scale: { x: 6.67, y: 6.67, z: 6.67 },
+                    units: "meters"
+                }, function(model) {
+                    model.setCoords([lon, lat, 0]);
+                    model.rotation.y = -radians;
+                    tb.add(model);
+                    vehicleModels[vehicleId].model = model;
+                });
+            }
+        });
     }
 </script>
 </body>
