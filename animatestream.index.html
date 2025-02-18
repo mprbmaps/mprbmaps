@@ -137,18 +137,18 @@
                             return;
                         }
 
-                        // ✅ Correct Way to Load GLB Model in Threebox with Rotation Fix
+                        // ✅ Load GLB Model with Individual Vehicle Heading
                         const scale = 1.67; // Adjusted for better visibility
                         const options = {
                             obj: "uploads_files_5264196_papercar.glb",
                             type: "gltf",
                             scale: { x: scale, y: scale, z: scale },
                             units: "meters",
-                            rotation: { x: 0, y: headingRadians, z: 0 } // ✅ Fixed: No tilt, just heading rotation
+                            rotation: { x: 0, y: headingRadians, z: 0 } // ✅ Per-vehicle rotation applied!
                         };
 
                         tb.loadObj(options, function(model) {
-                            model.setCoords([coordinates[0], coordinates[1], 1.5]); // **Added slight elevation**
+                            model.setCoords([coordinates[0], coordinates[1], 1.5]); // **Keep vehicle on ground**
                             tb.add(model);
                             vehicleModels[vehicleId].model = model;
 
