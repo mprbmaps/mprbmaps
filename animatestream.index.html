@@ -112,58 +112,23 @@
             purgeOptions: { age: 5 }
         });
 
+        streamLayer.on("connected", function() {
+            console.log("✅ StreamLayer Connected!");
+        });
+
         streamLayer.when(() => {
             map.addLayer(streamLayer);
             console.log("✅ StreamLayer added to map");
         });
 
+        setInterval(() => {
+            streamLayer.queryFeatures().then((result) => {
+                console.log("🔄 Polled Features:", result.features);
+            }).catch(err => console.error("❌ Query Failed:", err));
+        }, 5000);
+
         streamLayer.on("message", function(event) {
             console.log("📡 Received Stream Data:", event);
-            if (!event || !event.geometry) return;
-            
-            const vehicleId = event.attributes.vehicle_number;
-            const lon = event.geometry.x;
-            const lat = event.geometry.y;
-            const heading = event.attributes.directionDegrees ?? 0;
-            const radians = heading * (Math.PI / 180);
-
-            if (!vehicleModels[vehicleId]) {
-                vehicleModels[vehicleId] = { positions: [], model: null, label: null };
-            }
-
-            vehicleModels[vehicleId].positions.push({ lng: lon, lat: lat });
-            if (vehicleModels[vehicleId].positions.length > 3) {
-                vehicleModels[vehicleId].positions.shift();
-            }
-
-            if (!vehicleModels[vehicleId].label) {
-                let labelDiv = document.createElement("div");
-                labelDiv.className = "vehicle-label";
-                labelDiv.innerText = vehicleId.slice(-4);
-
-                vehicleModels[vehicleId].label = new mapboxgl.Marker({
-                    element: labelDiv,
-                    anchor: "bottom"
-                }).setLngLat([lon, lat]).addTo(map);
-            } else {
-                vehicleModels[vehicleId].label.setLngLat([lon, lat]);
-            }
-
-            if (!vehicleModels[vehicleId].model) {
-                console.log(`🚛 Loading GLTF Model for Vehicle: ${vehicleId}`);
-                tb.loadObj({
-                    obj: "truck.gltf",
-                    type: "gltf",
-                    scale: { x: 6.67, y: 6.67, z: 6.67 },
-                    units: "meters"
-                }, function(model) {
-                    model.setCoords([lon, lat, 0]);
-                    model.rotation.y = -radians;
-                    tb.add(model);
-                    vehicleModels[vehicleId].model = model;
-                    console.log(`✅ Model Loaded for ${vehicleId}`);
-                });
-            }
         });
     }
 </script>
