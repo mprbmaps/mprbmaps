@@ -87,22 +87,7 @@
                 }
             });
 
-            // ✅ Re-add 3D Buildings layer
-            map.addLayer({
-                id: 'osm-3d-buildings',
-                source: 'composite',
-                'source-layer': 'building',
-                type: 'fill-extrusion',
-                minzoom: 15,
-                paint: {
-                    'fill-extrusion-color': '#aaa',
-                    'fill-extrusion-height': ['get', 'height'],
-                    'fill-extrusion-base': ['get', 'min_height'],
-                    'fill-extrusion-opacity': 0.6
-                }
-            });
-
-            console.log("✅ Threebox initialized & 3D Buildings Restored");
+            console.log("✅ Threebox initialized");
 
             // ✅ Fetch vehicle data
             loadVehicleData();
@@ -137,8 +122,8 @@
                     const speed = vehicle.properties.speedmph ?? 0;
                     const heading = vehicle.properties.heading ?? 0;
 
-                    // ✅ Convert heading to radians
-                    let headingRadians = THREE.MathUtils.degToRad(heading);
+                    // ✅ Convert heading from degrees to radians
+                    let headingRadians = (heading * Math.PI) / 180;
 
                     if (!vehicleModels[vehicleId]) {
                         vehicleModels[vehicleId] = {
@@ -152,18 +137,18 @@
                             return;
                         }
 
-                        // ✅ Corrected Scale & Rotation for each vehicle
-                        const scale = 1.67;
+                        // ✅ Correct Way to Load GLB Model in Threebox with Rotation Fix
+                        const scale = 1.67; // Adjusted for better visibility
                         const options = {
                             obj: "uploads_files_5264196_papercar.glb",
                             type: "gltf",
                             scale: { x: scale, y: scale, z: scale },
                             units: "meters",
-                            rotation: { x: 0, y: headingRadians, z: 0 } // ✅ Corrected rotation per vehicle
+                            rotation: { x: 0, y: headingRadians, z: 0 } // ✅ Fixed: No tilt, just heading rotation
                         };
 
                         tb.loadObj(options, function(model) {
-                            model.setCoords([coordinates[0], coordinates[1], 1.5]); // ✅ Slight elevation
+                            model.setCoords([coordinates[0], coordinates[1], 1.5]); // **Added slight elevation**
                             tb.add(model);
                             vehicleModels[vehicleId].model = model;
 
@@ -203,7 +188,7 @@
             let interpolatedLng = startCoords.lng + (endCoords.lng - startCoords.lng) * progress;
             let interpolatedLat = startCoords.lat + (endCoords.lat - startCoords.lat) * progress;
 
-            model.setCoords([interpolatedLng, interpolatedLat, 1.5]); // ✅ Keep altitude above ground
+            model.setCoords([interpolatedLng, interpolatedLat]);
 
             if (progress < 1) {
                 requestAnimationFrame(step);
