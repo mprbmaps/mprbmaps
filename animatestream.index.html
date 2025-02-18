@@ -29,6 +29,7 @@
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
     let map, tb;
+    let vehicleModels = {}; // Store vehicle models
 
     require([
         "esri/identity/OAuthInfo",
@@ -92,44 +93,33 @@
                     return;
                 }
                 
-                // Create or update Mapbox source for vehicles
-                if (!map.getSource('vehicles')) {
-                    map.addSource('vehicles', {
-                        type: 'geojson',
-                        data: {
-                            type: 'FeatureCollection',
-                            features: []
-                        }
-                    });
-                    map.addLayer({
-                        id: 'vehicle-layer',
-                        type: 'symbol',
-                        source: 'vehicles',
-                        layout: {
-                            'icon-image': 'car-15',
-                            'icon-size': 1.5,
-                            'icon-allow-overlap': true
-                        }
-                    });
-                }
+                vehicles.forEach(vehicle => {
+                    const coordinates = vehicle.geometry.coordinates;
+                    const vehicleId = vehicle.properties.vehicle_number;
+                    const heading = vehicle.properties.heading ?? 0;
+                    const radians = heading * (Math.PI / 180);
 
-                // Update vehicle positions
-                const vehicleFeatures = vehicles.map(vehicle => ({
-                    type: 'Feature',
-                    geometry: {
-                        type: 'Point',
-                        coordinates: [vehicle.geometry.coordinates[0], vehicle.geometry.coordinates[1]]
-                    },
-                    properties: {
-                        id: vehicle.properties.vehicle_number,
-                        heading: vehicle.properties.heading ?? 0,
-                        speed: vehicle.properties.speedKmph
+                    if (!vehicleModels[vehicleId]) {
+                        vehicleModels[vehicleId] = { model: null };
                     }
-                }));
 
-                map.getSource('vehicles').setData({
-                    type: 'FeatureCollection',
-                    features: vehicleFeatures
+                    if (!vehicleModels[vehicleId].model) {
+                        tb.loadObj({
+                            obj: "truck.gltf",
+                            type: "gltf",
+                            scale: { x: 6.67, y: 6.67, z: 6.67 },
+                            units: "meters"
+                        }, function(model) {
+                            model.setCoords([coordinates[0], coordinates[1], 0]);
+                            model.rotation.x = Math.PI / 2;
+                            model.rotation.y = -radians;
+                            tb.add(model);
+                            vehicleModels[vehicleId].model = model;
+                        });
+                    } else {
+                        vehicleModels[vehicleId].model.setCoords([coordinates[0], coordinates[1], 0]);
+                        vehicleModels[vehicleId].model.rotation.y = -radians;
+                    }
                 });
 
                 console.log("✅ Vehicle data updated on the map");
@@ -142,7 +132,7 @@
     // Refresh data every 30 seconds
     setInterval(() => {
         loadVehicleData();
-    }, 30000);
+    }, 10000);
 </script>
 </body>
 </html>
