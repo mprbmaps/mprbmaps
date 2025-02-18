@@ -101,71 +101,81 @@
     }
 
     async function loadVehicleData() {
-        console.log("🔄 Fetching vehicle data from Push Feed...");
-        
-        const pushFeedURL = "https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/receiver/25dc726581674ea285f04a730a8a33c4";
-        
+    console.log("🔄 Fetching vehicle data from Push Feed...");
+    
+    const pushFeedURL = "https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/receiver/25dc726581674ea285f04a730a8a33c4";
+    
+    try {
+        let response = await fetch(pushFeedURL, {
+            method: 'GET', // Changing to GET in case POST is not supported
+            headers: {
+                'Authorization': 'Basic ' + btoa('karmstrong@minneapolisparks.org:' + prompt('Enter password:')), 
+                'Content-Type': 'application/json'
+            }
+        });
+
+        // Log raw response text
+        let rawText = await response.text();
+        console.log("📜 Raw Response:", rawText);
+
+        // Attempt to parse as JSON
+        let data;
         try {
-            let response = await fetch(pushFeedURL, {
-                method: 'POST',
-                headers: {
-                    'Authorization': 'Basic ' + btoa('karmstrong@minneapolisparks.org:' + prompt('Enter password:')), 
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({}) // Sending an empty payload to comply with some API requirements
-            });
+            data = JSON.parse(rawText);
+        } catch (jsonError) {
+            console.error("❌ Response is not valid JSON:", jsonError);
+            return;
+        }
+
+        if (!data || !data.features) {
+            console.warn("⚠️ No vehicle data found.");
+            return;
+        }
+
+        data.features.forEach(vehicle => {
+            const coordinates = vehicle.geometry.coordinates;
+            const vehicleId = vehicle.properties.vehicleid;
+            const heading = vehicle.properties.heading ?? 0;
+            const radians = heading * (Math.PI / 180);
             
-            if (!response.ok) throw new Error("Network response was not ok");
-            let data = await response.json();
-            
-            if (!data || !data.features) {
-                console.warn("⚠️ No vehicle data found.");
-                return;
+            if (!vehicleModels[vehicleId]) {
+                vehicleModels[vehicleId] = { model: null, label: null };
             }
 
-            data.features.forEach(vehicle => {
-                const coordinates = vehicle.geometry.coordinates;
-                const vehicleId = vehicle.properties.vehicleid;
-                const heading = vehicle.properties.heading ?? 0;
-                const radians = heading * (Math.PI / 180);
+            if (!vehicleModels[vehicleId].label) {
+                let labelDiv = document.createElement('div');
+                labelDiv.className = 'vehicle-label';
+                labelDiv.innerText = vehicleId.slice(-4);
                 
-                if (!vehicleModels[vehicleId]) {
-                    vehicleModels[vehicleId] = { model: null, label: null };
-                }
+                vehicleModels[vehicleId].label = new mapboxgl.Marker({
+                    element: labelDiv,
+                    anchor: 'bottom'
+                }).setLngLat([coordinates[0], coordinates[1]]).addTo(map);
+            } else {
+                vehicleModels[vehicleId].label.setLngLat([coordinates[0], coordinates[1]]);
+            }
 
-                if (!vehicleModels[vehicleId].label) {
-                    let labelDiv = document.createElement('div');
-                    labelDiv.className = 'vehicle-label';
-                    labelDiv.innerText = vehicleId.slice(-4);
-                    
-                    vehicleModels[vehicleId].label = new mapboxgl.Marker({
-                        element: labelDiv,
-                        anchor: 'bottom'
-                    }).setLngLat([coordinates[0], coordinates[1]]).addTo(map);
-                } else {
-                    vehicleModels[vehicleId].label.setLngLat([coordinates[0], coordinates[1]]);
-                }
-
-                if (!vehicleModels[vehicleId].model) {
-                    tb.loadObj({
-                        obj: "truck.gltf",
-                        type: "gltf",
-                        scale: { x: 6.67, y: 6.67, z: 6.67 },
-                        units: "meters"
-                    }, function(model) {
-                        model.setCoords([coordinates[0], coordinates[1], 0]);
-                        model.rotation.y = -radians;
-                        tb.add(model);
-                        vehicleModels[vehicleId].model = model;
-                    });
-                } else {
-                    vehicleModels[vehicleId].model.setCoords([coordinates[0], coordinates[1], 0]);
-                }
-            });
-        } catch (error) {
-            console.error("❌ Error loading vehicle data:", error);
-        }
+            if (!vehicleModels[vehicleId].model) {
+                tb.loadObj({
+                    obj: "truck.gltf",
+                    type: "gltf",
+                    scale: { x: 6.67, y: 6.67, z: 6.67 },
+                    units: "meters"
+                }, function(model) {
+                    model.setCoords([coordinates[0], coordinates[1], 0]);
+                    model.rotation.y = -radians;
+                    tb.add(model);
+                    vehicleModels[vehicleId].model = model;
+                });
+            } else {
+                vehicleModels[vehicleId].model.setCoords([coordinates[0], coordinates[1], 0]);
+            }
+        });
+    } catch (error) {
+        console.error("❌ Error loading vehicle data:", error);
     }
+}
+
 
     setInterval(() => {
         if (tb) {
