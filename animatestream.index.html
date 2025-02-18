@@ -152,37 +152,23 @@
 
                         // ✅ Load Individual Vehicle Model with Unique Heading
                         tb.loadObj({
-    obj: "uploads_files_5264196_papercar.glb",
-    type: "gltf",
-    scale: { x: 1.67, y: 1.67, z: 1.67 },
-    units: "meters"
-}, function (model) {
-    let vehicleHeading = vehicle.properties.heading ?? 0; // Get heading per vehicle
-    let radians = -vehicleHeading * (Math.PI / 180); // Convert to radians & negate
+                            obj: "uploads_files_5264196_papercar.glb",
+                            type: "gltf",
+                            scale: { x: 1.67, y: 1.67, z: 1.67 },
+                            units: "meters"
+                        }, function(model) {
+                            model.setCoords([coordinates[0], coordinates[1], 0]); // Keep on ground
 
-    model.setCoords([coordinates[0], coordinates[1], 0]); // Keep tires touching ground
+                            // ✅ Apply correct rotation (use Three.js rotation)
+                            model.rotation.x = Math.PI / 2;  // Keep the vehicle flat
+                            model.rotation.y = -radians;     // Rotate per heading value
+                            model.rotation.z = 0;            // Ensure no unintended tilt
 
-    // ✅ Apply rotation per vehicle
-    model.setRotation({ x: 90, y: radians, z: 0 });
+                            tb.add(model);
+                            vehicleModels[vehicleId].model = model;
 
-    tb.add(model);
-    vehicleModels[vehicleId].model = model;
-
-    console.log(`✅ Model added for vehicle ${vehicleId} at ${coordinates[0]}, ${coordinates[1]} with heading: ${vehicleHeading}° (Radians: ${radians})`);
-});
-
-
-                    }
-
-                    let positions = vehicleModels[vehicleId].positions;
-                    positions.push({ lng: coordinates[0], lat: coordinates[1], speed, heading });
-
-                    if (positions.length > 3) {
-                        positions.shift();
-                    }
-
-                    if (positions.length >= 3) {
-                        animateVehicle(vehicleModels[vehicleId].model, positions[1], positions[2]);
+                            console.log(`✅ Vehicle ${vehicleId} placed with heading: ${heading}° (Radians: ${radians})`);
+                        });
                     }
                 });
 
@@ -191,31 +177,6 @@
                 console.error("❌ Error loading vehicle data:", error);
             });
         });
-    }
-
-    function animateVehicle(model, startCoords, endCoords) {
-        if (!model || !startCoords || !endCoords) return;
-
-        const duration = 1000;
-        const start = performance.now();
-
-        function step(timestamp) {
-            const elapsed = timestamp - start;
-            const progress = Math.min(elapsed / duration, 1);
-
-            let interpolatedLng = startCoords.lng + (endCoords.lng - startCoords.lng) * progress;
-            let interpolatedLat = startCoords.lat + (endCoords.lat - startCoords.lat) * progress;
-
-            model.setCoords([interpolatedLng, interpolatedLat, 0]); // Keep on ground
-
-            if (progress < 1) {
-                requestAnimationFrame(step);
-            } else {
-                tb.update();
-            }
-        }
-
-        requestAnimationFrame(step);
     }
 
     // Auto-refresh every 30 seconds
