@@ -46,7 +46,7 @@
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
     let vehicleModels = {}; // Store vehicle models, movement history, and labels
-    let map, tb;
+    let map, tb, ws; // WebSocket connection
 
     require([
         "esri/identity/OAuthInfo",
@@ -61,127 +61,122 @@
 
         IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
             console.log("✅ Signed in successfully");
-            initializeMap();
+            connectWebSocket();
         }).catch(error => {
             console.error("❌ Sign-in failed: ", error);
-            initializeMap();
+            connectWebSocket();
         });
     });
 
-    function initializeMap() {
-        map = new mapboxgl.Map({
-            container: 'map',
-            style: 'mapbox://styles/mapbox/outdoors-v12',
-            center: [-93.2650, 44.9778],
-            zoom: 14,
-            pitch: 60,
-            bearing: 0,
-            antialias: true
-        });
+    function connectWebSocket() {
+        console.log("🔄 Connecting to WebSocket...");
 
-        map.on('style.load', function () {  
-            console.log("✅ Map Style Loaded!");
-            
-            tb = new Threebox(map, map.getCanvas().getContext('webgl'), { defaultLights: true });
-            map.addLayer({
-                id: 'custom-threebox-layer',
-                type: 'custom',
-                renderingMode: '3d',
-                onAdd: function () {
-                    console.log("✅ Threebox custom layer added!");
-                },
-                render: function () {
-                    tb.update();
+        ws = new WebSocket("wss://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/streams/arcgis/ws/services/MPRBvehicleStream/StreamServer");
+
+        ws.onopen = function () {
+            console.log("✅ WebSocket connected!");
+            ws.send(JSON.stringify({
+                type: "subscribe",
+                where: "1=1",
+                outFields: "vehicle_number,latitude,longitude,directionDegrees,speedKmph",
+                returnGeometry: true
+            }));
+        };
+
+        ws.onmessage = function (event) {
+            const data = JSON.parse(event.data);
+
+            if (!data || !data.features) {
+                console.warn("⚠️ No vehicle data received.");
+                return;
+            }
+
+            console.log("🚛 Real-time vehicle data received:", data);
+
+            data.features.forEach(vehicle => {
+                const vehicleId = vehicle.attributes.vehicle_number;
+                const lat = vehicle.attributes.latitude;
+                const lon = vehicle.attributes.longitude;
+                const heading = vehicle.attributes.directionDegrees ?? 0;
+                const radians = heading * (Math.PI / 180);
+
+                if (!vehicleModels[vehicleId]) {
+                    vehicleModels[vehicleId] = { positions: [], model: null, label: null };
+                }
+
+                vehicleModels[vehicleId].positions.push({ lng: lon, lat: lat });
+                if (vehicleModels[vehicleId].positions.length > 3) {
+                    vehicleModels[vehicleId].positions.shift();
+                }
+
+                if (!vehicleModels[vehicleId].label) {
+                    let labelDiv = document.createElement("div");
+                    labelDiv.className = "vehicle-label";
+                    labelDiv.innerText = vehicleId.slice(-4);
+
+                    vehicleModels[vehicleId].label = new mapboxgl.Marker({
+                        element: labelDiv,
+                        anchor: "bottom"
+                    }).setLngLat([lon, lat]).addTo(map);
+                } else {
+                    vehicleModels[vehicleId].label.setLngLat([lon, lat]);
+                }
+
+                if (!vehicleModels[vehicleId].model) {
+                    tb.loadObj({
+                        obj: "truck.gltf",
+                        type: "gltf",
+                        scale: { x: 6.67, y: 6.67, z: 6.67 },
+                        units: "meters"
+                    }, function(model) {
+                        model.setCoords([lon, lat, 0]);
+                        model.rotation.y = -radians;
+                        tb.add(model);
+                        vehicleModels[vehicleId].model = model;
+                    });
+                } else {
+                    animateVehicle(vehicleModels[vehicleId].model, vehicleModels[vehicleId].label, vehicleModels[vehicleId].positions);
                 }
             });
-            
-            console.log("✅ Threebox initialized");
-            loadVehicleData();
-        });
+        };
+
+        ws.onerror = function (error) {
+            console.error("❌ WebSocket error:", error);
+        };
+
+        ws.onclose = function () {
+            console.warn("⚠️ WebSocket disconnected. Reconnecting in 5 seconds...");
+            setTimeout(connectWebSocket, 5000);
+        };
     }
 
-    async function loadVehicleData() {
-    console.log("🔄 Fetching vehicle data from Push Feed...");
-    
-    const pushFeedURL = "https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/receiver/25dc726581674ea285f04a730a8a33c4";
-    
-    try {
-        let response = await fetch(pushFeedURL, {
-            method: 'GET', // Changing to GET in case POST is not supported
-            headers: {
-                'Authorization': 'Basic ' + btoa('karmstrong@minneapolisparks.org:' + prompt('Enter password:')), 
-                'Content-Type': 'application/json'
-            }
-        });
+    function animateVehicle(model, label, positions) {
+        if (!model || !label || positions.length < 3) return;
 
-        // Log raw response text
-        let rawText = await response.text();
-        console.log("📜 Raw Response:", rawText);
+        let startPos = positions[0];
+        let endPos = positions[1];
 
-        // Attempt to parse as JSON
-        let data;
-        try {
-            data = JSON.parse(rawText);
-        } catch (jsonError) {
-            console.error("❌ Response is not valid JSON:", jsonError);
-            return;
-        }
+        const duration = 1000;
+        const start = performance.now();
 
-        if (!data || !data.features) {
-            console.warn("⚠️ No vehicle data found.");
-            return;
-        }
+        function step(timestamp) {
+            const elapsed = timestamp - start;
+            const progress = Math.min(elapsed / duration, 1);
 
-        data.features.forEach(vehicle => {
-            const coordinates = vehicle.geometry.coordinates;
-            const vehicleId = vehicle.properties.vehicleid;
-            const heading = vehicle.properties.heading ?? 0;
-            const radians = heading * (Math.PI / 180);
-            
-            if (!vehicleModels[vehicleId]) {
-                vehicleModels[vehicleId] = { model: null, label: null };
-            }
+            let interpolatedLng = startPos.lng + (endPos.lng - startPos.lng) * progress;
+            let interpolatedLat = startPos.lat + (endPos.lat - startPos.lat) * progress;
 
-            if (!vehicleModels[vehicleId].label) {
-                let labelDiv = document.createElement('div');
-                labelDiv.className = 'vehicle-label';
-                labelDiv.innerText = vehicleId.slice(-4);
-                
-                vehicleModels[vehicleId].label = new mapboxgl.Marker({
-                    element: labelDiv,
-                    anchor: 'bottom'
-                }).setLngLat([coordinates[0], coordinates[1]]).addTo(map);
+            model.setCoords([interpolatedLng, interpolatedLat, 0]);
+            label.setLngLat([interpolatedLng, interpolatedLat]);
+
+            if (progress < 1) {
+                requestAnimationFrame(step);
             } else {
-                vehicleModels[vehicleId].label.setLngLat([coordinates[0], coordinates[1]]);
+                tb.update();
             }
-
-            if (!vehicleModels[vehicleId].model) {
-                tb.loadObj({
-                    obj: "truck.gltf",
-                    type: "gltf",
-                    scale: { x: 6.67, y: 6.67, z: 6.67 },
-                    units: "meters"
-                }, function(model) {
-                    model.setCoords([coordinates[0], coordinates[1], 0]);
-                    model.rotation.y = -radians;
-                    tb.add(model);
-                    vehicleModels[vehicleId].model = model;
-                });
-            } else {
-                vehicleModels[vehicleId].model.setCoords([coordinates[0], coordinates[1], 0]);
-            }
-        });
-    } catch (error) {
-        console.error("❌ Error loading vehicle data:", error);
+        }
+        requestAnimationFrame(step);
     }
-}
-
-
-    setInterval(() => {
-        if (tb) {
-            loadVehicleData();
-        }
-    }, 30000);
 </script>
 </body>
 </html>
