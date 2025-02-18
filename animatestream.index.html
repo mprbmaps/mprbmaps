@@ -32,10 +32,10 @@
     let vehicleModels = {}; // Store vehicle models
 
     require([
+        "esri/request",
         "esri/identity/OAuthInfo",
-        "esri/identity/IdentityManager",
-        "esri/request"
-    ], function(OAuthInfo, IdentityManager, esriRequest) {
+        "esri/identity/IdentityManager"
+    ], function(esriRequest, OAuthInfo, IdentityManager) {
         
         var info = new OAuthInfo({
             appId: "ti3fi1FqvHE2Hhyw",
@@ -87,25 +87,24 @@
             responseType: "json"
         }).then(response => {
             const vehicles = response.data.features;
+
             if (!vehicles || vehicles.length === 0) {
                 console.warn("⚠️ No vehicles found in Hosted Feature Layer.");
                 return;
             }
-
-            console.log("📡 Vehicle Data:", vehicles);
-
+            
             vehicles.forEach(vehicle => {
-                const coordinates = vehicle.geometry?.coordinates;
-                if (!coordinates || coordinates.length !== 2) {
-                    console.warn(`⚠️ Invalid coordinates for vehicle ${vehicle.properties.vehicle_number}`);
+                if (!vehicle.geometry || !vehicle.geometry.coordinates) {
+                    console.error("❌ Vehicle missing geometry:", vehicle);
                     return;
                 }
 
+                const coordinates = vehicle.geometry.coordinates;
                 const vehicleId = vehicle.properties.vehicle_number;
                 const heading = vehicle.properties.heading ?? 0;
                 const radians = heading * (Math.PI / 180);
 
-                console.log("📍 Vehicle Position:", coordinates);
+                console.log(`📍 Vehicle Position: ${coordinates}`);
 
                 if (!vehicleModels[vehicleId]) {
                     vehicleModels[vehicleId] = { model: null };
@@ -123,12 +122,11 @@
                         model.rotation.y = -radians;
                         tb.add(model);
                         vehicleModels[vehicleId].model = model;
-                        console.log("🚚 3D Model Added for:", vehicleId);
+                        console.log(`🚚 3D Model Added for: ${vehicleId}`);
                     });
                 } else {
                     vehicleModels[vehicleId].model.setCoords([coordinates[0], coordinates[1], 0]);
                     vehicleModels[vehicleId].model.rotation.y = -radians;
-                    console.log("🔄 Updating vehicle:", vehicleId);
                 }
             });
 
@@ -138,10 +136,10 @@
         });
     }
 
-    // Refresh data every 30 seconds
+    // Refresh data every 10 seconds
     setInterval(() => {
         loadVehicleData(esriRequest);
-    }, 30000);
+    }, 10000);
 </script>
 </body>
 </html>
