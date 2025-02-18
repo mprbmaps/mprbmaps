@@ -134,14 +134,16 @@
             const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
 
             esriRequest(featureLayerURL + "/query", {
-                query: {
-                    where: "1=1",
-                    outFields: "objectid,heading,vehicleid,speedmph",
-                    returnGeometry: true,
-                    f: "geojson"
-                },
-                responseType: "json"
-            }).then(response => {
+    query: {
+        where: "1=1",
+        outFields: "*",
+        returnGeometry: true,
+        f: "geojson",
+        token: "<your-generated-token>"
+    },
+    responseType: "json"
+})
+.then(response => {
                 const vehicles = response.data.features;
                 lastUpdateTime = performance.now();
 
