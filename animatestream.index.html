@@ -74,7 +74,7 @@
                 { defaultLights: true }
             );
 
-            // ✅ Add Threebox as a custom Mapbox layer to ensure rendering
+            // ✅ Add Threebox as a custom Mapbox layer
             map.addLayer({
                 id: 'custom-threebox-layer',
                 type: 'custom',
@@ -135,7 +135,8 @@
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
                     const speed = vehicle.properties.speedmph ?? 0;
-                    const heading = vehicle.properties.heading ?? 0;
+                    const heading = vehicle.properties.heading ?? 0; // Unique heading per vehicle
+                    const radians = heading * (Math.PI / 180); // Convert heading to radians
 
                     if (!vehicleModels[vehicleId]) {
                         vehicleModels[vehicleId] = {
@@ -149,34 +150,20 @@
                             return;
                         }
 
-                        // ✅ Corrected Rotation: Ensures vehicles are FLAT on the map
-                        const scale = 1.67; // Scale 1/3 of previous size
-                        const options = {
+                        // ✅ Load Individual Vehicle Model with Unique Heading
+                        tb.loadObj({
                             obj: "uploads_files_5264196_papercar.glb",
                             type: "gltf",
-                            scale: { x: scale, y: scale, z: scale },
-                            units: "meters",
-                            rotation: { x: -90, y: 0, z: heading } // ✅ Fix: Lays vehicles flat
-                        };
-
-                        tb.loadObj(options, function(model) {
-                            model.setCoords([coordinates[0], coordinates[1], 1.5]); // ✅ Fix: Place slightly above ground
+                            scale: { x: 1.67, y: 1.67, z: 1.67 },
+                            units: "meters"
+                        }, function(model) {
+                            model.setCoords([coordinates[0], coordinates[1], 0]); // Keep on ground
+                            model.setRotation({ x: 90, y: 0, z: -radians }); // Individual heading
                             tb.add(model);
                             vehicleModels[vehicleId].model = model;
 
-                            console.log(`✅ Model added for vehicle ${vehicleId} at ${coordinates[0]}, ${coordinates[1]}`);
-                        });tb.loadObj(options, function(model) {
-    model.setCoords([coordinates[0], coordinates[1], 1.5]); // Keep above ground
-
-    // ✅ Rotate each vehicle based on its own heading
-    model.setRotation({ x: 90, y: 0, z: -heading }); // Fix direction
-
-    tb.add(model);
-    vehicleModels[vehicleId].model = model;
-
-    console.log(`✅ Model added for vehicle ${vehicleId} at ${coordinates[0]}, ${coordinates[1]} with heading: ${heading}`);
-});
-
+                            console.log(`✅ Model added for vehicle ${vehicleId} at ${coordinates[0]}, ${coordinates[1]} with heading: ${heading}°`);
+                        });
                     }
 
                     let positions = vehicleModels[vehicleId].positions;
@@ -211,7 +198,7 @@
             let interpolatedLng = startCoords.lng + (endCoords.lng - startCoords.lng) * progress;
             let interpolatedLat = startCoords.lat + (endCoords.lat - startCoords.lat) * progress;
 
-            model.setCoords([interpolatedLng, interpolatedLat, 1.5]); // ✅ Keep altitude to prevent clipping
+            model.setCoords([interpolatedLng, interpolatedLat, 0]); // Keep on ground
 
             if (progress < 1) {
                 requestAnimationFrame(step);
