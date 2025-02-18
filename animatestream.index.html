@@ -24,7 +24,7 @@
         .vehicle-label {
             width: 40px;
             height: 40px;
-            background-color: rgba(255, 0, 0, 0.8); /* Red Circle */
+            background-color: rgba(255, 0, 0, 0.8);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -35,7 +35,7 @@
             border: 2px solid white;
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
             text-align: center;
-            pointer-events: none; /* Prevent interaction */
+            pointer-events: none;
         }
     </style>
 </head>
@@ -149,9 +149,9 @@
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
-                    const lastFour = vehicleId.slice(-4); // Extract last 4 digits
+                    const lastFour = vehicleId.slice(-4);
                     const heading = vehicle.properties.heading ?? 0;
-                    const radians = heading * (Math.PI / 180); 
+                    const radians = heading * (Math.PI / 180);
 
                     if (!vehicleModels[vehicleId]) {
                         vehicleModels[vehicleId] = {
@@ -162,13 +162,17 @@
                         };
                     }
 
+                    // Store last three positions
+                    vehicleModels[vehicleId].positions.push({ lng: coordinates[0], lat: coordinates[1] });
+                    if (vehicleModels[vehicleId].positions.length > 3) {
+                        vehicleModels[vehicleId].positions.shift(); // Keep only last 3
+                    }
+
                     if (!vehicleModels[vehicleId].label) {
-                        // ✅ Create the label
                         let labelDiv = document.createElement('div');
                         labelDiv.className = 'vehicle-label';
                         labelDiv.innerText = lastFour;
 
-                        // ✅ Attach label to map
                         vehicleModels[vehicleId].label = new mapboxgl.Marker({
                             element: labelDiv,
                             anchor: 'bottom'
@@ -189,11 +193,9 @@
                             model.rotation.z = 0;
                             tb.add(model);
                             vehicleModels[vehicleId].model = model;
-
-                            console.log(`✅ Vehicle ${vehicleId} placed with computed heading: ${heading}°`);
                         });
                     } else {
-                        animateVehicle(vehicleModels[vehicleId].model, vehicleModels[vehicleId].label, coordinates);
+                        animateVehicle(vehicleModels[vehicleId].model, vehicleModels[vehicleId].label, vehicleModels[vehicleId].positions);
                     }
                 });
 
@@ -203,11 +205,33 @@
         });
     }
 
-    function animateVehicle(model, label, coordinates) {
-        if (!model || !label) return;
+    function animateVehicle(model, label, positions) {
+        if (!model || !label || positions.length < 3) return;
 
-        model.setCoords([coordinates[0], coordinates[1], 0]);
-        label.setLngLat([coordinates[0], coordinates[1]]);
+        let startPos = positions[0];
+        let endPos = positions[1];
+
+        const duration = 1000;
+        const start = performance.now();
+
+        function step(timestamp) {
+            const elapsed = timestamp - start;
+            const progress = Math.min(elapsed / duration, 1);
+
+            let interpolatedLng = startPos.lng + (endPos.lng - startPos.lng) * progress;
+            let interpolatedLat = startPos.lat + (endPos.lat - startPos.lat) * progress;
+
+            model.setCoords([interpolatedLng, interpolatedLat, 0]);
+            label.setLngLat([interpolatedLng, interpolatedLat]);
+
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            } else {
+                tb.update();
+            }
+        }
+
+        requestAnimationFrame(step);
     }
 
     setInterval(() => {
@@ -215,7 +239,6 @@
             loadVehicleData();
         }
     }, 30000);
-
 </script>
 
 </body>
