@@ -155,17 +155,17 @@
 
                     if (!vehicleModels[vehicleId]) {
                         vehicleModels[vehicleId] = {
-                            positions: [],
+                            positions: [{ lng: coordinates[0], lat: coordinates[1] }],
                             model: null,
                             lastHeading: radians,
                             label: null
                         };
-                    }
-
-                    // Store last three positions
-                    vehicleModels[vehicleId].positions.push({ lng: coordinates[0], lat: coordinates[1] });
-                    if (vehicleModels[vehicleId].positions.length > 3) {
-                        vehicleModels[vehicleId].positions.shift(); // Keep only last 3
+                    } else {
+                        vehicleModels[vehicleId].positions.push({ lng: coordinates[0], lat: coordinates[1] });
+                        if (vehicleModels[vehicleId].positions.length > 3) {
+                            vehicleModels[vehicleId].positions.shift();
+                        }
+                        animateVehicle(vehicleModels[vehicleId]);
                     }
 
                     if (!vehicleModels[vehicleId].label) {
@@ -194,8 +194,6 @@
                             tb.add(model);
                             vehicleModels[vehicleId].model = model;
                         });
-                    } else {
-                        animateVehicle(vehicleModels[vehicleId].model, vehicleModels[vehicleId].label, vehicleModels[vehicleId].positions);
                     }
                 });
 
@@ -205,11 +203,11 @@
         });
     }
 
-    function animateVehicle(model, label, positions) {
-        if (!model || !label || positions.length < 3) return;
+    function animateVehicle(vehicle) {
+        if (!vehicle.model || vehicle.positions.length < 2) return;
 
-        let startPos = positions[0];
-        let endPos = positions[1];
+        let startPos = vehicle.positions[0];
+        let endPos = vehicle.positions[1];
 
         const duration = 1000;
         const start = performance.now();
@@ -221,13 +219,11 @@
             let interpolatedLng = startPos.lng + (endPos.lng - startPos.lng) * progress;
             let interpolatedLat = startPos.lat + (endPos.lat - startPos.lat) * progress;
 
-            model.setCoords([interpolatedLng, interpolatedLat, 0]);
-            label.setLngLat([interpolatedLng, interpolatedLat]);
+            vehicle.model.setCoords([interpolatedLng, interpolatedLat, 0]);
+            vehicle.label.setLngLat([interpolatedLng, interpolatedLat]);
 
             if (progress < 1) {
                 requestAnimationFrame(step);
-            } else {
-                tb.update();
             }
         }
 
@@ -235,9 +231,7 @@
     }
 
     setInterval(() => {
-        if (tb) {
-            loadVehicleData();
-        }
+        loadVehicleData();
     }, 30000);
 </script>
 
