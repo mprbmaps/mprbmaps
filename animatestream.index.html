@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles with Clustering & Animation</title>
+    <title>Mapbox + Threebox 3D Vehicles</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -20,7 +20,7 @@
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
 
-        /* 🔵 Individual Vehicle Labels */
+        /* 🔵 Circular label styles */
         .vehicle-label {
             width: 40px;
             height: 40px;
@@ -37,23 +37,6 @@
             text-align: center;
             pointer-events: none;
         }
-
-        /* 🟢 Cluster Labels */
-        .cluster-label {
-            width: 50px;
-            height: 50px;
-            background-color: rgba(0, 128, 0, 0.85);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            font-weight: bold;
-            color: white;
-            border: 2px solid white;
-            box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
-            pointer-events: none;
-        }
     </style>
 </head>
 <body>
@@ -61,11 +44,32 @@
 <div id="map"></div>
 
 <script>
-    mapboxgl.accessToken = 'YOUR_MAPBOX_ACCESS_TOKEN';
+    mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    let vehicleModels = {};
-    let vehicleClusters = {};
+    let vehicleModels = {}; // Store vehicle models, movement history, and labels
     let map, tb;
+
+    require([
+        "esri/request",
+        "esri/identity/OAuthInfo",
+        "esri/identity/IdentityManager"
+    ], function(esriRequest, OAuthInfo, IdentityManager) {
+
+        var info = new OAuthInfo({
+            appId: "ti3fi1FqvHE2Hhyw",
+            popup: true
+        });
+
+        IdentityManager.registerOAuthInfos([info]);
+
+        IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(function() {
+            console.log("✅ Signed in successfully");
+            initializeMap();
+        }).catch(function(error) {
+            console.error("❌ Sign-in failed: ", error);
+            initializeMap();
+        });
+    });
 
     function initializeMap() {
         map = new mapboxgl.Map({
@@ -97,21 +101,27 @@
             });
 
             // ✅ Initialize Threebox
-            tb = new Threebox(map, map.getCanvas().getContext('webgl'), { defaultLights: true });
+            tb = new Threebox(
+                map,
+                map.getCanvas().getContext('webgl'),
+                { defaultLights: true }
+            );
 
             map.addLayer({
                 id: 'custom-threebox-layer',
                 type: 'custom',
                 renderingMode: '3d',
-                onAdd: function () { console.log("✅ Threebox custom layer added!"); },
-                render: function () { tb.update(); }
+                onAdd: function () {
+                    console.log("✅ Threebox custom layer added!");
+                },
+                render: function () {
+                    tb.update();
+                }
             });
 
             console.log("✅ Threebox initialized & 3D Buildings Restored");
             loadVehicleData();
         });
-
-        map.on('zoom', updateVehicleLabels);
     }
 
     function loadVehicleData() {
@@ -130,9 +140,11 @@
                 responseType: "json"
             }).then(response => {
                 const vehicles = response.data.features;
-                if (!vehicles || vehicles.length === 0) return;
 
-                vehicleClusters = {};
+                if (!vehicles || vehicles.length === 0) {
+                    console.warn("⚠️ No vehicles found in ArcGIS Feature Layer.");
+                    return;
+                }
 
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
@@ -140,19 +152,32 @@
                     const lastFour = vehicleId.slice(-4);
                     const heading = vehicle.properties.heading ?? 0;
                     const radians = heading * (Math.PI / 180);
-                    const zoomLevel = map.getZoom();
 
                     if (!vehicleModels[vehicleId]) {
-                        vehicleModels[vehicleId] = { positions: [], model: null, label: null };
+                        vehicleModels[vehicleId] = {
+                            positions: [],
+                            model: null,
+                            lastHeading: radians,
+                            label: null
+                        };
                     }
 
+                    // Store last three positions
                     vehicleModels[vehicleId].positions.push({ lng: coordinates[0], lat: coordinates[1] });
-                    if (vehicleModels[vehicleId].positions.length > 3) vehicleModels[vehicleId].positions.shift();
+                    if (vehicleModels[vehicleId].positions.length > 3) {
+                        vehicleModels[vehicleId].positions.shift(); // Keep only last 3
+                    }
 
-                    if (zoomLevel > 12) {
-                        createVehicleLabel(vehicleId, coordinates, lastFour);
-                    } else {
-                        clusterVehicle(vehicleId, coordinates);
+                    if (!vehicleModels[vehicleId].label) {
+                        let labelDiv = document.createElement('div');
+                        labelDiv.className = 'vehicle-label';
+                        labelDiv.innerText = lastFour;
+
+                        vehicleModels[vehicleId].label = new mapboxgl.Marker({
+                            element: labelDiv,
+                            anchor: 'bottom'
+                        }).setLngLat([coordinates[0], coordinates[1]])
+                        .addTo(map);
                     }
 
                     if (!vehicleModels[vehicleId].model) {
@@ -163,6 +188,9 @@
                             units: "meters"
                         }, function(model) {
                             model.setCoords([coordinates[0], coordinates[1], 0]);
+                            model.rotation.x = Math.PI / 2;
+                            model.rotation.y = -radians;
+                            model.rotation.z = 0;
                             tb.add(model);
                             vehicleModels[vehicleId].model = model;
                         });
@@ -171,28 +199,10 @@
                     }
                 });
 
-                updateVehicleLabels();
             }).catch(error => {
                 console.error("❌ Error loading vehicle data:", error);
             });
         });
-    }
-
-    function createVehicleLabel(vehicleId, coordinates, lastFour) {
-        if (vehicleClusters[vehicleId]) {
-            vehicleClusters[vehicleId].remove();
-            delete vehicleClusters[vehicleId];
-        }
-
-        let labelDiv = document.createElement('div');
-        labelDiv.className = 'vehicle-label';
-        labelDiv.innerText = lastFour;
-
-        let label = new mapboxgl.Marker({ element: labelDiv, anchor: 'bottom' })
-            .setLngLat([coordinates[0], coordinates[1]])
-            .addTo(map);
-
-        vehicleClusters[vehicleId] = label;
     }
 
     function animateVehicle(model, label, positions) {
@@ -214,16 +224,21 @@
             model.setCoords([interpolatedLng, interpolatedLat, 0]);
             label.setLngLat([interpolatedLng, interpolatedLat]);
 
-            if (progress < 1) requestAnimationFrame(step);
-            else tb.update();
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            } else {
+                tb.update();
+            }
         }
 
         requestAnimationFrame(step);
     }
 
-    setInterval(loadVehicleData, 30000);
-
-    initializeMap();
+    setInterval(() => {
+        if (tb) {
+            loadVehicleData();
+        }
+    }, 30000);
 </script>
 
 </body>
