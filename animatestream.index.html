@@ -22,14 +22,14 @@
 
         /* 🔵 Circular label styles */
         .vehicle-label {
-            width: 35px;
-            height: 35px;
+            width: 40px;
+            height: 40px;
             background-color: rgba(255, 0, 0, 0.8);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 13px;
+            font-size: 15px;
             font-weight: bold;
             color: white;
             border: 2px solid white;
@@ -127,45 +127,28 @@
             responseType: "json"
         }).then(response => {
             const vehicles = response.data.features;
-
             if (!vehicles || vehicles.length === 0) {
                 console.warn("⚠️ No vehicles found in Hosted Feature Layer.");
                 return;
             }
             
             vehicles.forEach(vehicle => {
-                if (!vehicle.geometry || !vehicle.geometry.coordinates) {
-                    console.error("❌ Vehicle missing geometry:", vehicle);
-                    return;
-                }
+                if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
 
                 const coordinates = vehicle.geometry.coordinates;
                 const vehicleId = vehicle.properties.vehicle_number;
-                const lastFour = vehicleId.slice(-4);
-                const heading = vehicle.properties.heading ?? 0;
-                const radians = heading * (Math.PI / 180);
-
-                console.log(`📍 Vehicle ID: ${vehicleId}, Location: [${coordinates[0]}, ${coordinates[1]}]`);
-
+                
                 if (!vehicleModels[vehicleId]) {
-                    vehicleModels[vehicleId] = { model: null, label: null, positions: [] };
+                    vehicleModels[vehicleId] = { positions: [] };
                 }
-
+                
                 vehicleModels[vehicleId].positions.push({ lng: coordinates[0], lat: coordinates[1] });
                 if (vehicleModels[vehicleId].positions.length > 3) {
                     vehicleModels[vehicleId].positions.shift();
                 }
 
-                if (!vehicleModels[vehicleId].label) {
-                    let labelDiv = document.createElement('div');
-                    labelDiv.className = 'vehicle-label';
-                    labelDiv.innerText = lastFour;
-
-                    vehicleModels[vehicleId].label = new mapboxgl.Marker({ element: labelDiv })
-                        .setLngLat([coordinates[0], coordinates[1]])
-                        .addTo(map);
-                } else {
-                    vehicleModels[vehicleId].label.setLngLat([coordinates[0], coordinates[1]]);
+                if (vehicleModels[vehicleId].positions.length >= 3) {
+                    animateVehicle(vehicleModels[vehicleId].positions);
                 }
             });
         }).catch(error => {
@@ -173,9 +156,30 @@
         });
     }
 
+    function animateVehicle(positions) {
+        if (positions.length < 3) return;
+
+        let startPos = positions[0];
+        let endPos = positions[1];
+        const duration = 1000;
+        const start = performance.now();
+
+        function step(timestamp) {
+            const elapsed = timestamp - start;
+            const progress = Math.min(elapsed / duration, 1);
+            let interpolatedLng = startPos.lng + (endPos.lng - startPos.lng) * progress;
+            let interpolatedLat = startPos.lat + (endPos.lat - startPos.lat) * progress;
+            
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            }
+        }
+        requestAnimationFrame(step);
+    }
+
     setInterval(() => {
         loadVehicleData();
-    }, 10000); // Updates every 30 seconds
+    }, 10000);
 </script>
 </body>
 </html>
