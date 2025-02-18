@@ -48,8 +48,6 @@
 
     let vehicleModels = {}; // Store vehicle models, movement history, and labels
     let map, tb;
-    const updateInterval = 30000; // 30 seconds
-    let lastUpdateTime = performance.now();
 
     require([
         "esri/request",
@@ -123,7 +121,6 @@
 
             console.log("✅ Threebox initialized & 3D Buildings Restored");
             loadVehicleData();
-            animateVehicles();
         });
     }
 
@@ -134,18 +131,20 @@
             const featureLayerURL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/LastPlowLocations/FeatureServer/0";
 
             esriRequest(featureLayerURL + "/query", {
-    query: {
-        where: "1=1",
-        outFields: "*",
-        returnGeometry: true,
-        f: "geojson",
-        token: "<your-generated-token>"
-    },
-    responseType: "json"
-})
-.then(response => {
+                query: {
+                    where: "1=1",
+                    outFields: "objectid,heading,vehicleid,speedmph",
+                    returnGeometry: true,
+                    f: "geojson"
+                },
+                responseType: "json"
+            }).then(response => {
                 const vehicles = response.data.features;
-                lastUpdateTime = performance.now();
+
+                if (!vehicles || vehicles.length === 0) {
+                    console.warn("⚠️ No vehicles found in ArcGIS Feature Layer.");
+                    return;
+                }
 
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
@@ -156,15 +155,17 @@
 
                     if (!vehicleModels[vehicleId]) {
                         vehicleModels[vehicleId] = {
-                            startPos: { lng: coordinates[0], lat: coordinates[1] },
-                            endPos: { lng: coordinates[0], lat: coordinates[1] },
+                            positions: [],
                             model: null,
                             lastHeading: radians,
                             label: null
                         };
-                    } else {
-                        vehicleModels[vehicleId].startPos = { ...vehicleModels[vehicleId].endPos };
-                        vehicleModels[vehicleId].endPos = { lng: coordinates[0], lat: coordinates[1] };
+                    }
+
+                    // Store last three positions
+                    vehicleModels[vehicleId].positions.push({ lng: coordinates[0], lat: coordinates[1] });
+                    if (vehicleModels[vehicleId].positions.length > 3) {
+                        vehicleModels[vehicleId].positions.shift(); // Keep only last 3
                     }
 
                     if (!vehicleModels[vehicleId].label) {
@@ -193,6 +194,8 @@
                             tb.add(model);
                             vehicleModels[vehicleId].model = model;
                         });
+                    } else {
+                        animateVehicle(vehicleModels[vehicleId].model, vehicleModels[vehicleId].label, vehicleModels[vehicleId].positions);
                     }
                 });
 
@@ -202,22 +205,40 @@
         });
     }
 
-    function animateVehicles() {
-        requestAnimationFrame(() => animateVehicles());
+    function animateVehicle(model, label, positions) {
+        if (!model || !label || positions.length < 3) return;
 
-        let elapsedTime = performance.now() - lastUpdateTime;
-        let progress = Math.min(elapsedTime / updateInterval, 1);
+        let startPos = positions[0];
+        let endPos = positions[1];
 
-        Object.values(vehicleModels).forEach(vehicle => {
-            let interpolatedLng = vehicle.startPos.lng + (vehicle.endPos.lng - vehicle.startPos.lng) * progress;
-            let interpolatedLat = vehicle.startPos.lat + (vehicle.endPos.lat - vehicle.startPos.lat) * progress;
+        const duration = 1000;
+        const start = performance.now();
 
-            vehicle.model.setCoords([interpolatedLng, interpolatedLat, 0]);
-            vehicle.label.setLngLat([interpolatedLng, interpolatedLat]);
-        });
+        function step(timestamp) {
+            const elapsed = timestamp - start;
+            const progress = Math.min(elapsed / duration, 1);
+
+            let interpolatedLng = startPos.lng + (endPos.lng - startPos.lng) * progress;
+            let interpolatedLat = startPos.lat + (endPos.lat - startPos.lat) * progress;
+
+            model.setCoords([interpolatedLng, interpolatedLat, 0]);
+            label.setLngLat([interpolatedLng, interpolatedLat]);
+
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            } else {
+                tb.update();
+            }
+        }
+
+        requestAnimationFrame(step);
     }
 
-    setInterval(loadVehicleData, updateInterval);
+    setInterval(() => {
+        if (tb) {
+            loadVehicleData();
+        }
+    }, 30000);
 </script>
 
 </body>
