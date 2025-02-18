@@ -61,20 +61,28 @@
 
         IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
             console.log("✅ Signed in successfully");
-            connectWebSocket();
+            getTokenAndConnect();
         }).catch(error => {
             console.error("❌ Sign-in failed: ", error);
-            connectWebSocket();
+            getTokenAndConnect();
         });
     });
 
-    function connectWebSocket() {
-        console.log("🔄 Connecting to WebSocket...");
-        
-        let password = prompt("Enter your ArcGIS password:");
-        let authHeader = 'Basic ' + btoa('karmstrong@minneapolisparks.org:' + password);
+    function getTokenAndConnect() {
+        require(["esri/identity/IdentityManager"], function(IdentityManager) {
+            IdentityManager.getCredential("https://us-iot.arcgis.com/sharing/rest").then(credential => {
+                let token = credential.token;
+                connectWebSocket(token);
+            }).catch(error => {
+                console.error("❌ Failed to obtain token:", error);
+            });
+        });
+    }
 
-        ws = new WebSocket("wss://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/streams/arcgis/ws/services/MPRBvehicleStream/StreamServer", [authHeader]);
+    function connectWebSocket(token) {
+        console.log("🔄 Connecting to WebSocket...");
+        let wsUrl = `wss://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/streams/arcgis/ws/services/MPRBvehicleStream/StreamServer?token=${token}`;
+        ws = new WebSocket(wsUrl);
 
         ws.onopen = function () {
             console.log("✅ WebSocket connected!");
@@ -137,8 +145,6 @@
                         tb.add(model);
                         vehicleModels[vehicleId].model = model;
                     });
-                } else {
-                    animateVehicle(vehicleModels[vehicleId].model, vehicleModels[vehicleId].label, vehicleModels[vehicleId].positions);
                 }
             });
         };
@@ -149,7 +155,7 @@
 
         ws.onclose = function () {
             console.warn("⚠️ WebSocket disconnected. Reconnecting in 5 seconds...");
-            setTimeout(connectWebSocket, 5000);
+            setTimeout(() => connectWebSocket(token), 5000);
         };
     }
 </script>
