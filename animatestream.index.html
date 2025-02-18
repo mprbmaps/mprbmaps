@@ -34,8 +34,8 @@
     require([
         "esri/identity/OAuthInfo",
         "esri/identity/IdentityManager",
-        "esri/layers/FeatureLayer"
-    ], function(OAuthInfo, IdentityManager, FeatureLayer) {
+        "esri/request"
+    ], function(OAuthInfo, IdentityManager, esriRequest) {
         
         var info = new OAuthInfo({
             appId: "ti3fi1FqvHE2Hhyw",
@@ -46,16 +46,16 @@
 
         IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
             console.log("✅ Signed in successfully");
-            initializeMap(FeatureLayer);
+            initializeMap(esriRequest);
         }).catch(error => {
             console.warn("⚠️ Not signed in. Prompting login...");
             IdentityManager.getCredential(info.portalUrl + "/sharing")
-                .then(() => initializeMap(FeatureLayer))
+                .then(() => initializeMap(esriRequest))
                 .catch(err => console.error("❌ ESRI Login Failed:", err));
         });
     });
 
-    function initializeMap(FeatureLayer) {
+    function initializeMap(esriRequest) {
         map = new mapboxgl.Map({
             container: 'map',
             style: 'mapbox://styles/mapbox/outdoors-v12',
@@ -70,62 +70,66 @@
             console.log("✅ Map Style Loaded!");
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
             console.log("✅ Threebox initialized");
-            loadVehicleData(FeatureLayer);
+            loadVehicleData(esriRequest);
         });
     }
 
-    function loadVehicleData(FeatureLayer) {
+    function loadVehicleData(esriRequest) {
         console.log("🔄 Fetching vehicle data from Hosted Feature Layer...");
 
-        require(["esri/request"], function(esriRequest) {
-            esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
-                query: {
-                    where: "1=1",
-                    outFields: "objectid,heading,vehicle_number,speedKmph,longitude,latitude",
-                    returnGeometry: true,
-                    f: "geojson"
-                },
-                responseType: "json"
-            }).then(response => {
-                const vehicles = response.data.features;
-                if (!vehicles || vehicles.length === 0) {
-                    console.warn("⚠️ No vehicles found in Hosted Feature Layer.");
-                    return;
+        esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
+            query: {
+                where: "1=1",
+                outFields: "objectid,heading,vehicle_number,speedKmph,longitude,latitude",
+                returnGeometry: true,
+                f: "geojson"
+            },
+            responseType: "json"
+        }).then(response => {
+            const vehicles = response.data.features;
+            if (!vehicles || vehicles.length === 0) {
+                console.warn("⚠️ No vehicles found in Hosted Feature Layer.");
+                return;
+            }
+
+            console.log("📡 Vehicle Data:", vehicles);
+
+            vehicles.forEach(vehicle => {
+                const coordinates = vehicle.geometry.coordinates;
+                const vehicleId = vehicle.properties.vehicle_number;
+                const heading = vehicle.properties.heading ?? 0;
+                const radians = heading * (Math.PI / 180);
+
+                console.log("📍 Vehicle Position:", coordinates);
+
+                if (!vehicleModels[vehicleId]) {
+                    vehicleModels[vehicleId] = { model: null };
                 }
-                
-                vehicles.forEach(vehicle => {
-                    const coordinates = vehicle.geometry.coordinates;
-                    const vehicleId = vehicle.properties.vehicle_number;
-                    const heading = vehicle.properties.heading ?? 0;
-                    const radians = heading * (Math.PI / 180);
 
-                    if (!vehicleModels[vehicleId]) {
-                        vehicleModels[vehicleId] = { model: null };
-                    }
-
-                    if (!vehicleModels[vehicleId].model) {
-                        tb.loadObj({
-                            obj: "truck.gltf",
-                            type: "gltf",
-                            scale: { x: 6.67, y: 6.67, z: 6.67 },
-                            units: "meters"
-                        }, function(model) {
-                            model.setCoords([coordinates[0], coordinates[1], 0]);
-                            model.rotation.x = Math.PI / 2;
-                            model.rotation.y = -radians;
-                            tb.add(model);
-                            vehicleModels[vehicleId].model = model;
-                        });
-                    } else {
-                        vehicleModels[vehicleId].model.setCoords([coordinates[0], coordinates[1], 0]);
-                        vehicleModels[vehicleId].model.rotation.y = -radians;
-                    }
-                });
-
-                console.log("✅ Vehicle data updated on the map");
-            }).catch(error => {
-                console.error("❌ Error fetching vehicle data:", error);
+                if (!vehicleModels[vehicleId].model) {
+                    tb.loadObj({
+                        obj: "truck.gltf",
+                        type: "gltf",
+                        scale: { x: 6.67, y: 6.67, z: 6.67 },
+                        units: "meters"
+                    }, function(model) {
+                        model.setCoords([coordinates[0], coordinates[1], 0]);
+                        model.rotation.x = Math.PI / 2;
+                        model.rotation.y = -radians;
+                        tb.add(model);
+                        vehicleModels[vehicleId].model = model;
+                        console.log("🚚 3D Model Added for:", vehicleId);
+                    });
+                } else {
+                    vehicleModels[vehicleId].model.setCoords([coordinates[0], coordinates[1], 0]);
+                    vehicleModels[vehicleId].model.rotation.y = -radians;
+                    console.log("🔄 Updating vehicle:", vehicleId);
+                }
             });
+
+            console.log("✅ Vehicle data updated on the map");
+        }).catch(error => {
+            console.error("❌ Error fetching vehicle data:", error);
         });
     }
 
