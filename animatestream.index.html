@@ -156,16 +156,41 @@
                         vehicleModels[vehicleId] = {
                             startPos: { lng: coordinates[0], lat: coordinates[1] },
                             endPos: { lng: coordinates[0], lat: coordinates[1] },
-                            startHeading: radians,
-                            endHeading: radians,
                             model: null,
+                            lastHeading: radians,
                             label: null
                         };
                     } else {
                         vehicleModels[vehicleId].startPos = { ...vehicleModels[vehicleId].endPos };
                         vehicleModels[vehicleId].endPos = { lng: coordinates[0], lat: coordinates[1] };
-                        vehicleModels[vehicleId].startHeading = vehicleModels[vehicleId].endHeading;
-                        vehicleModels[vehicleId].endHeading = radians;
+                    }
+
+                    if (!vehicleModels[vehicleId].label) {
+                        let labelDiv = document.createElement('div');
+                        labelDiv.className = 'vehicle-label';
+                        labelDiv.innerText = lastFour;
+
+                        vehicleModels[vehicleId].label = new mapboxgl.Marker({
+                            element: labelDiv,
+                            anchor: 'bottom'
+                        }).setLngLat([coordinates[0], coordinates[1]])
+                        .addTo(map);
+                    }
+
+                    if (!vehicleModels[vehicleId].model) {
+                        tb.loadObj({
+                            obj: "truck.gltf",
+                            type: "gltf",
+                            scale: { x: 6.67, y: 6.67, z: 6.67 },
+                            units: "meters"
+                        }, function(model) {
+                            model.setCoords([coordinates[0], coordinates[1], 0]);
+                            model.rotation.x = Math.PI / 2;
+                            model.rotation.y = -radians;
+                            model.rotation.z = 0;
+                            tb.add(model);
+                            vehicleModels[vehicleId].model = model;
+                        });
                     }
                 });
 
@@ -184,16 +209,9 @@
         Object.values(vehicleModels).forEach(vehicle => {
             let interpolatedLng = vehicle.startPos.lng + (vehicle.endPos.lng - vehicle.startPos.lng) * progress;
             let interpolatedLat = vehicle.startPos.lat + (vehicle.endPos.lat - vehicle.startPos.lat) * progress;
-            let interpolatedHeading = vehicle.startHeading + (vehicle.endHeading - vehicle.startHeading) * progress;
 
-            if (vehicle.model) {
-                vehicle.model.setCoords([interpolatedLng, interpolatedLat, 0]);
-                vehicle.model.rotation.y = -interpolatedHeading;
-            }
-
-            if (vehicle.label) {
-                vehicle.label.setLngLat([interpolatedLng, interpolatedLat]);
-            }
+            vehicle.model.setCoords([interpolatedLng, interpolatedLat, 0]);
+            vehicle.label.setLngLat([interpolatedLng, interpolatedLat]);
         });
     }
 
