@@ -70,8 +70,11 @@
 
     function connectWebSocket() {
         console.log("🔄 Connecting to WebSocket...");
+        
+        let password = prompt("Enter your ArcGIS password:");
+        let authHeader = 'Basic ' + btoa('karmstrong@minneapolisparks.org:' + password);
 
-        ws = new WebSocket("wss://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/streams/arcgis/ws/services/MPRBvehicleStream/StreamServer");
+        ws = new WebSocket("wss://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/streams/arcgis/ws/services/MPRBvehicleStream/StreamServer", [authHeader]);
 
         ws.onopen = function () {
             console.log("✅ WebSocket connected!");
@@ -148,34 +151,6 @@
             console.warn("⚠️ WebSocket disconnected. Reconnecting in 5 seconds...");
             setTimeout(connectWebSocket, 5000);
         };
-    }
-
-    function animateVehicle(model, label, positions) {
-        if (!model || !label || positions.length < 3) return;
-
-        let startPos = positions[0];
-        let endPos = positions[1];
-
-        const duration = 1000;
-        const start = performance.now();
-
-        function step(timestamp) {
-            const elapsed = timestamp - start;
-            const progress = Math.min(elapsed / duration, 1);
-
-            let interpolatedLng = startPos.lng + (endPos.lng - startPos.lng) * progress;
-            let interpolatedLat = startPos.lat + (endPos.lat - startPos.lat) * progress;
-
-            model.setCoords([interpolatedLng, interpolatedLat, 0]);
-            label.setLngLat([interpolatedLng, interpolatedLat]);
-
-            if (progress < 1) {
-                requestAnimationFrame(step);
-            } else {
-                tb.update();
-            }
-        }
-        requestAnimationFrame(step);
     }
 </script>
 </body>
