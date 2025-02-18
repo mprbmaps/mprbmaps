@@ -95,7 +95,12 @@
             console.log("📡 Vehicle Data:", vehicles);
 
             vehicles.forEach(vehicle => {
-                const coordinates = vehicle.geometry.coordinates;
+                const coordinates = vehicle.geometry?.coordinates;
+                if (!coordinates || coordinates.length !== 2) {
+                    console.warn(`⚠️ Invalid coordinates for vehicle ${vehicle.properties.vehicle_number}`);
+                    return;
+                }
+
                 const vehicleId = vehicle.properties.vehicle_number;
                 const heading = vehicle.properties.heading ?? 0;
                 const radians = heading * (Math.PI / 180);
@@ -135,8 +140,8 @@
 
     // Refresh data every 30 seconds
     setInterval(() => {
-        loadVehicleData();
-    }, 10000);
+        loadVehicleData(esriRequest);
+    }, 30000);
 </script>
 </body>
 </html>
