@@ -30,13 +30,16 @@
 
     let map, tb;
     let vehicleModels = {}; // Store vehicle models
+    let esriRequest; // 🔥 Global variable to store esriRequest
 
     require([
         "esri/request",
         "esri/identity/OAuthInfo",
         "esri/identity/IdentityManager"
-    ], function(esriRequest, OAuthInfo, IdentityManager) {
-        
+    ], function(_esriRequest, OAuthInfo, IdentityManager) {
+
+        esriRequest = _esriRequest; // 🔥 Store globally
+
         var info = new OAuthInfo({
             appId: "ti3fi1FqvHE2Hhyw",
             popup: true
@@ -46,16 +49,16 @@
 
         IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
             console.log("✅ Signed in successfully");
-            initializeMap(esriRequest);
+            initializeMap();
         }).catch(error => {
             console.warn("⚠️ Not signed in. Prompting login...");
             IdentityManager.getCredential(info.portalUrl + "/sharing")
-                .then(() => initializeMap(esriRequest))
+                .then(() => initializeMap())
                 .catch(err => console.error("❌ ESRI Login Failed:", err));
         });
     });
 
-    function initializeMap(esriRequest) {
+    function initializeMap() {
         map = new mapboxgl.Map({
             container: 'map',
             style: 'mapbox://styles/mapbox/outdoors-v12',
@@ -70,11 +73,16 @@
             console.log("✅ Map Style Loaded!");
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
             console.log("✅ Threebox initialized");
-            loadVehicleData(esriRequest);
+            loadVehicleData();
         });
     }
 
-    function loadVehicleData(esriRequest) {
+    function loadVehicleData() {
+        if (!esriRequest) {
+            console.error("❌ esriRequest is not loaded yet.");
+            return;
+        }
+
         console.log("🔄 Fetching vehicle data from Hosted Feature Layer...");
 
         esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
@@ -136,10 +144,20 @@
         });
     }
 
-    // Refresh data every 10 seconds
-    setInterval(() => {
-        loadVehicleData(esriRequest);
-    }, 10000);
+    // 🔥 Ensure `setInterval` waits for esriRequest to load
+    function startDataRefresh() {
+        if (!esriRequest) {
+            console.warn("⏳ Waiting for esriRequest to load...");
+            setTimeout(startDataRefresh, 1000);
+        } else {
+            setInterval(() => {
+                loadVehicleData();
+            }, 10000);
+        }
+    }
+
+    startDataRefresh(); // 🔥 Start interval only when esriRequest is ready
+
 </script>
 </body>
 </html>
