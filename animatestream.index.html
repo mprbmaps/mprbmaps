@@ -6,12 +6,12 @@
     <title>Mapbox + Threebox 3D Vehicles</title>
 
     <!-- Mapbox GL JS -->
-    <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
-    <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.js"></script>
 
     <!-- Threebox for 3D Models -->
-    <script src="https://unpkg.com/threebox-plugin/dist/threebox.min.js"></script>
-    <link href="https://unpkg.com/threebox-plugin/dist/threebox.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.css" rel="stylesheet">
 
     <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
@@ -135,21 +135,20 @@
                             return;
                         }
 
-                        // ✅ Properly load the 3D model using Threebox
-                        tb.loadGLTF("uploads_files_5264196_papercar.glb", function(model) {
-                            model.set({
-                                scale: 5,  // ✅ Properly size the model
-                                rotation: { x: 90, y: 0, z: heading },  // ✅ Rotate correctly
-                                anchor: "center"
-                            });
+                        // ✅ Correct Way to Load GLB Model in Threebox
+                        const scale = 5;
+                        const options = {
+                            obj: "uploads_files_5264196_papercar.glb",
+                            type: "gltf",
+                            scale: { x: scale, y: scale, z: scale },
+                            units: "meters",
+                            rotation: { x: 90, y: 0, z: heading }
+                        };
 
-                            // ✅ Place the model at the correct map coordinates
-                            tb.add(model, {
-                                position: { latitude: coordinates[1], longitude: coordinates[0], altitude: 0 }
-                            });
-
+                        tb.loadObj(options, function(model) {
+                            model.setCoords([coordinates[0], coordinates[1]]);
+                            tb.add(model);
                             vehicleModels[vehicleId].model = model;
-                            tb.update();
                         });
                     }
 
@@ -185,9 +184,7 @@
             let interpolatedLng = startCoords.lng + (endCoords.lng - startCoords.lng) * progress;
             let interpolatedLat = startCoords.lat + (endCoords.lat - startCoords.lat) * progress;
 
-            model.set({
-                position: { latitude: interpolatedLat, longitude: interpolatedLng, altitude: 0 }
-            });
+            model.setCoords([interpolatedLng, interpolatedLat]);
 
             if (progress < 1) {
                 requestAnimationFrame(step);
