@@ -22,21 +22,21 @@
 
         /* 🔵 Circular label styles */
         .vehicle-label {
-            width: 40px;  
-            height: 40px; 
+            width: 40px;  /* Increased size */
+            height: 40px; /* Increased size */
             background-color: rgba(255, 0, 0, 0.85); /* Red Circle */
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 16px; 
+            font-size: 16px; /* Slightly larger text */
             font-weight: bold;
             color: white;
             border: 2px solid white;
             text-align: center;
             pointer-events: none; /* Prevent interaction */
             
-            /* ✅ Drop Shadow */
+            /* ✅ Enhanced Drop Shadow */
             box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.6);
         }
     </style>
@@ -151,7 +151,7 @@
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
-                    const lastFour = vehicleId.slice(-4); 
+                    const lastFour = vehicleId.slice(-4); // Extract last 4 digits
 
                     if (!vehicleModels[vehicleId]) {
                         vehicleModels[vehicleId] = {
@@ -197,27 +197,8 @@
     function animateVehicle(model, label, coordinates) {
         if (!model || !label) return;
 
-        const duration = 30000;
-        const start = performance.now();
-
-        function step(timestamp) {
-            const elapsed = timestamp - start;
-            const progress = Math.min(elapsed / duration, 1);
-
-            let interpolatedLng = model.position[0] + (coordinates[0] - model.position[0]) * progress;
-            let interpolatedLat = model.position[1] + (coordinates[1] - model.position[1]) * progress;
-
-            model.setCoords([interpolatedLng, interpolatedLat, 0]);
-            label.setLngLat([interpolatedLng, interpolatedLat]);
-
-            if (progress < 1) {
-                requestAnimationFrame(step);
-            } else {
-                tb.update();
-            }
-        }
-
-        requestAnimationFrame(step);
+        model.setCoords([coordinates[0], coordinates[1], 0]);
+        label.setLngLat([coordinates[0], coordinates[1]]);
     }
 
     setInterval(() => {
