@@ -107,7 +107,7 @@
 
         const velocityURL = "https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/receiver/25dc726581674ea285f04a730a8a33c4";
         const username = "karmstrong@minneapolisparks.org";
-        const password = "YOUR_PASSWORD"; // 🔴 Replace with actual password securely
+        const password = "MPRB1234"; // 🔴 Replace with actual password securely
 
         try {
             let response = await fetch(velocityURL, {
@@ -187,6 +187,35 @@
                 animateVehicle(vehicleModels[vehicleId].model, vehicleModels[vehicleId].label, vehicleModels[vehicleId].positions);
             }
         });
+    }
+
+    function animateVehicle(model, label, positions) {
+        if (!model || !label || positions.length < 3) return;
+
+        let startPos = positions[0];
+        let endPos = positions[1];
+
+        const duration = 1000;
+        const start = performance.now();
+
+        function step(timestamp) {
+            const elapsed = timestamp - start;
+            const progress = Math.min(elapsed / duration, 1);
+
+            let interpolatedLng = startPos.lng + (endPos.lng - startPos.lng) * progress;
+            let interpolatedLat = startPos.lat + (endPos.lat - startPos.lat) * progress;
+
+            model.setCoords([interpolatedLng, interpolatedLat, 0]);
+            label.setLngLat([interpolatedLng, interpolatedLat]);
+
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            } else {
+                tb.update();
+            }
+        }
+
+        requestAnimationFrame(step);
     }
 
     setInterval(() => {
