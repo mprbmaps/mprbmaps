@@ -87,22 +87,7 @@
                 }
             });
 
-            // ✅ Ensure 3D Buildings Layer is Added Back
-            map.addLayer({
-                id: 'osm-3d-buildings',
-                source: 'composite',
-                'source-layer': 'building',
-                type: 'fill-extrusion',
-                minzoom: 15,
-                paint: {
-                    'fill-extrusion-color': '#aaa',
-                    'fill-extrusion-height': ['get', 'height'],
-                    'fill-extrusion-base': ['get', 'min_height'],
-                    'fill-extrusion-opacity': 0.6
-                }
-            });
-
-            console.log("✅ Threebox initialized & 3D Buildings Restored");
+            console.log("✅ Threebox initialized");
 
             // ✅ Fetch vehicle data
             loadVehicleData();
@@ -149,28 +134,23 @@
                             return;
                         }
 
-                        // ✅ Corrected Rotation: Ensures vehicles are FLAT on the map
-                        const scale = 1.67; // Scale 1/3 of previous size
+                        // ✅ Correct Way to Load GLB Model in Threebox
+                        const scale = 1.67; // ✅ Scaled down by 1/3
                         const options = {
                             obj: "uploads_files_5264196_papercar.glb",
                             type: "gltf",
-                            scale: { x: 1.67, y: 1.67, z: 1.67 }, // 1/3 of original size
+                            scale: { x: scale, y: scale, z: scale },
                             units: "meters",
-                            rotation: { x: 90, y: 180, z: heading } // ✅ Corrected Rotation
+                            rotation: { x: -90, y: heading, z: 0 } // ✅ Corrected rotation
                         };
 
-
                         tb.loadObj(options, function(model) {
-    model.setCoords([coordinates[0], coordinates[1], 1.5]); // Keep above ground
+                            model.setCoords([coordinates[0], coordinates[1], 1.5]); // ✅ Elevate slightly above ground
+                            tb.add(model);
+                            vehicleModels[vehicleId].model = model;
 
-    // ✅ Rotate each vehicle based on its own heading
-    model.setRotation({ x: 90, y: heading, z: 180 });
-    tb.add(model);
-    vehicleModels[vehicleId].model = model;
-
-    console.log(`✅ Model added for vehicle ${vehicleId} at ${coordinates[0]}, ${coordinates[1]} with heading: ${heading}`);
-});
-
+                            console.log(`✅ Model added for vehicle ${vehicleId} at ${coordinates[0]}, ${coordinates[1]}`);
+                        });
                     }
 
                     let positions = vehicleModels[vehicleId].positions;
@@ -205,7 +185,7 @@
             let interpolatedLng = startCoords.lng + (endCoords.lng - startCoords.lng) * progress;
             let interpolatedLat = startCoords.lat + (endCoords.lat - startCoords.lat) * progress;
 
-            model.setCoords([interpolatedLng, interpolatedLat, 1.5]); // ✅ Keep altitude to prevent clipping
+            model.setCoords([interpolatedLng, interpolatedLat, 1.5]); // ✅ Keep altitude above ground
 
             if (progress < 1) {
                 requestAnimationFrame(step);
