@@ -143,18 +143,20 @@
                         loader.load("uploads_files_5264196_papercar.glb", function (gltf) {
                             const model = gltf.scene;
 
-                            // ✅ Scale & Rotate model properly
-                            model.scale.set(3, 3, 3);
-                            model.rotation.set(THREE.MathUtils.degToRad(90), 0, THREE.MathUtils.degToRad(heading));
+                            // ✅ Adjust scale (Prevents distortion)
+                            model.scale.set(0.5, 0.5, 0.5);
+
+                            // ✅ Fix flipped orientation
+                            model.rotation.set(THREE.MathUtils.degToRad(-90), 0, 0);
 
                             // ✅ Convert map coordinates to Three.js world coordinates
                             let mapCoords = tb.projectToWorld([coordinates[0], coordinates[1]]);
-                            model.position.set(mapCoords.x, mapCoords.y, 0);  // Place model on the ground
+                            model.position.set(mapCoords.x, mapCoords.y, 0);  // Keep on ground
 
                             // ✅ Add model to Threebox
                             tb.add(model);
                             vehicleModels[vehicleId].model = model;
-                            
+
                             // ✅ Sync Threebox Rendering
                             tb.update();
                         });
