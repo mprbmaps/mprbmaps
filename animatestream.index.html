@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (WebSocket + Authentication)</title>
+    <title>Mapbox + Threebox 3D Vehicles (WebSocket + OAuth)</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -50,25 +50,25 @@
     let map, tb;
 
     require([
+        "esri/request",
         "esri/identity/OAuthInfo",
         "esri/identity/IdentityManager"
-    ], function(OAuthInfo, IdentityManager) {
+    ], function(esriRequest, OAuthInfo, IdentityManager) {
 
-        var info = new OAuthInfo({
-            appId: "YOUR_APP_ID", // 🔹 Replace with your ArcGIS App ID
+        // ✅ ArcGIS OAuth Authentication
+        const info = new OAuthInfo({
+            appId: "ti3fi1FqvHE2Hhyw", // ✅ Your ArcGIS App ID
             popup: true
         });
-
         IdentityManager.registerOAuthInfos([info]);
 
-        IdentityManager.checkSignInStatus(info.portalUrl + "/sharing")
-            .then(() => {
-                console.log("✅ ArcGIS OAuth Authentication Successful");
-                initializeMap();
-            })
-            .catch(error => {
-                console.error("❌ ArcGIS OAuth Login Failed:", error);
-            });
+        // ✅ Check sign-in status
+        IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
+            console.log("✅ Signed in successfully");
+            initializeMap(); // Start map after authentication
+        }).catch(error => {
+            console.error("❌ Sign-in failed:", error);
+        });
     });
 
     function initializeMap() {
