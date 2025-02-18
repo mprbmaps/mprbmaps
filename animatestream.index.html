@@ -46,8 +46,8 @@
     let map, tb;
     let vehicleModels = {}; // Stores vehicles, locations, animations
     let esriRequest;
-    let fetchInterval = 10000; // Fetch new data every 10 seconds
-    let animationSpeed = 3000; // Animation transition time (milliseconds)
+    let fetchInterval = 30000; // Fetch new data every 30 seconds
+    let animationDuration = 30000; // Animate smoothly over 30 seconds
 
     require([
         "esri/request",
@@ -159,20 +159,6 @@
                     }).setLngLat([coordinates[0], coordinates[1]]).addTo(map);
                 }
 
-                if (!vehicleModels[vehicleId].model) {
-                    tb.loadObj({
-                        obj: "truck.gltf",
-                        type: "gltf",
-                        scale: { x: 6.67, y: 6.67, z: 6.67 },
-                        units: "meters"
-                    }, function(model) {
-                        model.setCoords([coordinates[0], coordinates[1], 0]);
-                        model.rotation.x = Math.PI / 2;
-                        tb.add(model);
-                        vehicleModels[vehicleId].model = model;
-                    });
-                }
-
                 if (!vehicleModels[vehicleId].animationRunning) {
                     vehicleModels[vehicleId].animationRunning = true;
                     animateVehicle(vehicleModels[vehicleId]);
@@ -186,17 +172,33 @@
     function animateVehicle(vehicle) {
         function step() {
             if (vehicle.positions.length < 3) {
-                setTimeout(step, animationSpeed);
+                setTimeout(step, animationDuration);
                 return;
             }
 
             let startPos = vehicle.positions[0];
             let endPos = vehicle.positions[1];
 
-            vehicle.label.setLngLat([endPos.lng, endPos.lat]);
-            if (vehicle.model) vehicle.model.setCoords([endPos.lng, endPos.lat, 0]);
+            let startTime = performance.now();
 
-            setTimeout(step, animationSpeed);
+            function animateFrame() {
+                let elapsed = performance.now() - startTime;
+                let progress = Math.min(elapsed / animationDuration, 1);
+
+                let interpolatedLng = startPos.lng + (endPos.lng - startPos.lng) * progress;
+                let interpolatedLat = startPos.lat + (endPos.lat - startPos.lat) * progress;
+
+                vehicle.label.setLngLat([interpolatedLng, interpolatedLat]);
+                if (vehicle.model) vehicle.model.setCoords([interpolatedLng, interpolatedLat, 0]);
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateFrame);
+                } else {
+                    setTimeout(step, animationDuration);
+                }
+            }
+
+            animateFrame();
         }
 
         step();
