@@ -46,6 +46,8 @@
     let map, tb;
     let vehicleModels = {}; // Store vehicle models, movement history, and labels
     let esriRequest;
+    let animationInterval = 3000; // Time per animation step (milliseconds)
+    let fetchInterval = 10000; // Fetch new data every 10 seconds
 
     require([
         "esri/request",
@@ -103,6 +105,7 @@
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
             console.log("✅ Threebox initialized");
             loadVehicleData();
+            setInterval(loadVehicleData, fetchInterval);
         });
     }
 
@@ -139,7 +142,7 @@
                 if (!vehicleModels[vehicleId]) {
                     vehicleModels[vehicleId] = { positions: [], model: null, label: null };
                 }
-                
+
                 vehicleModels[vehicleId].positions.push({ lng: coordinates[0], lat: coordinates[1] });
                 if (vehicleModels[vehicleId].positions.length > 3) {
                     vehicleModels[vehicleId].positions.shift();
@@ -170,39 +173,28 @@
                     });
                 }
 
-                animateVehicle(vehicleModels[vehicleId].label, vehicleModels[vehicleId].model, vehicleModels[vehicleId].positions);
+                animateVehicle(vehicleModels[vehicleId]);
             });
         }).catch(error => {
             console.error("❌ Error fetching vehicle data:", error);
         });
     }
 
-    function animateVehicle(label, model, positions) {
-        if (positions.length < 2) return;
-        
-        let startPos = positions[0];
-        let endPos = positions[1];
-        const duration = 1000;
-        const start = performance.now();
+    function animateVehicle(vehicle) {
+        if (vehicle.positions.length < 3) return;
 
-        function step(timestamp) {
-            const elapsed = timestamp - start;
-            const progress = Math.min(elapsed / duration, 1);
+        let startPos = vehicle.positions[0];
+        let endPos = vehicle.positions[1];
 
-            let interpolatedLng = startPos.lng + (endPos.lng - startPos.lng) * progress;
-            let interpolatedLat = startPos.lat + (endPos.lat - startPos.lat) * progress;
+        function step() {
+            vehicle.label.setLngLat([endPos.lng, endPos.lat]);
+            if (vehicle.model) vehicle.model.setCoords([endPos.lng, endPos.lat, 0]);
 
-            label.setLngLat([interpolatedLng, interpolatedLat]);
-            if (model) model.setCoords([interpolatedLng, interpolatedLat, 0]);
-
-            if (progress < 1) {
-                requestAnimationFrame(step);
-            }
+            setTimeout(step, animationInterval);
         }
-        requestAnimationFrame(step);
-    }
 
-    setInterval(loadVehicleData, 10000); // Fetch data every 10 seconds
+        step();
+    }
 </script>
 </body>
 </html>
