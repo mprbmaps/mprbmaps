@@ -155,12 +155,35 @@
                         anchor: 'bottom'
                     }).setLngLat([coordinates[0], coordinates[1]]).addTo(map);
                 } else {
-                    vehicleModels[vehicleId].label.setLngLat([coordinates[0], coordinates[1]]);
+                    animateVehicle(vehicleModels[vehicleId].label, vehicleModels[vehicleId].positions);
                 }
             });
         }).catch(error => {
             console.error("❌ Error fetching vehicle data:", error);
         });
+    }
+
+    function animateVehicle(label, positions) {
+        if (positions.length < 3) return;
+        
+        let startPos = positions[0];
+        let endPos = positions[1];
+        const duration = 1000;
+        const start = performance.now();
+
+        function step(timestamp) {
+            const elapsed = timestamp - start;
+            const progress = Math.min(elapsed / duration, 1);
+
+            let interpolatedLng = startPos.lng + (endPos.lng - startPos.lng) * progress;
+            let interpolatedLat = startPos.lat + (endPos.lat - startPos.lat) * progress;
+
+            label.setLngLat([interpolatedLng, interpolatedLat]);
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            }
+        }
+        requestAnimationFrame(step);
     }
 
     setInterval(loadVehicleData, 10000);
