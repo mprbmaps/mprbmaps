@@ -154,17 +154,31 @@
                         element: labelDiv,
                         anchor: 'bottom'
                     }).setLngLat([coordinates[0], coordinates[1]]).addTo(map);
-                } else {
-                    animateVehicle(vehicleModels[vehicleId].label, vehicleModels[vehicleId].positions);
                 }
+
+                if (!vehicleModels[vehicleId].model) {
+                    tb.loadObj({
+                        obj: "truck.gltf",
+                        type: "gltf",
+                        scale: { x: 6.67, y: 6.67, z: 6.67 },
+                        units: "meters"
+                    }, function(model) {
+                        model.setCoords([coordinates[0], coordinates[1], 0]);
+                        model.rotation.x = Math.PI / 2;
+                        tb.add(model);
+                        vehicleModels[vehicleId].model = model;
+                    });
+                }
+
+                animateVehicle(vehicleModels[vehicleId].label, vehicleModels[vehicleId].model, vehicleModels[vehicleId].positions);
             });
         }).catch(error => {
             console.error("❌ Error fetching vehicle data:", error);
         });
     }
 
-    function animateVehicle(label, positions) {
-        if (positions.length < 3) return;
+    function animateVehicle(label, model, positions) {
+        if (positions.length < 2) return;
         
         let startPos = positions[0];
         let endPos = positions[1];
@@ -179,6 +193,8 @@
             let interpolatedLat = startPos.lat + (endPos.lat - startPos.lat) * progress;
 
             label.setLngLat([interpolatedLng, interpolatedLat]);
+            if (model) model.setCoords([interpolatedLng, interpolatedLat, 0]);
+
             if (progress < 1) {
                 requestAnimationFrame(step);
             }
@@ -186,7 +202,7 @@
         requestAnimationFrame(step);
     }
 
-    setInterval(loadVehicleData, 10000);
+    setInterval(loadVehicleData, 10000); // Fetch data every 10 seconds
 </script>
 </body>
 </html>
