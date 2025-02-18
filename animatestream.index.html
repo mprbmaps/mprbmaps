@@ -141,6 +141,7 @@
 
                 const coordinates = vehicle.geometry.coordinates;
                 const vehicleId = vehicle.properties.vehicle_number;
+                const lastFour = vehicleId.slice(-4);
                 const heading = vehicle.properties.heading ?? 0;
                 const radians = heading * (Math.PI / 180);
 
@@ -155,41 +156,26 @@
                     vehicleModels[vehicleId].positions.shift();
                 }
 
-                animateVehicle(vehicleModels[vehicleId].model, vehicleModels[vehicleId].positions);
+                if (!vehicleModels[vehicleId].label) {
+                    let labelDiv = document.createElement('div');
+                    labelDiv.className = 'vehicle-label';
+                    labelDiv.innerText = lastFour;
+
+                    vehicleModels[vehicleId].label = new mapboxgl.Marker({ element: labelDiv })
+                        .setLngLat([coordinates[0], coordinates[1]])
+                        .addTo(map);
+                } else {
+                    vehicleModels[vehicleId].label.setLngLat([coordinates[0], coordinates[1]]);
+                }
             });
         }).catch(error => {
             console.error("❌ Error fetching vehicle data:", error);
         });
     }
 
-    function animateVehicle(model, positions) {
-        if (!model || positions.length < 3) return;
-
-        let startPos = positions[0];
-        let endPos = positions[1];
-        const duration = 1000;
-        const start = performance.now();
-
-        function step(timestamp) {
-            const elapsed = timestamp - start;
-            const progress = Math.min(elapsed / duration, 1);
-
-            let interpolatedLng = startPos.lng + (endPos.lng - startPos.lng) * progress;
-            let interpolatedLat = startPos.lat + (endPos.lat - startPos.lat) * progress;
-
-            model.setCoords([interpolatedLng, interpolatedLat, 0]);
-            if (progress < 1) {
-                requestAnimationFrame(step);
-            } else {
-                tb.update();
-            }
-        }
-        requestAnimationFrame(step);
-    }
-
     setInterval(() => {
         loadVehicleData();
-    }, 10000);
+    }, 10000); // Updates every 30 seconds
 </script>
 </body>
 </html>
