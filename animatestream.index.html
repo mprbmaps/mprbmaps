@@ -158,11 +158,12 @@
                             type: "gltf",
                             scale: { x: scale, y: scale, z: scale },
                             units: "meters",
-                            rotation: { x: -Math.PI / 2, y: Math.PI, z: headingRadians } // ✅ FIXED: Correct rotation
+                            rotation: { x: -Math.PI / 2, y: 0, z: headingRadians } // ✅ FIXED: Correct rotation
                         };
 
                         tb.loadObj(options, function(model) {
                             model.setCoords([coordinates[0], coordinates[1], 1.5]); // ✅ Keep vehicle on ground
+                            model.setRotation({ x: -Math.PI / 2, y: 0, z: headingRadians }); // ✅ Apply heading to each model
                             tb.add(model);
                             vehicleModels[vehicleId].model = model;
 
