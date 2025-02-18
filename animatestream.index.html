@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles</title>
+    <title>Mapbox + Threebox 3D Vehicles (WebSocket)</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -48,6 +48,28 @@
 
     let vehicleModels = {}; // Store vehicle models, movement history, and labels
     let map, tb;
+
+    require([
+        "esri/identity/OAuthInfo",
+        "esri/identity/IdentityManager"
+    ], function(OAuthInfo, IdentityManager) {
+
+        var info = new OAuthInfo({
+            appId: "YOUR_APP_ID", // 🔹 Replace with your ArcGIS App ID
+            popup: true
+        });
+
+        IdentityManager.registerOAuthInfos([info]);
+
+        IdentityManager.checkSignInStatus(info.portalUrl + "/sharing")
+            .then(() => {
+                console.log("✅ ArcGIS OAuth Authentication Successful");
+                initializeMap();
+            })
+            .catch(error => {
+                console.error("❌ ArcGIS OAuth Login Failed:", error);
+            });
+    });
 
     function initializeMap() {
         map = new mapboxgl.Map({
@@ -98,35 +120,34 @@
             });
 
             console.log("✅ Threebox initialized & 3D Buildings Restored");
-            loadVehicleData();
+            connectWebSocket();
         });
     }
 
-    async function loadVehicleData() {
-        console.log("🔄 Fetching vehicle data from ArcGIS Velocity...");
+    function connectWebSocket() {
+        console.log("🔗 Connecting to ArcGIS Velocity WebSocket...");
 
-        const velocityURL = "https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/receiver/25dc726581674ea285f04a730a8a33c4";
-        const username = "karmstrong@minneapolisparks.org";
-        const password = "MPRB1234"; // 🔴 Replace with actual password securely
+        const velocityWebSocketURL = "wss://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/streams/arcgis/ws/services/AVL_Snowplows_Feed/StreamServer";
+        let socket = new WebSocket(velocityWebSocketURL);
 
-        try {
-            let response = await fetch(velocityURL, {
-                method: "GET",
-                headers: {
-                    "Authorization": "Basic " + btoa(username + ":" + password),
-                    "Content-Type": "application/json"
-                }
-            });
+        socket.onopen = function() {
+            console.log("✅ WebSocket Connected to Velocity!");
+        };
 
-            if (!response.ok) {
-                throw new Error(`HTTP Error! Status: ${response.status}`);
-            }
+        socket.onmessage = function(event) {
+            let data = JSON.parse(event.data);
+            console.log("📡 Received Data:", data);
+            updateVehicles(data.features);
+        };
 
-            let data = await response.json();
-            updateVehicles(data);
-        } catch (error) {
-            console.error("❌ Error fetching ArcGIS Velocity data:", error);
-        }
+        socket.onerror = function(error) {
+            console.error("❌ WebSocket Error:", error);
+        };
+
+        socket.onclose = function() {
+            console.warn("⚠️ WebSocket Closed. Reconnecting in 5 seconds...");
+            setTimeout(connectWebSocket, 5000);
+        };
     }
 
     function updateVehicles(vehicles) {
@@ -140,7 +161,6 @@
             const latitude = vehicle.latitude;
             const heading = vehicle.directionDegrees ?? 0;
             const radians = heading * (Math.PI / 180);
-            const speed = vehicle.speedKmph ?? 0;
             const vehicleId = vehicle.vehicle_number || Math.random().toString(36).substr(2, 5);
 
             if (!vehicleModels[vehicleId]) {
@@ -184,45 +204,11 @@
                     vehicleModels[vehicleId].model = model;
                 });
             } else {
-                animateVehicle(vehicleModels[vehicleId].model, vehicleModels[vehicleId].label, vehicleModels[vehicleId].positions);
+                vehicleModels[vehicleId].model.setCoords([longitude, latitude, 0]);
+                vehicleModels[vehicleId].label.setLngLat([longitude, latitude]);
             }
         });
     }
-
-    function animateVehicle(model, label, positions) {
-        if (!model || !label || positions.length < 3) return;
-
-        let startPos = positions[0];
-        let endPos = positions[1];
-
-        const duration = 1000;
-        const start = performance.now();
-
-        function step(timestamp) {
-            const elapsed = timestamp - start;
-            const progress = Math.min(elapsed / duration, 1);
-
-            let interpolatedLng = startPos.lng + (endPos.lng - startPos.lng) * progress;
-            let interpolatedLat = startPos.lat + (endPos.lat - startPos.lat) * progress;
-
-            model.setCoords([interpolatedLng, interpolatedLat, 0]);
-            label.setLngLat([interpolatedLng, interpolatedLat]);
-
-            if (progress < 1) {
-                requestAnimationFrame(step);
-            } else {
-                tb.update();
-            }
-        }
-
-        requestAnimationFrame(step);
-    }
-
-    setInterval(() => {
-        if (tb) {
-            loadVehicleData();
-        }
-    }, 10000);
 
     initializeMap();
 </script>
