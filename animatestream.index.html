@@ -46,7 +46,7 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    let vehicleModels = {}; 
+    let vehicleModels = {}; // Store vehicle models, movement history, and labels
     let map, tb;
 
     require([
@@ -54,6 +54,7 @@
         "esri/identity/OAuthInfo",
         "esri/identity/IdentityManager"
     ], function(esriRequest, OAuthInfo, IdentityManager) {
+
         var info = new OAuthInfo({
             appId: "ti3fi1FqvHE2Hhyw",
             popup: true
@@ -71,11 +72,6 @@
     });
 
     function initializeMap() {
-        if (!mapboxgl.supported()) {
-            alert("⚠️ WebGL is not supported in your browser or device!");
-            return;
-        }
-
         map = new mapboxgl.Map({
             container: 'map',
             style: 'mapbox://styles/mapbox/outdoors-v12',
@@ -83,8 +79,7 @@
             zoom: 14,
             pitch: 60,
             bearing: 0,
-            antialias: true,
-            failIfMajorPerformanceCaveat: false 
+            antialias: true
         });
 
         map.on('style.load', function () {  
@@ -105,49 +100,10 @@
                 }
             });
 
-            // ✅ Enable Clustering for Vehicles
-            map.addSource('vehicles', {
-                type: 'geojson',
-                data: null,
-                cluster: true,
-                clusterMaxZoom: 12, 
-                clusterRadius: 50 
-            });
-
-            // ✅ Clustered points layer
-            map.addLayer({
-                id: 'clusters',
-                type: 'circle',
-                source: 'vehicles',
-                filter: ['has', 'point_count'],
-                paint: {
-                    'circle-color': '#f28cb1',
-                    'circle-radius': ['step', ['get', 'point_count'], 15, 5, 20, 10, 25, 20, 30],
-                    'circle-stroke-width': 1,
-                    'circle-stroke-color': '#fff'
-                }
-            });
-
-            // ✅ Cluster count labels
-            map.addLayer({
-                id: 'cluster-count',
-                type: 'symbol',
-                source: 'vehicles',
-                filter: ['has', 'point_count'],
-                layout: {
-                    'text-field': '{point_count_abbreviated}',
-                    'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
-                    'text-size': 12
-                },
-                paint: {
-                    'text-color': '#fff'
-                }
-            });
-
-            // ✅ Threebox for 3D models
+            // ✅ Initialize Threebox
             tb = new Threebox(
                 map,
-                map.getCanvas().getContext('webgl', { preserveDrawingBuffer: true }),
+                map.getCanvas().getContext('webgl'),
                 { defaultLights: true }
             );
 
@@ -183,11 +139,66 @@
                 },
                 responseType: "json"
             }).then(response => {
-                const vehicleData = response.data;
+                const vehicles = response.data.features;
 
-                if (map.getSource('vehicles')) {
-                    map.getSource('vehicles').setData(vehicleData);
+                if (!vehicles || vehicles.length === 0) {
+                    console.warn("⚠️ No vehicles found in ArcGIS Feature Layer.");
+                    return;
                 }
+
+                vehicles.forEach(vehicle => {
+                    const coordinates = vehicle.geometry.coordinates;
+                    const vehicleId = vehicle.properties.vehicleid;
+                    const lastFour = vehicleId.slice(-4);
+                    const heading = vehicle.properties.heading ?? 0;
+                    const radians = heading * (Math.PI / 180);
+
+                    if (!vehicleModels[vehicleId]) {
+                        vehicleModels[vehicleId] = {
+                            positions: [],
+                            model: null,
+                            lastHeading: radians,
+                            label: null
+                        };
+                    }
+
+                    // Store last three positions
+                    vehicleModels[vehicleId].positions.push({ lng: coordinates[0], lat: coordinates[1] });
+                    if (vehicleModels[vehicleId].positions.length > 3) {
+                        vehicleModels[vehicleId].positions.shift(); // Keep only last 3
+                    }
+
+                    if (!vehicleModels[vehicleId].label) {
+                        let labelDiv = document.createElement('div');
+                        labelDiv.className = 'vehicle-label';
+                        labelDiv.innerText = lastFour;
+
+                        vehicleModels[vehicleId].label = new mapboxgl.Marker({
+                            element: labelDiv,
+                            anchor: 'bottom'
+                        }).setLngLat([coordinates[0], coordinates[1]])
+                        .addTo(map);
+                    }
+
+                    if (!vehicleModels[vehicleId].model) {
+                        tb.loadObj({
+                            obj: "truck.gltf",
+                            type: "gltf",
+                            scale: { x: 6.67, y: 6.67, z: 6.67 },
+                            units: "meters"
+                        }, function(model) {
+                            model.setCoords([coordinates[0], coordinates[1], 0]);
+                            model.rotation.x = Math.PI / 2;
+                            model.rotation.y = -radians;
+                            model.rotation.z = 0;
+                            tb.add(model);
+                            vehicleModels[vehicleId].model = model;
+                        });
+                    } else {
+                        animateVehicle(vehicleModels[vehicleId].model, vehicleModels[vehicleId].label, vehicleModels[vehicleId].positions);
+                    }
+                });
+
             }).catch(error => {
                 console.error("❌ Error loading vehicle data:", error);
             });
