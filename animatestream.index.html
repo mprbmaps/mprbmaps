@@ -67,6 +67,21 @@
         map.on('style.load', function () {  
             console.log("✅ Map Style Loaded!");
 
+            // ✅ Add 3D Buildings
+            map.addLayer({
+                id: '3d-buildings',
+                source: 'composite',
+                'source-layer': 'building',
+                type: 'fill-extrusion',
+                minzoom: 15,
+                paint: {
+                    'fill-extrusion-color': '#aaa',
+                    'fill-extrusion-height': ['get', 'height'],
+                    'fill-extrusion-base': ['get', 'min_height'],
+                    'fill-extrusion-opacity': 0.6
+                }
+            });
+
             // ✅ Initialize Threebox
             tb = new Threebox(
                 map,
@@ -119,7 +134,6 @@
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
-                    const speed = vehicle.properties.speedmph ?? 0;
                     const heading = vehicle.properties.heading ?? 0;
 
                     // ✅ Convert heading from degrees to radians
@@ -137,18 +151,18 @@
                             return;
                         }
 
-                        // ✅ Load GLB Model with Individual Vehicle Heading
+                        // ✅ Load GLB Model with Corrected Rotation
                         const scale = 1.67; // Adjusted for better visibility
                         const options = {
                             obj: "uploads_files_5264196_papercar.glb",
                             type: "gltf",
                             scale: { x: scale, y: scale, z: scale },
                             units: "meters",
-                            rotation: { x: -90 * (Math.PI / 180), y: 0, z: headingRadians } // ✅ Proper rotation applied
+                            rotation: { x: 0, y: 0, z: headingRadians } // ✅ Vehicles stay upright
                         };
 
                         tb.loadObj(options, function(model) {
-                            model.setCoords([coordinates[0], coordinates[1], 1.5]); // **Keep vehicle on ground**
+                            model.setCoords([coordinates[0], coordinates[1], 1.5]); // ✅ Keep vehicle on ground
                             tb.add(model);
                             vehicleModels[vehicleId].model = model;
 
@@ -157,7 +171,7 @@
                     }
 
                     let positions = vehicleModels[vehicleId].positions;
-                    positions.push({ lng: coordinates[0], lat: coordinates[1], speed, heading });
+                    positions.push({ lng: coordinates[0], lat: coordinates[1], heading });
 
                     if (positions.length > 3) {
                         positions.shift();
