@@ -22,22 +22,20 @@
 
         /* 🔵 Circular label styles */
         .vehicle-label {
-            width: 40px;  /* Increased size */
-            height: 40px; /* Increased size */
-            background-color: rgba(255, 0, 0, 0.85); /* Red Circle */
+            width: 30px;
+            height: 30px;
+            background-color: rgba(255, 0, 0, 0.8); /* Red Circle */
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 16px; /* Slightly larger text */
+            font-size: 14px;
             font-weight: bold;
             color: white;
             border: 2px solid white;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
             text-align: center;
             pointer-events: none; /* Prevent interaction */
-            
-            /* ✅ Enhanced Drop Shadow */
-            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.6);
         }
     </style>
 </head>
@@ -152,19 +150,25 @@
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
                     const lastFour = vehicleId.slice(-4); // Extract last 4 digits
+                    const heading = vehicle.properties.heading ?? 0;
+                    const radians = heading * (Math.PI / 180); 
 
                     if (!vehicleModels[vehicleId]) {
                         vehicleModels[vehicleId] = {
+                            positions: [],
                             model: null,
+                            lastHeading: radians,
                             label: null
                         };
                     }
 
                     if (!vehicleModels[vehicleId].label) {
+                        // ✅ Create the label
                         let labelDiv = document.createElement('div');
                         labelDiv.className = 'vehicle-label';
                         labelDiv.innerText = lastFour;
 
+                        // ✅ Attach label to map
                         vehicleModels[vehicleId].label = new mapboxgl.Marker({
                             element: labelDiv,
                             anchor: 'bottom'
@@ -180,8 +184,13 @@
                             units: "meters"
                         }, function(model) {
                             model.setCoords([coordinates[0], coordinates[1], 0]);
+                            model.rotation.x = Math.PI / 2;
+                            model.rotation.y = -radians;
+                            model.rotation.z = 0;
                             tb.add(model);
                             vehicleModels[vehicleId].model = model;
+
+                            console.log(`✅ Vehicle ${vehicleId} placed with computed heading: ${heading}°`);
                         });
                     } else {
                         animateVehicle(vehicleModels[vehicleId].model, vehicleModels[vehicleId].label, coordinates);
