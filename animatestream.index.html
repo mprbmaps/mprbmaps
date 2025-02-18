@@ -72,6 +72,11 @@
     });
 
     function initializeMap() {
+        if (!mapboxgl.supported()) {
+            alert("⚠️ WebGL is not supported in your browser or device!");
+            return;
+        }
+
         map = new mapboxgl.Map({
             container: 'map',
             style: 'mapbox://styles/mapbox/outdoors-v12',
@@ -79,7 +84,8 @@
             zoom: 14,
             pitch: 60,
             bearing: 0,
-            antialias: true
+            antialias: true,
+            failIfMajorPerformanceCaveat: false // ✅ Force WebGL
         });
 
         map.on('style.load', function () {  
@@ -100,10 +106,10 @@
                 }
             });
 
-            // ✅ Initialize Threebox
+            // ✅ Initialize Threebox with WebGL Context
             tb = new Threebox(
                 map,
-                map.getCanvas().getContext('webgl'),
+                map.getCanvas().getContext('webgl', { preserveDrawingBuffer: true }),
                 { defaultLights: true }
             );
 
@@ -149,7 +155,6 @@
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
-                    const lastFour = vehicleId.slice(-4);
                     const heading = vehicle.properties.heading ?? 0;
                     const radians = heading * (Math.PI / 180);
 
@@ -162,22 +167,9 @@
                         };
                     }
 
-                    // Store last three positions
                     vehicleModels[vehicleId].positions.push({ lng: coordinates[0], lat: coordinates[1] });
                     if (vehicleModels[vehicleId].positions.length > 3) {
                         vehicleModels[vehicleId].positions.shift(); // Keep only last 3
-                    }
-
-                    if (!vehicleModels[vehicleId].label) {
-                        let labelDiv = document.createElement('div');
-                        labelDiv.className = 'vehicle-label';
-                        labelDiv.innerText = lastFour;
-
-                        vehicleModels[vehicleId].label = new mapboxgl.Marker({
-                            element: labelDiv,
-                            anchor: 'bottom'
-                        }).setLngLat([coordinates[0], coordinates[1]])
-                        .addTo(map);
                     }
 
                     if (!vehicleModels[vehicleId].model) {
