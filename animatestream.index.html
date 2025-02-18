@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (WebSocket)</title>
+    <title>Mapbox + Threebox 3D Vehicles (WebSocket + Authentication)</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -125,29 +125,41 @@
     }
 
     function connectWebSocket() {
-        console.log("🔗 Connecting to ArcGIS Velocity WebSocket...");
+        console.log("🔗 Requesting ArcGIS Authentication Token...");
 
-        const velocityWebSocketURL = "wss://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/streams/arcgis/ws/services/AVL_Snowplows_Feed/StreamServer";
-        let socket = new WebSocket(velocityWebSocketURL);
+        require(["esri/identity/IdentityManager"], function(IdentityManager) {
+            IdentityManager.getCredential("https://us-iot.arcgis.com/sharing")
+                .then(credential => {
+                    console.log("✅ ArcGIS Token Retrieved");
 
-        socket.onopen = function() {
-            console.log("✅ WebSocket Connected to Velocity!");
-        };
+                    const velocityWebSocketURL = `wss://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/streams/arcgis/ws/services/AVL_Snowplows_Feed/StreamServer?token=${credential.token}`;
 
-        socket.onmessage = function(event) {
-            let data = JSON.parse(event.data);
-            console.log("📡 Received Data:", data);
-            updateVehicles(data.features);
-        };
+                    console.log("🔗 Connecting to WebSocket with token...");
+                    let socket = new WebSocket(velocityWebSocketURL);
 
-        socket.onerror = function(error) {
-            console.error("❌ WebSocket Error:", error);
-        };
+                    socket.onopen = function() {
+                        console.log("✅ WebSocket Connected to Velocity!");
+                    };
 
-        socket.onclose = function() {
-            console.warn("⚠️ WebSocket Closed. Reconnecting in 5 seconds...");
-            setTimeout(connectWebSocket, 5000);
-        };
+                    socket.onmessage = function(event) {
+                        let data = JSON.parse(event.data);
+                        console.log("📡 Received Data:", data);
+                        updateVehicles(data.features);
+                    };
+
+                    socket.onerror = function(error) {
+                        console.error("❌ WebSocket Error:", error);
+                    };
+
+                    socket.onclose = function() {
+                        console.warn("⚠️ WebSocket Closed. Reconnecting in 5 seconds...");
+                        setTimeout(connectWebSocket, 5000);
+                    };
+                })
+                .catch(error => {
+                    console.error("❌ Failed to Retrieve ArcGIS Token:", error);
+                });
+        });
     }
 
     function updateVehicles(vehicles) {
