@@ -155,16 +155,15 @@
 
                     if (!vehicleModels[vehicleId]) {
                         vehicleModels[vehicleId] = {
-                            positions: [{ lng: coordinates[0], lat: coordinates[1] }],
+                            startPos: { lng: coordinates[0], lat: coordinates[1] },
+                            endPos: { lng: coordinates[0], lat: coordinates[1] },
                             model: null,
                             lastHeading: radians,
                             label: null
                         };
                     } else {
-                        vehicleModels[vehicleId].positions.push({ lng: coordinates[0], lat: coordinates[1] });
-                        if (vehicleModels[vehicleId].positions.length > 3) {
-                            vehicleModels[vehicleId].positions.shift();
-                        }
+                        vehicleModels[vehicleId].startPos = { ...vehicleModels[vehicleId].endPos };
+                        vehicleModels[vehicleId].endPos = { lng: coordinates[0], lat: coordinates[1] };
                         animateVehicle(vehicleModels[vehicleId]);
                     }
 
@@ -204,20 +203,13 @@
     }
 
     function animateVehicle(vehicle) {
-        if (!vehicle.model || vehicle.positions.length < 2) return;
-
-        let startPos = vehicle.positions[0];
-        let endPos = vehicle.positions[1];
-
-        const duration = 1000;
+        const duration = 30000;
         const start = performance.now();
 
         function step(timestamp) {
-            const elapsed = timestamp - start;
-            const progress = Math.min(elapsed / duration, 1);
-
-            let interpolatedLng = startPos.lng + (endPos.lng - startPos.lng) * progress;
-            let interpolatedLat = startPos.lat + (endPos.lat - startPos.lat) * progress;
+            const progress = Math.min((timestamp - start) / duration, 1);
+            let interpolatedLng = vehicle.startPos.lng + (vehicle.endPos.lng - vehicle.startPos.lng) * progress;
+            let interpolatedLat = vehicle.startPos.lat + (vehicle.endPos.lat - vehicle.startPos.lat) * progress;
 
             vehicle.model.setCoords([interpolatedLng, interpolatedLat, 0]);
             vehicle.label.setLngLat([interpolatedLng, interpolatedLat]);
