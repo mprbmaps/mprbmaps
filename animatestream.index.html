@@ -44,9 +44,9 @@
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
     let map, tb;
-    let vehicleModels = {}; // Stores vehicles, locations, animations
+    let vehicleModels = {}; 
     let esriRequest;
-    let fetchInterval = 30000; // Fetch new data every 30 seconds
+    let fetchInterval = 10000; // Fetch new data every 10 seconds
     let animationDuration = 30000; // Animate smoothly over 30 seconds
 
     require([
@@ -180,6 +180,7 @@
             let endPos = vehicle.positions[1];
 
             let startTime = performance.now();
+            let stepInterval = animationDuration / 100; 
 
             function animateFrame() {
                 let elapsed = performance.now() - startTime;
@@ -194,7 +195,7 @@
                 if (progress < 1) {
                     requestAnimationFrame(animateFrame);
                 } else {
-                    setTimeout(step, animationDuration);
+                    setTimeout(step, stepInterval);
                 }
             }
 
