@@ -44,10 +44,10 @@
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
     let map, tb;
-    let vehicleModels = {}; // Store vehicle models, movement history, and labels
+    let vehicleModels = {}; // Stores vehicles, locations, animations
     let esriRequest;
-    let animationInterval = 3000; // Time per animation step (milliseconds)
     let fetchInterval = 10000; // Fetch new data every 10 seconds
+    let animationSpeed = 3000; // Animation transition time (milliseconds)
 
     require([
         "esri/request",
@@ -173,7 +173,10 @@
                     });
                 }
 
-                animateVehicle(vehicleModels[vehicleId]);
+                if (!vehicleModels[vehicleId].animationRunning) {
+                    vehicleModels[vehicleId].animationRunning = true;
+                    animateVehicle(vehicleModels[vehicleId]);
+                }
             });
         }).catch(error => {
             console.error("❌ Error fetching vehicle data:", error);
@@ -181,16 +184,19 @@
     }
 
     function animateVehicle(vehicle) {
-        if (vehicle.positions.length < 3) return;
-
-        let startPos = vehicle.positions[0];
-        let endPos = vehicle.positions[1];
-
         function step() {
+            if (vehicle.positions.length < 3) {
+                setTimeout(step, animationSpeed);
+                return;
+            }
+
+            let startPos = vehicle.positions[0];
+            let endPos = vehicle.positions[1];
+
             vehicle.label.setLngLat([endPos.lng, endPos.lat]);
             if (vehicle.model) vehicle.model.setCoords([endPos.lng, endPos.lat, 0]);
 
-            setTimeout(step, animationInterval);
+            setTimeout(step, animationSpeed);
         }
 
         step();
