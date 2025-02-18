@@ -49,26 +49,27 @@
     let map, tb;
 
     require([
-    "esri/identity/OAuthInfo",
-    "esri/identity/IdentityManager",
-    "esri/layers/StreamLayer",
-    "esri/Map",
-    "esri/views/MapView"
-], function(OAuthInfo, IdentityManager, StreamLayer, Map, MapView) {
-    
-    var info = new OAuthInfo({
-        appId: "ti3fi1FqvHE2Hhyw",
-        popup: true
-    });
+        "esri/identity/OAuthInfo",
+        "esri/identity/IdentityManager",
+        "esri/layers/StreamLayer",
+        "esri/Map",
+        "esri/views/MapView"
+    ], function(OAuthInfo, IdentityManager, StreamLayer, Map, MapView) {
+        
+        var info = new OAuthInfo({
+            appId: "ti3fi1FqvHE2Hhyw",
+            popup: true
+        });
 
-    IdentityManager.registerOAuthInfos([info]);
+        IdentityManager.registerOAuthInfos([info]);
 
-    IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
-        console.log("✅ Signed in successfully");
-        initializeMap(StreamLayer);
-    }).catch(error => {
-        console.error("❌ Sign-in failed: ", error);
-        initializeMap(StreamLayer);
+        IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
+            console.log("✅ Signed in successfully");
+            initializeMap(StreamLayer);
+        }).catch(error => {
+            console.error("❌ Sign-in failed: ", error);
+            initializeMap(StreamLayer);
+        });
     });
 
     function initializeMap(StreamLayer) {
@@ -162,8 +163,6 @@
             }
         });
     }
-});
-
 </script>
 </body>
 </html>
