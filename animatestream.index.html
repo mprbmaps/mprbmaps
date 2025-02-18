@@ -20,7 +20,6 @@
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
 
-        /* 🔵 Circular label styles */
         .vehicle-label {
             width: 40px;
             height: 40px;
@@ -40,9 +39,7 @@
     </style>
 </head>
 <body>
-
 <div id="map"></div>
-
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
@@ -134,12 +131,11 @@
             
             vehicles.forEach(vehicle => {
                 if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
-
                 const coordinates = vehicle.geometry.coordinates;
                 const vehicleId = vehicle.properties.vehicle_number;
-                
+
                 if (!vehicleModels[vehicleId]) {
-                    vehicleModels[vehicleId] = { positions: [] };
+                    vehicleModels[vehicleId] = { positions: [], model: null, label: null };
                 }
                 
                 vehicleModels[vehicleId].positions.push({ lng: coordinates[0], lat: coordinates[1] });
@@ -147,8 +143,17 @@
                     vehicleModels[vehicleId].positions.shift();
                 }
 
-                if (vehicleModels[vehicleId].positions.length >= 3) {
-                    animateVehicle(vehicleModels[vehicleId].positions);
+                if (!vehicleModels[vehicleId].label) {
+                    let labelDiv = document.createElement('div');
+                    labelDiv.className = 'vehicle-label';
+                    labelDiv.innerText = vehicleId.slice(-4);
+                    
+                    vehicleModels[vehicleId].label = new mapboxgl.Marker({
+                        element: labelDiv,
+                        anchor: 'bottom'
+                    }).setLngLat([coordinates[0], coordinates[1]]).addTo(map);
+                } else {
+                    vehicleModels[vehicleId].label.setLngLat([coordinates[0], coordinates[1]]);
                 }
             });
         }).catch(error => {
@@ -156,30 +161,7 @@
         });
     }
 
-    function animateVehicle(positions) {
-        if (positions.length < 3) return;
-
-        let startPos = positions[0];
-        let endPos = positions[1];
-        const duration = 1000;
-        const start = performance.now();
-
-        function step(timestamp) {
-            const elapsed = timestamp - start;
-            const progress = Math.min(elapsed / duration, 1);
-            let interpolatedLng = startPos.lng + (endPos.lng - startPos.lng) * progress;
-            let interpolatedLat = startPos.lat + (endPos.lat - startPos.lat) * progress;
-            
-            if (progress < 1) {
-                requestAnimationFrame(step);
-            }
-        }
-        requestAnimationFrame(step);
-    }
-
-    setInterval(() => {
-        loadVehicleData();
-    }, 10000);
+    setInterval(loadVehicleData, 10000);
 </script>
 </body>
 </html>
