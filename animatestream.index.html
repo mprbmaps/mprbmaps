@@ -157,19 +157,20 @@
     scale: { x: 1.67, y: 1.67, z: 1.67 },
     units: "meters"
 }, function (model) {
-    let vehicleHeading = vehicle.properties.heading ?? 0; // Get heading for this specific vehicle
-    let radians = vehicleHeading * (Math.PI / 180); // Convert to radians
+    let vehicleHeading = vehicle.properties.heading ?? 0; // Get heading per vehicle
+    let radians = -vehicleHeading * (Math.PI / 180); // Convert to radians & negate
 
-    model.setCoords([coordinates[0], coordinates[1], 0]); // Keep tires on ground
+    model.setCoords([coordinates[0], coordinates[1], 0]); // Keep tires touching ground
 
-    // ✅ Apply rotation to EACH vehicle correctly
-    model.setRotation({ x: 90, y: 0, z: radians });
+    // ✅ Apply rotation per vehicle
+    model.setRotation({ x: 90, y: radians, z: 0 });
 
     tb.add(model);
     vehicleModels[vehicleId].model = model;
 
-    console.log(`✅ Model added for vehicle ${vehicleId} at ${coordinates[0]}, ${coordinates[1]} with heading: ${vehicleHeading}°`);
+    console.log(`✅ Model added for vehicle ${vehicleId} at ${coordinates[0]}, ${coordinates[1]} with heading: ${vehicleHeading}° (Radians: ${radians})`);
 });
+
 
                     }
 
