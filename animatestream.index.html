@@ -118,6 +118,7 @@
         });
 
         streamLayer.on("message", function(event) {
+            console.log("📡 Received Stream Data:", event);
             if (!event || !event.geometry) return;
             
             const vehicleId = event.attributes.vehicle_number;
@@ -149,6 +150,7 @@
             }
 
             if (!vehicleModels[vehicleId].model) {
+                console.log(`🚛 Loading GLTF Model for Vehicle: ${vehicleId}`);
                 tb.loadObj({
                     obj: "truck.gltf",
                     type: "gltf",
@@ -159,6 +161,7 @@
                     model.rotation.y = -radians;
                     tb.add(model);
                     vehicleModels[vehicleId].model = model;
+                    console.log(`✅ Model Loaded for ${vehicleId}`);
                 });
             }
         });
