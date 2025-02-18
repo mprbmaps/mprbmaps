@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles & Buildings</title>
+    <title>Mapbox + Threebox 3D Vehicles</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -20,7 +20,7 @@
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
 
-        /* Circular label styles */
+        /* 🔵 Circular label styles */
         .vehicle-label {
             width: 40px;
             height: 40px;
@@ -100,49 +100,7 @@
                 }
             });
 
-            // Enable clustering for vehicles
-            map.addSource('vehicles', {
-                type: 'geojson',
-                data: null,  // Will be set dynamically
-                cluster: true,
-                clusterMaxZoom: 12, // Only cluster at zoom 12
-                clusterRadius: 50 // Radius of clustering
-            });
-
-            // Clustered points layer
-            map.addLayer({
-                id: 'clusters',
-                type: 'circle',
-                source: 'vehicles',
-                filter: ['has', 'point_count'],
-                paint: {
-                    'circle-color': '#f28cb1',
-                    'circle-radius': [
-                        'step', ['get', 'point_count'],
-                        15, 5, 20, 10, 25, 20, 30
-                    ],
-                    'circle-stroke-width': 1,
-                    'circle-stroke-color': '#fff'
-                }
-            });
-
-            // Cluster count labels
-            map.addLayer({
-                id: 'cluster-count',
-                type: 'symbol',
-                source: 'vehicles',
-                filter: ['has', 'point_count'],
-                layout: {
-                    'text-field': '{point_count_abbreviated}',
-                    'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
-                    'text-size': 12
-                },
-                paint: {
-                    'text-color': '#fff'
-                }
-            });
-
-            // Initialize Threebox
+            // ✅ Initialize Threebox
             tb = new Threebox(
                 map,
                 map.getCanvas().getContext('webgl'),
@@ -161,7 +119,7 @@
                 }
             });
 
-            console.log("✅ Threebox initialized & Clustering + 3D Buildings Added");
+            console.log("✅ Threebox initialized & 3D Buildings Restored");
             loadVehicleData();
         });
     }
@@ -181,34 +139,45 @@
                 },
                 responseType: "json"
             }).then(response => {
-                const vehicleData = response.data;
+                const vehicles = response.data.features;
 
-                if (!vehicleData || vehicleData.features.length === 0) {
-                    console.warn("⚠️ No vehicles found.");
+                if (!vehicles || vehicles.length === 0) {
+                    console.warn("⚠️ No vehicles found in ArcGIS Feature Layer.");
                     return;
                 }
 
-                // Update the source with new data
-                if (map.getSource('vehicles')) {
-                    map.getSource('vehicles').setData(vehicleData);
-                }
-
-                vehicleData.features.forEach(vehicle => {
-                    const coords = vehicle.geometry.coordinates;
+                vehicles.forEach(vehicle => {
+                    const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
+                    const lastFour = vehicleId.slice(-4);
                     const heading = vehicle.properties.heading ?? 0;
                     const radians = heading * (Math.PI / 180);
 
                     if (!vehicleModels[vehicleId]) {
                         vehicleModels[vehicleId] = {
+                            positions: [],
                             model: null,
-                            positions: []
+                            lastHeading: radians,
+                            label: null
                         };
                     }
 
-                    vehicleModels[vehicleId].positions.push({ lng: coords[0], lat: coords[1] });
+                    // Store last three positions
+                    vehicleModels[vehicleId].positions.push({ lng: coordinates[0], lat: coordinates[1] });
                     if (vehicleModels[vehicleId].positions.length > 3) {
-                        vehicleModels[vehicleId].positions.shift();
+                        vehicleModels[vehicleId].positions.shift(); // Keep only last 3
+                    }
+
+                    if (!vehicleModels[vehicleId].label) {
+                        let labelDiv = document.createElement('div');
+                        labelDiv.className = 'vehicle-label';
+                        labelDiv.innerText = lastFour;
+
+                        vehicleModels[vehicleId].label = new mapboxgl.Marker({
+                            element: labelDiv,
+                            anchor: 'bottom'
+                        }).setLngLat([coordinates[0], coordinates[1]])
+                        .addTo(map);
                     }
 
                     if (!vehicleModels[vehicleId].model) {
@@ -218,13 +187,15 @@
                             scale: { x: 6.67, y: 6.67, z: 6.67 },
                             units: "meters"
                         }, function(model) {
-                            model.setCoords(coords);
+                            model.setCoords([coordinates[0], coordinates[1], 0]);
+                            model.rotation.x = Math.PI / 2;
                             model.rotation.y = -radians;
+                            model.rotation.z = 0;
                             tb.add(model);
                             vehicleModels[vehicleId].model = model;
                         });
                     } else {
-                        animateVehicle(vehicleModels[vehicleId].model, vehicleModels[vehicleId].positions);
+                        animateVehicle(vehicleModels[vehicleId].model, vehicleModels[vehicleId].label, vehicleModels[vehicleId].positions);
                     }
                 });
 
@@ -234,15 +205,40 @@
         });
     }
 
-    function animateVehicle(model, positions) {
-        if (!model || positions.length < 2) return;
-        const startPos = positions[0];
-        const endPos = positions[1];
+    function animateVehicle(model, label, positions) {
+        if (!model || !label || positions.length < 3) return;
 
-        model.setCoords([endPos.lng, endPos.lat, 0]);
+        let startPos = positions[0];
+        let endPos = positions[1];
+
+        const duration = 1000;
+        const start = performance.now();
+
+        function step(timestamp) {
+            const elapsed = timestamp - start;
+            const progress = Math.min(elapsed / duration, 1);
+
+            let interpolatedLng = startPos.lng + (endPos.lng - startPos.lng) * progress;
+            let interpolatedLat = startPos.lat + (endPos.lat - startPos.lat) * progress;
+
+            model.setCoords([interpolatedLng, interpolatedLat, 0]);
+            label.setLngLat([interpolatedLng, interpolatedLat]);
+
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            } else {
+                tb.update();
+            }
+        }
+
+        requestAnimationFrame(step);
     }
 
-    setInterval(loadVehicleData, 30000);
+    setInterval(() => {
+        if (tb) {
+            loadVehicleData();
+        }
+    }, 30000);
 </script>
 
 </body>
