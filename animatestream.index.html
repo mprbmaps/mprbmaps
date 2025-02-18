@@ -67,21 +67,6 @@
         map.on('style.load', function () {  
             console.log("✅ Map Style Loaded!");
 
-            // ✅ Add 3D Buildings
-            map.addLayer({
-                id: '3d-buildings',
-                source: 'composite',
-                'source-layer': 'building',
-                type: 'fill-extrusion',
-                minzoom: 15,
-                paint: {
-                    'fill-extrusion-color': '#aaa',
-                    'fill-extrusion-height': ['get', 'height'],
-                    'fill-extrusion-base': ['get', 'min_height'],
-                    'fill-extrusion-opacity': 0.6
-                }
-            });
-
             // ✅ Initialize Threebox
             tb = new Threebox(
                 map,
@@ -101,6 +86,13 @@
                     tb.update();
                 }
             });
+
+            // ✅ Fix Mapbox layer filter errors (handles missing "layer" property)
+            map.setFilter('road-label', [
+                "all",
+                ["==", ["get", "structure"], "bridge"],
+                [">=", ["number", ["get", "layer"], 0], 2] // Fix: Provide default value for "layer"
+            ]);
 
             console.log("✅ Threebox initialized");
 
@@ -134,10 +126,8 @@
                 vehicles.forEach(vehicle => {
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicleid;
+                    const speed = vehicle.properties.speedmph ?? 0;
                     const heading = vehicle.properties.heading ?? 0;
-
-                    // ✅ Convert heading from degrees to radians
-                    let headingRadians = (heading * Math.PI) / 180;
 
                     if (!vehicleModels[vehicleId]) {
                         vehicleModels[vehicleId] = {
@@ -151,23 +141,34 @@
                             return;
                         }
 
-                        // ✅ Load GLB Model with Corrected Rotation
-                        const scale = 1.67; // Adjusted for better visibility
+                        // ✅ Correct Way to Load GLB Model in Threebox
+                        const scale = 5;
                         const options = {
                             obj: "uploads_files_5264196_papercar.glb",
                             type: "gltf",
                             scale: { x: scale, y: scale, z: scale },
                             units: "meters",
-                            rotation: { x: -Math.PI / 2, y: headingRadians, z: 0 } // ✅ Fix: Vehicles now properly oriented
+                            rotation: { x: 90, y: 0, z: heading }
                         };
 
                         tb.loadObj(options, function(model) {
-                            model.setCoords([coordinates[0], coordinates[1], 1.5]); // ✅ Keep vehicle on ground
+                            model.setCoords([coordinates[0], coordinates[1]]);
                             tb.add(model);
                             vehicleModels[vehicleId].model = model;
 
-                            console.log(`✅ Model added for vehicle ${vehicleId} at ${coordinates[0]}, ${coordinates[1]} with heading: ${heading}`);
+                            console.log(`✅ Model added for vehicle ${vehicleId} at ${coordinates[0]}, ${coordinates[1]}`);
                         });
+                    }
+
+                    let positions = vehicleModels[vehicleId].positions;
+                    positions.push({ lng: coordinates[0], lat: coordinates[1], speed, heading });
+
+                    if (positions.length > 3) {
+                        positions.shift();
+                    }
+
+                    if (positions.length >= 3) {
+                        animateVehicle(vehicleModels[vehicleId].model, positions[1], positions[2]);
                     }
                 });
 
