@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (ArcGIS Basemap)</title>
+    <title>Mapbox + Threebox 3D Vehicles (ArcGIS Community Basemap)</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -79,6 +79,9 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
+    const arcgisToken = '3NKHt6i2urmWtqOuugvr9ZcuBYuUgj3bnj6weZeM_6qjh0vUUcKEyq33v0Voqbj9VAua9mAuTEK-ol2X0kzxCIHindJ-VDWntjBXjUd2c4S_-wmP2zM1A6sWjtq4sJgb';
+    const arcgisStyleUrl = `https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/styles/arcgis/community?token=${arcgisToken}`;
+
     let map, tb;
     let vehicleModels = {}; 
     let esriRequest;
@@ -151,27 +154,7 @@
     function initializeMap() {
         map = new mapboxgl.Map({
             container: 'map',
-            style: {
-                version: 8,
-                sources: {
-                    'esri-imagery': {
-                        type: 'raster',
-                        tiles: [
-                            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-                        ],
-                        tileSize: 256
-                    }
-                },
-                layers: [
-                    {
-                        id: 'esri-imagery-layer',
-                        type: 'raster',
-                        source: 'esri-imagery',
-                        minzoom: 0,
-                        maxzoom: 22
-                    }
-                ]
-            },
+            style: arcgisStyleUrl, // ✅ ArcGIS Community Basemap
             center: [-93.2650, 44.9778],
             zoom: 14,
             pitch: 60,
@@ -180,7 +163,7 @@
         });
 
         map.on("style.load", function () {
-            logMessage("✅ ArcGIS World Imagery Basemap Loaded!");
+            logMessage("✅ ArcGIS Community Basemap Loaded!");
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
             logMessage("✅ Threebox initialized");
 
