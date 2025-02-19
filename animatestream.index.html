@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (ArcGIS Community Basemap + 3D Buildings)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Filtered)</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -79,15 +79,12 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    const arcgisToken = '3NKHt6i2urmWtqOuugvr9Y7nDOGROudJM4ZBHsknZmYQjkK8PjK1pcYOc9p3lErN4XuQeUZg7HPc_3y4W8ziTevKPVoth4lkmFIptFYGQ4C9fGo_BuJStHHc7ZqwAtNv';
-    const arcgisStyleUrl = `https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/styles/arcgis/community?token=${arcgisToken}`;
-
     let map, tb;
     let vehicleModels = {}; 
     let esriRequest;
     const POINTS_BUFFER = 6;
     const TIMEOUT_LIMIT = 3 * 60 * 1000; // 3-minute countdown
-    let validVehicleIds = [];
+    let validVehicleIds = []; // List of vehicle IDs from the external feature table
 
     let countdownInterval;
     let timeLeft = TIMEOUT_LIMIT;
@@ -132,6 +129,7 @@
             });
     });
 
+    // Fetch valid vehicle IDs from the external feature table
     function fetchValidVehicleIds() {
         logMessage("🔄 Fetching valid vehicle IDs...");
         return esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Operations_Management_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer/0/query", {
@@ -154,7 +152,7 @@
     function initializeMap() {
         map = new mapboxgl.Map({
             container: 'map',
-            style: arcgisStyleUrl, // ✅ ArcGIS Community Basemap
+            style: 'mapbox://styles/mapbox/outdoors-v12',
             center: [-93.2650, 44.9778],
             zoom: 14,
             pitch: 60,
@@ -163,17 +161,13 @@
         });
 
         map.on("style.load", function () {
-            logMessage("✅ ArcGIS Community Basemap Loaded!");
+            logMessage("✅ Map Style Loaded!");
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
             logMessage("✅ Threebox initialized");
 
-            // ✅ Add 3D Buildings Layer
             map.addLayer({
                 id: '3d-buildings',
-                source: {
-                    type: 'vector',
-                    url: 'mapbox://mapbox.3d-buildings' // Mapbox's 3D building source
-                },
+                source: 'composite',
                 'source-layer': 'building',
                 type: 'fill-extrusion',
                 minzoom: 15,
@@ -185,20 +179,20 @@
                 }
             });
 
-            logMessage("🏙️ 3D Buildings Layer Added");
-
             startCountdown();
             loadVehicleData();
-            setInterval(loadVehicleData, 10000);
+            setInterval(loadVehicleData, 10000); // Fetch updates every 10s
             requestAnimationFrame(animateVehicles);
         });
     }
 
     function startCountdown() {
         updateCountdownDisplay();
+
         countdownInterval = setInterval(() => {
             timeLeft -= 1000;
             updateCountdownDisplay();
+
             if (timeLeft <= 0) {
                 clearInterval(countdownInterval);
                 endCountdown();
@@ -247,6 +241,7 @@
                 const vehicleId = vehicle.properties.vehicle_number;
                 const timestamp = new Date(vehicle.properties.updateUTC).getTime();
 
+                // ✅ Only process vehicles that are in the validVehicleIds list
                 if (!validVehicleIds.includes(vehicleId)) return;
 
                 if (!vehicleModels[vehicleId]) {
