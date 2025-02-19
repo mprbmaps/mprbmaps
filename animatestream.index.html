@@ -27,6 +27,7 @@
             border: 2px solid white;
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
             pointer-events: none;
+            transition: background-color 0.2s ease;
         }
     </style>
 </head>
@@ -39,6 +40,7 @@
     let map, tb;
     let vehicleModels = {}; 
     let esriRequest;
+    let bufferDelay = 3000; // 3-second delay buffer for smoother animations
 
     function logMessage(msg) {
         console.log(`${new Date().toISOString()} - ${msg}`);
@@ -101,7 +103,7 @@
         esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
             query: {
                 where: "1=1",
-                outFields: "objectid,heading,vehicle_number,speedKmph,longitude,latitude,updateUTC", // Using updateUTC
+                outFields: "objectid,heading,vehicle_number,speedKmph,longitude,latitude,updateUTC",
                 returnGeometry: true,
                 f: "geojson"
             },
@@ -117,7 +119,7 @@
                 if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
                 const coordinates = vehicle.geometry.coordinates;
                 const vehicleId = vehicle.properties.vehicle_number;
-                const timestamp = new Date(vehicle.properties.updateUTC).getTime(); // Use updateUTC field
+                const timestamp = new Date(vehicle.properties.updateUTC).getTime();
 
                 if (!vehicleModels[vehicleId]) {
                     let markerElement = createVehicleMarker();
@@ -163,37 +165,43 @@
 
             let startPos = vehicle.positions[0];
             let endPos = vehicle.positions[1];
-            let duration = endPos.timestamp - startPos.timestamp; // Use actual time difference
+            let duration = endPos.timestamp - startPos.timestamp;
 
-            logMessage(`🚀 Starting animation for Vehicle ${vehicleId} from ${new Date(startPos.timestamp).toISOString()} to ${new Date(endPos.timestamp).toISOString()} over ${duration / 1000}s`);
+            // Adjust for large gaps
+            let distance = getDistance(startPos, endPos);
+            duration = Math.max(duration, distance * 500); // Longer duration for large jumps
+
+            logMessage(`🚀 Animating Vehicle ${vehicleId} from ${new Date(startPos.timestamp).toISOString()} to ${new Date(endPos.timestamp).toISOString()} over ${duration / 1000}s`);
 
             let startTime = performance.now();
 
-            // Turn circle green while animating
+            // Turn green while animating
             vehicle.marker.getElement().style.backgroundColor = 'green';
 
             function step() {
-                let elapsed = performance.now() - startTime;
+                let elapsed = performance.now() - startTime + bufferDelay; // Add buffer delay
                 let progress = Math.min(elapsed / duration, 1);
 
+                // Apply easing function for smoother movement
+                let easedProgress = easeInOutQuad(progress);
+
                 vehicle.marker.setLngLat([
-                    startPos.lng + (endPos.lng - startPos.lng) * progress,
-                    startPos.lat + (endPos.lat - startPos.lat) * progress
+                    startPos.lng + (endPos.lng - startPos.lng) * easedProgress,
+                    startPos.lat + (endPos.lat - startPos.lat) * easedProgress
                 ]);
 
                 if (progress < 1) {
                     requestAnimationFrame(step);
                 } else {
-                    vehicle.positions.shift(); // Remove oldest point
+                    vehicle.positions.shift();
                     vehicle.animating = false;
 
                     logMessage(`✅ Vehicle ${vehicleId} reached ${new Date(endPos.timestamp).toISOString()}`);
 
-                    // Revert to red when not animating
                     vehicle.marker.getElement().style.backgroundColor = 'red';
 
                     if (vehicle.positions.length >= 4) {
-                        animateVehicles(); // Continue if more points are available
+                        animateVehicles();
                     }
                 }
             }
@@ -203,6 +211,25 @@
         }
 
         requestAnimationFrame(animateVehicles);
+    }
+
+    function easeInOutQuad(t) {
+        return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    }
+
+    function getDistance(pos1, pos2) {
+        const R = 6371e3; // Earth radius in meters
+        const φ1 = pos1.lat * Math.PI / 180;
+        const φ2 = pos2.lat * Math.PI / 180;
+        const Δφ = (pos2.lat - pos1.lat) * Math.PI / 180;
+        const Δλ = (pos2.lng - pos1.lng) * Math.PI / 180;
+
+        const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                  Math.cos(φ1) * Math.cos(φ2) *
+                  Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return R * c; // Distance in meters
     }
 </script>
 </body>
