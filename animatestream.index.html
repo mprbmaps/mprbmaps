@@ -11,7 +11,7 @@
 
     <!-- Threebox for 3D Models -->
     <script src="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.min.js"></script>
-    <link href="https://cdn.jsdelivr.com/gh/jscastro76/threebox@v.2.2.2/dist/threebox.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.css" rel="stylesheet">
 
     <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
@@ -21,17 +21,16 @@
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
 
         .vehicle-marker {
-            width: 40px; /* Increased size */
-            height: 40px;
+            width: 35px; /* Increased size */
+            height: 35px;
             border-radius: 50%;
             background-color: red;
             border: 2px solid white;
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
             pointer-events: none;
-            display: none; /* Hide until animation starts */
             position: relative;
             text-align: center;
-            line-height: 40px; /* Center text vertically */
+            line-height: 40px;
             font-size: 14px;
             font-weight: bold;
             color: white;
@@ -128,7 +127,7 @@
             container: 'map',
             style: 'mapbox://styles/mapbox/outdoors-v12',
             center: [-93.2650, 44.9778],
-            zoom: 12,
+            zoom: 10,
             pitch: 60,
             bearing: 0,
             antialias: true
@@ -224,9 +223,12 @@
                     vehicleModels[vehicleId] = {
                         positions: [],
                         markerElement: markerElement,
-                        marker: new mapboxgl.Marker({ element: markerElement })
-                            .setLngLat([coordinates[0], coordinates[1]])
-                            .addTo(map),
+                        marker: new mapboxgl.Marker({
+                            element: markerElement,
+                            anchor: 'center' // Ensures scaling consistency
+                        })
+                        .setLngLat([coordinates[0], coordinates[1]])
+                        .addTo(map),
                         animating: false,
                         lastUpdateUTC: null,
                         readyToAnimate: false
@@ -257,7 +259,7 @@
     function createVehicleMarker(vehicleLabel) {
         let markerDiv = document.createElement('div');
         markerDiv.className = 'vehicle-marker';
-        markerDiv.textContent = vehicleLabel; // Add the label inside the marker
+        markerDiv.textContent = vehicleLabel;
         return markerDiv;
     }
 
