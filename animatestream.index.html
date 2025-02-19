@@ -150,28 +150,17 @@
     }
 
     function initializeMap() {
-        map = new mapboxgl.Map({
-            container: 'map',
-            style: 'https://basemaps.arcgis.com/arcgis/rest/services/World_Basemap_v2/VectorTileServer/resources/styles/root.json',
-            center: [-93.2650, 44.9778],
-            zoom: 14,
-            pitch: 60,
-            bearing: 0,
-            antialias: true,
-            transformRequest: (url, resourceType) => {
-    if (resourceType === 'Tile' && !url.startsWith('http')) {
-        // Ensure there is a slash between the domain and the path
-        const correctedUrl = url.startsWith('/') ? url : `/${url}`;
-        return {
-            url: `https://www.arcgis.com${correctedUrl}`
-        };
-    }
-    return { url };
-}
+    map = new mapboxgl.Map({
+        container: 'map',
+        style: 'https://basemaps.arcgis.com/arcgis/rest/services/World_Basemap_v2/VectorTileServer/resources/styles/root.json', // CORS-enabled ArcGIS Basemap
+        center: [-93.2650, 44.9778], // Center the map
+        zoom: 14,
+        pitch: 60,
+        bearing: 0,
+        antialias: true
+    });
 
-        });
-
-        map.on("style.load", function () {
+    map.on("style.load", function () {
             logMessage("✅ ArcGIS Basemap Loaded!");
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
             logMessage("✅ Threebox initialized");
