@@ -169,6 +169,9 @@
 
             let startTime = performance.now();
 
+            // Turn circle green while animating
+            vehicle.marker.getElement().style.backgroundColor = 'green';
+
             function step() {
                 let elapsed = performance.now() - startTime;
                 let progress = Math.min(elapsed / duration, 1);
@@ -185,6 +188,9 @@
                     vehicle.animating = false;
 
                     logMessage(`✅ Vehicle ${vehicleId} reached ${new Date(endPos.timestamp).toISOString()}`);
+
+                    // Revert to red when not animating
+                    vehicle.marker.getElement().style.backgroundColor = 'red';
 
                     if (vehicle.positions.length >= 4) {
                         animateVehicles(); // Continue if more points are available
