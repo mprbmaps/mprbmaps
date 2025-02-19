@@ -152,12 +152,20 @@
     function initializeMap() {
         map = new mapboxgl.Map({
             container: 'map',
-            style: 'https://www.arcgis.com/sharing/rest/content/items/273bf8d5c8ac400183fc24e109d20bcf/resources/styles/root.json', // ArcGIS Basemap
+            style: 'https://www.arcgis.com/sharing/rest/content/items/273bf8d5c8ac400183fc24e109d20bcf/resources/styles/root.json',
             center: [-93.2650, 44.9778],
             zoom: 14,
             pitch: 60,
             bearing: 0,
-            antialias: true
+            antialias: true,
+            transformRequest: (url, resourceType) => {
+                if (resourceType === 'Tile' && !url.startsWith('http')) {
+                    return {
+                        url: `https://www.arcgis.com${url}`
+                    };
+                }
+                return { url };
+            }
         });
 
         map.on("style.load", function () {
@@ -165,23 +173,28 @@
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
             logMessage("✅ Threebox initialized");
 
-            map.addLayer({
-                id: '3d-buildings',
-                source: 'composite',
-                'source-layer': 'building',
-                type: 'fill-extrusion',
-                minzoom: 15,
-                paint: {
-                    'fill-extrusion-color': '#aaa',
-                    'fill-extrusion-height': ['get', 'height'],
-                    'fill-extrusion-base': ['get', 'min_height'],
-                    'fill-extrusion-opacity': 0.6
-                }
-            });
+            if (map.getSource('composite')) {
+                map.addLayer({
+                    id: '3d-buildings',
+                    source: 'composite',
+                    'source-layer': 'building',
+                    type: 'fill-extrusion',
+                    minzoom: 15,
+                    paint: {
+                        'fill-extrusion-color': '#aaa',
+                        'fill-extrusion-height': ['get', 'height'],
+                        'fill-extrusion-base': ['get', 'min_height'],
+                        'fill-extrusion-opacity': 0.6
+                    }
+                });
+                logMessage("🏙️ 3D Buildings Layer Added");
+            } else {
+                logMessage("⚠️ No 'composite' source found. Skipping 3D buildings layer.");
+            }
 
             startCountdown();
             loadVehicleData();
-            setInterval(loadVehicleData, 10000); // Fetch updates every 10s
+            setInterval(loadVehicleData, 10000);
             requestAnimationFrame(animateVehicles);
         });
     }
@@ -241,7 +254,6 @@
                 const vehicleId = vehicle.properties.vehicle_number;
                 const timestamp = new Date(vehicle.properties.updateUTC).getTime();
 
-                // ✅ Only process vehicles that are in the validVehicleIds list
                 if (!validVehicleIds.includes(vehicleId)) return;
 
                 if (!vehicleModels[vehicleId]) {
