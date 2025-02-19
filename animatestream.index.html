@@ -54,9 +54,7 @@
     let vehicleModels = {}; 
     let esriRequest;
     let fetchInterval = 10000; // Fetch new data every 10 seconds
-    let animationDuration = fetchInterval; // Match data update interval
     let filterTimeLimit = 300000; // 5 minutes in milliseconds
-    let movementThreshold = 0.00005; // ~5.5 meters to avoid GPS jitter
 
     function logMessage(msg) {
         let logDiv = document.getElementById('logConsole');
@@ -106,7 +104,7 @@
             logMessage("✅ Threebox initialized");
             loadVehicleData();
             setInterval(loadVehicleData, fetchInterval);
-            requestAnimationFrame(updateVehiclePositions);
+            requestAnimationFrame(animateVehicles);
         });
     }
 
@@ -133,45 +131,26 @@
                 return;
             }
 
-            let currentTime = Date.now();
-
             vehicles.forEach(vehicle => {
                 if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
                 const coordinates = vehicle.geometry.coordinates;
                 const vehicleId = vehicle.properties.vehicle_number;
-                const speedMph = vehicle.properties.speedKmph || 0;
-                const heading = vehicle.properties.heading || 0;
 
                 if (!vehicleModels[vehicleId]) {
                     vehicleModels[vehicleId] = {
-                        lastPos: { lng: coordinates[0], lat: coordinates[1] },
-                        newPos: { lng: coordinates[0], lat: coordinates[1] },
-                        speedMph,
-                        heading,
-                        lastUpdateTime: currentTime,
-                        lastGpsUpdateTime: currentTime,
-                        label: new mapboxgl.Marker({ element: createVehicleMarker() })
+                        positions: [], // Stores last 3 positions
+                        marker: new mapboxgl.Marker({ element: createVehicleMarker() })
                             .setLngLat([coordinates[0], coordinates[1]])
-                            .addTo(map)
+                            .addTo(map),
+                        animating: false
                     };
                 }
 
-                let lastGpsTime = vehicleModels[vehicleId].lastGpsUpdateTime;
-                let gpsInterval = (currentTime - lastGpsTime);
-                let distanceMoved = getDistance(vehicleModels[vehicleId].lastPos, coordinates);
+                vehicleModels[vehicleId].positions.push({ lng: coordinates[0], lat: coordinates[1] });
 
-                if (gpsInterval > filterTimeLimit) {
-                    logMessage(`❌ Hiding vehicle ${vehicleId} (Inactive for too long)`);
-                    vehicleModels[vehicleId].label.remove();
-                    delete vehicleModels[vehicleId];
-                    return;
-                }
-
-                if (distanceMoved >= movementThreshold) {
-                    logMessage(`📡 GPS UPDATE for ${vehicleId}: Moved ${distanceMoved.toFixed(5)} degrees`);
-                    vehicleModels[vehicleId].lastGpsUpdateTime = currentTime;
-                    vehicleModels[vehicleId].lastPos = vehicleModels[vehicleId].newPos;
-                    vehicleModels[vehicleId].newPos = { lng: coordinates[0], lat: coordinates[1] };
+                // Keep only last 3 positions
+                if (vehicleModels[vehicleId].positions.length > 3) {
+                    vehicleModels[vehicleId].positions.shift();
                 }
             });
         }).catch(error => {
@@ -185,21 +164,39 @@
         return markerDiv;
     }
 
-    function getDistance(pos1, pos2) {
-        return Math.sqrt(Math.pow(pos2[0] - pos1.lng, 2) + Math.pow(pos2[1] - pos1.lat, 2));
-    }
-
-    function updateVehiclePositions() {
+    function animateVehicles() {
         for (let vehicleId in vehicleModels) {
             let vehicle = vehicleModels[vehicleId];
 
-            let interpolatedLng = (vehicle.lastPos.lng + vehicle.newPos.lng) / 2;
-            let interpolatedLat = (vehicle.lastPos.lat + vehicle.newPos.lat) / 2;
+            if (vehicle.positions.length < 3 || vehicle.animating) continue;
 
-            vehicle.label.setLngLat([interpolatedLng, interpolatedLat]);
+            let startPos = vehicle.positions[0]; // 3rd most recent position
+            let endPos = vehicle.positions[1];   // 2nd most recent position
+            let startTime = performance.now();
+            let duration = fetchInterval; // Match animation to data fetch interval
+
+            function step() {
+                let elapsed = performance.now() - startTime;
+                let progress = Math.min(elapsed / duration, 1);
+
+                let interpolatedLng = startPos.lng + (endPos.lng - startPos.lng) * progress;
+                let interpolatedLat = startPos.lat + (endPos.lat - startPos.lat) * progress;
+
+                vehicle.marker.setLngLat([interpolatedLng, interpolatedLat]);
+
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                } else {
+                    vehicle.animating = false;
+                    vehicle.positions.shift(); // Remove completed position
+                }
+            }
+
+            vehicle.animating = true;
+            requestAnimationFrame(step);
         }
 
-        requestAnimationFrame(updateVehiclePositions);
+        requestAnimationFrame(animateVehicles);
     }
 </script>
 </body>
