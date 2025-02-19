@@ -54,7 +54,8 @@
     let vehicleModels = {}; 
     let esriRequest;
     let fetchInterval = 30000; // Fetch new data every 30 seconds
-    let animationStartDelay = fetchInterval * 3; // Wait 1.5 minutes to collect 3 GPS points
+    let animationStartDelay = fetchInterval * 3; // Wait ~1.5 minutes to collect 3 GPS points
+    let movementThreshold = 0.00005; // Minimum distance threshold to consider movement
 
     function logMessage(msg) {
         let logDiv = document.getElementById('logConsole');
@@ -138,6 +139,7 @@
                 if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
                 const coordinates = vehicle.geometry.coordinates;
                 const vehicleId = vehicle.properties.vehicle_number;
+                const currentTime = Date.now();
 
                 if (!vehicleModels[vehicleId]) {
                     vehicleModels[vehicleId] = {
@@ -152,11 +154,24 @@
                 vehicleModels[vehicleId].positions.push({
                     lng: coordinates[0],
                     lat: coordinates[1],
-                    timestamp: Date.now()
+                    timestamp: currentTime
                 });
 
                 if (vehicleModels[vehicleId].positions.length > 3) {
                     vehicleModels[vehicleId].positions.shift();
+                }
+
+                // Only log for moving vehicles after receiving three locations
+                if (vehicleModels[vehicleId].positions.length === 3) {
+                    let firstPos = vehicleModels[vehicleId].positions[0];
+                    let secondPos = vehicleModels[vehicleId].positions[1];
+
+                    let distanceMoved = getDistance(firstPos, secondPos);
+                    if (distanceMoved > movementThreshold) {
+                        let lastTimestamp = firstPos.timestamp;
+                        let interval = (currentTime - lastTimestamp) / 1000;
+                        logMessage(`📡 Vehicle ${vehicleId}: Moving, GPS interval = ${interval} seconds`);
+                    }
                 }
             });
         }).catch(error => {
@@ -170,9 +185,11 @@
         return markerDiv;
     }
 
-    function animateVehicles() {
-        let currentTime = Date.now();
+    function getDistance(pos1, pos2) {
+        return Math.sqrt(Math.pow(pos2.lng - pos1.lng, 2) + Math.pow(pos2.lat - pos1.lat, 2));
+    }
 
+    function animateVehicles() {
         for (let vehicleId in vehicleModels) {
             let vehicle = vehicleModels[vehicleId];
 
