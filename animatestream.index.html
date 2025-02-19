@@ -53,9 +53,8 @@
     let map, tb;
     let vehicleModels = {}; 
     let esriRequest;
-    let fetchInterval = 30000; // Fetch new data every 30 seconds
-    let animationStartDelay = fetchInterval * 3; // Wait ~1.5 minutes to collect 3 GPS points
-    let movementThreshold = 0.00005; // Minimum distance threshold to consider movement
+    let gpsInterval = 60000; // Vehicles update every ~60 seconds
+    let movementThreshold = 0.00005; // Minimum distance to consider movement
 
     function logMessage(msg) {
         let logDiv = document.getElementById('logConsole');
@@ -104,11 +103,8 @@
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
             logMessage("✅ Threebox initialized");
             loadVehicleData();
-            setInterval(loadVehicleData, fetchInterval);
-            setTimeout(() => {
-                logMessage("🚀 Starting animations after 3 GPS updates...");
-                requestAnimationFrame(animateVehicles);
-            }, animationStartDelay);
+            setInterval(loadVehicleData, gpsInterval);
+            requestAnimationFrame(animateVehicles);
         });
     }
 
@@ -161,7 +157,6 @@
                     vehicleModels[vehicleId].positions.shift();
                 }
 
-                // Only log for moving vehicles after receiving three locations
                 if (vehicleModels[vehicleId].positions.length === 3) {
                     let firstPos = vehicleModels[vehicleId].positions[0];
                     let secondPos = vehicleModels[vehicleId].positions[1];
@@ -197,7 +192,7 @@
 
             let startPos = vehicle.positions[0];
             let endPos = vehicle.positions[1];
-            let duration = Math.max(endPos.timestamp - startPos.timestamp, fetchInterval);
+            let duration = gpsInterval; // Animation matches GPS interval (~60s)
 
             let startTime = performance.now();
 
