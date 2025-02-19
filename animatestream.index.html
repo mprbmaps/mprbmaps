@@ -36,10 +36,29 @@
             text-align: center;
             pointer-events: none;
         }
+
+        /* Styles for the log panel */
+        #logConsole {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 200px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            font-size: 12px;
+            overflow: auto;
+            padding: 5px;
+            z-index: 9999;
+        }
     </style>
 </head>
 <body>
 <div id="map"></div>
+
+<!-- Log Panel for Debugging -->
+<div id="logConsole"></div>
+
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
@@ -48,6 +67,18 @@
     let esriRequest;
     let fetchInterval = 10000; // Fetch new data every 10 seconds
     let animationDuration = 5000; // Default animation duration of 5 seconds
+
+    function logMessage(msg) {
+        let logDiv = document.getElementById('logConsole');
+        if (!logDiv) {
+            logDiv = document.createElement('div');
+            logDiv.id = 'logConsole';
+            logDiv.style.cssText = 'position:fixed; bottom:0; left:0; width:100%; height:200px; background:rgba(0,0,0,0.8); color:white; font-size:12px; overflow:auto; padding:5px;';
+            document.body.appendChild(logDiv);
+        }
+        logDiv.innerHTML += `<div>${new Date().toISOString()} - ${msg}</div>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+    }
 
     require([
         "esri/request",
@@ -64,13 +95,13 @@
         IdentityManager.registerOAuthInfos([info]);
 
         IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
-            console.log("✅ Signed in successfully");
+            logMessage("✅ Signed in successfully");
             initializeMap();
         }).catch(error => {
-            console.warn("⚠️ Not signed in. Prompting login...");
+            logMessage("⚠️ Not signed in. Prompting login...");
             IdentityManager.getCredential(info.portalUrl + "/sharing")
                 .then(() => initializeMap())
-                .catch(err => console.error("❌ ESRI Login Failed:", err));
+                .catch(err => logMessage("❌ ESRI Login Failed: " + err));
         });
     });
 
@@ -86,10 +117,9 @@
         });
 
         map.on("style.load", function () {
-            console.log("✅ Map Style Loaded!");
-            
+            logMessage("✅ Map Style Loaded!");
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
-            console.log("✅ Threebox initialized");
+            logMessage("✅ Threebox initialized");
             loadVehicleData();
             setInterval(loadVehicleData, fetchInterval);
         });
@@ -97,11 +127,11 @@
 
     function loadVehicleData() {
         if (!esriRequest) {
-            console.error("❌ esriRequest is not loaded yet.");
+            logMessage("❌ esriRequest is not loaded yet.");
             return;
         }
 
-        console.log("🔄 Fetching vehicle data...");
+        logMessage("🔄 Fetching vehicle data...");
 
         esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
             query: {
@@ -114,7 +144,7 @@
         }).then(response => {
             const vehicles = response.data.features;
             if (!vehicles || vehicles.length === 0) {
-                console.warn("⚠️ No vehicles found.");
+                logMessage("⚠️ No vehicles found.");
                 return;
             }
 
@@ -140,62 +170,27 @@
                     };
                 }
 
-                // Compute update interval
                 let lastTime = vehicleModels[vehicleId].lastUpdateTime;
                 let interval = (currentTime - lastTime) / 1000; // Convert ms to seconds
 
                 if (vehicleModels[vehicleId].updateIntervals.length >= 5) {
-                    vehicleModels[vehicleId].updateIntervals.shift(); // Keep last 5 intervals
+                    vehicleModels[vehicleId].updateIntervals.shift();
                 }
                 vehicleModels[vehicleId].updateIntervals.push(interval);
 
                 let avgUpdateInterval = vehicleModels[vehicleId].updateIntervals.reduce((a, b) => a + b, 0) / vehicleModels[vehicleId].updateIntervals.length;
 
-                console.log(`[${new Date().toISOString()}] 🚛 Vehicle ${vehicleId}: Last update ${interval.toFixed(1)}s ago, Avg Interval: ${avgUpdateInterval.toFixed(1)}s`);
+                logMessage(`🚛 Vehicle ${vehicleId}: Last update ${interval.toFixed(1)}s ago, Avg Interval: ${avgUpdateInterval.toFixed(1)}s`);
 
                 vehicleModels[vehicleId].lastUpdateTime = currentTime;
                 vehicleModels[vehicleId].lastPos = vehicleModels[vehicleId].newPos || { lng: coordinates[0], lat: coordinates[1] };
                 vehicleModels[vehicleId].newPos = { lng: coordinates[0], lat: coordinates[1] };
-                vehicleModels[vehicleId].speedKmph = speedKmph;
-                vehicleModels[vehicleId].heading = heading;
-
-                if (!vehicleModels[vehicleId].label) {
-                    let labelDiv = document.createElement('div');
-                    labelDiv.className = 'vehicle-label';
-                    labelDiv.innerText = vehicleId.slice(-4);
-                    
-                    vehicleModels[vehicleId].label = new mapboxgl.Marker({
-                        element: labelDiv,
-                        anchor: 'bottom'
-                    }).setLngLat([coordinates[0], coordinates[1]]).addTo(map);
-                }
 
                 animateVehicle(vehicleModels[vehicleId], avgUpdateInterval);
             });
         }).catch(error => {
-            console.error("❌ Error fetching vehicle data:", error);
+            logMessage("❌ Error fetching vehicle data: " + error);
         });
-    }
-
-    function animateVehicle(vehicle, avgUpdateInterval) {
-        let startTime = performance.now();
-        let animationTime = Math.min(avgUpdateInterval * 1000, animationDuration);
-
-        function step() {
-            let elapsed = performance.now() - startTime;
-            let progress = Math.min(elapsed / animationTime, 1);
-
-            let interpolatedLng = vehicle.lastPos.lng + (vehicle.newPos.lng - vehicle.lastPos.lng) * progress;
-            let interpolatedLat = vehicle.lastPos.lat + (vehicle.newPos.lat - vehicle.lastPos.lat) * progress;
-
-            vehicle.label.setLngLat([interpolatedLng, interpolatedLat]);
-
-            if (progress < 1) {
-                requestAnimationFrame(step);
-            }
-        }
-
-        step();
     }
 </script>
 </body>
