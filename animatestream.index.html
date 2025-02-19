@@ -20,23 +20,24 @@
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
 
+        /* Vehicle Marker */
         .vehicle-marker {
             width: 15px;
             height: 15px;
             border-radius: 50%;
-            background-color: red;
+            background-color: green;
             border: 2px solid white;
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
             pointer-events: none;
             transition: background-color 0.2s ease;
-            display: none;
+            display: block; /* Ensure visibility */
         }
 
         /* Vehicle Label */
         .vehicle-label {
             width: 40px;
             height: 40px;
-            background-color: rgba(255, 0, 0, 0.8);
+            background-color: rgba(0, 128, 0, 0.8); /* Green background */
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -186,26 +187,6 @@
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
             logMessage("✅ Threebox initialized");
 
-            // ✅ Add 3D Buildings Layer
-            map.addLayer({
-                id: '3d-buildings',
-                source: {
-                    type: 'vector',
-                    url: 'mapbox://mapbox.3d-buildings' // Mapbox's 3D building source
-                },
-                'source-layer': 'building',
-                type: 'fill-extrusion',
-                minzoom: 15,
-                paint: {
-                    'fill-extrusion-color': '#aaa',
-                    'fill-extrusion-height': ['get', 'height'],
-                    'fill-extrusion-base': ['get', 'min_height'],
-                    'fill-extrusion-opacity': 0.6
-                }
-            });
-
-            logMessage("🏙️ 3D Buildings Layer Added");
-
             startCountdown();
             loadVehicleData();
             setInterval(loadVehicleData, 10000);
@@ -271,8 +252,6 @@
 
                 if (!vehicleModels[vehicleId]) {
                     let markerElement = createVehicleMarker(vehicleLabel);
-                    markerElement.style.display = 'none';
-
                     vehicleModels[vehicleId] = {
                         positions: [],
                         markerElement: markerElement,
@@ -293,12 +272,6 @@
                     });
 
                     vehicleModels[vehicleId].lastUpdateUTC = timestamp;
-
-                    if (vehicleModels[vehicleId].positions.length >= POINTS_BUFFER && !vehicleModels[vehicleId].readyToAnimate) {
-                        vehicleModels[vehicleId].readyToAnimate = true;
-                        vehicleModels[vehicleId].markerElement.style.display = 'block';
-                        logMessage(`🚀 Vehicle ${vehicleId} is now animating!`);
-                    }
                 }
             });
         }).catch(error => {
@@ -317,7 +290,7 @@
         for (let vehicleId in vehicleModels) {
             let vehicle = vehicleModels[vehicleId];
 
-            if (!vehicle.readyToAnimate || vehicle.animating || vehicle.positions.length < 2) continue;
+            if (vehicle.positions.length < 2) continue;
 
             let startPos = vehicle.positions[0];
             let endPos = vehicle.positions[1];
@@ -326,10 +299,7 @@
             let distance = getDistance(startPos, endPos);
             duration = Math.max(duration, distance * 100);
 
-            logMessage(`🚀 Animating Vehicle ${vehicleId} over ${duration / 1000}s`);
-
             let startTime = performance.now();
-            vehicle.markerElement.style.display = 'block';
 
             function step() {
                 let elapsed = performance.now() - startTime;
@@ -345,15 +315,12 @@
                     requestAnimationFrame(step);
                 } else {
                     vehicle.positions.shift();
-                    vehicle.animating = false;
-
                     if (vehicle.positions.length >= 2) {
                         animateVehicles();
                     }
                 }
             }
 
-            vehicle.animating = true;
             requestAnimationFrame(step);
         }
 
