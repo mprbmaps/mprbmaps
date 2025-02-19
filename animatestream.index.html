@@ -66,7 +66,7 @@
     let vehicleModels = {}; 
     let esriRequest;
     let fetchInterval = 10000; // Fetch new data every 10 seconds
-    let animationDuration = 5000; // Default animation duration
+    let animationDuration = 5000; // Default animation duration of 5 seconds
 
     function logMessage(msg) {
         let logDiv = document.getElementById('logConsole');
@@ -165,16 +165,20 @@
                         heading,
                         lastUpdateTime: currentTime,
                         lastGpsUpdateTime: currentTime,
-                        gpsUpdateIntervals: []
+                        gpsUpdateIntervals: [],
+                        label: new mapboxgl.Marker({ element: createVehicleLabel(vehicleId) })
+                            .setLngLat([coordinates[0], coordinates[1]])
+                            .addTo(map)
                     };
                 }
 
-                let gpsChanged = vehicleModels[vehicleId].newPos.lng !== coordinates[0] || 
-                                 vehicleModels[vehicleId].newPos.lat !== coordinates[1];
+                let lastGpsTime = vehicleModels[vehicleId].lastGpsUpdateTime;
+                let gpsInterval = (currentTime - lastGpsTime) / 1000;
 
-                if (gpsChanged) {
-                    logMessage(`📡 GPS UPDATE for ${vehicleId}: New location received`);
+                if (gpsInterval > 0) {
+                    logMessage(`📡 GPS UPDATE for ${vehicleId}: New location received after ${gpsInterval.toFixed(1)}s`);
                     vehicleModels[vehicleId].lastGpsUpdateTime = currentTime;
+                    vehicleModels[vehicleId].gpsUpdateIntervals.push(gpsInterval);
                 }
 
                 vehicleModels[vehicleId].lastPos = vehicleModels[vehicleId].newPos;
@@ -187,6 +191,13 @@
         });
     }
 
+    function createVehicleLabel(vehicleId) {
+        let labelDiv = document.createElement('div');
+        labelDiv.className = 'vehicle-label';
+        labelDiv.innerText = vehicleId.slice(-4);
+        return labelDiv;
+    }
+
     function animateVehicle(vehicle) {
         let startTime = performance.now();
         function step() {
@@ -194,6 +205,7 @@
             let progress = Math.min(elapsed / animationDuration, 1);
             let interpolatedLng = vehicle.lastPos.lng + (vehicle.newPos.lng - vehicle.lastPos.lng) * progress;
             let interpolatedLat = vehicle.lastPos.lat + (vehicle.newPos.lat - vehicle.lastPos.lat) * progress;
+            vehicle.label.setLngLat([interpolatedLng, interpolatedLat]);
             if (progress < 1) requestAnimationFrame(step);
         }
         step();
