@@ -54,7 +54,7 @@
     let vehicleModels = {}; 
     let esriRequest;
     let fetchInterval = 10000; // Fetch new data every 10 seconds
-    let filterTimeLimit = 300000; // 5 minutes in milliseconds
+    let minAnimationDuration = fetchInterval; // Match data update interval
 
     function logMessage(msg) {
         let logDiv = document.getElementById('logConsole');
@@ -138,7 +138,7 @@
 
                 if (!vehicleModels[vehicleId]) {
                     vehicleModels[vehicleId] = {
-                        positions: [], // Stores last 3 positions
+                        positions: [],
                         marker: new mapboxgl.Marker({ element: createVehicleMarker() })
                             .setLngLat([coordinates[0], coordinates[1]])
                             .addTo(map),
@@ -146,9 +146,12 @@
                     };
                 }
 
-                vehicleModels[vehicleId].positions.push({ lng: coordinates[0], lat: coordinates[1] });
+                vehicleModels[vehicleId].positions.push({
+                    lng: coordinates[0],
+                    lat: coordinates[1],
+                    timestamp: Date.now()
+                });
 
-                // Keep only last 3 positions
                 if (vehicleModels[vehicleId].positions.length > 3) {
                     vehicleModels[vehicleId].positions.shift();
                 }
@@ -170,10 +173,12 @@
 
             if (vehicle.positions.length < 3 || vehicle.animating) continue;
 
-            let startPos = vehicle.positions[0]; // 3rd most recent position
-            let endPos = vehicle.positions[1];   // 2nd most recent position
+            let startPos = vehicle.positions[0];
+            let endPos = vehicle.positions[1];
+            let timeBetweenUpdates = endPos.timestamp - startPos.timestamp; // Actual GPS update time
+            let duration = Math.max(timeBetweenUpdates, minAnimationDuration); // Ensure full update period is used
+
             let startTime = performance.now();
-            let duration = fetchInterval; // Match animation to data fetch interval
 
             function step() {
                 let elapsed = performance.now() - startTime;
@@ -188,7 +193,7 @@
                     requestAnimationFrame(step);
                 } else {
                     vehicle.animating = false;
-                    vehicle.positions.shift(); // Remove completed position
+                    vehicle.positions.shift();
                 }
             }
 
