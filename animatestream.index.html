@@ -11,7 +11,7 @@
 
     <!-- Threebox for 3D Models -->
     <script src="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.min.js"></script>
-    <link href="https://cdn.jsdelivr.com/gh/jscastro76/threebox@v.2.2.2/dist/threebox.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.css" rel="stylesheet">
 
     <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
@@ -19,22 +19,16 @@
     <style>
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
-
         .vehicle-marker {
-            width: 40px; /* Increased size */
-            height: 40px;
+            width: 15px;
+            height: 15px;
             border-radius: 50%;
             background-color: red;
             border: 2px solid white;
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
             pointer-events: none;
+            transition: background-color 0.2s ease;
             display: none; /* Hide until animation starts */
-            position: relative;
-            text-align: center;
-            line-height: 40px; /* Center text vertically */
-            font-size: 14px;
-            font-weight: bold;
-            color: white;
         }
 
         /* Loading Overlay */
@@ -128,7 +122,7 @@
             container: 'map',
             style: 'mapbox://styles/mapbox/outdoors-v12',
             center: [-93.2650, 44.9778],
-            zoom: 10.5,
+            zoom: 14,
             pitch: 60,
             bearing: 0,
             antialias: true
@@ -214,11 +208,10 @@
                 if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
                 const coordinates = vehicle.geometry.coordinates;
                 const vehicleId = vehicle.properties.vehicle_number;
-                const vehicleLabel = vehicleId.slice(-4); // Last four digits
                 const timestamp = new Date(vehicle.properties.updateUTC).getTime();
 
                 if (!vehicleModels[vehicleId]) {
-                    let markerElement = createVehicleMarker(vehicleLabel);
+                    let markerElement = createVehicleMarker();
                     markerElement.style.display = 'none';
 
                     vehicleModels[vehicleId] = {
@@ -254,10 +247,9 @@
         });
     }
 
-    function createVehicleMarker(vehicleLabel) {
+    function createVehicleMarker() {
         let markerDiv = document.createElement('div');
         markerDiv.className = 'vehicle-marker';
-        markerDiv.textContent = vehicleLabel; // Add the label inside the marker
         return markerDiv;
     }
 
