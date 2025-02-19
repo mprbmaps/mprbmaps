@@ -22,7 +22,6 @@
         .vehicle-marker {
             width: 15px;
             height: 15px;
-            background-color: red;
             border-radius: 50%;
             border: 2px solid white;
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
@@ -54,7 +53,6 @@
     let vehicleModels = {}; 
     let esriRequest;
     let movementThreshold = 0.00005; // Minimum distance to consider movement
-    let maxStationaryTime = 180000; // 3 minutes in milliseconds
 
     function logMessage(msg) {
         let logDiv = document.getElementById('logConsole');
@@ -140,7 +138,8 @@
                 if (!vehicleModels[vehicleId]) {
                     vehicleModels[vehicleId] = {
                         positions: [],
-                        marker: new mapboxgl.Marker({ element: createVehicleMarker() })
+                        markerElement: createVehicleMarker(false),
+                        marker: new mapboxgl.Marker({ element: createVehicleMarker(false) })
                             .setLngLat([coordinates[0], coordinates[1]])
                             .addTo(map),
                         animating: false,
@@ -148,14 +147,14 @@
                     };
                 }
 
-                // Check if the vehicle actually moved
-                if (vehicleModels[vehicleId].positions.length > 0) {
-                    let lastPos = vehicleModels[vehicleId].positions[vehicleModels[vehicleId].positions.length - 1];
-                    let distanceMoved = getDistance(lastPos, { lng: coordinates[0], lat: coordinates[1] });
+                let lastPos = vehicleModels[vehicleId].positions.length > 0 ? vehicleModels[vehicleId].positions[vehicleModels[vehicleId].positions.length - 1] : null;
+                let distanceMoved = lastPos ? getDistance(lastPos, { lng: coordinates[0], lat: coordinates[1] }) : 0;
 
-                    if (distanceMoved < movementThreshold) {
-                        return; // Ignore update if vehicle didn't move
-                    }
+                if (distanceMoved > movementThreshold) {
+                    vehicleModels[vehicleId].marker.getElement().style.backgroundColor = "green";
+                } else {
+                    vehicleModels[vehicleId].marker.getElement().style.backgroundColor = "red";
+                    return; // Ignore update if vehicle didn't move
                 }
 
                 vehicleModels[vehicleId].positions.push({
@@ -174,23 +173,15 @@
                     vehicleModels[vehicleId].updateInterval = interval * 1000;
                 }
             });
-
-            // Remove stationary vehicles after 3 minutes
-            for (let vehicleId in vehicleModels) {
-                if (currentTime - vehicleModels[vehicleId].lastUpdateTime > maxStationaryTime) {
-                    logMessage(`🚫 Removing vehicle ${vehicleId} from map (stationary for >3 min)`);
-                    vehicleModels[vehicleId].marker.remove();
-                    delete vehicleModels[vehicleId];
-                }
-            }
         }).catch(error => {
             logMessage("❌ Error fetching vehicle data: " + error);
         });
     }
 
-    function createVehicleMarker() {
+    function createVehicleMarker(isMoving) {
         let markerDiv = document.createElement('div');
         markerDiv.className = 'vehicle-marker';
+        markerDiv.style.backgroundColor = isMoving ? "green" : "red";
         return markerDiv;
     }
 
