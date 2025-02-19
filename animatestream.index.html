@@ -53,7 +53,6 @@
     let map, tb;
     let vehicleModels = {}; 
     let esriRequest;
-    let movementThreshold = 0.00005; // Minimum distance to consider movement
 
     function logMessage(msg) {
         let logDiv = document.getElementById('logConsole');
@@ -118,7 +117,7 @@
         esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
             query: {
                 where: "1=1",
-                outFields: "objectid,heading,vehicle_number,speedKmph,longitude,latitude",
+                outFields: "objectid,heading,vehicle_number,speedKmph,longitude,latitude,updateUTC", // Using updateUTC
                 returnGeometry: true,
                 f: "geojson"
             },
@@ -130,11 +129,11 @@
                 return;
             }
 
-            const currentTime = Date.now();
             vehicles.forEach(vehicle => {
                 if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
                 const coordinates = vehicle.geometry.coordinates;
                 const vehicleId = vehicle.properties.vehicle_number;
+                const timestamp = new Date(vehicle.properties.updateUTC).getTime(); // Use updateUTC field
 
                 if (!vehicleModels[vehicleId]) {
                     let markerElement = createVehicleMarker();
@@ -144,25 +143,19 @@
                         marker: new mapboxgl.Marker({ element: markerElement })
                             .setLngLat([coordinates[0], coordinates[1]])
                             .addTo(map),
-                        animating: false,
-                        lastUpdateTime: currentTime,
-                        animationStarted: false
+                        animating: false
                     };
                 }
 
+                // Store the last 4 GPS points
                 vehicleModels[vehicleId].positions.push({
                     lng: coordinates[0],
                     lat: coordinates[1],
-                    timestamp: currentTime
+                    timestamp: timestamp
                 });
 
-                if (vehicleModels[vehicleId].positions.length > 3) {
+                if (vehicleModels[vehicleId].positions.length > 4) {
                     vehicleModels[vehicleId].positions.shift();
-                }
-
-                if (vehicleModels[vehicleId].positions.length === 3 && !vehicleModels[vehicleId].animationStarted) {
-                    logMessage(`🚀 Vehicle ${vehicleId} has 3 locations. Starting animation.`);
-                    vehicleModels[vehicleId].animationStarted = true;
                 }
             });
         }).catch(error => {
@@ -176,19 +169,15 @@
         return markerDiv;
     }
 
-    function getDistance(pos1, pos2) {
-        return Math.sqrt(Math.pow(pos2.lng - pos1.lng, 2) + Math.pow(pos2.lat - pos1.lat, 2));
-    }
-
     function animateVehicles() {
         for (let vehicleId in vehicleModels) {
             let vehicle = vehicleModels[vehicleId];
 
-            if (vehicle.positions.length < 3 || vehicle.animating || !vehicle.animationStarted) continue;
+            if (vehicle.positions.length < 4 || vehicle.animating) continue;
 
             let startPos = vehicle.positions[0];
             let endPos = vehicle.positions[1];
-            let duration = (vehicle.positions[1].timestamp - vehicle.positions[0].timestamp);
+            let duration = endPos.timestamp - startPos.timestamp; // Use actual time difference
 
             let startTime = performance.now();
 
@@ -204,12 +193,11 @@
                 if (progress < 1) {
                     requestAnimationFrame(step);
                 } else {
+                    vehicle.positions.shift(); // Remove oldest point
                     vehicle.animating = false;
-                    vehicle.positions.shift();
 
-                    // Automatically queue next animation if data exists
-                    if (vehicle.positions.length >= 3) {
-                        animateVehicles();
+                    if (vehicle.positions.length >= 4) {
+                        animateVehicles(); // Continue if more points are available
                     }
                 }
             }
