@@ -40,10 +40,8 @@
     let vehicleModels = {}; 
     let esriRequest;
     let fetchInterval = 10000; // Fetch new data every 10 seconds
-    let animationDuration = fetchInterval; // Ensure smooth transition between updates
     let filterTimeLimit = 300000; // 5 minutes in milliseconds
-    let movementThreshold = 0.00005; // ~5.5 meters to avoid noise
-    let lastUpdateTime = {}; // Tracks last known update for predictive movement
+    let movementThreshold = 0.00005; // Adjusted movement threshold (~5.5 meters)
 
     require([
         "esri/request",
@@ -87,7 +85,7 @@
             console.log("✅ Threebox initialized");
             loadVehicleData();
             setInterval(loadVehicleData, fetchInterval);
-            requestAnimationFrame(updateVehiclePositions); // Start predictive movement
+            requestAnimationFrame(updateVehiclePositions); // Start smooth animation loop
         });
     }
 
@@ -154,8 +152,6 @@
                     vehicleModels[vehicleId].lastPos = vehicleModels[vehicleId].newPos;
                     vehicleModels[vehicleId].newPos = { lng: coordinates[0], lat: coordinates[1] };
                 }
-
-                lastUpdateTime[vehicleId] = currentTime;
             });
         }).catch(error => {
             console.log("❌ Error fetching vehicle data: " + error);
@@ -176,7 +172,7 @@
         let currentTime = Date.now();
         for (let vehicleId in vehicleModels) {
             let vehicle = vehicleModels[vehicleId];
-            let timeSinceLastUpdate = (currentTime - (lastUpdateTime[vehicleId] || currentTime)) / 1000;
+            let timeSinceLastUpdate = (currentTime - vehicle.lastGpsUpdateTime) / 1000;
 
             let predictedLng = vehicle.newPos.lng + (vehicle.speedMph * 0.00001 * Math.cos(vehicle.heading * (Math.PI / 180)) * timeSinceLastUpdate);
             let predictedLat = vehicle.newPos.lat + (vehicle.speedMph * 0.00001 * Math.sin(vehicle.heading * (Math.PI / 180)) * timeSinceLastUpdate);
