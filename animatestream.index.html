@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (ArcGIS Community Basemap)</title>
+    <title>Mapbox + Threebox 3D Vehicles (ArcGIS Community Basemap + 3D Buildings)</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -166,6 +166,26 @@
             logMessage("✅ ArcGIS Community Basemap Loaded!");
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
             logMessage("✅ Threebox initialized");
+
+            // ✅ Add 3D Buildings Layer
+            map.addLayer({
+                id: '3d-buildings',
+                source: {
+                    type: 'vector',
+                    url: 'mapbox://mapbox.3d-buildings' // Mapbox's 3D building source
+                },
+                'source-layer': 'building',
+                type: 'fill-extrusion',
+                minzoom: 15,
+                paint: {
+                    'fill-extrusion-color': '#aaa',
+                    'fill-extrusion-height': ['get', 'height'],
+                    'fill-extrusion-base': ['get', 'min_height'],
+                    'fill-extrusion-opacity': 0.6
+                }
+            });
+
+            logMessage("🏙️ 3D Buildings Layer Added");
 
             startCountdown();
             loadVehicleData();
