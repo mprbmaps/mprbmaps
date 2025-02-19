@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles</title>
+    <title>Mapbox + Threebox 3D Vehicles (Filtered)</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -28,7 +28,7 @@
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
             pointer-events: none;
             transition: background-color 0.2s ease;
-            display: none; /* Hide until animation starts */
+            display: none;
         }
 
         /* Loading Overlay */
@@ -84,6 +84,7 @@
     let esriRequest;
     const POINTS_BUFFER = 6;
     const TIMEOUT_LIMIT = 3 * 60 * 1000; // 3-minute countdown
+    let validVehicleIds = []; // List of vehicle IDs from the external feature table
 
     let countdownInterval;
     let timeLeft = TIMEOUT_LIMIT;
@@ -99,30 +100,61 @@
     ], function(_esriRequest, OAuthInfo, IdentityManager) {
         esriRequest = _esriRequest;
 
-        var info = new OAuthInfo({
+        const info = new OAuthInfo({
             appId: "ti3fi1FqvHE2Hhyw",
             popup: true
         });
 
         IdentityManager.registerOAuthInfos([info]);
 
-        IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
-            logMessage("✅ Signed in successfully");
-            initializeMap();
-        }).catch(error => {
-            logMessage("⚠️ Not signed in. Prompting login...");
-            IdentityManager.getCredential(info.portalUrl + "/sharing")
-                .then(() => initializeMap())
-                .catch(err => logMessage("❌ ESRI Login Failed: " + err));
-        });
+        IdentityManager.checkSignInStatus(info.portalUrl + "/sharing")
+            .then(() => {
+                logMessage("✅ Signed in successfully");
+                fetchValidVehicleIds().then(() => {
+                    initializeMap();
+                });
+            })
+            .catch(() => {
+                IdentityManager.getCredential(info.portalUrl + "/sharing")
+                    .then(() => {
+                        logMessage("✅ User signed in after prompt");
+                        fetchValidVehicleIds().then(() => {
+                            initializeMap();
+                        });
+                    })
+                    .catch(err => {
+                        logMessage("❌ ESRI Login Failed: " + err);
+                        alert("Login failed. Please try again.");
+                    });
+            });
     });
+
+    // Fetch valid vehicle IDs from the external feature table
+    function fetchValidVehicleIds() {
+        logMessage("🔄 Fetching valid vehicle IDs...");
+        return esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Operations_Management_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer/0/query", {
+            query: {
+                where: "1=1",
+                outFields: "vehicleid",
+                returnGeometry: false,
+                f: "json"
+            },
+            responseType: "json"
+        }).then(response => {
+            const features = response.data.features;
+            validVehicleIds = features.map(f => f.attributes.vehicleid);
+            logMessage(`✅ Fetched ${validVehicleIds.length} valid vehicle IDs`);
+        }).catch(error => {
+            logMessage("❌ Error fetching valid vehicle IDs: " + error);
+        });
+    }
 
     function initializeMap() {
         map = new mapboxgl.Map({
             container: 'map',
             style: 'mapbox://styles/mapbox/outdoors-v12',
             center: [-93.2650, 44.9778],
-            zoom: 14,
+            zoom: 10.75,
             pitch: 60,
             bearing: 0,
             antialias: true
@@ -133,7 +165,6 @@
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
             logMessage("✅ Threebox initialized");
 
-            // Add 3D Buildings
             map.addLayer({
                 id: '3d-buildings',
                 source: 'composite',
@@ -209,6 +240,9 @@
                 const coordinates = vehicle.geometry.coordinates;
                 const vehicleId = vehicle.properties.vehicle_number;
                 const timestamp = new Date(vehicle.properties.updateUTC).getTime();
+
+                // ✅ Only process vehicles that are in the validVehicleIds list
+                if (!validVehicleIds.includes(vehicleId)) return;
 
                 if (!vehicleModels[vehicleId]) {
                     let markerElement = createVehicleMarker();
