@@ -141,20 +141,22 @@
                 // Check if the vehicle moved a significant distance
                 let distanceMoved = getDistance(vehicleModels[vehicleId].lastPos, coordinates);
 
-                if (gpsInterval > filterTimeLimit || distanceMoved < movementThreshold) {
-                    console.log(`❌ Hiding vehicle ${vehicleId} (Inactive or No Movement)`);
+                if (gpsInterval > filterTimeLimit) {
+                    console.log(`❌ Hiding vehicle ${vehicleId} (Inactive for too long)`);
                     vehicleModels[vehicleId].label.remove();
                     delete vehicleModels[vehicleId];
                     return;
                 }
 
-                console.log(`📡 GPS UPDATE for ${vehicleId}: Moved ${distanceMoved.toFixed(5)} degrees`);
-
-                vehicleModels[vehicleId].lastGpsUpdateTime = currentTime;
-                vehicleModels[vehicleId].lastPos = vehicleModels[vehicleId].newPos;
-                vehicleModels[vehicleId].newPos = { lng: coordinates[0], lat: coordinates[1] };
-
-                animateVehicle(vehicleModels[vehicleId]);
+                if (distanceMoved >= movementThreshold) {
+                    console.log(`📡 GPS UPDATE for ${vehicleId}: Moved ${distanceMoved.toFixed(5)} degrees`);
+                    vehicleModels[vehicleId].lastGpsUpdateTime = currentTime;
+                    vehicleModels[vehicleId].lastPos = vehicleModels[vehicleId].newPos;
+                    vehicleModels[vehicleId].newPos = { lng: coordinates[0], lat: coordinates[1] };
+                    animateVehicle(vehicleModels[vehicleId]);
+                } else {
+                    console.log(`⚠️ ${vehicleId} did not move enough (${distanceMoved.toFixed(5)} degrees)`);
+                }
             });
         }).catch(error => {
             console.log("❌ Error fetching vehicle data: " + error);
