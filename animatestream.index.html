@@ -106,7 +106,7 @@
     let esriRequest;
     const POINTS_BUFFER = 6;
     const TIMEOUT_LIMIT = 3 * 60 * 1000; // 3-minute countdown
-    let validVehicleIds = [];
+    // let validVehicleIds = []; // Commented out
 
     let countdownInterval;
     let timeLeft = TIMEOUT_LIMIT;
@@ -132,17 +132,17 @@
         IdentityManager.checkSignInStatus(info.portalUrl + "/sharing")
             .then(() => {
                 logMessage("✅ Signed in successfully");
-                fetchValidVehicleIds().then(() => {
+                // fetchValidVehicleIds().then(() => { // Commented out
                     initializeMap();
-                });
+                // }); // Commented out
             })
             .catch(() => {
                 IdentityManager.getCredential(info.portalUrl + "/sharing")
                     .then(() => {
                         logMessage("✅ User signed in after prompt");
-                        fetchValidVehicleIds().then(() => {
+                        // fetchValidVehicleIds().then(() => { // Commented out
                             initializeMap();
-                        });
+                        // }); // Commented out
                     })
                     .catch(err => {
                         logMessage("❌ ESRI Login Failed: " + err);
@@ -151,6 +151,8 @@
             });
     });
 
+    /* 
+    // Commented Out: Fetch Valid Vehicle IDs
     function fetchValidVehicleIds() {
         logMessage("🔄 Fetching valid vehicle IDs...");
         return esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Operations_Management_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer/0/query", {
@@ -169,6 +171,7 @@
             logMessage("❌ Error fetching valid vehicle IDs: " + error);
         });
     }
+    */
 
     function initializeMap() {
         map = new mapboxgl.Map({
@@ -267,7 +270,7 @@
                 const vehicleLabel = vehicleId.slice(-4); // ✅ Last 4 digits
                 const timestamp = new Date(vehicle.properties.updateUTC).getTime();
 
-                if (!validVehicleIds.includes(vehicleId)) return;
+                // if (!validVehicleIds.includes(vehicleId)) return; // Commented out
 
                 if (!vehicleModels[vehicleId]) {
                     let markerElement = createVehicleMarker(vehicleLabel);
