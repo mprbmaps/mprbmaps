@@ -47,7 +47,7 @@
     let vehicleModels = {}; 
     let esriRequest;
     let fetchInterval = 10000; // Fetch new data every 10 seconds
-    let animationDuration = 5000; // 5 seconds transition between updates
+    let animationDuration = 5000; // Default animation duration of 5 seconds
 
     require([
         "esri/request",
@@ -101,7 +101,7 @@
             return;
         }
 
-        console.log("🔄 Fetching vehicle data from Hosted Feature Layer...");
+        console.log("🔄 Fetching vehicle data...");
 
         esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
             query: {
@@ -114,10 +114,12 @@
         }).then(response => {
             const vehicles = response.data.features;
             if (!vehicles || vehicles.length === 0) {
-                console.warn("⚠️ No vehicles found in Hosted Feature Layer.");
+                console.warn("⚠️ No vehicles found.");
                 return;
             }
-            
+
+            let currentTime = Date.now();
+
             vehicles.forEach(vehicle => {
                 if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
                 const coordinates = vehicle.geometry.coordinates;
@@ -126,9 +128,32 @@
                 const heading = vehicle.properties.heading || 0;
 
                 if (!vehicleModels[vehicleId]) {
-                    vehicleModels[vehicleId] = { lastPos: null, newPos: null, model: null, label: null, speedKmph, heading };
+                    vehicleModels[vehicleId] = {
+                        lastPos: null,
+                        newPos: null,
+                        model: null,
+                        label: null,
+                        speedKmph,
+                        heading,
+                        lastUpdateTime: currentTime,
+                        updateIntervals: []
+                    };
                 }
 
+                // Compute update interval
+                let lastTime = vehicleModels[vehicleId].lastUpdateTime;
+                let interval = (currentTime - lastTime) / 1000; // Convert ms to seconds
+
+                if (vehicleModels[vehicleId].updateIntervals.length >= 5) {
+                    vehicleModels[vehicleId].updateIntervals.shift(); // Keep last 5 intervals
+                }
+                vehicleModels[vehicleId].updateIntervals.push(interval);
+
+                let avgUpdateInterval = vehicleModels[vehicleId].updateIntervals.reduce((a, b) => a + b, 0) / vehicleModels[vehicleId].updateIntervals.length;
+
+                console.log(`[${new Date().toISOString()}] 🚛 Vehicle ${vehicleId}: Last update ${interval.toFixed(1)}s ago, Avg Interval: ${avgUpdateInterval.toFixed(1)}s`);
+
+                vehicleModels[vehicleId].lastUpdateTime = currentTime;
                 vehicleModels[vehicleId].lastPos = vehicleModels[vehicleId].newPos || { lng: coordinates[0], lat: coordinates[1] };
                 vehicleModels[vehicleId].newPos = { lng: coordinates[0], lat: coordinates[1] };
                 vehicleModels[vehicleId].speedKmph = speedKmph;
@@ -145,30 +170,23 @@
                     }).setLngLat([coordinates[0], coordinates[1]]).addTo(map);
                 }
 
-                animateVehicle(vehicleModels[vehicleId]);
+                animateVehicle(vehicleModels[vehicleId], avgUpdateInterval);
             });
         }).catch(error => {
             console.error("❌ Error fetching vehicle data:", error);
         });
     }
 
-    function animateVehicle(vehicle) {
+    function animateVehicle(vehicle, avgUpdateInterval) {
         let startTime = performance.now();
-        
+        let animationTime = Math.min(avgUpdateInterval * 1000, animationDuration);
+
         function step() {
             let elapsed = performance.now() - startTime;
-            let progress = Math.min(elapsed / animationDuration, 1);
+            let progress = Math.min(elapsed / animationTime, 1);
 
             let interpolatedLng = vehicle.lastPos.lng + (vehicle.newPos.lng - vehicle.lastPos.lng) * progress;
             let interpolatedLat = vehicle.lastPos.lat + (vehicle.newPos.lat - vehicle.lastPos.lat) * progress;
-
-            // Apply dead reckoning if still moving
-            if (progress >= 1 && vehicle.speedKmph > 0) {
-                let speedMps = vehicle.speedKmph / 3.6;
-                let distance = speedMps * (fetchInterval / 1000);
-                interpolatedLng += distance * Math.cos(vehicle.heading * Math.PI / 180) * 0.00001;
-                interpolatedLat += distance * Math.sin(vehicle.heading * Math.PI / 180) * 0.00001;
-            }
 
             vehicle.label.setLngLat([interpolatedLng, interpolatedLat]);
 
