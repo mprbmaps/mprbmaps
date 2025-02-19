@@ -10,7 +10,7 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.js"></script>
 
     <!-- Threebox for 3D Models -->
-    <script src="https://cdn.jsdelivr/gh/jscastro76/threebox@v.2.2.2/dist/threebox.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.min.js"></script>
     <link href="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.css" rel="stylesheet">
 
     <!-- ArcGIS JavaScript API -->
@@ -61,6 +61,10 @@
             width: 0;
             background-color: #4CAF50;
             transition: width 0.3s ease;
+            text-align: center;
+            color: white;
+            font-size: 12px;
+            line-height: 20px;
         }
 
         #loadingMessage {
@@ -82,7 +86,7 @@
 <div id="loadingOverlay">
     <div id="loadingMessage">Gathering GPS locations...</div>
     <div id="progressBarContainer">
-        <div id="progressBar"></div>
+        <div id="progressBar">0%</div>
     </div>
     <div id="timeoutMessage">⚠️ Taking longer than expected... still gathering data.</div>
 </div>
@@ -93,7 +97,7 @@
     let map, tb;
     let vehicleModels = {}; 
     let esriRequest;
-    const POINTS_BUFFER = 6;  // Number of GPS points to gather before starting animation
+    const POINTS_BUFFER = 6;  // Number of GPS points needed
     const TIMEOUT_LIMIT = 5 * 60 * 1000; // 5-minute timeout
 
     let loadingStartTime = Date.now();
@@ -145,7 +149,7 @@
             loadVehicleData();
             setInterval(loadVehicleData, 10000); // Fetch updates every 10s
             requestAnimationFrame(animateVehicles);
-            setTimeout(checkTimeout, TIMEOUT_LIMIT); // Check for long delays
+            setTimeout(checkTimeout, TIMEOUT_LIMIT); // Timeout after 5 minutes
         });
     }
 
@@ -180,7 +184,7 @@
 
                 if (!vehicleModels[vehicleId]) {
                     let markerElement = createVehicleMarker();
-                    markerElement.style.display = 'none'; // Keep hidden until animation starts
+                    markerElement.style.display = 'none'; // Hide until animation starts
 
                     vehicleModels[vehicleId] = {
                         positions: [],
@@ -193,7 +197,7 @@
                     };
                 }
 
-                // Avoid adding duplicate points
+                // Avoid duplicates
                 if (vehicleModels[vehicleId].lastUpdateUTC !== timestamp) {
                     vehicleModels[vehicleId].positions.push({
                         lng: coordinates[0],
@@ -229,15 +233,15 @@
 
             let startPos = vehicle.positions[0];
             let endPos = vehicle.positions[1];
-            let duration = Math.max(endPos.timestamp - startPos.timestamp, 1000); // Minimum duration
+            let duration = Math.max(endPos.timestamp - startPos.timestamp, 1000); // At least 1 second
 
             let distance = getDistance(startPos, endPos);
-            duration = Math.max(duration, distance * 100);
+            duration = Math.max(duration, distance * 100); // Scale based on distance
 
             logMessage(`🚀 Animating Vehicle ${vehicleId} over ${duration / 1000}s`);
 
             let startTime = performance.now();
-            vehicle.markerElement.style.display = 'block'; // Show marker when animation starts
+            vehicle.markerElement.style.display = 'block'; // Show marker
             vehicle.marker.getElement().style.backgroundColor = 'green';
 
             function step() {
@@ -303,6 +307,7 @@
 
         let progress = (vehiclesReady / totalVehicles) * 100;
         document.getElementById('progressBar').style.width = `${progress}%`;
+        document.getElementById('progressBar').textContent = `${Math.round(progress)}%`;
 
         if (vehiclesReady === totalVehicles && totalVehicles > 0) {
             document.getElementById('loadingOverlay').style.display = 'none';
