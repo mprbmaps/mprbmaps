@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ArcGIS WebMap + Mapbox 3D Buildings + Vehicle Tracking</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapbox + Threebox 3D Vehicles (Filtered)</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -66,7 +67,6 @@
     </style>
 </head>
 <body>
-
 <div id="map"></div>
 
 <!-- Loading Overlay -->
@@ -84,7 +84,7 @@
     let esriRequest;
     const POINTS_BUFFER = 6;
     const TIMEOUT_LIMIT = 3 * 60 * 1000; // 3-minute countdown
-    let validVehicleIds = [];
+    let validVehicleIds = []; // List of vehicle IDs from the external feature table
 
     let countdownInterval;
     let timeLeft = TIMEOUT_LIMIT;
@@ -129,6 +129,7 @@
             });
     });
 
+    // Fetch valid vehicle IDs from the external feature table
     function fetchValidVehicleIds() {
         logMessage("🔄 Fetching valid vehicle IDs...");
         return esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Operations_Management_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer/0/query", {
@@ -149,79 +150,49 @@
     }
 
     function initializeMap() {
-    map = new mapboxgl.Map({
-        container: 'map',
-        style: {
-            version: 8,
-            sources: {
-                // Esri Community Basemap (Vector Tile)
-                "esri-community-basemap": {
-                    type: "vector",
-                    tiles: [
-                        "https://basemaps.arcgis.com/arcgis/rest/services/World_Basemap_v2/VectorTileServer/tile/{z}/{y}/{x}.pbf"
-                    ],
-                    minzoom: 0,
-                    maxzoom: 22
-                },
-                // Mapbox Composite Source for 3D Buildings
-                "composite": {
-                    type: "vector",
-                    url: "mapbox://mapbox.mapbox-streets-v8"
-                }
-            },
-            layers: [
-                {
-                    id: "esri-community-basemap",
-                    type: "fill", // or "line", "symbol", depending on layer type
-                    source: "esri-community-basemap",
-                    "source-layer": "World_Basemap_v2", // ✅ Replace with the correct layer name if needed
-                    paint: {
-                        "fill-color": "#d3d3d3",
-                        "fill-outline-color": "#000"
-                    }
-                }
-            ]
-        },
-        center: [-93.2650, 44.9778], // Example center (Minneapolis)
-        zoom: 14,
-        pitch: 60, // For 3D effect
-        bearing: 0,
-        antialias: true
-    });
-        map.on("load", () => {
-            logMessage("✅ Map Loaded");
+        map = new mapboxgl.Map({
+            container: 'map',
+            style: 'https://www.arcgis.com/sharing/rest/content/items/273bf8d5c8ac400183fc24e109d20bcf/resources/styles/root.json', // ArcGIS Basemap
+            center: [-93.2650, 44.9778],
+            zoom: 14,
+            pitch: 60,
+            bearing: 0,
+            antialias: true
+        });
 
+        map.on("style.load", function () {
+            logMessage("✅ ArcGIS Basemap Loaded!");
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
             logMessage("✅ Threebox initialized");
 
-            // Add 3D Buildings
             map.addLayer({
-                id: "3d-buildings",
-                source: "composite",
-                "source-layer": "building",
-                filter: ["==", "extrude", "true"],
-                type: "fill-extrusion",
+                id: '3d-buildings',
+                source: 'composite',
+                'source-layer': 'building',
+                type: 'fill-extrusion',
                 minzoom: 15,
                 paint: {
-                    "fill-extrusion-color": "#aaa",
-                    "fill-extrusion-height": ["get", "height"],
-                    "fill-extrusion-base": ["get", "min_height"],
-                    "fill-extrusion-opacity": 0.6
+                    'fill-extrusion-color': '#aaa',
+                    'fill-extrusion-height': ['get', 'height'],
+                    'fill-extrusion-base': ['get', 'min_height'],
+                    'fill-extrusion-opacity': 0.6
                 }
             });
 
             startCountdown();
             loadVehicleData();
-            setInterval(loadVehicleData, 10000);
+            setInterval(loadVehicleData, 10000); // Fetch updates every 10s
             requestAnimationFrame(animateVehicles);
         });
     }
 
     function startCountdown() {
         updateCountdownDisplay();
+
         countdownInterval = setInterval(() => {
             timeLeft -= 1000;
             updateCountdownDisplay();
+
             if (timeLeft <= 0) {
                 clearInterval(countdownInterval);
                 endCountdown();
@@ -270,6 +241,7 @@
                 const vehicleId = vehicle.properties.vehicle_number;
                 const timestamp = new Date(vehicle.properties.updateUTC).getTime();
 
+                // ✅ Only process vehicles that are in the validVehicleIds list
                 if (!validVehicleIds.includes(vehicleId)) return;
 
                 if (!vehicleModels[vehicleId]) {
@@ -383,6 +355,5 @@
         return R * c;
     }
 </script>
-
 </body>
 </html>
