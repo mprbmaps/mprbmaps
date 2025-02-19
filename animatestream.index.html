@@ -48,31 +48,18 @@
             z-index: 9999;
         }
 
-        #progressBarContainer {
-            width: 80%;
-            background-color: #444;
-            border-radius: 5px;
-            overflow: hidden;
-            margin-top: 20px;
-        }
-
-        #progressBar {
-            height: 20px;
-            width: 0;
-            background-color: #4CAF50;
-            transition: width 0.3s ease;
-            text-align: center;
-            color: white;
-            font-size: 12px;
-            line-height: 20px;
-        }
-
         #loadingMessage {
             font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+
+        #countdownTimer {
+            font-size: 1.5em;
+            margin-top: 5px;
         }
 
         #timeoutMessage {
-            margin-top: 10px;
+            margin-top: 15px;
             font-size: 0.9em;
             color: orange;
             display: none;
@@ -85,10 +72,8 @@
 <!-- Loading Overlay -->
 <div id="loadingOverlay">
     <div id="loadingMessage">Gathering GPS locations...</div>
-    <div id="progressBarContainer">
-        <div id="progressBar">0%</div>
-    </div>
-    <div id="timeoutMessage">⚠️ Taking longer than expected... still gathering data.</div>
+    <div id="countdownTimer">5:00</div>
+    <div id="timeoutMessage">⚠️ Time expired. Data gathering incomplete.</div>
 </div>
 
 <script>
@@ -97,10 +82,11 @@
     let map, tb;
     let vehicleModels = {}; 
     let esriRequest;
-    const POINTS_BUFFER = 6;  // Number of GPS points needed
-    const TIMEOUT_LIMIT = 5 * 60 * 1000; // 5-minute timeout
+    const POINTS_BUFFER = 6;
+    const TIMEOUT_LIMIT = 5 * 60 * 1000; // 5-minute countdown
 
-    let loadingStartTime = Date.now();
+    let countdownInterval;
+    let timeLeft = TIMEOUT_LIMIT;
 
     function logMessage(msg) {
         console.log(`${new Date().toISOString()} - ${msg}`);
@@ -146,11 +132,39 @@
             logMessage("✅ Map Style Loaded!");
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
             logMessage("✅ Threebox initialized");
+            startCountdown();
             loadVehicleData();
             setInterval(loadVehicleData, 10000); // Fetch updates every 10s
             requestAnimationFrame(animateVehicles);
-            setTimeout(checkTimeout, TIMEOUT_LIMIT); // Timeout after 5 minutes
         });
+    }
+
+    function startCountdown() {
+        updateCountdownDisplay();
+
+        countdownInterval = setInterval(() => {
+            timeLeft -= 1000;
+            updateCountdownDisplay();
+
+            if (timeLeft <= 0) {
+                clearInterval(countdownInterval);
+                endCountdown();
+            }
+        }, 1000);
+    }
+
+    function updateCountdownDisplay() {
+        const minutes = Math.floor(timeLeft / 60000);
+        const seconds = Math.floor((timeLeft % 60000) / 1000);
+        document.getElementById('countdownTimer').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    function endCountdown() {
+        if (Object.keys(vehicleModels).length === 0) {
+            document.getElementById('timeoutMessage').style.display = 'block';
+        } else {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
     }
 
     function loadVehicleData() {
@@ -184,7 +198,7 @@
 
                 if (!vehicleModels[vehicleId]) {
                     let markerElement = createVehicleMarker();
-                    markerElement.style.display = 'none'; // Hide until animation starts
+                    markerElement.style.display = 'none';
 
                     vehicleModels[vehicleId] = {
                         positions: [],
@@ -197,7 +211,6 @@
                     };
                 }
 
-                // Avoid duplicates
                 if (vehicleModels[vehicleId].lastUpdateUTC !== timestamp) {
                     vehicleModels[vehicleId].positions.push({
                         lng: coordinates[0],
@@ -211,8 +224,6 @@
                         vehicleModels[vehicleId].positions.shift();
                     }
                 }
-
-                updateProgressBar();
             });
         }).catch(error => {
             logMessage("❌ Error fetching vehicle data: " + error);
@@ -233,15 +244,15 @@
 
             let startPos = vehicle.positions[0];
             let endPos = vehicle.positions[1];
-            let duration = Math.max(endPos.timestamp - startPos.timestamp, 1000); // At least 1 second
+            let duration = Math.max(endPos.timestamp - startPos.timestamp, 1000);
 
             let distance = getDistance(startPos, endPos);
-            duration = Math.max(duration, distance * 100); // Scale based on distance
+            duration = Math.max(duration, distance * 100);
 
             logMessage(`🚀 Animating Vehicle ${vehicleId} over ${duration / 1000}s`);
 
             let startTime = performance.now();
-            vehicle.markerElement.style.display = 'block'; // Show marker
+            vehicle.markerElement.style.display = 'block';
             vehicle.marker.getElement().style.backgroundColor = 'green';
 
             function step() {
@@ -274,14 +285,12 @@
         requestAnimationFrame(animateVehicles);
     }
 
-    // Easing Function
     function easeInOutCubic(t) {
         return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     }
 
-    // Calculate Distance Between Two GPS Points
     function getDistance(pos1, pos2) {
-        const R = 6371e3; // Earth radius in meters
+        const R = 6371e3;
         const φ1 = pos1.lat * Math.PI / 180;
         const φ2 = pos2.lat * Math.PI / 180;
         const Δφ = (pos2.lat - pos1.lat) * Math.PI / 180;
@@ -292,34 +301,7 @@
                   Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-        return R * c; // Distance in meters
-    }
-
-    // Update Progress Bar Based on Unique GPS Points
-    function updateProgressBar() {
-        let totalVehicles = 0;
-        let vehiclesReady = 0;
-
-        for (let vehicleId in vehicleModels) {
-            if (vehicleModels[vehicleId].positions.length > 0) totalVehicles++;
-            if (vehicleModels[vehicleId].positions.length >= POINTS_BUFFER) vehiclesReady++;
-        }
-
-        let progress = (vehiclesReady / totalVehicles) * 100;
-        document.getElementById('progressBar').style.width = `${progress}%`;
-        document.getElementById('progressBar').textContent = `${Math.round(progress)}%`;
-
-        if (vehiclesReady === totalVehicles && totalVehicles > 0) {
-            document.getElementById('loadingOverlay').style.display = 'none';
-        }
-    }
-
-    // Timeout Check
-    function checkTimeout() {
-        if (document.getElementById('loadingOverlay').style.display !== 'none') {
-            document.getElementById('timeoutMessage').style.display = 'block';
-            logMessage("⚠️ Timeout: Some vehicles took too long to gather data.");
-        }
+        return R * c;
     }
 </script>
 </body>
