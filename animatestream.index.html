@@ -40,7 +40,7 @@
     let map, tb;
     let vehicleModels = {}; 
     let esriRequest;
-    let bufferDelay = 3000; // 3-second delay buffer for smoother animations
+    let bufferDelay = 1000; // Reduced buffer delay for faster animations
 
     function logMessage(msg) {
         console.log(`${new Date().toISOString()} - ${msg}`);
@@ -167,9 +167,9 @@
             let endPos = vehicle.positions[1];
             let duration = endPos.timestamp - startPos.timestamp;
 
-            // Adjust for large gaps
+            // Adjust for large gaps with faster animations
             let distance = getDistance(startPos, endPos);
-            duration = Math.max(duration, distance * 500); // Longer duration for large jumps
+            duration = Math.max(duration / 2, distance * 250); // Speed up animations
 
             logMessage(`🚀 Animating Vehicle ${vehicleId} from ${new Date(startPos.timestamp).toISOString()} to ${new Date(endPos.timestamp).toISOString()} over ${duration / 1000}s`);
 
@@ -179,11 +179,11 @@
             vehicle.marker.getElement().style.backgroundColor = 'green';
 
             function step() {
-                let elapsed = performance.now() - startTime + bufferDelay; // Add buffer delay
+                let elapsed = performance.now() - startTime + bufferDelay;
                 let progress = Math.min(elapsed / duration, 1);
 
-                // Apply easing function for smoother movement
-                let easedProgress = easeInOutQuad(progress);
+                // Apply smoother easing
+                let easedProgress = easeInOutCubic(progress);
 
                 vehicle.marker.setLngLat([
                     startPos.lng + (endPos.lng - startPos.lng) * easedProgress,
@@ -213,10 +213,12 @@
         requestAnimationFrame(animateVehicles);
     }
 
-    function easeInOutQuad(t) {
-        return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    // Easing Function for Smoother Animation
+    function easeInOutCubic(t) {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     }
 
+    // Calculate Distance Between Two GPS Points
     function getDistance(pos1, pos2) {
         const R = 6371e3; // Earth radius in meters
         const φ1 = pos1.lat * Math.PI / 180;
