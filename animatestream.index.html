@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Mapbox + ArcGIS WebMap + Threebox 3D Vehicles</title>
+    <title>ArcGIS WebMap + Mapbox 3D Buildings + Vehicle Tracking</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -149,36 +149,64 @@
     }
 
     function initializeMap() {
-        map = new mapboxgl.Map({
-            container: 'map',
-            style: 'mapbox://styles/mapbox/outdoors-v12',
-            center: [-93.2650, 44.9778],
-            zoom: 10.75,
-            pitch: 60,
-            bearing: 0,
-            antialias: true
-        });
+    map = new mapboxgl.Map({
+        container: 'map',
+        style: {
+            version: 8,
+            sources: {
+                // Esri Community Basemap (Vector Tile)
+                "esri-community-basemap": {
+                    type: "vector",
+                    tiles: [
+                        "https://basemaps.arcgis.com/arcgis/rest/services/World_Basemap_v2/VectorTileServer/tile/{z}/{y}/{x}.pbf"
+                    ],
+                    minzoom: 0,
+                    maxzoom: 22
+                },
+                // Mapbox Composite Source for 3D Buildings
+                "composite": {
+                    type: "vector",
+                    url: "mapbox://mapbox.mapbox-streets-v8"
+                }
+            },
+            layers: [
+                {
+                    id: "esri-community-basemap",
+                    type: "fill", // or "line", "symbol", depending on layer type
+                    source: "esri-community-basemap",
+                    "source-layer": "World_Basemap_v2", // ✅ Replace with the correct layer name if needed
+                    paint: {
+                        "fill-color": "#d3d3d3",
+                        "fill-outline-color": "#000"
+                    }
+                }
+            ]
+        },
+        center: [-93.2650, 44.9778], // Example center (Minneapolis)
+        zoom: 14,
+        pitch: 60, // For 3D effect
+        bearing: 0,
+        antialias: true
+    });
+        map.on("load", () => {
+            logMessage("✅ Map Loaded");
 
-        map.on("style.load", function () {
-            logMessage("✅ Map Style Loaded!");
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
             logMessage("✅ Threebox initialized");
 
-            // ✅ Add ArcGIS WebMap Layers
-            fetchArcGISWebMapLayers();
-
-            // ✅ Add 3D Buildings
+            // Add 3D Buildings
             map.addLayer({
-                id: '3d-buildings',
-                source: 'composite',
-                'source-layer': 'building',
-                type: 'fill-extrusion',
+                id: "3d-buildings",
+                source: "composite",
+                "source-layer": "building",
+                filter: ["==", "extrude", "true"],
+                type: "fill-extrusion",
                 minzoom: 15,
                 paint: {
-                    'fill-extrusion-color': '#aaa',
-                    'fill-extrusion-height': ['get', 'height'],
-                    'fill-extrusion-base': ['get', 'min_height'],
-                    'fill-extrusion-opacity': 0.6
+                    "fill-extrusion-color": "#aaa",
+                    "fill-extrusion-height": ["get", "height"],
+                    "fill-extrusion-base": ["get", "min_height"],
+                    "fill-extrusion-opacity": 0.6
                 }
             });
 
@@ -187,45 +215,6 @@
             setInterval(loadVehicleData, 10000);
             requestAnimationFrame(animateVehicles);
         });
-    }
-
-    // 🔄 Fetch ArcGIS WebMap Layers
-    function fetchArcGISWebMapLayers() {
-        const webMapId = "a11d663a981947b99aac7ff05437758f";
-        const webMapUrl = `https://www.arcgis.com/sharing/rest/content/items/${webMapId}?f=json`;
-
-        fetch(webMapUrl)
-            .then(response => response.json())
-            .then(data => {
-                if (data && data.layers) {
-                    data.layers.forEach(layer => {
-                        if (layer.url) {
-                            addArcGISTileLayer(layer.url, layer.title);
-                        }
-                    });
-                }
-            })
-            .catch(error => logMessage("❌ Error fetching ArcGIS WebMap: " + error));
-    }
-
-    // 📌 Add ArcGIS Tile Layer to Mapbox
-    function addArcGISTileLayer(layerUrl, layerName) {
-        map.addSource(layerName, {
-            'type': 'raster',
-            'tiles': [
-                `${layerUrl}/tile/{z}/{y}/{x}`
-            ],
-            'tileSize': 256
-        });
-
-        map.addLayer({
-            'id': layerName,
-            'type': 'raster',
-            'source': layerName,
-            'paint': {}
-        });
-
-        logMessage(`✅ Added ArcGIS Layer: ${layerName}`);
     }
 
     function startCountdown() {
