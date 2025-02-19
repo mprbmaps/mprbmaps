@@ -53,8 +53,8 @@
     let map, tb;
     let vehicleModels = {}; 
     let esriRequest;
-    let fetchInterval = 30000; // Fetch new data every 30 seconds per vehicle
-    let animationStartDelay = fetchInterval * 3; // Wait for ~1.5 minutes to collect 3 GPS points
+    let fetchInterval = 30000; // Fetch new data every 30 seconds
+    let animationStartDelay = fetchInterval * 3; // Wait 1.5 minutes to collect 3 GPS points
 
     function logMessage(msg) {
         let logDiv = document.getElementById('logConsole');
@@ -107,7 +107,7 @@
             setTimeout(() => {
                 logMessage("🚀 Starting animations after 3 GPS updates...");
                 requestAnimationFrame(animateVehicles);
-            }, animationStartDelay); // Wait for 3 GPS updates before animating
+            }, animationStartDelay);
         });
     }
 
@@ -149,7 +149,6 @@
                     };
                 }
 
-                // Store last 3 known positions
                 vehicleModels[vehicleId].positions.push({
                     lng: coordinates[0],
                     lat: coordinates[1],
@@ -157,7 +156,7 @@
                 });
 
                 if (vehicleModels[vehicleId].positions.length > 3) {
-                    vehicleModels[vehicleId].positions.shift(); // Keep only 3
+                    vehicleModels[vehicleId].positions.shift();
                 }
             });
         }).catch(error => {
@@ -172,14 +171,16 @@
     }
 
     function animateVehicles() {
+        let currentTime = Date.now();
+
         for (let vehicleId in vehicleModels) {
             let vehicle = vehicleModels[vehicleId];
 
             if (vehicle.positions.length < 3 || vehicle.animating) continue;
 
-            let startPos = vehicle.positions[0]; // 3rd most recent
-            let endPos = vehicle.positions[1];   // 2nd most recent
-            let duration = fetchInterval; // Make sure animation lasts 30s (syncs with GPS)
+            let startPos = vehicle.positions[0];
+            let endPos = vehicle.positions[1];
+            let duration = Math.max(endPos.timestamp - startPos.timestamp, fetchInterval);
 
             let startTime = performance.now();
 
@@ -196,7 +197,7 @@
                     requestAnimationFrame(step);
                 } else {
                     vehicle.animating = false;
-                    vehicle.positions.shift(); // Move to next segment
+                    vehicle.positions.shift();
                 }
             }
 
