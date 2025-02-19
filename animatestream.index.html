@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Filtered)</title>
+    <title>Mapbox + Threebox 3D Vehicles (ArcGIS Basemap)</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -84,7 +84,7 @@
     let esriRequest;
     const POINTS_BUFFER = 6;
     const TIMEOUT_LIMIT = 3 * 60 * 1000; // 3-minute countdown
-    let validVehicleIds = []; // List of vehicle IDs from the external feature table
+    let validVehicleIds = [];
 
     let countdownInterval;
     let timeLeft = TIMEOUT_LIMIT;
@@ -129,7 +129,6 @@
             });
     });
 
-    // Fetch valid vehicle IDs from the external feature table
     function fetchValidVehicleIds() {
         logMessage("🔄 Fetching valid vehicle IDs...");
         return esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Operations_Management_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer/0/query", {
@@ -150,17 +149,17 @@
     }
 
     function initializeMap() {
-    map = new mapboxgl.Map({
-        container: 'map',
-        style: 'https://basemaps.arcgis.com/arcgis/rest/services/World_Basemap_v2/VectorTileServer/resources/styles/root.json', // CORS-enabled ArcGIS Basemap
-        center: [-93.2650, 44.9778], // Center the map
-        zoom: 14,
-        pitch: 60,
-        bearing: 0,
-        antialias: true
-    });
+        map = new mapboxgl.Map({
+            container: 'map',
+            style: 'https://basemaps.arcgis.com/arcgis/rest/services/World_Basemap_v2/VectorTileServer/resources/styles/root.json', // ArcGIS Basemap
+            center: [-93.2650, 44.9778],
+            zoom: 14,
+            pitch: 60,
+            bearing: 0,
+            antialias: true
+        });
 
-    map.on("style.load", function () {
+        map.on("style.load", function () {
             logMessage("✅ ArcGIS Basemap Loaded!");
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
             logMessage("✅ Threebox initialized");
@@ -193,11 +192,9 @@
 
     function startCountdown() {
         updateCountdownDisplay();
-
         countdownInterval = setInterval(() => {
             timeLeft -= 1000;
             updateCountdownDisplay();
-
             if (timeLeft <= 0) {
                 clearInterval(countdownInterval);
                 endCountdown();
