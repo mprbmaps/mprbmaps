@@ -23,6 +23,7 @@
             width: 15px;
             height: 15px;
             border-radius: 50%;
+            background-color: red;
             border: 2px solid white;
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
             pointer-events: none;
@@ -136,7 +137,7 @@
                 const vehicleId = vehicle.properties.vehicle_number;
 
                 if (!vehicleModels[vehicleId]) {
-                    let markerElement = createVehicleMarker(false);
+                    let markerElement = createVehicleMarker();
                     vehicleModels[vehicleId] = {
                         positions: [],
                         markerElement: markerElement,
@@ -144,18 +145,9 @@
                             .setLngLat([coordinates[0], coordinates[1]])
                             .addTo(map),
                         animating: false,
-                        lastUpdateTime: currentTime
+                        lastUpdateTime: currentTime,
+                        animationStarted: false
                     };
-                }
-
-                let lastPos = vehicleModels[vehicleId].positions.length > 0 ? vehicleModels[vehicleId].positions[vehicleModels[vehicleId].positions.length - 1] : null;
-                let distanceMoved = lastPos ? getDistance(lastPos, { lng: coordinates[0], lat: coordinates[1] }) : 0;
-
-                if (distanceMoved > movementThreshold) {
-                    vehicleModels[vehicleId].markerElement.style.backgroundColor = "green";
-                    logMessage(`✅ Vehicle ${vehicleId} is moving (turning green)`);
-                } else {
-                    vehicleModels[vehicleId].markerElement.style.backgroundColor = "red";
                 }
 
                 vehicleModels[vehicleId].positions.push({
@@ -168,10 +160,9 @@
                     vehicleModels[vehicleId].positions.shift();
                 }
 
-                if (vehicleModels[vehicleId].positions.length === 3) {
-                    let interval = (vehicleModels[vehicleId].positions[2].timestamp - vehicleModels[vehicleId].positions[1].timestamp) / 1000;
-                    logMessage(`📡 Vehicle ${vehicleId}: Moving, GPS interval = ${interval} seconds`);
-                    vehicleModels[vehicleId].updateInterval = interval * 1000;
+                if (vehicleModels[vehicleId].positions.length === 3 && !vehicleModels[vehicleId].animationStarted) {
+                    logMessage(`🚀 Vehicle ${vehicleId} has 3 locations. Starting animation.`);
+                    vehicleModels[vehicleId].animationStarted = true;
                 }
             });
         }).catch(error => {
@@ -179,10 +170,9 @@
         });
     }
 
-    function createVehicleMarker(isMoving) {
+    function createVehicleMarker() {
         let markerDiv = document.createElement('div');
         markerDiv.className = 'vehicle-marker';
-        markerDiv.style.backgroundColor = isMoving ? "green" : "red";
         return markerDiv;
     }
 
@@ -194,11 +184,11 @@
         for (let vehicleId in vehicleModels) {
             let vehicle = vehicleModels[vehicleId];
 
-            if (vehicle.positions.length < 3 || vehicle.animating || !vehicle.updateInterval) continue;
+            if (vehicle.positions.length < 3 || vehicle.animating || !vehicle.animationStarted) continue;
 
             let startPos = vehicle.positions[0];
             let endPos = vehicle.positions[1];
-            let duration = vehicle.updateInterval;
+            let duration = (vehicle.positions[1].timestamp - vehicle.positions[0].timestamp);
 
             let startTime = performance.now();
 
