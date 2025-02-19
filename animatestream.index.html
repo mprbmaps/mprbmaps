@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Filtered)</title>
+    <title>Mapbox + ArcGIS WebMap + Threebox 3D Vehicles</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -67,6 +66,7 @@
     </style>
 </head>
 <body>
+
 <div id="map"></div>
 
 <!-- Loading Overlay -->
@@ -84,7 +84,7 @@
     let esriRequest;
     const POINTS_BUFFER = 6;
     const TIMEOUT_LIMIT = 3 * 60 * 1000; // 3-minute countdown
-    let validVehicleIds = []; // List of vehicle IDs from the external feature table
+    let validVehicleIds = [];
 
     let countdownInterval;
     let timeLeft = TIMEOUT_LIMIT;
@@ -129,7 +129,6 @@
             });
     });
 
-    // Fetch valid vehicle IDs from the external feature table
     function fetchValidVehicleIds() {
         logMessage("🔄 Fetching valid vehicle IDs...");
         return esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Operations_Management_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer/0/query", {
@@ -165,6 +164,10 @@
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
             logMessage("✅ Threebox initialized");
 
+            // ✅ Add ArcGIS WebMap Layers
+            fetchArcGISWebMapLayers();
+
+            // ✅ Add 3D Buildings
             map.addLayer({
                 id: '3d-buildings',
                 source: 'composite',
@@ -181,18 +184,55 @@
 
             startCountdown();
             loadVehicleData();
-            setInterval(loadVehicleData, 10000); // Fetch updates every 10s
+            setInterval(loadVehicleData, 10000);
             requestAnimationFrame(animateVehicles);
         });
     }
 
+    // 🔄 Fetch ArcGIS WebMap Layers
+    function fetchArcGISWebMapLayers() {
+        const webMapId = "a11d663a981947b99aac7ff05437758f";
+        const webMapUrl = `https://www.arcgis.com/sharing/rest/content/items/${webMapId}?f=json`;
+
+        fetch(webMapUrl)
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.layers) {
+                    data.layers.forEach(layer => {
+                        if (layer.url) {
+                            addArcGISTileLayer(layer.url, layer.title);
+                        }
+                    });
+                }
+            })
+            .catch(error => logMessage("❌ Error fetching ArcGIS WebMap: " + error));
+    }
+
+    // 📌 Add ArcGIS Tile Layer to Mapbox
+    function addArcGISTileLayer(layerUrl, layerName) {
+        map.addSource(layerName, {
+            'type': 'raster',
+            'tiles': [
+                `${layerUrl}/tile/{z}/{y}/{x}`
+            ],
+            'tileSize': 256
+        });
+
+        map.addLayer({
+            'id': layerName,
+            'type': 'raster',
+            'source': layerName,
+            'paint': {}
+        });
+
+        logMessage(`✅ Added ArcGIS Layer: ${layerName}`);
+    }
+
     function startCountdown() {
         updateCountdownDisplay();
-
         countdownInterval = setInterval(() => {
             timeLeft -= 1000;
             updateCountdownDisplay();
-
             if (timeLeft <= 0) {
                 clearInterval(countdownInterval);
                 endCountdown();
@@ -241,7 +281,6 @@
                 const vehicleId = vehicle.properties.vehicle_number;
                 const timestamp = new Date(vehicle.properties.updateUTC).getTime();
 
-                // ✅ Only process vehicles that are in the validVehicleIds list
                 if (!validVehicleIds.includes(vehicleId)) return;
 
                 if (!vehicleModels[vehicleId]) {
@@ -355,5 +394,6 @@
         return R * c;
     }
 </script>
+
 </body>
 </html>
