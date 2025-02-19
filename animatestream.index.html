@@ -54,8 +54,9 @@
     let vehicleModels = {}; 
     let esriRequest;
     let fetchInterval = 10000; // Fetch new data every 10 seconds
+    let animationDuration = fetchInterval; // Match data update interval
     let filterTimeLimit = 300000; // 5 minutes in milliseconds
-    let movementThreshold = 0.00005; // ~5.5 meters to avoid noise
+    let movementThreshold = 0.00005; // ~5.5 meters to avoid GPS jitter
 
     function logMessage(msg) {
         let logDiv = document.getElementById('logConsole');
@@ -105,7 +106,7 @@
             logMessage("✅ Threebox initialized");
             loadVehicleData();
             setInterval(loadVehicleData, fetchInterval);
-            requestAnimationFrame(updateVehiclePositions); // Start smooth animation loop
+            requestAnimationFrame(updateVehiclePositions);
         });
     }
 
