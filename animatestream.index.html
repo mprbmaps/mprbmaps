@@ -19,20 +19,13 @@
     <style>
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
-        .vehicle-label {
-            width: 40px;
-            height: 40px;
-            background-color: rgba(255, 0, 0, 0.8);
+        .vehicle-marker {
+            width: 15px;
+            height: 15px;
+            background-color: red;
             border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 15px;
-            font-weight: bold;
-            color: white;
             border: 2px solid white;
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-            text-align: center;
             pointer-events: none;
         }
     </style>
@@ -49,7 +42,7 @@
     let fetchInterval = 10000; // Fetch new data every 10 seconds
     let animationDuration = 5000; // Default animation duration
     let filterTimeLimit = 300000; // 5 minutes in milliseconds
-    let movementThreshold = 0.0001; // Roughly ~11 meters; filter out minor GPS drift
+    let movementThreshold = 0.00005; // Adjusted movement threshold (~5.5 meters)
 
     require([
         "esri/request",
@@ -136,7 +129,7 @@
                         heading,
                         lastUpdateTime: currentTime,
                         lastGpsUpdateTime: currentTime,
-                        label: new mapboxgl.Marker({ element: createVehicleLabel(vehicleId) })
+                        label: new mapboxgl.Marker({ element: createVehicleMarker() })
                             .setLngLat([coordinates[0], coordinates[1]])
                             .addTo(map)
                     };
@@ -168,11 +161,10 @@
         });
     }
 
-    function createVehicleLabel(vehicleId) {
-        let labelDiv = document.createElement('div');
-        labelDiv.className = 'vehicle-label';
-        labelDiv.innerText = vehicleId.slice(-4);
-        return labelDiv;
+    function createVehicleMarker() {
+        let markerDiv = document.createElement('div');
+        markerDiv.className = 'vehicle-marker';
+        return markerDiv;
     }
 
     function getDistance(pos1, pos2) {
