@@ -53,8 +53,8 @@
     let map, tb;
     let vehicleModels = {}; 
     let esriRequest;
-    let fetchInterval = 10000; // Fetch new data every 10 seconds
-    let minAnimationDuration = fetchInterval; // Match data update interval
+    let fetchInterval = 30000; // Fetch new data every 30 seconds (per vehicle)
+    let animationStartDelay = fetchInterval * 3; // Wait ~1.5 minutes (to get 3 GPS points)
 
     function logMessage(msg) {
         let logDiv = document.getElementById('logConsole');
@@ -104,7 +104,10 @@
             logMessage("✅ Threebox initialized");
             loadVehicleData();
             setInterval(loadVehicleData, fetchInterval);
-            requestAnimationFrame(animateVehicles);
+            setTimeout(() => {
+                logMessage("🚀 Starting animations after 3 GPS updates...");
+                requestAnimationFrame(animateVehicles);
+            }, animationStartDelay); // Wait for 3 GPS updates
         });
     }
 
@@ -175,8 +178,7 @@
 
             let startPos = vehicle.positions[0];
             let endPos = vehicle.positions[1];
-            let timeBetweenUpdates = endPos.timestamp - startPos.timestamp; // Actual GPS update time
-            let duration = Math.max(timeBetweenUpdates, minAnimationDuration); // Ensure full update period is used
+            let duration = fetchInterval; // Match animation to GPS update frequency
 
             let startTime = performance.now();
 
