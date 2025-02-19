@@ -136,10 +136,11 @@
                 const vehicleId = vehicle.properties.vehicle_number;
 
                 if (!vehicleModels[vehicleId]) {
+                    let markerElement = createVehicleMarker(false);
                     vehicleModels[vehicleId] = {
                         positions: [],
-                        markerElement: createVehicleMarker(false),
-                        marker: new mapboxgl.Marker({ element: createVehicleMarker(false) })
+                        markerElement: markerElement,
+                        marker: new mapboxgl.Marker({ element: markerElement })
                             .setLngLat([coordinates[0], coordinates[1]])
                             .addTo(map),
                         animating: false,
@@ -151,10 +152,10 @@
                 let distanceMoved = lastPos ? getDistance(lastPos, { lng: coordinates[0], lat: coordinates[1] }) : 0;
 
                 if (distanceMoved > movementThreshold) {
-                    vehicleModels[vehicleId].marker.getElement().style.backgroundColor = "green";
+                    vehicleModels[vehicleId].markerElement.style.backgroundColor = "green";
+                    logMessage(`✅ Vehicle ${vehicleId} is moving (turning green)`);
                 } else {
-                    vehicleModels[vehicleId].marker.getElement().style.backgroundColor = "red";
-                    return; // Ignore update if vehicle didn't move
+                    vehicleModels[vehicleId].markerElement.style.backgroundColor = "red";
                 }
 
                 vehicleModels[vehicleId].positions.push({
