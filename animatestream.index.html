@@ -159,13 +159,16 @@
             bearing: 0,
             antialias: true,
             transformRequest: (url, resourceType) => {
-                if (resourceType === 'Tile' && !url.startsWith('http')) {
-                    return {
-                        url: `https://www.arcgis.com${url}`
-                    };
-                }
-                return { url };
-            }
+    if (resourceType === 'Tile' && !url.startsWith('http')) {
+        // Ensure there is a slash between the domain and the path
+        const correctedUrl = url.startsWith('/') ? url : `/${url}`;
+        return {
+            url: `https://www.arcgis.com${correctedUrl}`
+        };
+    }
+    return { url };
+}
+
         });
 
         map.on("style.load", function () {
