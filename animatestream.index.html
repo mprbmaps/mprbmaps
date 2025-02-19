@@ -28,6 +28,7 @@
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
             pointer-events: none;
             transition: background-color 0.2s ease;
+            display: none; /* Hide until animation starts */
         }
 
         /* Loading Overlay */
@@ -167,7 +168,7 @@
 
                 if (!vehicleModels[vehicleId]) {
                     let markerElement = createVehicleMarker();
-                    markerElement.style.display = 'none'; // Hide marker initially
+                    markerElement.style.display = 'none'; // Keep hidden until animation starts
 
                     vehicleModels[vehicleId] = {
                         positions: [],
@@ -179,7 +180,7 @@
                     };
                 }
 
-                // Store the last N GPS points
+                // Buffer GPS points
                 vehicleModels[vehicleId].positions.push({
                     lng: coordinates[0],
                     lat: coordinates[1],
@@ -207,7 +208,7 @@
         for (let vehicleId in vehicleModels) {
             let vehicle = vehicleModels[vehicleId];
 
-            if (vehicle.positions.length < 2 || vehicle.animating) continue;
+            if (vehicle.positions.length < POINTS_BUFFER || vehicle.animating) continue;
 
             let startPos = vehicle.positions[0];
             let endPos = vehicle.positions[1];
@@ -219,7 +220,7 @@
             logMessage(`🚀 Animating Vehicle ${vehicleId} over ${duration / 1000}s`);
 
             let startTime = performance.now();
-            vehicle.markerElement.style.display = 'block'; // Show marker once animation starts
+            vehicle.markerElement.style.display = 'block'; // Now show the marker
             vehicle.marker.getElement().style.backgroundColor = 'green';
 
             function step() {
@@ -239,7 +240,7 @@
                     vehicle.animating = false;
                     vehicle.marker.getElement().style.backgroundColor = 'red';
 
-                    if (vehicle.positions.length >= 2) {
+                    if (vehicle.positions.length >= POINTS_BUFFER) {
                         animateVehicles();
                     }
                 }
@@ -275,19 +276,18 @@
 
     // Update Progress Bar
     function updateProgressBar() {
-        let totalVehicles = Object.keys(vehicleModels).length;
+        let totalVehicles = 0;
         let vehiclesReady = 0;
 
         for (let vehicleId in vehicleModels) {
-            if (vehicleModels[vehicleId].positions.length >= POINTS_BUFFER) {
-                vehiclesReady++;
-            }
+            if (vehicleModels[vehicleId].positions.length > 0) totalVehicles++;
+            if (vehicleModels[vehicleId].positions.length >= POINTS_BUFFER) vehiclesReady++;
         }
 
         let progress = (vehiclesReady / totalVehicles) * 100;
         document.getElementById('progressBar').style.width = `${progress}%`;
 
-        if (vehiclesReady === totalVehicles) {
+        if (vehiclesReady === totalVehicles && totalVehicles > 0) {
             document.getElementById('loadingOverlay').style.display = 'none';
         }
     }
