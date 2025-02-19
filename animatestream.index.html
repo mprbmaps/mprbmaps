@@ -36,7 +36,7 @@
         .vehicle-label {
             width: 40px;
             height: 40px;
-            background-color: rgba(0, 128, 0, 0.8); /* Green background */
+            background-color: rgba(0, 128, 0, 0.8);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -48,7 +48,7 @@
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
             text-align: center;
             pointer-events: none;
-            display: none; /* Hidden until 6 points */
+            display: none;
         }
 
         /* Loading Overlay */
@@ -99,7 +99,7 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    const arcgisToken = '3NKHt6i2urmWtqOuugvr9ceJKY_vnNSLRDmAPMsbBbo84HN6js5-wACA6t5VXnGHr3KnByviPraNPqzmZG8f7I6uPuqsMD2p7K2Pqa6kU-BtteYgUbdSwYM3zqXpsPdx';
+    const arcgisToken = '3NKHt6i2urmWtqOuugvr9ZcuBYuUgj3bnj6weZeM_6qjh0vUUcKEyq33v0Voqbj9VAua9mAuTEK-ol2X0kzxCIHindJ-VDWntjBXjUd2c4S_-wmP2zM1A6sWjtq4sJgb';
     const arcgisStyleUrl = `https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/styles/arcgis/community?token=${arcgisToken}`;
 
     let map, tb;
@@ -158,7 +158,7 @@
             container: 'map',
             style: arcgisStyleUrl,
             center: [-93.2650, 44.9778],
-            zoom: 11,
+            zoom: 14,
             pitch: 60,
             bearing: 0,
             antialias: true
@@ -234,7 +234,7 @@
 
                 if (!vehicleModels[vehicleId]) {
                     let markerElement = createVehicleMarker(vehicleLabel);
-                    markerElement.style.display = 'none'; // Hidden until 6 points buffered
+                    markerElement.style.display = 'none';
 
                     vehicleModels[vehicleId] = {
                         positions: [],
@@ -246,6 +246,7 @@
                         lastUpdateUTC: null,
                         readyToAnimate: false
                     };
+                    logMessage(`📍 Created marker for Vehicle ${vehicleId}`);
                 }
 
                 if (vehicleModels[vehicleId].lastUpdateUTC !== timestamp) {
@@ -277,46 +278,50 @@
     }
 
     function animateVehicles() {
-        for (let vehicleId in vehicleModels) {
-            let vehicle = vehicleModels[vehicleId];
+        try {
+            for (let vehicleId in vehicleModels) {
+                let vehicle = vehicleModels[vehicleId];
 
-            if (!vehicle.readyToAnimate || vehicle.animating || vehicle.positions.length < 2) continue;
+                if (!vehicle.readyToAnimate || vehicle.animating || vehicle.positions.length < 2) continue;
 
-            let startPos = vehicle.positions[0];
-            let endPos = vehicle.positions[1];
-            let duration = Math.max(endPos.timestamp - startPos.timestamp, 1000);
+                let startPos = vehicle.positions[0];
+                let endPos = vehicle.positions[1];
+                let duration = Math.max(endPos.timestamp - startPos.timestamp, 1000);
 
-            let distance = getDistance(startPos, endPos);
-            duration = Math.max(duration, distance * 100);
+                let distance = getDistance(startPos, endPos);
+                duration = Math.max(duration, distance * 100);
 
-            logMessage(`🚀 Animating Vehicle ${vehicleId} over ${duration / 1000}s`);
+                logMessage(`🚀 Animating Vehicle ${vehicleId} over ${duration / 1000}s`);
 
-            let startTime = performance.now();
-            vehicle.animating = true;
+                let startTime = performance.now();
+                vehicle.animating = true;
 
-            function step() {
-                let elapsed = performance.now() - startTime;
-                let progress = Math.min(elapsed / duration, 1);
-                let easedProgress = easeInOutCubic(progress);
+                function step() {
+                    let elapsed = performance.now() - startTime;
+                    let progress = Math.min(elapsed / duration, 1);
+                    let easedProgress = easeInOutCubic(progress);
 
-                vehicle.marker.setLngLat([
-                    startPos.lng + (endPos.lng - startPos.lng) * easedProgress,
-                    startPos.lat + (endPos.lat - startPos.lat) * easedProgress
-                ]);
+                    vehicle.marker.setLngLat([
+                        startPos.lng + (endPos.lng - startPos.lng) * easedProgress,
+                        startPos.lat + (endPos.lat - startPos.lat) * easedProgress
+                    ]);
 
-                if (progress < 1) {
-                    requestAnimationFrame(step);
-                } else {
-                    vehicle.positions.shift();
-                    vehicle.animating = false;
+                    if (progress < 1) {
+                        requestAnimationFrame(step);
+                    } else {
+                        vehicle.positions.shift();
+                        vehicle.animating = false;
 
-                    if (vehicle.positions.length >= 2) {
-                        animateVehicles();
+                        if (vehicle.positions.length >= 2) {
+                            animateVehicles();
+                        }
                     }
                 }
-            }
 
-            requestAnimationFrame(step);
+                requestAnimationFrame(step);
+            }
+        } catch (error) {
+            logMessage("❌ Error during animation: " + error);
         }
 
         requestAnimationFrame(animateVehicles);
