@@ -10,7 +10,7 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.js"></script>
 
     <!-- Threebox for 3D Models -->
-    <script src="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.min.js"></script>
+    <script src="https://cdn.jsdelivr.com/gh/jscastro76/threebox@v.2.2.2/dist/threebox.min.js"></script>
     <link href="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.css" rel="stylesheet">
 
     <!-- ArcGIS JavaScript API -->
@@ -73,7 +73,7 @@
 <div id="loadingOverlay">
     <div id="loadingMessage">Gathering GPS locations...</div>
     <div id="countdownTimer">5:00</div>
-    <div id="timeoutMessage">⚠️ Time expired. Data gathering incomplete.</div>
+    <div id="timeoutMessage">⚠️ Time expired. Some vehicles may not appear.</div>
 </div>
 
 <script>
@@ -160,11 +160,8 @@
     }
 
     function endCountdown() {
-        if (Object.keys(vehicleModels).length === 0) {
-            document.getElementById('timeoutMessage').style.display = 'block';
-        } else {
-            document.getElementById('loadingOverlay').style.display = 'none';
-        }
+        document.getElementById('loadingOverlay').style.display = 'none';
+        document.getElementById('timeoutMessage').style.display = 'block';
     }
 
     function loadVehicleData() {
@@ -207,7 +204,8 @@
                             .setLngLat([coordinates[0], coordinates[1]])
                             .addTo(map),
                         animating: false,
-                        lastUpdateUTC: null
+                        lastUpdateUTC: null,
+                        readyToAnimate: false
                     };
                 }
 
@@ -220,8 +218,10 @@
 
                     vehicleModels[vehicleId].lastUpdateUTC = timestamp;
 
-                    if (vehicleModels[vehicleId].positions.length > POINTS_BUFFER) {
-                        vehicleModels[vehicleId].positions.shift();
+                    if (vehicleModels[vehicleId].positions.length >= POINTS_BUFFER && !vehicleModels[vehicleId].readyToAnimate) {
+                        vehicleModels[vehicleId].readyToAnimate = true;
+                        vehicleModels[vehicleId].markerElement.style.display = 'block';
+                        logMessage(`🚀 Vehicle ${vehicleId} is now animating!`);
                     }
                 }
             });
@@ -240,7 +240,7 @@
         for (let vehicleId in vehicleModels) {
             let vehicle = vehicleModels[vehicleId];
 
-            if (vehicle.positions.length < POINTS_BUFFER || vehicle.animating) continue;
+            if (!vehicle.readyToAnimate || vehicle.animating || vehicle.positions.length < 2) continue;
 
             let startPos = vehicle.positions[0];
             let endPos = vehicle.positions[1];
@@ -272,7 +272,7 @@
                     vehicle.animating = false;
                     vehicle.marker.getElement().style.backgroundColor = 'red';
 
-                    if (vehicle.positions.length >= POINTS_BUFFER) {
+                    if (vehicle.positions.length >= 2) {
                         animateVehicles();
                     }
                 }
