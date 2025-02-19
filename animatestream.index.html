@@ -53,7 +53,6 @@
     let map, tb;
     let vehicleModels = {}; 
     let esriRequest;
-    let gpsInterval = 60000; // Vehicles update every ~60 seconds
     let movementThreshold = 0.00005; // Minimum distance to consider movement
 
     function logMessage(msg) {
@@ -103,7 +102,7 @@
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
             logMessage("✅ Threebox initialized");
             loadVehicleData();
-            setInterval(loadVehicleData, gpsInterval);
+            setInterval(loadVehicleData, 10000); // Fetch new data every 10s to track individual vehicle timing
             requestAnimationFrame(animateVehicles);
         });
     }
@@ -143,7 +142,8 @@
                         marker: new mapboxgl.Marker({ element: createVehicleMarker() })
                             .setLngLat([coordinates[0], coordinates[1]])
                             .addTo(map),
-                        animating: false
+                        animating: false,
+                        lastUpdateTime: currentTime
                     };
                 }
 
@@ -163,9 +163,9 @@
 
                     let distanceMoved = getDistance(firstPos, secondPos);
                     if (distanceMoved > movementThreshold) {
-                        let lastTimestamp = firstPos.timestamp;
-                        let interval = (currentTime - lastTimestamp) / 1000;
+                        let interval = (secondPos.timestamp - firstPos.timestamp) / 1000;
                         logMessage(`📡 Vehicle ${vehicleId}: Moving, GPS interval = ${interval} seconds`);
+                        vehicleModels[vehicleId].updateInterval = interval * 1000; // Store actual GPS update time
                     }
                 }
             });
@@ -188,11 +188,11 @@
         for (let vehicleId in vehicleModels) {
             let vehicle = vehicleModels[vehicleId];
 
-            if (vehicle.positions.length < 3 || vehicle.animating) continue;
+            if (vehicle.positions.length < 3 || vehicle.animating || !vehicle.updateInterval) continue;
 
             let startPos = vehicle.positions[0];
             let endPos = vehicle.positions[1];
-            let duration = gpsInterval; // Animation matches GPS interval (~60s)
+            let duration = vehicle.updateInterval; // Use per-vehicle update time
 
             let startTime = performance.now();
 
