@@ -19,6 +19,7 @@
     <style>
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+
         .vehicle-marker {
             width: 15px;
             height: 15px;
@@ -29,6 +30,24 @@
             pointer-events: none;
             transition: background-color 0.2s ease;
             display: none;
+        }
+
+        /* Vehicle Label */
+        .vehicle-label {
+            width: 40px;
+            height: 40px;
+            background-color: rgba(255, 0, 0, 0.8);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: bold;
+            color: white;
+            border: 2px solid white;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            pointer-events: none;
         }
 
         /* Loading Overlay */
@@ -245,12 +264,13 @@
                 if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
                 const coordinates = vehicle.geometry.coordinates;
                 const vehicleId = vehicle.properties.vehicle_number;
+                const vehicleLabel = vehicleId.slice(-4); // ✅ Last 4 digits
                 const timestamp = new Date(vehicle.properties.updateUTC).getTime();
 
                 if (!validVehicleIds.includes(vehicleId)) return;
 
                 if (!vehicleModels[vehicleId]) {
-                    let markerElement = createVehicleMarker();
+                    let markerElement = createVehicleMarker(vehicleLabel);
                     markerElement.style.display = 'none';
 
                     vehicleModels[vehicleId] = {
@@ -286,9 +306,10 @@
         });
     }
 
-    function createVehicleMarker() {
+    function createVehicleMarker(labelText) {
         let markerDiv = document.createElement('div');
-        markerDiv.className = 'vehicle-marker';
+        markerDiv.className = 'vehicle-label';
+        markerDiv.textContent = labelText; // ✅ Apply last 4 digits as label
         return markerDiv;
     }
 
@@ -309,7 +330,6 @@
 
             let startTime = performance.now();
             vehicle.markerElement.style.display = 'block';
-            vehicle.marker.getElement().style.backgroundColor = 'green';
 
             function step() {
                 let elapsed = performance.now() - startTime;
@@ -326,7 +346,6 @@
                 } else {
                     vehicle.positions.shift();
                     vehicle.animating = false;
-                    vehicle.marker.getElement().style.backgroundColor = 'red';
 
                     if (vehicle.positions.length >= 2) {
                         animateVehicles();
