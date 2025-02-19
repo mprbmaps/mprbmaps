@@ -37,7 +37,7 @@
             pointer-events: none;
         }
 
-        /* Styles for the log panel */
+        /* Log Panel */
         #logConsole {
             position: fixed;
             bottom: 0;
@@ -66,7 +66,7 @@
     let vehicleModels = {}; 
     let esriRequest;
     let fetchInterval = 10000; // Fetch new data every 10 seconds
-    let animationDuration = 5000; // Default animation duration of 5 seconds
+    let animationDuration = 5000; // Default animation duration
 
     function logMessage(msg) {
         let logDiv = document.getElementById('logConsole');
@@ -154,43 +154,49 @@
                 if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
                 const coordinates = vehicle.geometry.coordinates;
                 const vehicleId = vehicle.properties.vehicle_number;
-                const speedKmph = vehicle.properties.speedKmph || 0;
+                const speedMph = vehicle.properties.speedKmph || 0;
                 const heading = vehicle.properties.heading || 0;
 
                 if (!vehicleModels[vehicleId]) {
                     vehicleModels[vehicleId] = {
-                        lastPos: null,
-                        newPos: null,
-                        model: null,
-                        label: null,
-                        speedKmph,
+                        lastPos: { lng: coordinates[0], lat: coordinates[1] },
+                        newPos: { lng: coordinates[0], lat: coordinates[1] },
+                        speedMph,
                         heading,
                         lastUpdateTime: currentTime,
-                        updateIntervals: []
+                        lastGpsUpdateTime: currentTime,
+                        gpsUpdateIntervals: []
                     };
                 }
 
-                let lastTime = vehicleModels[vehicleId].lastUpdateTime;
-                let interval = (currentTime - lastTime) / 1000; // Convert ms to seconds
+                let gpsChanged = vehicleModels[vehicleId].newPos.lng !== coordinates[0] || 
+                                 vehicleModels[vehicleId].newPos.lat !== coordinates[1];
 
-                if (vehicleModels[vehicleId].updateIntervals.length >= 5) {
-                    vehicleModels[vehicleId].updateIntervals.shift();
+                if (gpsChanged) {
+                    logMessage(`📡 GPS UPDATE for ${vehicleId}: New location received`);
+                    vehicleModels[vehicleId].lastGpsUpdateTime = currentTime;
                 }
-                vehicleModels[vehicleId].updateIntervals.push(interval);
 
-                let avgUpdateInterval = vehicleModels[vehicleId].updateIntervals.reduce((a, b) => a + b, 0) / vehicleModels[vehicleId].updateIntervals.length;
-
-                logMessage(`🚛 Vehicle ${vehicleId}: Last update ${interval.toFixed(1)}s ago, Avg Interval: ${avgUpdateInterval.toFixed(1)}s`);
-
-                vehicleModels[vehicleId].lastUpdateTime = currentTime;
-                vehicleModels[vehicleId].lastPos = vehicleModels[vehicleId].newPos || { lng: coordinates[0], lat: coordinates[1] };
+                vehicleModels[vehicleId].lastPos = vehicleModels[vehicleId].newPos;
                 vehicleModels[vehicleId].newPos = { lng: coordinates[0], lat: coordinates[1] };
 
-                animateVehicle(vehicleModels[vehicleId], avgUpdateInterval);
+                animateVehicle(vehicleModels[vehicleId]);
             });
         }).catch(error => {
             logMessage("❌ Error fetching vehicle data: " + error);
         });
+    }
+
+    function animateVehicle(vehicle) {
+        let startTime = performance.now();
+        function step() {
+            let elapsed = performance.now() - startTime;
+            let progress = Math.min(elapsed / animationDuration, 1);
+            let interpolatedLng = vehicle.lastPos.lng + (vehicle.newPos.lng - vehicle.lastPos.lng) * progress;
+            let interpolatedLat = vehicle.lastPos.lat + (vehicle.newPos.lat - vehicle.lastPos.lat) * progress;
+            if (progress < 1) requestAnimationFrame(step);
+        }
+        step();
     }
 </script>
 </body>
