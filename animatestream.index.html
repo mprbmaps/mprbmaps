@@ -36,7 +36,7 @@
         .vehicle-label {
             width: 40px;
             height: 40px;
-            background-color: rgba(0, 128, 0, 0.8);
+            background-color: rgba(0, 128, 0, 0.8); /* Green background */
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -48,6 +48,7 @@
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
             text-align: center;
             pointer-events: none;
+            display: none; /* Hidden until 6 points */
         }
 
         /* Loading Overlay */
@@ -157,7 +158,7 @@
             container: 'map',
             style: arcgisStyleUrl,
             center: [-93.2650, 44.9778],
-            zoom: 14,
+            zoom: 11,
             pitch: 60,
             bearing: 0,
             antialias: true
@@ -233,6 +234,8 @@
 
                 if (!vehicleModels[vehicleId]) {
                     let markerElement = createVehicleMarker(vehicleLabel);
+                    markerElement.style.display = 'none'; // Hidden until 6 points buffered
+
                     vehicleModels[vehicleId] = {
                         positions: [],
                         markerElement: markerElement,
@@ -256,7 +259,8 @@
 
                     if (vehicleModels[vehicleId].positions.length >= POINTS_BUFFER && !vehicleModels[vehicleId].readyToAnimate) {
                         vehicleModels[vehicleId].readyToAnimate = true;
-                        logMessage(`🚀 Vehicle ${vehicleId} is now animating!`);
+                        vehicleModels[vehicleId].markerElement.style.display = 'block';
+                        logMessage(`🚀 Vehicle ${vehicleId} is now animating with ${POINTS_BUFFER} points!`);
                     }
                 }
             });
