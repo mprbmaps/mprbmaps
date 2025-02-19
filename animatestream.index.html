@@ -42,7 +42,8 @@
     let fetchInterval = 10000; // Fetch new data every 10 seconds
     let animationDuration = fetchInterval; // Ensure smooth transition between updates
     let filterTimeLimit = 300000; // 5 minutes in milliseconds
-    let movementThreshold = 0.00005; // Adjusted movement threshold (~5.5 meters)
+    let movementThreshold = 0.00005; // ~5.5 meters to avoid noise
+    let lastUpdateTime = {}; // Tracks last known update for predictive movement
 
     require([
         "esri/request",
@@ -86,6 +87,7 @@
             console.log("✅ Threebox initialized");
             loadVehicleData();
             setInterval(loadVehicleData, fetchInterval);
+            requestAnimationFrame(updateVehiclePositions); // Start predictive movement
         });
     }
 
@@ -137,7 +139,6 @@
 
                 let lastGpsTime = vehicleModels[vehicleId].lastGpsUpdateTime;
                 let gpsInterval = (currentTime - lastGpsTime);
-
                 let distanceMoved = getDistance(vehicleModels[vehicleId].lastPos, coordinates);
 
                 if (gpsInterval > filterTimeLimit) {
@@ -152,10 +153,9 @@
                     vehicleModels[vehicleId].lastGpsUpdateTime = currentTime;
                     vehicleModels[vehicleId].lastPos = vehicleModels[vehicleId].newPos;
                     vehicleModels[vehicleId].newPos = { lng: coordinates[0], lat: coordinates[1] };
-                    startSmoothAnimation(vehicleModels[vehicleId]);
-                } else {
-                    console.log(`⚠️ ${vehicleId} did not move enough (${distanceMoved.toFixed(5)} degrees)`);
                 }
+
+                lastUpdateTime[vehicleId] = currentTime;
             });
         }).catch(error => {
             console.log("❌ Error fetching vehicle data: " + error);
@@ -172,25 +172,19 @@
         return Math.sqrt(Math.pow(pos2[0] - pos1.lng, 2) + Math.pow(pos2[1] - pos1.lat, 2));
     }
 
-    function startSmoothAnimation(vehicle) {
-        let startTime = performance.now();
-        let duration = animationDuration; // Smooth animation over the fetch interval
+    function updateVehiclePositions() {
+        let currentTime = Date.now();
+        for (let vehicleId in vehicleModels) {
+            let vehicle = vehicleModels[vehicleId];
+            let timeSinceLastUpdate = (currentTime - (lastUpdateTime[vehicleId] || currentTime)) / 1000;
 
-        function step() {
-            let elapsed = performance.now() - startTime;
-            let progress = Math.min(elapsed / duration, 1);
+            let predictedLng = vehicle.newPos.lng + (vehicle.speedMph * 0.00001 * Math.cos(vehicle.heading * (Math.PI / 180)) * timeSinceLastUpdate);
+            let predictedLat = vehicle.newPos.lat + (vehicle.speedMph * 0.00001 * Math.sin(vehicle.heading * (Math.PI / 180)) * timeSinceLastUpdate);
 
-            let interpolatedLng = vehicle.lastPos.lng + (vehicle.newPos.lng - vehicle.lastPos.lng) * progress;
-            let interpolatedLat = vehicle.lastPos.lat + (vehicle.newPos.lat - vehicle.lastPos.lat) * progress;
-
-            vehicle.label.setLngLat([interpolatedLng, interpolatedLat]);
-
-            if (progress < 1) {
-                requestAnimationFrame(step);
-            }
+            vehicle.label.setLngLat([predictedLng, predictedLat]);
         }
 
-        requestAnimationFrame(step);
+        requestAnimationFrame(updateVehiclePositions);
     }
 </script>
 </body>
