@@ -151,7 +151,27 @@
     function initializeMap() {
         map = new mapboxgl.Map({
             container: 'map',
-            style: 'https://mprbmaps.github.io/mprbmaps/basemapJSON.json', // 🔗 Using GitHub-hosted ArcGIS basemap
+            style: {
+                version: 8,
+                sources: {
+                    'esri-imagery': {
+                        type: 'raster',
+                        tiles: [
+                            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+                        ],
+                        tileSize: 256
+                    }
+                },
+                layers: [
+                    {
+                        id: 'esri-imagery-layer',
+                        type: 'raster',
+                        source: 'esri-imagery',
+                        minzoom: 0,
+                        maxzoom: 22
+                    }
+                ]
+            },
             center: [-93.2650, 44.9778],
             zoom: 14,
             pitch: 60,
@@ -160,28 +180,9 @@
         });
 
         map.on("style.load", function () {
-            logMessage("✅ ArcGIS Basemap Loaded!");
+            logMessage("✅ ArcGIS World Imagery Basemap Loaded!");
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
             logMessage("✅ Threebox initialized");
-
-            if (map.getSource('composite')) {
-                map.addLayer({
-                    id: '3d-buildings',
-                    source: 'composite',
-                    'source-layer': 'building',
-                    type: 'fill-extrusion',
-                    minzoom: 15,
-                    paint: {
-                        'fill-extrusion-color': '#aaa',
-                        'fill-extrusion-height': ['get', 'height'],
-                        'fill-extrusion-base': ['get', 'min_height'],
-                        'fill-extrusion-opacity': 0.6
-                    }
-                });
-                logMessage("🏙️ 3D Buildings Layer Added");
-            } else {
-                logMessage("⚠️ No 'composite' source found. Skipping 3D buildings layer.");
-            }
 
             startCountdown();
             loadVehicleData();
