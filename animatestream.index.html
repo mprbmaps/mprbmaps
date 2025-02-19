@@ -28,10 +28,24 @@
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
             pointer-events: none;
         }
+        #logConsole {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 200px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            font-size: 12px;
+            overflow: auto;
+            padding: 5px;
+            z-index: 9999;
+        }
     </style>
 </head>
 <body>
 <div id="map"></div>
+<div id="logConsole"></div>
 
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
@@ -41,7 +55,13 @@
     let esriRequest;
     let fetchInterval = 10000; // Fetch new data every 10 seconds
     let filterTimeLimit = 300000; // 5 minutes in milliseconds
-    let movementThreshold = 0.00005; // Adjusted movement threshold (~5.5 meters)
+    let movementThreshold = 0.00005; // ~5.5 meters to avoid noise
+
+    function logMessage(msg) {
+        let logDiv = document.getElementById('logConsole');
+        logDiv.innerHTML += `<div>${new Date().toISOString()} - ${msg}</div>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+    }
 
     require([
         "esri/request",
@@ -58,13 +78,13 @@
         IdentityManager.registerOAuthInfos([info]);
 
         IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
-            console.log("✅ Signed in successfully");
+            logMessage("✅ Signed in successfully");
             initializeMap();
         }).catch(error => {
-            console.log("⚠️ Not signed in. Prompting login...");
+            logMessage("⚠️ Not signed in. Prompting login...");
             IdentityManager.getCredential(info.portalUrl + "/sharing")
                 .then(() => initializeMap())
-                .catch(err => console.log("❌ ESRI Login Failed: " + err));
+                .catch(err => logMessage("❌ ESRI Login Failed: " + err));
         });
     });
 
@@ -80,9 +100,9 @@
         });
 
         map.on("style.load", function () {
-            console.log("✅ Map Style Loaded!");
+            logMessage("✅ Map Style Loaded!");
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
-            console.log("✅ Threebox initialized");
+            logMessage("✅ Threebox initialized");
             loadVehicleData();
             setInterval(loadVehicleData, fetchInterval);
             requestAnimationFrame(updateVehiclePositions); // Start smooth animation loop
@@ -91,11 +111,11 @@
 
     function loadVehicleData() {
         if (!esriRequest) {
-            console.log("❌ esriRequest is not loaded yet.");
+            logMessage("❌ esriRequest is not loaded yet.");
             return;
         }
 
-        console.log("🔄 Fetching vehicle data...");
+        logMessage("🔄 Fetching vehicle data...");
 
         esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
             query: {
@@ -108,7 +128,7 @@
         }).then(response => {
             const vehicles = response.data.features;
             if (!vehicles || vehicles.length === 0) {
-                console.log("⚠️ No vehicles found.");
+                logMessage("⚠️ No vehicles found.");
                 return;
             }
 
@@ -140,21 +160,21 @@
                 let distanceMoved = getDistance(vehicleModels[vehicleId].lastPos, coordinates);
 
                 if (gpsInterval > filterTimeLimit) {
-                    console.log(`❌ Hiding vehicle ${vehicleId} (Inactive for too long)`);
+                    logMessage(`❌ Hiding vehicle ${vehicleId} (Inactive for too long)`);
                     vehicleModels[vehicleId].label.remove();
                     delete vehicleModels[vehicleId];
                     return;
                 }
 
                 if (distanceMoved >= movementThreshold) {
-                    console.log(`📡 GPS UPDATE for ${vehicleId}: Moved ${distanceMoved.toFixed(5)} degrees`);
+                    logMessage(`📡 GPS UPDATE for ${vehicleId}: Moved ${distanceMoved.toFixed(5)} degrees`);
                     vehicleModels[vehicleId].lastGpsUpdateTime = currentTime;
                     vehicleModels[vehicleId].lastPos = vehicleModels[vehicleId].newPos;
                     vehicleModels[vehicleId].newPos = { lng: coordinates[0], lat: coordinates[1] };
                 }
             });
         }).catch(error => {
-            console.log("❌ Error fetching vehicle data: " + error);
+            logMessage("❌ Error fetching vehicle data: " + error);
         });
     }
 
@@ -169,15 +189,13 @@
     }
 
     function updateVehiclePositions() {
-        let currentTime = Date.now();
         for (let vehicleId in vehicleModels) {
             let vehicle = vehicleModels[vehicleId];
-            let timeSinceLastUpdate = (currentTime - vehicle.lastGpsUpdateTime) / 1000;
 
-            let predictedLng = vehicle.newPos.lng + (vehicle.speedMph * 0.00001 * Math.cos(vehicle.heading * (Math.PI / 180)) * timeSinceLastUpdate);
-            let predictedLat = vehicle.newPos.lat + (vehicle.speedMph * 0.00001 * Math.sin(vehicle.heading * (Math.PI / 180)) * timeSinceLastUpdate);
+            let interpolatedLng = (vehicle.lastPos.lng + vehicle.newPos.lng) / 2;
+            let interpolatedLat = (vehicle.lastPos.lat + vehicle.newPos.lat) / 2;
 
-            vehicle.label.setLngLat([predictedLng, predictedLat]);
+            vehicle.label.setLngLat([interpolatedLng, interpolatedLat]);
         }
 
         requestAnimationFrame(updateVehiclePositions);
