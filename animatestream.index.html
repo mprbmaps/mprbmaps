@@ -40,7 +40,7 @@
     let vehicleModels = {}; 
     let esriRequest;
     let fetchInterval = 10000; // Fetch new data every 10 seconds
-    let animationDuration = 5000; // Default animation duration
+    let animationDuration = fetchInterval; // Ensure smooth transition between updates
     let filterTimeLimit = 300000; // 5 minutes in milliseconds
     let movementThreshold = 0.00005; // Adjusted movement threshold (~5.5 meters)
 
@@ -138,7 +138,6 @@
                 let lastGpsTime = vehicleModels[vehicleId].lastGpsUpdateTime;
                 let gpsInterval = (currentTime - lastGpsTime);
 
-                // Check if the vehicle moved a significant distance
                 let distanceMoved = getDistance(vehicleModels[vehicleId].lastPos, coordinates);
 
                 if (gpsInterval > filterTimeLimit) {
@@ -153,7 +152,7 @@
                     vehicleModels[vehicleId].lastGpsUpdateTime = currentTime;
                     vehicleModels[vehicleId].lastPos = vehicleModels[vehicleId].newPos;
                     vehicleModels[vehicleId].newPos = { lng: coordinates[0], lat: coordinates[1] };
-                    animateVehicle(vehicleModels[vehicleId]);
+                    startSmoothAnimation(vehicleModels[vehicleId]);
                 } else {
                     console.log(`⚠️ ${vehicleId} did not move enough (${distanceMoved.toFixed(5)} degrees)`);
                 }
@@ -173,17 +172,25 @@
         return Math.sqrt(Math.pow(pos2[0] - pos1.lng, 2) + Math.pow(pos2[1] - pos1.lat, 2));
     }
 
-    function animateVehicle(vehicle) {
+    function startSmoothAnimation(vehicle) {
         let startTime = performance.now();
+        let duration = animationDuration; // Smooth animation over the fetch interval
+
         function step() {
             let elapsed = performance.now() - startTime;
-            let progress = Math.min(elapsed / animationDuration, 1);
+            let progress = Math.min(elapsed / duration, 1);
+
             let interpolatedLng = vehicle.lastPos.lng + (vehicle.newPos.lng - vehicle.lastPos.lng) * progress;
             let interpolatedLat = vehicle.lastPos.lat + (vehicle.newPos.lat - vehicle.lastPos.lat) * progress;
+
             vehicle.label.setLngLat([interpolatedLng, interpolatedLat]);
-            if (progress < 1) requestAnimationFrame(step);
+
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            }
         }
-        step();
+
+        requestAnimationFrame(step);
     }
 </script>
 </body>
