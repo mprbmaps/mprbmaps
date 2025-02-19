@@ -157,6 +157,8 @@
                 if (vehicleModels[vehicleId].positions.length > 4) {
                     vehicleModels[vehicleId].positions.shift();
                 }
+
+                logMessage(`📡 Vehicle ${vehicleId} update at ${new Date(timestamp).toISOString()}`);
             });
         }).catch(error => {
             logMessage("❌ Error fetching vehicle data: " + error);
@@ -179,6 +181,8 @@
             let endPos = vehicle.positions[1];
             let duration = endPos.timestamp - startPos.timestamp; // Use actual time difference
 
+            logMessage(`🚀 Starting animation for Vehicle ${vehicleId} from ${new Date(startPos.timestamp).toISOString()} to ${new Date(endPos.timestamp).toISOString()} over ${duration / 1000}s`);
+
             let startTime = performance.now();
 
             function step() {
@@ -195,6 +199,8 @@
                 } else {
                     vehicle.positions.shift(); // Remove oldest point
                     vehicle.animating = false;
+
+                    logMessage(`✅ Vehicle ${vehicleId} reached ${new Date(endPos.timestamp).toISOString()}`);
 
                     if (vehicle.positions.length >= 4) {
                         animateVehicles(); // Continue if more points are available
