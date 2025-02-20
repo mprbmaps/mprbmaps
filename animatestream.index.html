@@ -196,53 +196,85 @@
         }
 
         function loadVehicleData() {
-    require(["esri/request"], function(esriRequest) {
-        esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
-            query: {
-                where: "1=1",
-                outFields: "objectid,heading,vehicle_number,speedKmph,longitude,latitude,updateUTC",
-                returnGeometry: true,
-                f: "geojson"
-            },
-            responseType: "json"
-        }).then(response => {
-            const vehicles = response.data.features;
-            if (!vehicles || vehicles.length === 0) {
-                logMessage("⚠️ No vehicles found.");
-                return;
+    if (!esriRequest) {
+        logMessage("❌ esriRequest is not loaded yet.");
+        return;
+    }
+
+    logMessage("🔄 Fetching vehicle data...");
+
+    esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
+        query: {
+            where: "1=1",
+            outFields: "objectid,heading,vehicle_number,speedKmph,longitude,latitude,updateUTC",
+            returnGeometry: true,
+            f: "geojson"
+        },
+        responseType: "json"
+    }).then(response => {
+        const vehicles = response.data.features;
+        if (!vehicles || vehicles.length === 0) {
+            logMessage("⚠️ No vehicles found.");
+            return;
+        }
+
+        vehicles.forEach(vehicle => {
+            if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
+
+            let [longitude, latitude] = vehicle.geometry.coordinates;
+
+            // ✅ VALIDATION: Ensure coordinates are valid
+            if (typeof longitude !== 'number' || typeof latitude !== 'number' ||
+                longitude < -180 || longitude > 180 ||
+                latitude < -90 || latitude > 90) {
+                logMessage(`⚠️ Invalid coordinates for vehicle ${vehicle.properties.vehicle_number}: [${longitude}, ${latitude}]`);
+                return; // Skip invalid coordinates
             }
 
-            vehicles.forEach(vehicle => {
-                if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
-                let [longitude, latitude] = vehicle.geometry.coordinates;
+            const vehicleId = vehicle.properties.vehicle_number;
+            const lastFourDigits = vehicleId ? vehicleId.slice(-4) : "----";
+            const timestamp = new Date(vehicle.properties.updateUTC).getTime();
 
-                // ✅ Validation for correct range
-                if (typeof longitude !== 'number' || typeof latitude !== 'number' ||
-                    longitude < -180 || longitude > 180 ||
-                    latitude < -90 || latitude > 90) {
-                    logMessage(`⚠️ Invalid coordinates for vehicle ${vehicle.properties.vehicle_number}: [${longitude}, ${latitude}]`);
-                    return; // Skip this vehicle
+            // Initialize marker if it doesn't exist
+            if (!vehicleModels[vehicleId]) {
+                let markerElement = createVehicleMarker(lastFourDigits);
+                markerElement.style.display = 'none';
+
+                vehicleModels[vehicleId] = {
+                    positions: [],
+                    markerElement: markerElement,
+                    marker: new mapboxgl.Marker({ element: markerElement })
+                        .setLngLat([longitude, latitude]) // Use validated coords
+                        .addTo(map),
+                    animating: false,
+                    lastUpdateUTC: null,
+                    readyToAnimate: false
+                };
+            }
+
+            // Only push new positions if timestamp has changed
+            if (vehicleModels[vehicleId].lastUpdateUTC !== timestamp) {
+                vehicleModels[vehicleId].positions.push({
+                    lng: longitude,
+                    lat: latitude,
+                    timestamp: timestamp
+                });
+
+                vehicleModels[vehicleId].lastUpdateUTC = timestamp;
+
+                if (vehicleModels[vehicleId].positions.length >= POINTS_BUFFER &&
+                    !vehicleModels[vehicleId].readyToAnimate) {
+                    vehicleModels[vehicleId].readyToAnimate = true;
+                    vehicleModels[vehicleId].markerElement.style.display = 'block';
+                    logMessage(`🚀 Vehicle ${vehicleId} is now animating!`);
                 }
-
-                const snappedCoords = snapToRoad([longitude, latitude]);
-                const vehicleId = vehicle.properties.vehicle_number;
-
-                // Filter out invalid vehicles
-                if (!validVehicleIds.includes(vehicleId)) return;
-
-                if (!vehicleModels[vehicleId]) {
-                    const marker = new mapboxgl.Marker({
-                        element: createVehicleMarker(vehicleId)
-                    }).setLngLat(snappedCoords).addTo(map);
-
-                    vehicleModels[vehicleId] = { marker: marker, positions: [], animating: false, readyToAnimate: false };
-                } else {
-                    vehicleModels[vehicleId].positions.push(snappedCoords);
-                }
-            });
-        }).catch(error => logMessage("❌ Error fetching vehicle data: " + error));
+            }
+        });
+    }).catch(error => {
+        logMessage("❌ Error fetching vehicle data: " + error);
     });
 }
+
 
 
         function snapToRoad(coordinates) {
