@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles</title>
+    <title>Mapbox + Threebox 3D Vehicles with Map Matching</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -16,36 +16,35 @@
     <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
 
+    <!-- Turf.js for spatial calculations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
+
     <style>
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
         .vehicle-marker {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background-color: red;
-    border: 2px solid white;
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-    pointer-events: none;
-    transition: background-color 0.2s ease;
-    display: none;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    line-height: 30px; /* Ensures vertical centering */
-}
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: red;
+            border: 2px solid white;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+            transition: background-color 0.2s ease;
+            display: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            line-height: 30px;
+        }
 
-.vehicle-label {
-    color: white;
-    font-weight: bold;
-    font-size: 12px;
-    text-align: center;
-    line-height: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
+        .vehicle-label {
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+            text-align: center;
+        }
 
         /* Loading Overlay */
         #loadingOverlay {
@@ -95,14 +94,13 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    let map, tb;
+    let map, tb, streetsGeoJSON;
     let vehicleModels = {};
-    let esriRequest;
     const POINTS_BUFFER = 6;
     const TIMEOUT_LIMIT = 2 * 60 * 1000;
-
     let countdownInterval;
     let timeLeft = TIMEOUT_LIMIT;
+    let esriRequest;
 
     function logMessage(msg) {
         console.log(`${new Date().toISOString()} - ${msg}`);
@@ -112,7 +110,7 @@
         "esri/request",
         "esri/identity/OAuthInfo",
         "esri/identity/IdentityManager"
-    ], function(_esriRequest, OAuthInfo, IdentityManager) {
+    ], function (_esriRequest, OAuthInfo, IdentityManager) {
         esriRequest = _esriRequest;
 
         var info = new OAuthInfo({
@@ -133,24 +131,6 @@
         });
     });
 
-    function fetchValidVehicleIds() {
-        logMessage("🔄 Fetching valid vehicle IDs...");
-        return esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Operations_Management_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer/0/query", {
-            query: {
-                where: "1=1",
-                outFields: "vehicleid",
-                returnGeometry: false,
-                f: "json"
-            },
-            responseType: "json"
-        }).then(response => {
-            const features = response.data.features;
-            validVehicleIds = features.map(f => f.attributes.vehicleid);
-            logMessage(`✅ Fetched ${validVehicleIds.length} valid vehicle IDs`);
-        }).catch(error => {
-            logMessage("❌ Error fetching valid vehicle IDs: " + error);
-        });
-    }
     function initializeMap() {
         map = new mapboxgl.Map({
             container: 'map',
@@ -168,6 +148,7 @@
             logMessage("✅ Threebox initialized");
 
             startCountdown();
+            loadStreetsData();
             loadVehicleData();
             setInterval(loadVehicleData, 10000);
             requestAnimationFrame(animateVehicles);
@@ -200,14 +181,41 @@
         logMessage("⚠️ Countdown finished. Some vehicles may not have appeared.");
     }
 
+    function fetchValidVehicleIds() {
+        logMessage("🔄 Fetching valid vehicle IDs...");
+        return esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Operations_Management_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer/0/query", {
+            query: {
+                where: "1=1",
+                outFields: "vehicleid",
+                returnGeometry: false,
+                f: "json"
+            },
+            responseType: "json"
+        }).then(response => {
+            const features = response.data.features;
+            validVehicleIds = features.map(f => f.attributes.vehicleid);
+            logMessage(`✅ Fetched ${validVehicleIds.length} valid vehicle IDs`);
+        }).catch(error => {
+            logMessage("❌ Error fetching valid vehicle IDs: " + error);
+        });
+    }
+
+    function loadStreetsData() {
+        esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/SnowRoutes_public_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0/query", {
+            query: {
+                where: "1=1",
+                outFields: "*",
+                returnGeometry: true,
+                f: "geojson"
+            },
+            responseType: "json"
+        }).then(response => {
+            streetsGeoJSON = response.data;
+            logMessage("✅ Streets data loaded.");
+        }).catch(error => logMessage("❌ Error loading streets data: " + error));
+    }
+
     function loadVehicleData() {
-        if (!esriRequest) {
-            logMessage("❌ esriRequest is not loaded yet.");
-            return;
-        }
-
-        logMessage("🔄 Fetching vehicle data...");
-
         esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
             query: {
                 where: "1=1",
@@ -226,6 +234,7 @@
             vehicles.forEach(vehicle => {
                 if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
                 const coordinates = vehicle.geometry.coordinates;
+                const snappedCoords = snapToRoad(coordinates);
                 const vehicleId = vehicle.properties.vehicle_number;
                 const lastFourDigits = vehicleId.slice(-4);
                 const timestamp = new Date(vehicle.properties.updateUTC).getTime();
@@ -238,7 +247,7 @@
                         positions: [],
                         markerElement: markerElement,
                         marker: new mapboxgl.Marker({ element: markerElement })
-                            .setLngLat([coordinates[0], coordinates[1]])
+                            .setLngLat(snappedCoords)
                             .addTo(map),
                         animating: false,
                         lastUpdateUTC: null,
@@ -248,8 +257,8 @@
 
                 if (vehicleModels[vehicleId].lastUpdateUTC !== timestamp) {
                     vehicleModels[vehicleId].positions.push({
-                        lng: coordinates[0],
-                        lat: coordinates[1],
+                        lng: snappedCoords[0],
+                        lat: snappedCoords[1],
                         timestamp: timestamp
                     });
 
@@ -267,16 +276,12 @@
         });
     }
 
-    function createVehicleMarker(lastFourDigits) {
-        let markerDiv = document.createElement('div');
-        markerDiv.className = 'vehicle-marker';
+    function snapToRoad(coordinates) {
+        if (!streetsGeoJSON) return coordinates;
 
-        let labelDiv = document.createElement('div');
-        labelDiv.className = 'vehicle-label';
-        labelDiv.textContent = lastFourDigits;
-
-        markerDiv.appendChild(labelDiv);
-        return markerDiv;
+        const point = turf.point(coordinates);
+        const nearest = turf.nearestPointOnLine(streetsGeoJSON, point);
+        return nearest.geometry.coordinates;
     }
 
     function animateVehicles() {
@@ -340,8 +345,8 @@
         const Δλ = (pos2.lng - pos1.lng) * Math.PI / 180;
 
         const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-                  Math.cos(φ1) * Math.cos(φ2) *
-                  Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
         return R * c;
