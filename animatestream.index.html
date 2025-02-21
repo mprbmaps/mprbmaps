@@ -82,9 +82,6 @@
         mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
         let map, tb;
-        let streets = [];
-        let snowPlowRoutes = [];
-        let validVehicleIds = [];
         let vehicleModels = {};
         let esriRequest;
         let countdownInterval;
@@ -117,14 +114,14 @@
             IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
                 logMessage("✅ Signed in successfully");
                 initializeMap();
-                fetchValidVehicleIds();
+                
                 startCountdown();
             }).catch(error => {
                 logMessage("⚠️ Not signed in. Prompting login...");
                 IdentityManager.getCredential(info.portalUrl + "/sharing")
                     .then(() => {
                         initializeMap();
-                        fetchValidVehicleIds();
+                        
                         startCountdown();
                     })
                     .catch(err => logMessage("❌ ESRI Login Failed: " + err, true));
@@ -146,8 +143,7 @@
                     tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
                     logMessage("✅ Threebox initialized");
 
-                    loadStreets();
-                    loadSnowPlowRoutes();
+                    
                     loadVehicleData();
                 });
             }
