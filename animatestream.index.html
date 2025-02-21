@@ -16,6 +16,9 @@
     <!-- ArcGIS JavaScript API (Load First to Avoid MultipleDefine) -->
     <script src="https://js.arcgis.com/4.27/"></script>
 
+    <!-- Turf.js for Geospatial Calculations -->
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
     <style>
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
@@ -89,12 +92,12 @@
     require([
         "esri/request",
         "esri/identity/OAuthInfo",
-        "esri/identity/IdentityManager",
-        "https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"
-    ], function(esriRequest, OAuthInfo, IdentityManager, turf) {
+        "esri/identity/IdentityManager"
+    ], function(esriRequest, OAuthInfo, IdentityManager) {
 
         let map, tb;
         let vehicleModels = {};
+        let validVehicleIds = [];
         let snowRoutes = [];
         const POINTS_BUFFER = 6;
         const TIMEOUT_LIMIT = 2 * 60 * 1000;
@@ -150,10 +153,12 @@
                 logMessage("✅ Threebox initialized");
 
                 loadSnowRoutes();
-                startCountdown();
-                loadVehicleData();
-                setInterval(loadVehicleData, 10000);
-                requestAnimationFrame(animateVehicles);
+                fetchValidVehicleIds().then(() => {
+                    startCountdown();
+                    loadVehicleData();
+                    setInterval(loadVehicleData, 10000);
+                    requestAnimationFrame(animateVehicles);
+                });
             });
         }
 
@@ -205,6 +210,25 @@
                     logMessage(`✅ Loaded ${snowRoutes.length} snow routes.`);
                 }
             }).catch(err => console.error("❌ Error loading snow routes: ", err));
+        }
+
+        function fetchValidVehicleIds() {
+            logMessage("🔄 Fetching valid vehicle IDs...");
+            return esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Operations_Management_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer/0/query", {
+                query: {
+                    where: "1=1",
+                    outFields: "vehicleid",
+                    returnGeometry: false,
+                    f: "json"
+                },
+                responseType: "json"
+            }).then(response => {
+                const features = response.data.features;
+                validVehicleIds = features.map(f => f.attributes.vehicleid);
+                logMessage(`✅ Fetched ${validVehicleIds.length} valid vehicle IDs`);
+            }).catch(error => {
+                logMessage("❌ Error fetching valid vehicle IDs: " + error);
+            });
         }
 
         function snapToSnowRoute(vehicleCoord) {
@@ -259,13 +283,18 @@
                 vehicles.forEach(vehicle => {
                     if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
 
+                    const vehicleId = vehicle.properties.vehicle_number;
+                    if (!validVehicleIds.includes(vehicleId)) {
+                        logMessage(`⚠️ Vehicle ${vehicleId} is not valid. Skipping.`);
+                        return;
+                    }
+
                     const coordinates = vehicle.geometry.coordinates;
                     if (isNaN(coordinates[0]) || isNaN(coordinates[1])) {
                         logMessage("⚠️ Vehicle with invalid coordinates skipped.");
                         return;
                     }
 
-                    const vehicleId = vehicle.properties.vehicle_number;
                     const timestamp = new Date(vehicle.properties.updateUTC).getTime();
                     const snappedPoint = snapToSnowRoute(coordinates) || coordinates;
 
@@ -332,14 +361,22 @@
                 }
 
                 let duration = Math.max(endPos.timestamp - startPos.timestamp, 1000);
+                let distance = getDistance(startPos, endPos);
+                duration = Math.max(duration, distance * 100);
+
+                logMessage(`🚀 Animating Vehicle ${vehicleId} over ${duration / 1000}s`);
+
                 let startTime = performance.now();
+                vehicle.markerElement.style.display = 'block';
+                vehicle.marker.getElement().style.backgroundColor = 'green';
 
                 function step() {
                     let elapsed = performance.now() - startTime;
                     let progress = Math.min(elapsed / duration, 1);
+                    let easedProgress = easeInOutCubic(progress);
 
-                    const lng = startPos.lng + (endPos.lng - startPos.lng) * progress;
-                    const lat = startPos.lat + (endPos.lat - startPos.lat) * progress;
+                    const lng = startPos.lng + (endPos.lng - startPos.lng) * easedProgress;
+                    const lat = startPos.lat + (endPos.lat - startPos.lat) * easedProgress;
 
                     if (!isNaN(lng) && !isNaN(lat)) {
                         vehicle.marker.setLngLat([lng, lat]);
@@ -358,30 +395,32 @@
                 }
 
                 vehicle.animating = true;
-            requestAnimationFrame(step);
+                requestAnimationFrame(step);
+            }
+
+            requestAnimationFrame(animateVehicles);
         }
 
-        requestAnimationFrame(animateVehicles);
-    }
+        function easeInOutCubic(t) {
+            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        }
 
-    function easeInOutCubic(t) {
-        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-    }
+        function getDistance(pos1, pos2) {
+            const R = 6371e3;
+            const φ1 = pos1.lat * Math.PI / 180;
+            const φ2 = pos2.lat * Math.PI / 180;
+            const Δφ = (pos2.lat - pos1.lat) * Math.PI / 180;
+            const Δλ = (pos2.lng - pos1.lng) * Math.PI / 180;
 
-    function getDistance(pos1, pos2) {
-        const R = 6371e3;
-        const φ1 = pos1[1] * Math.PI / 180;
-        const φ2 = pos2[1] * Math.PI / 180;
-        const Δφ = (pos2[1] - pos1[1]) * Math.PI / 180;
-        const Δλ = (pos2[0] - pos1[0]) * Math.PI / 180;
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-        const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-                  Math.cos(φ1) * Math.cos(φ2) *
-                  Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
 
-        return R * c;
-    }
+    });
 </script>
 </body>
 </html>
