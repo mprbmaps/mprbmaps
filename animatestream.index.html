@@ -13,11 +13,8 @@
     <script src="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.min.js"></script>
     <link href="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.css" rel="stylesheet">
 
-    <!-- ArcGIS JavaScript API -->
+    <!-- ArcGIS JavaScript API (Load First to Avoid MultipleDefine) -->
     <script src="https://js.arcgis.com/4.27/"></script>
-
-    <!-- Turf.js for Geospatial Calculations -->
-    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
     <style>
         body { margin: 0; padding: 0; }
@@ -89,38 +86,38 @@
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-    let map, tb;
-    let vehicleModels = {};
-    let esriRequest;
-    let snowRoutes = [];
-    const POINTS_BUFFER = 6;
-    const TIMEOUT_LIMIT = 2 * 60 * 1000;
-
-    let countdownInterval;
-    let timeLeft = TIMEOUT_LIMIT;
-
-    function logMessage(msg) {
-        console.log(`${new Date().toISOString()} - ${msg}`);
-    }
-
-    // Coordinate Conversion Functions
-    function wgs84ToWebMercator(coord) {
-        return turf.toMercator(coord);
-    }
-
-    function webMercatorToWgs84(coord) {
-        return turf.toWgs84(coord);
-    }
-
     require([
         "esri/request",
         "esri/identity/OAuthInfo",
-        "esri/identity/IdentityManager"
-    ], function(_esriRequest, OAuthInfo, IdentityManager) {
-        esriRequest = _esriRequest;
+        "esri/identity/IdentityManager",
+        "https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"
+    ], function(esriRequest, OAuthInfo, IdentityManager, turf) {
 
+        let map, tb;
+        let vehicleModels = {};
+        let snowRoutes = [];
+        const POINTS_BUFFER = 6;
+        const TIMEOUT_LIMIT = 2 * 60 * 1000;
+        let countdownInterval;
+        let timeLeft = TIMEOUT_LIMIT;
+
+        function logMessage(msg) {
+            console.log(`${new Date().toISOString()} - ${msg}`);
+        }
+
+        // Coordinate Conversion Functions
+        function wgs84ToWebMercator(coord) {
+            return turf.toMercator(coord);
+        }
+
+        function webMercatorToWgs84(coord) {
+            return turf.toWgs84(coord);
+        }
+
+        // Initialize OAuthInfo for ArcGIS IdentityManager
         var info = new OAuthInfo({
-            appId: "ti3fi1FqvHE2Hhyw",
+            appId: "ti3fi1FqvHE2Hhyw", // Replace with your actual appId
+            portalUrl: "https://www.arcgis.com",
             popup: true
         });
 
@@ -135,250 +132,232 @@
                 .then(() => initializeMap())
                 .catch(err => logMessage("❌ ESRI Login Failed: " + err));
         });
-    });
 
-    function initializeMap() {
-        map = new mapboxgl.Map({
-            container: 'map',
-            style: 'mapbox://styles/mapbox/outdoors-v12',
-            center: [-93.2650, 44.9778],
-            zoom: 11,
-            pitch: 60,
-            bearing: 0,
-            antialias: true
-        });
+        function initializeMap() {
+            map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/mapbox/outdoors-v12',
+                center: [-93.2650, 44.9778],
+                zoom: 11,
+                pitch: 60,
+                bearing: 0,
+                antialias: true
+            });
 
-        map.on("style.load", function () {
-            logMessage("✅ Map Style Loaded!");
-            tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
-            logMessage("✅ Threebox initialized");
+            map.on("style.load", function () {
+                logMessage("✅ Map Style Loaded!");
+                tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
+                logMessage("✅ Threebox initialized");
 
-            loadSnowRoutes();
-            startCountdown();
-            loadVehicleData();
-            setInterval(loadVehicleData, 10000);
-            requestAnimationFrame(animateVehicles);
-        });
-    }
+                loadSnowRoutes();
+                startCountdown();
+                loadVehicleData();
+                setInterval(loadVehicleData, 10000);
+                requestAnimationFrame(animateVehicles);
+            });
+        }
 
-    function startCountdown() {
-        updateCountdownDisplay();
-
-        countdownInterval = setInterval(() => {
-            timeLeft -= 1000;
+        function startCountdown() {
             updateCountdownDisplay();
 
-            if (timeLeft <= 0) {
-                clearInterval(countdownInterval);
-                endCountdown();
-            }
-        }, 1000);
-    }
+            countdownInterval = setInterval(() => {
+                timeLeft -= 1000;
+                updateCountdownDisplay();
 
-    function updateCountdownDisplay() {
-        const minutes = Math.floor(timeLeft / 60000);
-        const seconds = Math.floor((timeLeft % 60000) / 1000);
-        document.getElementById('countdownTimer').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    }
-
-    function endCountdown() {
-        document.getElementById('loadingOverlay').style.display = 'none';
-        document.getElementById('timeoutMessage').style.display = 'block';
-        logMessage("⚠️ Countdown finished. Some vehicles may not have appeared.");
-    }
-
-    function loadSnowRoutes() {
-        esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/SnowRoutes_public_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0/query", {
-            query: {
-                where: "1=1",
-                outFields: "*",
-                returnGeometry: true,
-                f: "geojson"
-            },
-            responseType: "json"
-        }).then(response => {
-            if (!response.data || !response.data.features) {
-                logMessage("❌ No data returned from Snow Routes layer.");
-                return;
-            }
-
-            snowRoutes = response.data.features || [];
-            if (snowRoutes.length === 0) {
-                logMessage("⚠️ No snow routes found. Check layer permissions or data.");
-            } else {
-                logMessage(`✅ Loaded ${snowRoutes.length} snow routes.`);
-                snowRoutes.forEach((route, index) => {
-                    logMessage(`🔹 Route ${index + 1}: ${JSON.stringify(route.geometry)}`);
-                });
-            }
-        }).catch(err => console.error("❌ Error loading snow routes: ", err));
-    }
-
-    function snapToSnowRoute(vehicleCoord) {
-        let closestPoint = null;
-        let minDistance = Infinity;
-
-        snowRoutes.forEach(route => {
-            if (!route.geometry || !route.geometry.coordinates) return;
-
-            const geometryType = route.geometry.type;
-            const coordsArray = geometryType === 'MultiLineString' ? route.geometry.coordinates : [route.geometry.coordinates];
-
-            coordsArray.forEach(line => {
-                const lineString = turf.lineString(line);
-
-                // Use Turf.js to find the nearest point on the line
-                const snapped = turf.nearestPointOnLine(lineString, turf.point(vehicleCoord), { units: 'meters' });
-                const dist = snapped.properties.dist;
-
-                logMessage(`🚗 Vehicle is ${dist.toFixed(2)} meters from the route.`); // Log distance
-
-                if (dist < minDistance && dist <= 6.096) { // 20 feet in meters
-                    minDistance = dist;
-                    closestPoint = snapped.geometry.coordinates;
+                if (timeLeft <= 0) {
+                    clearInterval(countdownInterval);
+                    endCountdown();
                 }
-            });
-        });
-
-        if (closestPoint) {
-            logMessage(`📍 Snapped vehicle to route within ${minDistance.toFixed(2)} meters.`);
-            return wgs84ToWebMercator(closestPoint); // Convert for Mapbox/Threebox
-        } else {
-            logMessage("❌ No snow route within 20 feet to snap to.");
-            return wgs84ToWebMercator(vehicleCoord); // Use original if no snap
+            }, 1000);
         }
-    }
 
-    function loadVehicleData() {
-        esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
-            query: {
-                where: "1=1",
-                outFields: "objectid,heading,vehicle_number,speedKmph,longitude,latitude,updateUTC",
-                returnGeometry: true,
-                f: "geojson"
-            },
-            responseType: "json"
-        }).then(response => {
-            const vehicles = response.data.features || [];
-            if (vehicles.length === 0) {
-                logMessage("⚠️ No vehicles found.");
-                return;
-            }
+        function updateCountdownDisplay() {
+            const minutes = Math.floor(timeLeft / 60000);
+            const seconds = Math.floor((timeLeft % 60000) / 1000);
+            document.getElementById('countdownTimer').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
 
-            vehicles.forEach(vehicle => {
-                if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
+        function endCountdown() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+            document.getElementById('timeoutMessage').style.display = 'block';
+            logMessage("⚠️ Countdown finished. Some vehicles may not have appeared.");
+        }
 
-                const coordinates = vehicle.geometry.coordinates;
-                if (isNaN(coordinates[0]) || isNaN(coordinates[1])) {
-                    logMessage("⚠️ Vehicle with invalid coordinates skipped.");
+        function loadSnowRoutes() {
+            esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/SnowRoutes_public_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0/query", {
+                query: {
+                    where: "1=1",
+                    outFields: "*",
+                    returnGeometry: true,
+                    f: "geojson"
+                },
+                responseType: "json"
+            }).then(response => {
+                if (!response.data || !response.data.features) {
+                    logMessage("❌ No data returned from Snow Routes layer.");
                     return;
                 }
 
-                const vehicleId = vehicle.properties.vehicle_number;
-                const timestamp = new Date(vehicle.properties.updateUTC).getTime();
-
-                const snappedPoint = snapToSnowRoute(coordinates) || coordinates;
-
-                if (!vehicleModels[vehicleId]) {
-                    let markerElement = createVehicleMarker(vehicleId.slice(-4));
-                    markerElement.style.display = 'none';
-
-                    vehicleModels[vehicleId] = {
-                        positions: [],
-                        markerElement: markerElement,
-                        marker: new mapboxgl.Marker({ element: markerElement })
-                            .setLngLat(snappedPoint)
-                            .addTo(map),
-                        animating: false,
-                        lastUpdateUTC: null,
-                        readyToAnimate: false
-                    };
+                snowRoutes = response.data.features || [];
+                if (snowRoutes.length === 0) {
+                    logMessage("⚠️ No snow routes found. Check layer permissions or data.");
+                } else {
+                    logMessage(`✅ Loaded ${snowRoutes.length} snow routes.`);
                 }
+            }).catch(err => console.error("❌ Error loading snow routes: ", err));
+        }
 
-                if (vehicleModels[vehicleId].lastUpdateUTC !== timestamp) {
-                    vehicleModels[vehicleId].positions.push({
-                        lng: snappedPoint[0],
-                        lat: snappedPoint[1],
-                        timestamp: timestamp
-                    });
+        function snapToSnowRoute(vehicleCoord) {
+            let closestPoint = null;
+            let minDistance = Infinity;
 
-                    vehicleModels[vehicleId].lastUpdateUTC = timestamp;
+            snowRoutes.forEach(route => {
+                if (!route.geometry || !route.geometry.coordinates) return;
 
-                    if (vehicleModels[vehicleId].positions.length >= POINTS_BUFFER && !vehicleModels[vehicleId].readyToAnimate) {
-                        vehicleModels[vehicleId].readyToAnimate = true;
-                        vehicleModels[vehicleId].markerElement.style.display = 'block';
-                        logMessage(`🚀 Vehicle ${vehicleId} is now animating!`);
+                const geometryType = route.geometry.type;
+                const coordsArray = geometryType === 'MultiLineString' ? route.geometry.coordinates : [route.geometry.coordinates];
+
+                coordsArray.forEach(line => {
+                    const lineString = turf.lineString(line);
+                    const snapped = turf.nearestPointOnLine(lineString, turf.point(vehicleCoord), { units: 'meters' });
+                    const dist = snapped.properties.dist;
+
+                    logMessage(`🚗 Vehicle is ${dist.toFixed(2)} meters from the route.`);
+
+                    if (dist < minDistance && dist <= 6.096) { // 20 feet in meters
+                        minDistance = dist;
+                        closestPoint = snapped.geometry.coordinates;
                     }
-                }
+                });
             });
-        }).catch(error => {
-            logMessage("❌ Error fetching vehicle data: " + error);
-        });
-    }
 
-    function createVehicleMarker(lastFourDigits) {
-        let markerDiv = document.createElement('div');
-        markerDiv.className = 'vehicle-marker';
-
-        let labelDiv = document.createElement('div');
-        labelDiv.className = 'vehicle-label';
-        labelDiv.textContent = lastFourDigits;
-
-        markerDiv.appendChild(labelDiv);
-        return markerDiv;
-    }
-
-    function animateVehicles() {
-        for (let vehicleId in vehicleModels) {
-            let vehicle = vehicleModels[vehicleId];
-
-            if (!vehicle.readyToAnimate || vehicle.animating || vehicle.positions.length < 2) continue;
-
-            let startPos = vehicle.positions[0];
-            let endPos = vehicle.positions[1];
-            if (isNaN(startPos.lng) || isNaN(startPos.lat) || isNaN(endPos.lng) || isNaN(endPos.lat)) {
-                logMessage(`⚠️ Skipping vehicle ${vehicleId} due to invalid positions.`);
-                continue;
+            if (closestPoint) {
+                logMessage(`📍 Snapped vehicle to route within ${minDistance.toFixed(2)} meters.`);
+                return wgs84ToWebMercator(closestPoint);
+            } else {
+                logMessage("❌ No snow route within 20 feet to snap to.");
+                return wgs84ToWebMercator(vehicleCoord);
             }
+        }
 
-            let duration = Math.max(endPos.timestamp - startPos.timestamp, 1000);
-            let distance = getDistance(startPos, endPos);
-            duration = Math.max(duration, distance * 100);
-
-            logMessage(`🚀 Animating Vehicle ${vehicleId} over ${duration / 1000}s`);
-
-            let startTime = performance.now();
-            vehicle.markerElement.style.display = 'block';
-            vehicle.marker.getElement().style.backgroundColor = 'green';
-
-            function step() {
-                let elapsed = performance.now() - startTime;
-                let progress = Math.min(elapsed / duration, 1);
-                let easedProgress = easeInOutCubic(progress);
-
-                const lng = startPos.lng + (endPos.lng - startPos.lng) * easedProgress;
-                const lat = startPos.lat + (endPos.lat - startPos.lat) * easedProgress;
-
-                if (!isNaN(lng) && !isNaN(lat)) {
-                    vehicle.marker.setLngLat([lng, lat]);
-                } else {
-                    logMessage(`⚠️ Skipping invalid coordinates for vehicle ${vehicleId}`);
+        function loadVehicleData() {
+            esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
+                query: {
+                    where: "1=1",
+                    outFields: "objectid,heading,vehicle_number,speedKmph,longitude,latitude,updateUTC",
+                    returnGeometry: true,
+                    f: "geojson"
+                },
+                responseType: "json"
+            }).then(response => {
+                const vehicles = response.data.features || [];
+                if (vehicles.length === 0) {
+                    logMessage("⚠️ No vehicles found.");
+                    return;
                 }
 
-                if (progress < 1) {
-                    requestAnimationFrame(step);
-                } else {
-                    vehicle.positions.shift();
-                    vehicle.animating = false;
-                    vehicle.marker.getElement().style.backgroundColor = 'red';
+                vehicles.forEach(vehicle => {
+                    if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
 
-                    if (vehicle.positions.length >= 2) {
-                        animateVehicles();
+                    const coordinates = vehicle.geometry.coordinates;
+                    if (isNaN(coordinates[0]) || isNaN(coordinates[1])) {
+                        logMessage("⚠️ Vehicle with invalid coordinates skipped.");
+                        return;
+                    }
+
+                    const vehicleId = vehicle.properties.vehicle_number;
+                    const timestamp = new Date(vehicle.properties.updateUTC).getTime();
+                    const snappedPoint = snapToSnowRoute(coordinates) || coordinates;
+
+                    if (!vehicleModels[vehicleId]) {
+                        let markerElement = createVehicleMarker(vehicleId.slice(-4));
+                        markerElement.style.display = 'none';
+
+                        vehicleModels[vehicleId] = {
+                            positions: [],
+                            markerElement: markerElement,
+                            marker: new mapboxgl.Marker({ element: markerElement })
+                                .setLngLat(snappedPoint)
+                                .addTo(map),
+                            animating: false,
+                            lastUpdateUTC: null,
+                            readyToAnimate: false
+                        };
+                    }
+
+                    if (vehicleModels[vehicleId].lastUpdateUTC !== timestamp) {
+                        vehicleModels[vehicleId].positions.push({
+                            lng: snappedPoint[0],
+                            lat: snappedPoint[1],
+                            timestamp: timestamp
+                        });
+
+                        vehicleModels[vehicleId].lastUpdateUTC = timestamp;
+
+                        if (vehicleModels[vehicleId].positions.length >= POINTS_BUFFER && !vehicleModels[vehicleId].readyToAnimate) {
+                            vehicleModels[vehicleId].readyToAnimate = true;
+                            vehicleModels[vehicleId].markerElement.style.display = 'block';
+                            logMessage(`🚀 Vehicle ${vehicleId} is now animating!`);
+                        }
+                    }
+                });
+            }).catch(error => {
+                logMessage("❌ Error fetching vehicle data: " + error);
+            });
+        }
+
+        function createVehicleMarker(lastFourDigits) {
+            let markerDiv = document.createElement('div');
+            markerDiv.className = 'vehicle-marker';
+
+            let labelDiv = document.createElement('div');
+            labelDiv.className = 'vehicle-label';
+            labelDiv.textContent = lastFourDigits;
+
+            markerDiv.appendChild(labelDiv);
+            return markerDiv;
+        }
+
+        function animateVehicles() {
+            for (let vehicleId in vehicleModels) {
+                let vehicle = vehicleModels[vehicleId];
+
+                if (!vehicle.readyToAnimate || vehicle.animating || vehicle.positions.length < 2) continue;
+
+                let startPos = vehicle.positions[0];
+                let endPos = vehicle.positions[1];
+                if (isNaN(startPos.lng) || isNaN(startPos.lat) || isNaN(endPos.lng) || isNaN(endPos.lat)) {
+                    logMessage(`⚠️ Skipping vehicle ${vehicleId} due to invalid positions.`);
+                    continue;
+                }
+
+                let duration = Math.max(endPos.timestamp - startPos.timestamp, 1000);
+                let startTime = performance.now();
+
+                function step() {
+                    let elapsed = performance.now() - startTime;
+                    let progress = Math.min(elapsed / duration, 1);
+
+                    const lng = startPos.lng + (endPos.lng - startPos.lng) * progress;
+                    const lat = startPos.lat + (endPos.lat - startPos.lat) * progress;
+
+                    if (!isNaN(lng) && !isNaN(lat)) {
+                        vehicle.marker.setLngLat([lng, lat]);
+                    }
+
+                    if (progress < 1) {
+                        requestAnimationFrame(step);
+                    } else {
+                        vehicle.positions.shift();
+                        vehicle.animating = false;
+
+                        if (vehicle.positions.length >= 2) {
+                            animateVehicles();
+                        }
                     }
                 }
-            }
 
-            vehicle.animating = true;
+                vehicle.animating = true;
             requestAnimationFrame(step);
         }
 
