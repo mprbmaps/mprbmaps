@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -20,32 +20,23 @@
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
         .vehicle-marker {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background-color: red;
-    border: 2px solid white;
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-    pointer-events: none;
-    transition: background-color 0.2s ease;
-    display: none;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    line-height: 30px; /* Ensures vertical centering */
-}
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: red;
+            border: 2px solid white;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
 
-.vehicle-label {
-    color: white;
-    font-weight: bold;
-    font-size: 12px;
-    text-align: center;
-    line-height: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
+        .vehicle-label {
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
 
         /* Loading Overlay */
         #loadingOverlay {
@@ -98,6 +89,7 @@
     let map, tb;
     let vehicleModels = {};
     let esriRequest;
+    let snowRoutes = [];
     const POINTS_BUFFER = 6;
     const TIMEOUT_LIMIT = 2 * 60 * 1000;
 
@@ -151,6 +143,7 @@
             logMessage("❌ Error fetching valid vehicle IDs: " + error);
         });
     }
+
     function initializeMap() {
         map = new mapboxgl.Map({
             container: 'map',
@@ -167,6 +160,7 @@
             tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
             logMessage("✅ Threebox initialized");
 
+            loadSnowRoutes();
             startCountdown();
             loadVehicleData();
             setInterval(loadVehicleData, 10000);
@@ -200,14 +194,38 @@
         logMessage("⚠️ Countdown finished. Some vehicles may not have appeared.");
     }
 
+    function loadSnowRoutes() {
+        esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/SnowRoutes_public_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0/query", {
+            query: {
+                where: "1=1",
+                outFields: "*",
+                returnGeometry: true,
+                f: "geojson"
+            },
+            responseType: "json"
+        }).then(response => {
+            snowRoutes = response.data.features;
+            console.log(`Loaded ${snowRoutes.length} snow routes.`);
+        }).catch(err => console.error("Error loading snow routes: ", err));
+    }
+
+    function snapToSnowRoute(vehicleCoord) {
+        let closestPoint = null;
+        let minDistance = Infinity;
+        snowRoutes.forEach(route => {
+            const coords = route.geometry.coordinates;
+            coords.forEach(coord => {
+                const dist = getDistance(vehicleCoord, coord);
+                if (dist < minDistance && dist <= 6.096) { // 20 feet in meters
+                    minDistance = dist;
+                    closestPoint = coord;
+                }
+            });
+        });
+        return closestPoint;
+    }
+
     function loadVehicleData() {
-        if (!esriRequest) {
-            logMessage("❌ esriRequest is not loaded yet.");
-            return;
-        }
-
-        logMessage("🔄 Fetching vehicle data...");
-
         esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
             query: {
                 where: "1=1",
@@ -230,6 +248,8 @@
                 const lastFourDigits = vehicleId.slice(-4);
                 const timestamp = new Date(vehicle.properties.updateUTC).getTime();
 
+                const snappedPoint = snapToSnowRoute(coordinates) || coordinates;
+
                 if (!vehicleModels[vehicleId]) {
                     let markerElement = createVehicleMarker(lastFourDigits);
                     markerElement.style.display = 'none';
@@ -238,7 +258,7 @@
                         positions: [],
                         markerElement: markerElement,
                         marker: new mapboxgl.Marker({ element: markerElement })
-                            .setLngLat([coordinates[0], coordinates[1]])
+                            .setLngLat([snappedPoint[0], snappedPoint[1]])
                             .addTo(map),
                         animating: false,
                         lastUpdateUTC: null,
@@ -248,8 +268,8 @@
 
                 if (vehicleModels[vehicleId].lastUpdateUTC !== timestamp) {
                     vehicleModels[vehicleId].positions.push({
-                        lng: coordinates[0],
-                        lat: coordinates[1],
+                        lng: snappedPoint[0],
+                        lat: snappedPoint[1],
                         timestamp: timestamp
                     });
 
@@ -334,10 +354,10 @@
 
     function getDistance(pos1, pos2) {
         const R = 6371e3;
-        const φ1 = pos1.lat * Math.PI / 180;
-        const φ2 = pos2.lat * Math.PI / 180;
-        const Δφ = (pos2.lat - pos1.lat) * Math.PI / 180;
-        const Δλ = (pos2.lng - pos1.lng) * Math.PI / 180;
+        const φ1 = pos1[1] * Math.PI / 180;
+        const φ2 = pos2[1] * Math.PI / 180;
+        const Δφ = (pos2[1] - pos1[1]) * Math.PI / 180;
+        const Δλ = (pos2[0] - pos1[0]) * Math.PI / 180;
 
         const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
                   Math.cos(φ1) * Math.cos(φ2) *
