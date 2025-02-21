@@ -15,14 +15,14 @@
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
-    <script src="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.js" defer></script>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.js" async></script>
 
     <!-- Threebox for 3D Models -->
-    <script src="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.min.js" async></script>
     <link href="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.css" rel="stylesheet">
 
     <!-- Turf.js for geospatial operations -->
-    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js" async></script>
 
     <style>
         body { margin: 0; padding: 0; }
@@ -84,9 +84,14 @@
     <div id="timeoutMessage">⚠️ Time expired. Some vehicles may not appear.</div>
 </div>
 
-<!-- ✅ Main Script Wrapped in Window Load Event -->
-<script defer>
-    window.onload = function () {
+<!-- ✅ Main Script -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (typeof mapboxgl === 'undefined') {
+            console.error('🚨 Mapbox GL JS not loaded. Check your internet connection or the script URL.');
+            return;
+        }
+
         mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
         let map, tb;
@@ -159,50 +164,6 @@
             });
         }
 
-        function startCountdown() {
-            updateCountdownDisplay();
-            countdownInterval = setInterval(() => {
-                timeLeft -= 1000;
-                updateCountdownDisplay();
-                if (timeLeft <= 0) {
-                    clearInterval(countdownInterval);
-                    endCountdown();
-                }
-            }, 1000);
-        }
-
-        function updateCountdownDisplay() {
-            const minutes = Math.floor(timeLeft / 60000);
-            const seconds = Math.floor((timeLeft % 60000) / 1000);
-            document.getElementById('countdownTimer').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-        }
-
-        function endCountdown() {
-            document.getElementById('loadingOverlay').style.display = 'none';
-            document.getElementById('timeoutMessage').style.display = 'block';
-            logMessage("⚠️ Countdown finished. Some vehicles may not have appeared.");
-        }
-
-        /** ✅ FETCH VALID VEHICLE IDs **/
-        function fetchValidVehicleIds() {
-            logMessage("🔄 Fetching valid vehicle IDs...");
-            esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Operations_Management_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer/0/query", {
-                query: {
-                    where: "1=1",
-                    outFields: "vehicleid",
-                    returnGeometry: false,
-                    f: "json"
-                },
-                responseType: "json"
-            }).then(response => {
-                const features = response.data.features;
-                validVehicleIds = features.map(f => f.attributes.vehicleid);
-                logMessage(`✅ Fetched ${validVehicleIds.length} valid vehicle IDs`);
-            }).catch(error => {
-                logMessage("❌ Error fetching valid vehicle IDs: " + error);
-            });
-        }
-
         function loadStreets() {
             esriRequest("https://services.arcgis.com/afSMGVsC7QlRK1kZ/arcgis/rest/services/MPLS_Centerline/FeatureServer/0/query", {
                 query: {
@@ -257,7 +218,25 @@
             }).catch(err => console.error("❌ Error loading snow plow routes: ", err));
         }
 
-        /** ✅ LOAD VEHICLE DATA WITH VALID VEHICLE CHECK **/
+        function fetchValidVehicleIds() {
+            logMessage("🔄 Fetching valid vehicle IDs...");
+            esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Operations_Management_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer/0/query", {
+                query: {
+                    where: "1=1",
+                    outFields: "vehicleid",
+                    returnGeometry: false,
+                    f: "json"
+                },
+                responseType: "json"
+            }).then(response => {
+                const features = response.data.features;
+                validVehicleIds = features.map(f => f.attributes.vehicleid);
+                logMessage(`✅ Fetched ${validVehicleIds.length} valid vehicle IDs`);
+            }).catch(error => {
+                logMessage("❌ Error fetching valid vehicle IDs: " + error);
+            });
+        }
+
         function loadVehicleData() {
             logMessage("🔄 Fetching vehicle data...");
             esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
@@ -281,7 +260,6 @@
                     const coordinates = vehicle.geometry.coordinates;
                     const vehicleId = vehicle.properties.vehicle_number;
 
-                    /** ✅ Filter Invalid Vehicle IDs **/
                     if (!validVehicleIds.includes(vehicleId)) {
                         logMessage(`⚠️ Vehicle ${vehicleId} is not valid. Skipping.`);
                         return;
@@ -430,7 +408,7 @@
 
             return R * c;
         }
-    };
+    });
 </script>
 </body>
 </html>
