@@ -15,14 +15,14 @@
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
-    <script src="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.js"></script>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.js" defer></script>
 
     <!-- Threebox for 3D Models -->
-    <script src="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.min.js" defer></script>
     <link href="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.css" rel="stylesheet">
 
     <!-- Turf.js for geospatial operations -->
-    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js" defer></script>
 
     <style>
         body { margin: 0; padding: 0; }
@@ -86,8 +86,7 @@
 
 <!-- ✅ Main Script -->
 <script>
-    // Wait for the entire window (including scripts) to load
-    window.onload = function () {
+    window.addEventListener('load', function () {
         if (typeof mapboxgl === 'undefined') {
             console.error('🚨 Mapbox GL JS not loaded. Check your internet connection or the script URL.');
             alert('🚨 Mapbox GL JS failed to load. Please check your internet connection or verify the script URL.');
@@ -100,13 +99,14 @@
         let streets = [];
         let snowPlowRoutes = [];
         let validVehicleIds = [];
+        let vehicleModels = {};
         let esriRequest;
+        const POINTS_BUFFER = 6;
 
         function logMessage(msg) {
             console.log(`${new Date().toISOString()} - ${msg}`);
         }
 
-        // ArcGIS OAuth and IdentityManager
         require([
             "esri/request",
             "esri/identity/OAuthInfo",
@@ -136,7 +136,7 @@
             });
         });
 
-        function initializeMap() {
+function initializeMap() {
             map = new mapboxgl.Map({
                 container: 'map',
                 style: 'mapbox://styles/mapbox/outdoors-v12',
@@ -154,85 +154,13 @@
 
                 loadStreets();
                 loadSnowPlowRoutes();
+                loadVehicleData();
             });
         }
 
-        function loadStreets() {
-            esriRequest("https://services.arcgis.com/afSMGVsC7QlRK1kZ/arcgis/rest/services/MPLS_Centerline/FeatureServer/0/query", {
-                query: {
-                    where: "1=1",
-                    outFields: "*",
-                    returnGeometry: true,
-                    f: "geojson"
-                },
-                responseType: "json"
-            }).then(response => {
-                streets = response.data.features.map(feature => {
-                    if (feature.geometry.type === "LineString") {
-                        feature.geometry.coordinates = feature.geometry.coordinates.map(coord => turf.toWgs84(coord));
-                    } else if (feature.geometry.type === "MultiLineString") {
-                        feature.geometry.coordinates = feature.geometry.coordinates.map(line =>
-                            line.map(coord => turf.toWgs84(coord))
-                        );
-                    } else {
-                        logMessage(`⚠️ Unsupported geometry type: ${feature.geometry.type}`);
-                    }
-                    return feature;
-                });
-
-                logMessage(`✅ Loaded and converted ${streets.length} street features.`);
-            }).catch(err => console.error("❌ Error loading streets: ", err));
-        }
-
-        function loadSnowPlowRoutes() {
-            esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/SnowRoutes_public_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0/query", {
-                query: {
-                    where: "1=1",
-                    outFields: "*",
-                    returnGeometry: true,
-                    f: "geojson"
-                },
-                responseType: "json"
-            }).then(response => {
-                snowPlowRoutes = response.data.features.map(feature => {
-                    if (feature.geometry.type === "LineString") {
-                        feature.geometry.coordinates = feature.geometry.coordinates.map(coord => turf.toWgs84(coord));
-                    } else if (feature.geometry.type === "MultiLineString") {
-                        feature.geometry.coordinates = feature.geometry.coordinates.map(line =>
-                            line.map(coord => turf.toWgs84(coord))
-                        );
-                    } else {
-                        logMessage(`⚠️ Unsupported geometry type: ${feature.geometry.type}`);
-                    }
-                    return feature;
-                });
-
-                logMessage(`✅ Loaded and converted ${snowPlowRoutes.length} snow plow routes.`);
-            }).catch(err => console.error("❌ Error loading snow plow routes: ", err));
-        }
-
-        function fetchValidVehicleIds() {
-            logMessage("🔄 Fetching valid vehicle IDs...");
-            esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Operations_Management_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer/0/query", {
-                query: {
-                    where: "1=1",
-                    outFields: "vehicleid",
-                    returnGeometry: false,
-                    f: "json"
-                },
-                responseType: "json"
-            }).then(response => {
-                const features = response.data.features;
-                validVehicleIds = features.map(f => f.attributes.vehicleid);
-                logMessage(`✅ Fetched ${validVehicleIds.length} valid vehicle IDs`);
-            }).catch(error => {
-                logMessage("❌ Error fetching valid vehicle IDs: " + error);
-            });
-        }
-
-        function loadVehicleData() {
+function loadVehicleData() {
             logMessage("🔄 Fetching vehicle data...");
-            esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
+            esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/PlowsSnappedToNetwork/FeatureServer/0/query", {
                 query: {
                     where: "1=1",
                     outFields: "objectid,heading,vehicle_number,speedKmph,longitude,latitude,updateUTC",
@@ -298,33 +226,7 @@
             });
         }
 
-        function snapToLayer(vehicleCoord) {
-            let closestPoint = null;
-            let minDistance = Infinity;
-
-            const layers = [...snowPlowRoutes, ...streets];
-
-            layers.forEach(route => {
-                if (!route.geometry || !route.geometry.coordinates) return;
-
-                const coordsArray = route.geometry.type === 'MultiLineString' ? route.geometry.coordinates : [route.geometry.coordinates];
-
-                coordsArray.forEach(line => {
-                    const lineString = turf.lineString(line);
-                    const snapped = turf.nearestPointOnLine(lineString, turf.point(vehicleCoord), { units: 'meters' });
-                    const dist = snapped.properties.dist;
-
-                    if (dist < minDistance && dist <= 3.048) {
-                        minDistance = dist;
-                        closestPoint = snapped.geometry.coordinates;
-                    }
-                });
-            });
-
-            return closestPoint || vehicleCoord;
-        }
-
-        function createVehicleMarker(lastFourDigits) {
+function createVehicleMarker(lastFourDigits) {
             let markerDiv = document.createElement('div');
             markerDiv.className = 'vehicle-marker';
 
@@ -401,7 +303,7 @@
 
             return R * c;
         }
-    };
+    });
 </script>
 </body>
 </html>
