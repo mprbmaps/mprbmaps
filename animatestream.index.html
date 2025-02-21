@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles with Snow Route Snapping</title>
+    <title>Mapbox + Threebox 3D Vehicles with Snow Route Snapping & Countdown</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -200,30 +200,6 @@
         }).catch(err => console.error("❌ Error loading snow routes: ", err));
     }
 
-    function startCountdown() {
-                updateCountdownDisplay();
-                countdownInterval = setInterval(() => {
-                    timeLeft -= 1000;
-                    updateCountdownDisplay();
-                    if (timeLeft <= 0) {
-                        clearInterval(countdownInterval);
-                        endCountdown();
-                    }
-                }, 1000);
-            }
-
-            function updateCountdownDisplay() {
-                const minutes = Math.floor(timeLeft / 60000);
-                const seconds = Math.floor((timeLeft % 60000) / 1000);
-                document.getElementById('countdownTimer').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-            }
-
-            function endCountdown() {
-                document.getElementById('loadingOverlay').style.display = 'none';
-                document.getElementById('timeoutMessage').style.display = 'block';
-                logMessage("⚠️ Countdown finished. Some vehicles may not have appeared.");
-            }
-    
     function snapToSnowRoute(vehicleCoord) {
         let closestPoint = null;
         let minDistance = Infinity;
@@ -251,7 +227,7 @@
             return closestPoint;
         } else {
             logMessage("❌ No snow route within 20 feet to snap to.");
-            return vehicleCoord; // If no nearby route, return original point
+            return vehicleCoord;
         }
     }
 
@@ -400,6 +376,30 @@
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
         return R * c;
+    }
+
+    function startCountdown() {
+        updateCountdownDisplay();
+        countdownInterval = setInterval(() => {
+            timeLeft -= 1000;
+            updateCountdownDisplay();
+            if (timeLeft <= 0) {
+                clearInterval(countdownInterval);
+                endCountdown();
+            }
+        }, 1000);
+    }
+
+    function updateCountdownDisplay() {
+        const minutes = Math.floor(timeLeft / 60000);
+        const seconds = Math.floor((timeLeft % 60000) / 1000);
+        document.getElementById('countdownTimer').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    function endCountdown() {
+        document.getElementById('loadingOverlay').style.display = 'none';
+        document.getElementById('timeoutMessage').style.display = 'block';
+        logMessage("⚠️ Countdown finished. Some vehicles may not have appeared.");
     }
 </script>
 </body>
