@@ -217,9 +217,18 @@
             }
 
             streets = response.data.features.map(feature => {
-                feature.geometry.coordinates = turf.toWgs84(feature.geometry.coordinates);
-                return feature;
-            });
+    if (feature.geometry.type === "LineString") {
+        feature.geometry.coordinates = feature.geometry.coordinates.map(coord => turf.toWgs84(coord));
+    } else if (feature.geometry.type === "MultiLineString") {
+        feature.geometry.coordinates = feature.geometry.coordinates.map(line =>
+            line.map(coord => turf.toWgs84(coord))
+        );
+    } else {
+        logMessage(`⚠️ Unsupported geometry type: ${feature.geometry.type}`);
+    }
+    return feature;
+});
+;
 
             logMessage(`✅ Loaded and converted ${streets.length} street features.`);
         }).catch(err => console.error("❌ Error loading streets: ", err));
