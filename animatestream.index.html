@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles with Full Animation & Snapping</title>
+    <title>Mapbox + Threebox 3D Vehicles with Snapping & Logging</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -71,6 +71,22 @@
             color: orange;
             display: none;
         }
+        #logConsole {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            overflow-y: auto;
+            font-size: 12px;
+            z-index: 9999;
+            border-top: 2px solid #444;
+        }
+        #logConsole div {
+            padding: 2px 5px;
+        }
     </style>
 </head>
 <body>
@@ -83,6 +99,11 @@
     <div id="timeoutMessage">⚠️ Time expired. Some vehicles may not appear.</div>
 </div>
 
+<!-- In-App Logging Console -->
+<div id="logConsole">
+    <div>Console Output:</div>
+</div>
+
 <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
@@ -92,13 +113,20 @@
     let validVehicleIds = [];
     const POINTS_BUFFER = 6;
     const TIMEOUT_LIMIT = 2 * 60 * 1000;
-    const SNAP_DISTANCE = 20;
+    const SNAP_DISTANCE = 20; // 20 feet for snapping to streets
 
     let countdownInterval;
     let timeLeft = TIMEOUT_LIMIT;
 
     function logMessage(msg) {
-        console.log(`${new Date().toISOString()} - ${msg}`);
+        console.log(msg); // Also logs to browser console for desktop
+        const logDiv = document.getElementById('logConsole');
+        if (logDiv) {
+            const newMsg = document.createElement('div');
+            newMsg.textContent = msg;
+            logDiv.appendChild(newMsg);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
     }
 
     require([
@@ -208,19 +236,24 @@
                 return;
             }
 
+            logMessage(`✅ Found ${vehicles.length} vehicles`);
+
             vehicles.forEach(vehicle => {
-                if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
+                if (!vehicle.geometry || !vehicle.geometry.coordinates) {
+                    logMessage("⚠️ Vehicle has no geometry data");
+                    return;
+                }
 
                 const coordinates = vehicle.geometry.coordinates;
                 const vehicleId = vehicle.properties.vehicle_number;
-                const lastFourDigits = vehicleId.slice(-4);  // For marker label
+                const lastFourDigits = vehicleId.slice(-4);
                 const timestamp = new Date(vehicle.properties.updateUTC).getTime();
 
-                if (!validVehicleIds.includes(vehicleId)) return;
+                logMessage(`🚗 Vehicle ${vehicleId} at [${coordinates[0]}, ${coordinates[1]}]`);
 
                 if (!vehicleModels[vehicleId]) {
                     let markerElement = createVehicleMarker(lastFourDigits);
-                    markerElement.style.display = 'none';
+                    markerElement.style.display = 'block';
 
                     vehicleModels[vehicleId] = {
                         positions: [],
@@ -232,8 +265,11 @@
                         lastUpdateUTC: null,
                         readyToAnimate: false
                     };
+
+                    logMessage(`✅ Created marker for Vehicle ${vehicleId}`);
                 }
 
+                // 🔄 Snap to nearest street before adding to positions
                 snapToStreet(coordinates, snappedCoords => {
                     const finalCoords = snappedCoords || coordinates;
 
@@ -265,7 +301,7 @@
                 geometry: `${vehicleCoords[0]},${vehicleCoords[1]}`,
                 geometryType: "esriGeometryPoint",
                 spatialRel: "esriSpatialRelIntersects",
-                distance: SNAP_DISTANCE * 0.3048,
+                distance: SNAP_DISTANCE * 0.3048, // Convert feet to meters
                 units: "esriSRUnit_Meter",
                 outFields: "*",
                 returnGeometry: true,
@@ -277,12 +313,14 @@
             if (roads && roads.length > 0) {
                 const nearestRoad = roads[0].geometry.paths[0];
                 const snappedPoint = findClosestPointOnLine(nearestRoad, vehicleCoords);
+                logMessage(`✅ Snapped to street at [${snappedPoint[0]}, ${snappedPoint[1]}]`);
                 callback(snappedPoint);
             } else {
+                logMessage("⚠️ No nearby streets found, using original coordinates");
                 callback(null);
             }
         }).catch(error => {
-            console.error("❌ Error snapping to street: ", error);
+            logMessage("❌ Error snapping to street: " + error);
             callback(null);
         });
     }
