@@ -173,14 +173,15 @@ function fetchValidVehicleIds() {
     }).then(response => {
         const features = response.data.features;
 
-        // 🔄 Normalize Vehicle IDs: Trim spaces, convert to strings, and remove leading zeros
-        validVehicleIds = features.map(f => String(f.attributes.vehicleid).trim().replace(/^0+/, ''));
+        // ✅ Keep leading zeros but trim spaces
+        validVehicleIds = features.map(f => String(f.attributes.vehicleid).trim());
 
         logMessage(`✅ Fetched ${validVehicleIds.length} valid vehicle IDs`);
     }).catch(error => {
         logMessage("❌ Error fetching valid vehicle IDs: " + error);
     });
 }
+
 
 
             function loadSnowRoutes() {
@@ -265,16 +266,16 @@ function fetchValidVehicleIds() {
         vehicles.forEach(vehicle => {
             if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
 
-            // 🔄 Normalize incoming vehicle ID before comparison
-            const vehicleId = String(vehicle.properties.vehicle_number).trim().replace(/^0+/, '');
+            // ✅ Only trim spaces; keep leading zeros
+            const vehicleId = String(vehicle.properties.vehicle_number).trim();
 
-            // ✅ Check against normalized validVehicleIds
+            // 🔄 Compare with valid vehicle IDs (leading zeros intact)
             if (!validVehicleIds.includes(vehicleId)) {
                 logMessage(`⚠️ Vehicle ${vehicleId} is not valid. Skipping.`);
                 return;
             }
 
-            const coordinates = snapToSnowRoute(vehicle.geometry.coordinates);
+            const coordinates = vehicle.geometry.coordinates;
             const timestamp = new Date(vehicle.properties.updateUTC).getTime();
 
             if (!vehicleModels[vehicleId]) {
@@ -312,6 +313,7 @@ function fetchValidVehicleIds() {
         logMessage("❌ Error fetching vehicle data: " + error);
     });
 }
+
 
             function createVehicleMarker(lastFourDigits) {
                 let markerDiv = document.createElement('div');
