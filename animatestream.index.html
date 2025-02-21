@@ -159,24 +159,29 @@
             }
 
             // ✅ Fetch Valid Vehicle IDs
-            function fetchValidVehicleIds() {
-                logMessage("🔄 Fetching valid vehicle IDs...");
-                return esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Operations_Management_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer/0/query", {
-                    query: {
-                        where: "1=1",
-                        outFields: "vehicleid",
-                        returnGeometry: false,
-                        f: "json"
-                    },
-                    responseType: "json"
-                }).then(response => {
-                    const features = response.data.features;
-                    validVehicleIds = features.map(f => f.attributes.vehicleid);
-                    logMessage(`✅ Fetched ${validVehicleIds.length} valid vehicle IDs`);
-                }).catch(error => {
-                    logMessage("❌ Error fetching valid vehicle IDs: " + error);
-                });
-            }
+            // ✅ Fetch Valid Vehicle IDs and Normalize Them
+function fetchValidVehicleIds() {
+    logMessage("🔄 Fetching valid vehicle IDs...");
+    return esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Operations_Management_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer/0/query", {
+        query: {
+            where: "1=1",
+            outFields: "vehicleid",
+            returnGeometry: false,
+            f: "json"
+        },
+        responseType: "json"
+    }).then(response => {
+        const features = response.data.features;
+
+        // 🔄 Normalize Vehicle IDs: Trim spaces, convert to strings, and remove leading zeros
+        validVehicleIds = features.map(f => String(f.attributes.vehicleid).trim().replace(/^0+/, ''));
+
+        logMessage(`✅ Fetched ${validVehicleIds.length} valid vehicle IDs`);
+    }).catch(error => {
+        logMessage("❌ Error fetching valid vehicle IDs: " + error);
+    });
+}
+
 
             function loadSnowRoutes() {
                 esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/SnowRoutes_public_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0/query", {
@@ -247,65 +252,66 @@
             }
 
             function loadVehicleData() {
-                esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
-                    query: {
-                        where: "1=1",
-                        outFields: "objectid,heading,vehicle_number,speedKmph,longitude,latitude,updateUTC",
-                        returnGeometry: true,
-                        f: "geojson"
-                    },
-                    responseType: "json"
-                }).then(response => {
-                    const vehicles = response.data.features || [];
-                    vehicles.forEach(vehicle => {
-                        if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
+    esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
+        query: {
+            where: "1=1",
+            outFields: "objectid,heading,vehicle_number,speedKmph,longitude,latitude,updateUTC",
+            returnGeometry: true,
+            f: "geojson"
+        },
+        responseType: "json"
+    }).then(response => {
+        const vehicles = response.data.features || [];
+        vehicles.forEach(vehicle => {
+            if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
 
-                        const vehicleId = vehicle.properties.vehicle_number;
+            // 🔄 Normalize incoming vehicle ID before comparison
+            const vehicleId = String(vehicle.properties.vehicle_number).trim().replace(/^0+/, '');
 
-                        // ✅ Filter Vehicles by Valid IDs
-                        if (!validVehicleIds.includes(vehicleId)) {
-                            logMessage(`⚠️ Vehicle ${vehicleId} is not valid. Skipping.`);
-                            return;
-                        }
-
-                        const coordinates = snapToSnowRoute(vehicle.geometry.coordinates);
-                        const timestamp = new Date(vehicle.properties.updateUTC).getTime();
-
-                        if (!vehicleModels[vehicleId]) {
-                            let markerElement = createVehicleMarker(vehicleId.slice(-4));
-                            markerElement.style.display = 'none';
-
-                            vehicleModels[vehicleId] = {
-                                positions: [],
-                                markerElement: markerElement,
-                                marker: new mapboxgl.Marker({ element: markerElement })
-                                    .setLngLat(coordinates)
-                                    .addTo(map),
-                                animating: false,
-                                lastUpdateUTC: null,
-                                readyToAnimate: false
-                            };
-                        }
-
-                        if (vehicleModels[vehicleId].lastUpdateUTC !== timestamp) {
-                            vehicleModels[vehicleId].positions.push({
-                                lng: coordinates[0],
-                                lat: coordinates[1],
-                                timestamp: timestamp
-                            });
-
-                            vehicleModels[vehicleId].lastUpdateUTC = timestamp;
-
-                            if (vehicleModels[vehicleId].positions.length >= POINTS_BUFFER && !vehicleModels[vehicleId].readyToAnimate) {
-                                vehicleModels[vehicleId].readyToAnimate = true;
-                                vehicleModels[vehicleId].markerElement.style.display = 'block';
-                            }
-                        }
-                    });
-                }).catch(error => {
-                    logMessage("❌ Error fetching vehicle data: " + error);
-                });
+            // ✅ Check against normalized validVehicleIds
+            if (!validVehicleIds.includes(vehicleId)) {
+                logMessage(`⚠️ Vehicle ${vehicleId} is not valid. Skipping.`);
+                return;
             }
+
+            const coordinates = snapToSnowRoute(vehicle.geometry.coordinates);
+            const timestamp = new Date(vehicle.properties.updateUTC).getTime();
+
+            if (!vehicleModels[vehicleId]) {
+                let markerElement = createVehicleMarker(vehicleId.slice(-4));
+                markerElement.style.display = 'none';
+
+                vehicleModels[vehicleId] = {
+                    positions: [],
+                    markerElement: markerElement,
+                    marker: new mapboxgl.Marker({ element: markerElement })
+                        .setLngLat(coordinates)
+                        .addTo(map),
+                    animating: false,
+                    lastUpdateUTC: null,
+                    readyToAnimate: false
+                };
+            }
+
+            if (vehicleModels[vehicleId].lastUpdateUTC !== timestamp) {
+                vehicleModels[vehicleId].positions.push({
+                    lng: coordinates[0],
+                    lat: coordinates[1],
+                    timestamp: timestamp
+                });
+
+                vehicleModels[vehicleId].lastUpdateUTC = timestamp;
+
+                if (vehicleModels[vehicleId].positions.length >= POINTS_BUFFER && !vehicleModels[vehicleId].readyToAnimate) {
+                    vehicleModels[vehicleId].readyToAnimate = true;
+                    vehicleModels[vehicleId].markerElement.style.display = 'block';
+                }
+            }
+        });
+    }).catch(error => {
+        logMessage("❌ Error fetching vehicle data: " + error);
+    });
+}
 
             function createVehicleMarker(lastFourDigits) {
                 let markerDiv = document.createElement('div');
