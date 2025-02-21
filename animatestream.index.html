@@ -214,20 +214,35 @@
     }
 
     function snapToSnowRoute(vehicleCoord) {
-        let closestPoint = null;
-        let minDistance = Infinity;
-        snowRoutes.forEach(route => {
-            const coords = route.geometry.coordinates;
-            coords.forEach(coord => {
+    let closestPoint = null;
+    let minDistance = Infinity;
+
+    snowRoutes.forEach(route => {
+        // Handles multi-line geometries and single lines
+        const coordsArray = route.geometry.type === 'MultiLineString' ? route.geometry.coordinates : [route.geometry.coordinates];
+
+        coordsArray.forEach(line => {
+            for (let i = 0; i < line.length; i++) {
+                const coord = line[i];
                 const dist = getDistance(vehicleCoord, coord);
+
                 if (dist < minDistance && dist <= 6.096) { // 20 feet in meters
                     minDistance = dist;
                     closestPoint = coord;
                 }
-            });
+            }
         });
-        return closestPoint;
+    });
+
+    if (closestPoint) {
+        logMessage(`📍 Snapped vehicle to route within ${minDistance.toFixed(2)} meters.`);
+    } else {
+        logMessage("❌ No snow route within 20 feet to snap to.");
     }
+
+    return closestPoint;
+}
+
 
     function loadVehicleData() {
         esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
