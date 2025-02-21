@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles with Snapping & Logging</title>
+    <title>Mapbox + Threebox 3D Vehicles with Snapping & Correct Buffering</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -111,15 +111,15 @@
     let vehicleModels = {};
     let esriRequest;
     let validVehicleIds = [];
-    const POINTS_BUFFER = 6;
+    const POINTS_BUFFER = 6;  // Wait for 6 positions before showing the vehicle
     const TIMEOUT_LIMIT = 2 * 60 * 1000;
-    const SNAP_DISTANCE = 20; // 20 feet for snapping to streets
+    const SNAP_DISTANCE = 20; // Snap to streets within 20 feet
 
     let countdownInterval;
     let timeLeft = TIMEOUT_LIMIT;
 
     function logMessage(msg) {
-        console.log(msg); // Also logs to browser console for desktop
+        console.log(msg); // Log to browser console
         const logDiv = document.getElementById('logConsole');
         if (logDiv) {
             const newMsg = document.createElement('div');
@@ -249,11 +249,9 @@
                 const lastFourDigits = vehicleId.slice(-4);
                 const timestamp = new Date(vehicle.properties.updateUTC).getTime();
 
-                logMessage(`🚗 Vehicle ${vehicleId} at [${coordinates[0]}, ${coordinates[1]}]`);
-
                 if (!vehicleModels[vehicleId]) {
                     let markerElement = createVehicleMarker(lastFourDigits);
-                    markerElement.style.display = 'block';
+                    markerElement.style.display = 'none'; // Keep hidden until buffered
 
                     vehicleModels[vehicleId] = {
                         positions: [],
@@ -265,11 +263,9 @@
                         lastUpdateUTC: null,
                         readyToAnimate: false
                     };
-
                     logMessage(`✅ Created marker for Vehicle ${vehicleId}`);
                 }
 
-                // 🔄 Snap to nearest street before adding to positions
                 snapToStreet(coordinates, snappedCoords => {
                     const finalCoords = snappedCoords || coordinates;
 
@@ -284,8 +280,8 @@
 
                         if (vehicleModels[vehicleId].positions.length >= POINTS_BUFFER && !vehicleModels[vehicleId].readyToAnimate) {
                             vehicleModels[vehicleId].readyToAnimate = true;
-                            vehicleModels[vehicleId].markerElement.style.display = 'block';
-                            logMessage(`🚀 Vehicle ${vehicleId} is now animating!`);
+                            vehicleModels[vehicleId].markerElement.style.display = 'block'; // Show marker now
+                            logMessage(`🚀 Vehicle ${vehicleId} is now animating after buffering`);
                         }
                     }
                 });
@@ -301,7 +297,7 @@
                 geometry: `${vehicleCoords[0]},${vehicleCoords[1]}`,
                 geometryType: "esriGeometryPoint",
                 spatialRel: "esriSpatialRelIntersects",
-                distance: SNAP_DISTANCE * 0.3048, // Convert feet to meters
+                distance: SNAP_DISTANCE * 0.3048,
                 units: "esriSRUnit_Meter",
                 outFields: "*",
                 returnGeometry: true,
