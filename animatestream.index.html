@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles</title>
+    <title>Mapbox + Threebox 3D Vehicles (Debug Mode)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -87,6 +87,7 @@
         let countdownInterval;
         let timeLeft = 120000; // 2 minutes countdown
         const POINTS_BUFFER = 6;
+        let firstVehicleCentered = false;
 
         function logMessage(msg, isError = false) {
             const timestamp = new Date().toISOString();
@@ -187,19 +188,21 @@
                         f: "geojson"
                     },
                     responseType: "json"
-                .then(response => {
-    console.log("🚚 Vehicle Data Response:", response);  // Add this log
+                }).then(response => {
+                    console.log("🚚 Vehicle Data Response:", response); // ✅ Debug log
 
-    const vehicles = response.data.features;
-    if (!vehicles || vehicles.length === 0) {
-        logMessage("⚠️ No vehicles found.");
-        endCountdown();
-        return;
-    }
-
+                    const vehicles = response.data.features;
+                    if (!vehicles || vehicles.length === 0) {
+                        logMessage("⚠️ No vehicles found.");
+                        endCountdown();
+                        return;
+                    }
 
                     vehicles.forEach(vehicle => {
-                        if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
+                        if (!vehicle.geometry || !vehicle.geometry.coordinates) {
+                            console.warn("⚠️ Vehicle missing coordinates:", vehicle);
+                            return;
+                        }
 
                         const coordinates = vehicle.geometry.coordinates;
                         const vehicleId = vehicle.properties.vehicle_number;
@@ -207,7 +210,7 @@
 
                         if (!vehicleModels[vehicleId]) {
                             let markerElement = createVehicleMarker(vehicleId.slice(-4));
-                            markerElement.style.display = 'none';
+                            markerElement.style.display = 'block'; // Force marker to display
 
                             vehicleModels[vehicleId] = {
                                 positions: [],
@@ -217,8 +220,17 @@
                                     .addTo(map),
                                 animating: false,
                                 lastUpdateUTC: null,
-                                readyToAnimate: false
+                                readyToAnimate: true
                             };
+
+                            // Center map on first vehicle
+                            if (!firstVehicleCentered) {
+                                map.flyTo({
+                                    center: coordinates,
+                                    zoom: 14
+                                });
+                                firstVehicleCentered = true;
+                            }
                         }
 
                         if (vehicleModels[vehicleId].lastUpdateUTC !== timestamp) {
