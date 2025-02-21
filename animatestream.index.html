@@ -218,21 +218,22 @@
 
             streets = response.data.features.map(feature => {
     if (feature.geometry.type === "LineString") {
+        // Apply toWgs84 to each coordinate in LineString
         feature.geometry.coordinates = feature.geometry.coordinates.map(coord => turf.toWgs84(coord));
     } else if (feature.geometry.type === "MultiLineString") {
+        // Apply toWgs84 to each coordinate in each line of MultiLineString
         feature.geometry.coordinates = feature.geometry.coordinates.map(line =>
             line.map(coord => turf.toWgs84(coord))
         );
     } else {
+        // Log unsupported geometry types
         logMessage(`⚠️ Unsupported geometry type: ${feature.geometry.type}`);
     }
     return feature;
 });
-;
 
-            logMessage(`✅ Loaded and converted ${streets.length} street features.`);
-        }).catch(err => console.error("❌ Error loading streets: ", err));
-    }
+logMessage(`✅ Loaded and converted ${streets.length} street features.`);
+
 
     function snapToRoute(vehicleCoord) {
         let closestPoint = null;
