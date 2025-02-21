@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Debug Mode)</title>
+    <title>Mapbox + Threebox 3D Vehicles (With Animation Fix)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -210,7 +210,7 @@
 
                         if (!vehicleModels[vehicleId]) {
                             let markerElement = createVehicleMarker(vehicleId.slice(-4));
-                            markerElement.style.display = 'block'; // Force marker to display
+                            markerElement.style.display = 'none';
 
                             vehicleModels[vehicleId] = {
                                 positions: [],
@@ -220,17 +220,8 @@
                                     .addTo(map),
                                 animating: false,
                                 lastUpdateUTC: null,
-                                readyToAnimate: true
+                                readyToAnimate: false
                             };
-
-                            // Center map on first vehicle
-                            if (!firstVehicleCentered) {
-                                map.flyTo({
-                                    center: coordinates,
-                                    zoom: 14
-                                });
-                                firstVehicleCentered = true;
-                            }
                         }
 
                         if (vehicleModels[vehicleId].lastUpdateUTC !== timestamp) {
@@ -246,11 +237,19 @@
                                 vehicleModels[vehicleId].readyToAnimate = true;
                                 vehicleModels[vehicleId].markerElement.style.display = 'block';
                                 logMessage(`🚀 Vehicle ${vehicleId} is now animating!`);
+
+                                if (!firstVehicleCentered) {
+                                    map.flyTo({
+                                        center: coordinates,
+                                        zoom: 14
+                                    });
+                                    firstVehicleCentered = true;
+                                }
+
+                                animateVehicles(); // ✅ Trigger animation
                             }
                         }
                     });
-
-                    animateVehicles();
                 }).catch(error => {
                     logMessage("❌ Error fetching vehicle data: " + error, true);
                 });
@@ -284,6 +283,8 @@
                     let startTime = performance.now();
                     vehicle.animating = true;
 
+                    logMessage(`🎬 Starting animation for Vehicle ${vehicleId}`);
+
                     function step() {
                         let elapsed = performance.now() - startTime;
                         let progress = Math.min(elapsed / duration, 1);
@@ -299,6 +300,8 @@
                         } else {
                             vehicle.positions.shift();
                             vehicle.animating = false;
+                            logMessage(`✅ Vehicle ${vehicleId} animation step completed`);
+
                             if (vehicle.positions.length >= 2) {
                                 animateVehicles();
                             }
@@ -307,8 +310,6 @@
 
                     requestAnimationFrame(step);
                 }
-
-                requestAnimationFrame(animateVehicles);
             }
 
             function easeInOutCubic(t) {
