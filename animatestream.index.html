@@ -187,13 +187,16 @@
                         f: "geojson"
                     },
                     responseType: "json"
-                }).then(response => {
-                    const vehicles = response.data.features;
-                    if (!vehicles || vehicles.length === 0) {
-                        logMessage("⚠️ No vehicles found.");
-                        endCountdown();
-                        return;
-                    }
+                .then(response => {
+    console.log("🚚 Vehicle Data Response:", response);  // Add this log
+
+    const vehicles = response.data.features;
+    if (!vehicles || vehicles.length === 0) {
+        logMessage("⚠️ No vehicles found.");
+        endCountdown();
+        return;
+    }
+
 
                     vehicles.forEach(vehicle => {
                         if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
