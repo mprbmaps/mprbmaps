@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles with Snapping & Correct Buffering</title>
+    <title>Mapbox + Threebox 3D Vehicles</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -20,28 +20,34 @@
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
         .vehicle-marker {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            background-color: red;
-            border: 2px solid white;
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-            pointer-events: none;
-            transition: background-color 0.2s ease;
-            display: none;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            line-height: 30px;
-        }
-        .vehicle-label {
-            color: white;
-            font-weight: bold;
-            font-size: 12px;
-            text-align: center;
-            line-height: 1;
-        }
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: red;
+    border: 2px solid white;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    transition: background-color 0.2s ease;
+    display: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    line-height: 30px; /* Ensures vertical centering */
+}
+
+.vehicle-label {
+    color: white;
+    font-weight: bold;
+    font-size: 12px;
+    text-align: center;
+    line-height: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+        /* Loading Overlay */
         #loadingOverlay {
             position: fixed;
             top: 0;
@@ -57,14 +63,17 @@
             font-family: Arial, sans-serif;
             z-index: 9999;
         }
+
         #loadingMessage {
             font-size: 1.2em;
             margin-bottom: 10px;
         }
+
         #countdownTimer {
             font-size: 1.5em;
             margin-top: 5px;
         }
+
         #timeoutMessage {
             margin-top: 15px;
             font-size: 0.9em;
@@ -89,24 +98,21 @@
     let map, tb;
     let vehicleModels = {};
     let esriRequest;
-    let validVehicleIds = [];
-    const POINTS_BUFFER = 6;  // Wait for 6 positions before showing the vehicle
+    const POINTS_BUFFER = 6;
     const TIMEOUT_LIMIT = 2 * 60 * 1000;
-    const SNAP_DISTANCE = 20; // Snap to streets within 20 feet
 
     let countdownInterval;
     let timeLeft = TIMEOUT_LIMIT;
 
     function logMessage(msg) {
-        console.log(msg); // Log to browser console only
+        console.log(`${new Date().toISOString()} - ${msg}`);
     }
 
     require([
         "esri/request",
-        "esri/geometry/geometryEngine",
         "esri/identity/OAuthInfo",
         "esri/identity/IdentityManager"
-    ], function(_esriRequest, geometryEngine, OAuthInfo, IdentityManager) {
+    ], function(_esriRequest, OAuthInfo, IdentityManager) {
         esriRequest = _esriRequest;
 
         var info = new OAuthInfo({
@@ -118,11 +124,11 @@
 
         IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
             logMessage("✅ Signed in successfully");
-            fetchValidVehicleIds().then(() => initializeMap());
+            initializeMap();
         }).catch(error => {
             logMessage("⚠️ Not signed in. Prompting login...");
             IdentityManager.getCredential(info.portalUrl + "/sharing")
-                .then(() => fetchValidVehicleIds().then(() => initializeMap()))
+                .then(() => initializeMap())
                 .catch(err => logMessage("❌ ESRI Login Failed: " + err));
         });
     });
@@ -138,19 +144,19 @@
             },
             responseType: "json"
         }).then(response => {
-            validVehicleIds = response.data.features.map(f => f.attributes.vehicleid);
+            const features = response.data.features;
+            validVehicleIds = features.map(f => f.attributes.vehicleid);
             logMessage(`✅ Fetched ${validVehicleIds.length} valid vehicle IDs`);
         }).catch(error => {
             logMessage("❌ Error fetching valid vehicle IDs: " + error);
         });
     }
-
     function initializeMap() {
         map = new mapboxgl.Map({
             container: 'map',
             style: 'mapbox://styles/mapbox/outdoors-v12',
             center: [-93.2650, 44.9778],
-            zoom: 12,
+            zoom: 11,
             pitch: 60,
             bearing: 0,
             antialias: true
@@ -164,15 +170,17 @@
             startCountdown();
             loadVehicleData();
             setInterval(loadVehicleData, 10000);
-            animateVehicles();
+            requestAnimationFrame(animateVehicles);
         });
     }
 
     function startCountdown() {
         updateCountdownDisplay();
+
         countdownInterval = setInterval(() => {
             timeLeft -= 1000;
             updateCountdownDisplay();
+
             if (timeLeft <= 0) {
                 clearInterval(countdownInterval);
                 endCountdown();
@@ -193,6 +201,13 @@
     }
 
     function loadVehicleData() {
+        if (!esriRequest) {
+            logMessage("❌ esriRequest is not loaded yet.");
+            return;
+        }
+
+        logMessage("🔄 Fetching vehicle data...");
+
         esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
             query: {
                 where: "1=1",
@@ -208,14 +223,8 @@
                 return;
             }
 
-            logMessage(`✅ Found ${vehicles.length} vehicles`);
-
             vehicles.forEach(vehicle => {
-                if (!vehicle.geometry || !vehicle.geometry.coordinates) {
-                    logMessage("⚠️ Vehicle has no geometry data");
-                    return;
-                }
-
+                if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
                 const coordinates = vehicle.geometry.coordinates;
                 const vehicleId = vehicle.properties.vehicle_number;
                 const lastFourDigits = vehicleId.slice(-4);
@@ -223,7 +232,7 @@
 
                 if (!vehicleModels[vehicleId]) {
                     let markerElement = createVehicleMarker(lastFourDigits);
-                    markerElement.style.display = 'none'; // Keep hidden until buffered
+                    markerElement.style.display = 'none';
 
                     vehicleModels[vehicleId] = {
                         positions: [],
@@ -235,77 +244,27 @@
                         lastUpdateUTC: null,
                         readyToAnimate: false
                     };
-                    logMessage(`✅ Created marker for Vehicle ${vehicleId}`);
                 }
 
-                snapToStreet(coordinates, snappedCoords => {
-                    const finalCoords = snappedCoords || coordinates;
+                if (vehicleModels[vehicleId].lastUpdateUTC !== timestamp) {
+                    vehicleModels[vehicleId].positions.push({
+                        lng: coordinates[0],
+                        lat: coordinates[1],
+                        timestamp: timestamp
+                    });
 
-                    if (vehicleModels[vehicleId].lastUpdateUTC !== timestamp) {
-                        vehicleModels[vehicleId].positions.push({
-                            lng: finalCoords[0],
-                            lat: finalCoords[1],
-                            timestamp: timestamp
-                        });
+                    vehicleModels[vehicleId].lastUpdateUTC = timestamp;
 
-                        vehicleModels[vehicleId].lastUpdateUTC = timestamp;
-
-                        if (vehicleModels[vehicleId].positions.length >= POINTS_BUFFER && !vehicleModels[vehicleId].readyToAnimate) {
-                            vehicleModels[vehicleId].readyToAnimate = true;
-                            vehicleModels[vehicleId].markerElement.style.display = 'block'; // Show marker now
-                            logMessage(`🚀 Vehicle ${vehicleId} is now animating after buffering`);
-                        }
+                    if (vehicleModels[vehicleId].positions.length >= POINTS_BUFFER && !vehicleModels[vehicleId].readyToAnimate) {
+                        vehicleModels[vehicleId].readyToAnimate = true;
+                        vehicleModels[vehicleId].markerElement.style.display = 'block';
+                        logMessage(`🚀 Vehicle ${vehicleId} is now animating!`);
                     }
-                });
+                }
             });
         }).catch(error => {
             logMessage("❌ Error fetching vehicle data: " + error);
         });
-    }
-
-    function snapToStreet(vehicleCoords, callback) {
-        esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/SnowRoutes_public_41a56ed49cbb4662927825495afe2ae8/FeatureServer/0/query", {
-            query: {
-                geometry: `${vehicleCoords[0]},${vehicleCoords[1]}`,
-                geometryType: "esriGeometryPoint",
-                spatialRel: "esriSpatialRelIntersects",
-                distance: SNAP_DISTANCE * 0.3048,
-                units: "esriSRUnit_Meter",
-                outFields: "*",
-                returnGeometry: true,
-                f: "json"
-            },
-            responseType: "json"
-        }).then(response => {
-            const roads = response.data.features;
-            if (roads && roads.length > 0) {
-                const nearestRoad = roads[0].geometry.paths[0];
-                const snappedPoint = findClosestPointOnLine(nearestRoad, vehicleCoords);
-                logMessage(`✅ Snapped to street at [${snappedPoint[0]}, ${snappedPoint[1]}]`);
-                callback(snappedPoint);
-            } else {
-                logMessage("⚠️ No nearby streets found, using original coordinates");
-                callback(null);
-            }
-        }).catch(error => {
-            logMessage("❌ Error snapping to street: " + error);
-            callback(null);
-        });
-    }
-
-    function findClosestPointOnLine(lineCoords, point) {
-        let closestPoint = null;
-        let minDist = Infinity;
-
-        for (let i = 0; i < lineCoords.length; i++) {
-            const dist = getDistance({ lng: point[0], lat: point[1] }, { lng: lineCoords[i][0], lat: lineCoords[i][1] });
-            if (dist < minDist) {
-                minDist = dist;
-                closestPoint = lineCoords[i];
-            }
-        }
-
-        return closestPoint;
     }
 
     function createVehicleMarker(lastFourDigits) {
@@ -321,41 +280,52 @@
     }
 
     function animateVehicles() {
-        function step() {
-            for (let vehicleId in vehicleModels) {
-                let vehicle = vehicleModels[vehicleId];
-                if (!vehicle.readyToAnimate || vehicle.positions.length < 2) continue;
+        for (let vehicleId in vehicleModels) {
+            let vehicle = vehicleModels[vehicleId];
 
-                let startPos = vehicle.positions[0];
-                let endPos = vehicle.positions[1];
-                let duration = 1000;
+            if (!vehicle.readyToAnimate || vehicle.animating || vehicle.positions.length < 2) continue;
 
-                let startTime = performance.now();
+            let startPos = vehicle.positions[0];
+            let endPos = vehicle.positions[1];
+            let duration = Math.max(endPos.timestamp - startPos.timestamp, 1000);
 
-                function animateStep() {
-                    let elapsed = performance.now() - startTime;
-                    let progress = Math.min(elapsed / duration, 1);
-                    let easedProgress = easeInOutCubic(progress);
+            let distance = getDistance(startPos, endPos);
+            duration = Math.max(duration, distance * 100);
 
-                    vehicle.marker.setLngLat([
-                        startPos.lng + (endPos.lng - startPos.lng) * easedProgress,
-                        startPos.lat + (endPos.lat - startPos.lat) * easedProgress
-                    ]);
+            logMessage(`🚀 Animating Vehicle ${vehicleId} over ${duration / 1000}s`);
 
-                    if (progress < 1) {
-                        requestAnimationFrame(animateStep);
-                    } else {
-                        vehicle.positions.shift();
+            let startTime = performance.now();
+            vehicle.markerElement.style.display = 'block';
+            vehicle.marker.getElement().style.backgroundColor = 'green';
+
+            function step() {
+                let elapsed = performance.now() - startTime;
+                let progress = Math.min(elapsed / duration, 1);
+                let easedProgress = easeInOutCubic(progress);
+
+                vehicle.marker.setLngLat([
+                    startPos.lng + (endPos.lng - startPos.lng) * easedProgress,
+                    startPos.lat + (endPos.lat - startPos.lat) * easedProgress
+                ]);
+
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                } else {
+                    vehicle.positions.shift();
+                    vehicle.animating = false;
+                    vehicle.marker.getElement().style.backgroundColor = 'red';
+
+                    if (vehicle.positions.length >= 2) {
+                        animateVehicles();
                     }
                 }
-
-                animateStep();
             }
 
+            vehicle.animating = true;
             requestAnimationFrame(step);
         }
 
-        requestAnimationFrame(step);
+        requestAnimationFrame(animateVehicles);
     }
 
     function easeInOutCubic(t) {
