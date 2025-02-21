@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles with Snapping</title>
+    <title>Mapbox + Threebox 3D Vehicles</title>
 
-    <!-- ✅ Mapbox GL JS (Load First, without defer) -->
+    <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.js"></script>
 
@@ -82,7 +82,6 @@
         mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
         let map, tb;
-        
         let vehicleModels = {};
         let esriRequest;
         let countdownInterval;
@@ -115,14 +114,12 @@
             IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
                 logMessage("✅ Signed in successfully");
                 initializeMap();
-                
                 startCountdown();
             }).catch(error => {
                 logMessage("⚠️ Not signed in. Prompting login...");
                 IdentityManager.getCredential(info.portalUrl + "/sharing")
                     .then(() => {
                         initializeMap();
-                       
                         startCountdown();
                     })
                     .catch(err => logMessage("❌ ESRI Login Failed: " + err, true));
@@ -143,14 +140,9 @@
                     logMessage("✅ Map Style Loaded!");
                     tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
                     logMessage("✅ Threebox initialized");
-
-                    loadStreets();
-                    loadSnowPlowRoutes();
                     loadVehicleData();
                 });
             }
-
-            
 
             function startCountdown() {
                 updateCountdownDisplay();
@@ -174,8 +166,10 @@
 
             function endCountdown() {
                 document.getElementById('loadingOverlay').style.display = 'none';
-                document.getElementById('timeoutMessage').style.display = 'block';
-                logMessage("⚠️ Countdown finished. Some vehicles may not have appeared.");
+                if (Object.keys(vehicleModels).length === 0) {
+                    document.getElementById('timeoutMessage').style.display = 'block';
+                    logMessage("⚠️ Countdown finished. Some vehicles may not have appeared.");
+                }
             }
 
             function loadVehicleData() {
@@ -197,8 +191,7 @@
                     const vehicles = response.data.features;
                     if (!vehicles || vehicles.length === 0) {
                         logMessage("⚠️ No vehicles found.");
-                        document.getElementById('loadingOverlay').style.display = 'none';
-                        document.getElementById('timeoutMessage').style.display = 'block';
+                        endCountdown();
                         return;
                     }
 
@@ -207,14 +200,7 @@
 
                         const coordinates = vehicle.geometry.coordinates;
                         const vehicleId = vehicle.properties.vehicle_number;
-
-                        if (!validVehicleIds.includes(vehicleId)) {
-                            logMessage(`⚠️ Vehicle ${vehicleId} is not valid. Skipping.`);
-                            return;
-                        }
-
                         const timestamp = new Date(vehicle.properties.updateUTC).getTime();
-                        const snappedPoint = snapToLayer(coordinates) || coordinates;
 
                         if (!vehicleModels[vehicleId]) {
                             let markerElement = createVehicleMarker(vehicleId.slice(-4));
@@ -224,7 +210,7 @@
                                 positions: [],
                                 markerElement: markerElement,
                                 marker: new mapboxgl.Marker({ element: markerElement })
-                                    .setLngLat(snappedPoint)
+                                    .setLngLat(coordinates)
                                     .addTo(map),
                                 animating: false,
                                 lastUpdateUTC: null,
@@ -234,8 +220,8 @@
 
                         if (vehicleModels[vehicleId].lastUpdateUTC !== timestamp) {
                             vehicleModels[vehicleId].positions.push({
-                                lng: snappedPoint[0],
-                                lat: snappedPoint[1],
+                                lng: coordinates[0],
+                                lat: coordinates[1],
                                 timestamp: timestamp
                             });
 
@@ -281,8 +267,7 @@
                     duration = Math.max(duration, distance * 100);
 
                     let startTime = performance.now();
-                    vehicle.markerElement.style.display = 'block';
-                    vehicle.marker.getElement().style.backgroundColor = 'green';
+                    vehicle.animating = true;
 
                     function step() {
                         let elapsed = performance.now() - startTime;
@@ -299,15 +284,12 @@
                         } else {
                             vehicle.positions.shift();
                             vehicle.animating = false;
-                            vehicle.marker.getElement().style.backgroundColor = 'red';
-
                             if (vehicle.positions.length >= 2) {
                                 animateVehicles();
                             }
                         }
                     }
 
-                    vehicle.animating = true;
                     requestAnimationFrame(step);
                 }
 
@@ -332,9 +314,6 @@
 
                 return R * c;
             }
-
-            
-
         });
     }
 </script>
