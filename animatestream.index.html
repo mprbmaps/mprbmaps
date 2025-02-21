@@ -255,13 +255,7 @@
     }
 
     function loadVehicleData() {
-        if (!esriRequest) {
-            logMessage("❌ esriRequest is not loaded yet.");
-            return;
-        }
-
         logMessage("🔄 Fetching vehicle data...");
-
         esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
             query: {
                 where: "1=1",
@@ -283,18 +277,16 @@
                 const coordinates = vehicle.geometry.coordinates;
                 const vehicleId = vehicle.properties.vehicle_number;
 
-                // Filter out invalid vehicle IDs
                 if (!validVehicleIds.includes(vehicleId)) {
                     logMessage(`⚠️ Vehicle ${vehicleId} is not valid. Skipping.`);
                     return;
                 }
 
-                const lastFourDigits = vehicleId.slice(-4);
                 const timestamp = new Date(vehicle.properties.updateUTC).getTime();
                 const snappedPoint = snapToLayer(coordinates) || coordinates;
 
                 if (!vehicleModels[vehicleId]) {
-                    let markerElement = createVehicleMarker(lastFourDigits);
+                    let markerElement = createVehicleMarker(vehicleId.slice(-4));
                     markerElement.style.display = 'none';
 
                     vehicleModels[vehicleId] = {
@@ -334,33 +326,26 @@
         let closestPoint = null;
         let minDistance = Infinity;
 
-        const layers = [...snowPlowRoutes, ...streets]; // Combine snow plow routes and streets
+        const layers = [...snowPlowRoutes, ...streets];
 
         layers.forEach(route => {
             if (!route.geometry || !route.geometry.coordinates) return;
 
-            const geometryType = route.geometry.type;
-            const coordsArray = geometryType === 'MultiLineString' ? route.geometry.coordinates : [route.geometry.coordinates];
+            const coordsArray = route.geometry.type === 'MultiLineString' ? route.geometry.coordinates : [route.geometry.coordinates];
 
             coordsArray.forEach(line => {
                 const lineString = turf.lineString(line);
                 const snapped = turf.nearestPointOnLine(lineString, turf.point(vehicleCoord), { units: 'meters' });
                 const dist = snapped.properties.dist;
 
-                if (dist < minDistance && dist <= 3.048) { // 10 feet in meters
+                if (dist < minDistance && dist <= 3.048) {
                     minDistance = dist;
                     closestPoint = snapped.geometry.coordinates;
                 }
             });
         });
 
-        if (closestPoint) {
-            logMessage(`📍 Snapped vehicle to layer within ${minDistance.toFixed(2)} meters.`);
-            return closestPoint;
-        } else {
-            logMessage("❌ No route within 10 feet to snap to.");
-            return vehicleCoord;
-        }
+        return closestPoint || vehicleCoord;
     }
 
     function createVehicleMarker(lastFourDigits) {
@@ -387,8 +372,6 @@
 
             let distance = getDistance(startPos, endPos);
             duration = Math.max(duration, distance * 100);
-
-            logMessage(`🚀 Animating Vehicle ${vehicleId} over ${duration / 1000}s`);
 
             let startTime = performance.now();
             vehicle.markerElement.style.display = 'block';
