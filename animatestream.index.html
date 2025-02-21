@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles with Snow Route Snapping & Countdown</title>
+    <title>Mapbox + Threebox 3D Vehicles with Multi-Layer Snapping</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -16,7 +16,7 @@
     <!-- Turf.js for snapping logic -->
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
-    <!-- ArcGIS JavaScript API (Load Last to Avoid Conflicts) -->
+    <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/" async defer></script>
 
     <style>
@@ -43,10 +43,6 @@
             font-weight: bold;
             font-size: 12px;
             text-align: center;
-            line-height: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
 
         /* Loading Overlay */
@@ -100,6 +96,7 @@
     let map, tb;
     let vehicleModels = {};
     let snowRoutes = [];
+    let streets = [];
     let validVehicleIds = [];
     let esriRequest;
     const POINTS_BUFFER = 6;
@@ -112,7 +109,6 @@
         console.log(`${new Date().toISOString()} - ${msg}`);
     }
 
-    // Load ArcGIS API after other libraries are loaded
     window.onload = function () {
         require([
             "esri/request",
@@ -158,6 +154,7 @@
 
             fetchValidVehicleIds();
             loadSnowRoutes();
+            loadStreets();  // ✅ Load Streets Layer
             startCountdown();
             loadVehicleData();
             setInterval(loadVehicleData, 10000);
@@ -204,18 +201,55 @@
         }).catch(err => console.error("❌ Error loading snow routes: ", err));
     }
 
-    function snapToSnowRoute(vehicleCoord) {
+    function loadStreets() {
+        esriRequest("https://services.arcgis.com/afSMGVsC7QlRK1kZ/arcgis/rest/services/MPLS_Centerline/FeatureServer/0/query", {
+            query: {
+                where: "1=1",
+                outFields: "*",
+                returnGeometry: true,
+                f: "geojson"
+            },
+            responseType: "json"
+        }).then(response => {
+            if (!response.data || !response.data.features) {
+                logMessage("❌ No data returned from Streets layer.");
+                return;
+            }
+
+            // Convert 3857 (Web Mercator) to WGS84
+            streets = response.data.features.map(feature => {
+                feature.geometry.coordinates = turf.toWgs84(feature.geometry.coordinates);
+                return feature;
+            });
+
+            logMessage(`✅ Loaded and converted ${streets.length} street features.`);
+        }).catch(err => console.error("❌ Error loading streets: ", err));
+    }
+
+    function snapToRoute(vehicleCoord) {
         let closestPoint = null;
         let minDistance = Infinity;
 
-        snowRoutes.forEach(route => {
-            if (!route.geometry || !route.geometry.coordinates) return;
+        // 1️⃣ First, try to snap to streets (within 10 feet)
+        streets.forEach(street => {
+            if (!street.geometry || !street.geometry.coordinates) return;
 
-            const geometryType = route.geometry.type;
-            const coordsArray = geometryType === 'MultiLineString' ? route.geometry.coordinates : [route.geometry.coordinates];
+            const lineString = turf.lineString(street.geometry.coordinates);
+            const snapped = turf.nearestPointOnLine(lineString, turf.point(vehicleCoord), { units: 'meters' });
+            const dist = snapped.properties.dist;
 
-            coordsArray.forEach(line => {
-                const lineString = turf.lineString(line);
+            if (dist < minDistance && dist <= 3.048) { // 10 feet in meters
+                minDistance = dist;
+                closestPoint = snapped.geometry.coordinates;
+            }
+        });
+
+        // 2️⃣ If no close street, try snow routes (within 20 feet)
+        if (!closestPoint) {
+            snowRoutes.forEach(route => {
+                if (!route.geometry || !route.geometry.coordinates) return;
+
+                const lineString = turf.lineString(route.geometry.coordinates);
                 const snapped = turf.nearestPointOnLine(lineString, turf.point(vehicleCoord), { units: 'meters' });
                 const dist = snapped.properties.dist;
 
@@ -224,39 +258,15 @@
                     closestPoint = snapped.geometry.coordinates;
                 }
             });
-        });
+        }
 
         if (closestPoint) {
-            logMessage(`📍 Snapped vehicle to route within ${minDistance.toFixed(2)} meters.`);
+            logMessage(`📍 Snapped to route within ${minDistance.toFixed(2)} meters.`);
             return closestPoint;
         } else {
-            logMessage("❌ No snow route within 20 feet to snap to.");
+            logMessage("❌ No route within snapping distance.");
             return vehicleCoord;
         }
-    }
-
-    function startCountdown() {
-        updateCountdownDisplay();
-        countdownInterval = setInterval(() => {
-            timeLeft -= 1000;
-            updateCountdownDisplay();
-            if (timeLeft <= 0) {
-                clearInterval(countdownInterval);
-                endCountdown();
-            }
-        }, 1000);
-    }
-
-    function updateCountdownDisplay() {
-        const minutes = Math.floor(timeLeft / 60000);
-        const seconds = Math.floor((timeLeft % 60000) / 1000);
-        document.getElementById('countdownTimer').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    }
-
-    function endCountdown() {
-        document.getElementById('loadingOverlay').style.display = 'none';
-        document.getElementById('timeoutMessage').style.display = 'block';
-        logMessage("⚠️ Countdown finished. Some vehicles may not have appeared.");
     }
 
     function loadVehicleData() {
@@ -286,7 +296,7 @@
                     return;
                 }
 
-                const snappedCoords = snapToSnowRoute(coordinates);
+                const snappedCoords = snapToRoute(coordinates);
                 const timestamp = new Date(vehicle.properties.updateUTC).getTime();
 
                 if (!vehicleModels[vehicleId]) {
@@ -317,7 +327,7 @@
                     if (vehicleModels[vehicleId].positions.length >= POINTS_BUFFER && !vehicleModels[vehicleId].readyToAnimate) {
                         vehicleModels[vehicleId].readyToAnimate = true;
                         vehicleModels[vehicleId].markerElement.style.display = 'block';
-                        logMessage(`🚀 Vehicle ${vehicleId} is now animating and snapped!`);
+                        logMessage(`🚀 Vehicle ${vehicleId} is now animating!`);
                     }
                 }
             });
