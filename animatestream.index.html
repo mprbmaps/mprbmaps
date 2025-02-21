@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles</title>
+    <title>Mapbox + Threebox 3D Vehicles with Snapping</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -15,6 +15,9 @@
 
     <!-- ArcGIS JavaScript API -->
     <script src="https://js.arcgis.com/4.27/"></script>
+
+    <!-- Turf.js for Geospatial Calculations -->
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
     <style>
         body { margin: 0; padding: 0; }
@@ -100,6 +103,15 @@
         console.log(`${new Date().toISOString()} - ${msg}`);
     }
 
+    // Coordinate Conversion Functions
+    function wgs84ToWebMercator(coord) {
+        return turf.toMercator(coord);
+    }
+
+    function webMercatorToWgs84(coord) {
+        return turf.toWgs84(coord);
+    }
+
     require([
         "esri/request",
         "esri/identity/OAuthInfo",
@@ -124,25 +136,6 @@
                 .catch(err => logMessage("❌ ESRI Login Failed: " + err));
         });
     });
-
-    function fetchValidVehicleIds() {
-        logMessage("🔄 Fetching valid vehicle IDs...");
-        return esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Operations_Management_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer/0/query", {
-            query: {
-                where: "1=1",
-                outFields: "vehicleid",
-                returnGeometry: false,
-                f: "json"
-            },
-            responseType: "json"
-        }).then(response => {
-            const features = response.data.features;
-            validVehicleIds = features.map(f => f.attributes.vehicleid);
-            logMessage(`✅ Fetched ${validVehicleIds.length} valid vehicle IDs`);
-        }).catch(error => {
-            logMessage("❌ Error fetching valid vehicle IDs: " + error);
-        });
-    }
 
     function initializeMap() {
         map = new mapboxgl.Map({
@@ -232,25 +225,28 @@
             const coordsArray = geometryType === 'MultiLineString' ? route.geometry.coordinates : [route.geometry.coordinates];
 
             coordsArray.forEach(line => {
-                for (let i = 0; i < line.length; i++) {
-                    const coord = line[i];
-                    const dist = getDistance(vehicleCoord, coord);
+                const lineString = turf.lineString(line);
 
-                    if (dist < minDistance && dist <= 6.096) { // 20 feet in meters
-                        minDistance = dist;
-                        closestPoint = coord;
-                    }
+                // Use Turf.js to find the nearest point on the line
+                const snapped = turf.nearestPointOnLine(lineString, turf.point(vehicleCoord), { units: 'meters' });
+                const dist = snapped.properties.dist;
+
+                logMessage(`🚗 Vehicle is ${dist.toFixed(2)} meters from the route.`); // Log distance
+
+                if (dist < minDistance && dist <= 6.096) { // 20 feet in meters
+                    minDistance = dist;
+                    closestPoint = snapped.geometry.coordinates;
                 }
             });
         });
 
         if (closestPoint) {
             logMessage(`📍 Snapped vehicle to route within ${minDistance.toFixed(2)} meters.`);
+            return wgs84ToWebMercator(closestPoint); // Convert for Mapbox/Threebox
         } else {
             logMessage("❌ No snow route within 20 feet to snap to.");
+            return wgs84ToWebMercator(vehicleCoord); // Use original if no snap
         }
-
-        return closestPoint;
     }
 
     function loadVehicleData() {
@@ -291,7 +287,7 @@
                         positions: [],
                         markerElement: markerElement,
                         marker: new mapboxgl.Marker({ element: markerElement })
-                            .setLngLat([snappedPoint[0], snappedPoint[1]])
+                            .setLngLat(snappedPoint)
                             .addTo(map),
                         animating: false,
                         lastUpdateUTC: null,
