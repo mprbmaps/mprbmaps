@@ -13,15 +13,16 @@
     <script src="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.min.js"></script>
     <link href="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.css" rel="stylesheet">
 
-    <!-- ArcGIS JavaScript API -->
-    <script src="https://js.arcgis.com/4.27/"></script>
-
     <!-- Turf.js for snapping logic -->
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+    <!-- ArcGIS JavaScript API (Load Last to Avoid Conflicts) -->
+    <script src="https://js.arcgis.com/4.27/" async defer></script>
 
     <style>
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+
         .vehicle-marker {
             width: 30px;
             height: 30px;
@@ -111,49 +112,33 @@
         console.log(`${new Date().toISOString()} - ${msg}`);
     }
 
-    require([
-        "esri/request",
-        "esri/identity/OAuthInfo",
-        "esri/identity/IdentityManager"
-    ], function(_esriRequest, OAuthInfo, IdentityManager) {
-        esriRequest = _esriRequest;
+    // Load ArcGIS API after other libraries are loaded
+    window.onload = function () {
+        require([
+            "esri/request",
+            "esri/identity/OAuthInfo",
+            "esri/identity/IdentityManager"
+        ], function (_esriRequest, OAuthInfo, IdentityManager) {
+            esriRequest = _esriRequest;
 
-        var info = new OAuthInfo({
-            appId: "ti3fi1FqvHE2Hhyw",
-            popup: true
+            var info = new OAuthInfo({
+                appId: "ti3fi1FqvHE2Hhyw",
+                popup: true
+            });
+
+            IdentityManager.registerOAuthInfos([info]);
+
+            IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
+                logMessage("✅ Signed in successfully");
+                initializeMap();
+            }).catch(error => {
+                logMessage("⚠️ Not signed in. Prompting login...");
+                IdentityManager.getCredential(info.portalUrl + "/sharing")
+                    .then(() => initializeMap())
+                    .catch(err => logMessage("❌ ESRI Login Failed: " + err));
+            });
         });
-
-        IdentityManager.registerOAuthInfos([info]);
-
-        IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
-            logMessage("✅ Signed in successfully");
-            initializeMap();
-        }).catch(error => {
-            logMessage("⚠️ Not signed in. Prompting login...");
-            IdentityManager.getCredential(info.portalUrl + "/sharing")
-                .then(() => initializeMap())
-                .catch(err => logMessage("❌ ESRI Login Failed: " + err));
-        });
-    });
-
-    function fetchValidVehicleIds() {
-        logMessage("🔄 Fetching valid vehicle IDs...");
-        return esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Operations_Management_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer/0/query", {
-            query: {
-                where: "1=1",
-                outFields: "vehicleid",
-                returnGeometry: false,
-                f: "json"
-            },
-            responseType: "json"
-        }).then(response => {
-            const features = response.data.features;
-            validVehicleIds = features.map(f => String(f.attributes.vehicleid).trim());
-            logMessage(`✅ Fetched ${validVehicleIds.length} valid vehicle IDs`);
-        }).catch(error => {
-            logMessage("❌ Error fetching valid vehicle IDs: " + error);
-        });
-    }
+    };
 
     function initializeMap() {
         map = new mapboxgl.Map({
@@ -177,6 +162,25 @@
             loadVehicleData();
             setInterval(loadVehicleData, 10000);
             requestAnimationFrame(animateVehicles);
+        });
+    }
+
+    function fetchValidVehicleIds() {
+        logMessage("🔄 Fetching valid vehicle IDs...");
+        return esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/Operations_Management_9d4babee9d65431ebe5027eb4b6ea135/FeatureServer/0/query", {
+            query: {
+                where: "1=1",
+                outFields: "vehicleid",
+                returnGeometry: false,
+                f: "json"
+            },
+            responseType: "json"
+        }).then(response => {
+            const features = response.data.features;
+            validVehicleIds = features.map(f => String(f.attributes.vehicleid).trim());
+            logMessage(`✅ Fetched ${validVehicleIds.length} valid vehicle IDs`);
+        }).catch(error => {
+            logMessage("❌ Error fetching valid vehicle IDs: " + error);
         });
     }
 
@@ -231,6 +235,30 @@
         }
     }
 
+    function startCountdown() {
+        updateCountdownDisplay();
+        countdownInterval = setInterval(() => {
+            timeLeft -= 1000;
+            updateCountdownDisplay();
+            if (timeLeft <= 0) {
+                clearInterval(countdownInterval);
+                endCountdown();
+            }
+        }, 1000);
+    }
+
+    function updateCountdownDisplay() {
+        const minutes = Math.floor(timeLeft / 60000);
+        const seconds = Math.floor((timeLeft % 60000) / 1000);
+        document.getElementById('countdownTimer').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    function endCountdown() {
+        document.getElementById('loadingOverlay').style.display = 'none';
+        document.getElementById('timeoutMessage').style.display = 'block';
+        logMessage("⚠️ Countdown finished. Some vehicles may not have appeared.");
+    }
+
     function loadVehicleData() {
         esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
             query: {
@@ -251,8 +279,8 @@
                 if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
 
                 const coordinates = vehicle.geometry.coordinates;
-
                 const vehicleId = String(vehicle.properties.vehicle_number).trim();
+
                 if (!validVehicleIds.includes(vehicleId)) {
                     logMessage(`⚠️ Vehicle ${vehicleId} is not valid. Skipping.`);
                     return;
@@ -376,30 +404,6 @@
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
         return R * c;
-    }
-
-    function startCountdown() {
-        updateCountdownDisplay();
-        countdownInterval = setInterval(() => {
-            timeLeft -= 1000;
-            updateCountdownDisplay();
-            if (timeLeft <= 0) {
-                clearInterval(countdownInterval);
-                endCountdown();
-            }
-        }, 1000);
-    }
-
-    function updateCountdownDisplay() {
-        const minutes = Math.floor(timeLeft / 60000);
-        const seconds = Math.floor((timeLeft % 60000) / 1000);
-        document.getElementById('countdownTimer').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    }
-
-    function endCountdown() {
-        document.getElementById('loadingOverlay').style.display = 'none';
-        document.getElementById('timeoutMessage').style.display = 'block';
-        logMessage("⚠️ Countdown finished. Some vehicles may not have appeared.");
     }
 </script>
 </body>
