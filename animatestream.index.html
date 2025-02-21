@@ -82,6 +82,7 @@
         mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
         let map, tb;
+        
         let vehicleModels = {};
         let esriRequest;
         let countdownInterval;
@@ -121,7 +122,7 @@
                 IdentityManager.getCredential(info.portalUrl + "/sharing")
                     .then(() => {
                         initializeMap();
-                        
+                       
                         startCountdown();
                     })
                     .catch(err => logMessage("❌ ESRI Login Failed: " + err, true));
@@ -143,10 +144,13 @@
                     tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
                     logMessage("✅ Threebox initialized");
 
-                    
+                    loadStreets();
+                    loadSnowPlowRoutes();
                     loadVehicleData();
                 });
             }
+
+            
 
             function startCountdown() {
                 updateCountdownDisplay();
@@ -204,7 +208,10 @@
                         const coordinates = vehicle.geometry.coordinates;
                         const vehicleId = vehicle.properties.vehicle_number;
 
-                        
+                        if (!validVehicleIds.includes(vehicleId)) {
+                            logMessage(`⚠️ Vehicle ${vehicleId} is not valid. Skipping.`);
+                            return;
+                        }
 
                         const timestamp = new Date(vehicle.properties.updateUTC).getTime();
                         const snappedPoint = snapToLayer(coordinates) || coordinates;
@@ -326,17 +333,7 @@
                 return R * c;
             }
 
-            function snapToLayer(coordinates) {
-                return coordinates; // Replace with snapping logic if needed
-            }
-
-            function loadStreets() {
-                logMessage("✅ Streets layer loaded (placeholder)");
-            }
-
-            function loadSnowPlowRoutes() {
-                logMessage("✅ Snow plow routes loaded (placeholder)");
-            }
+            
 
         });
     }
