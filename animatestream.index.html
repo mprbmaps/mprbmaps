@@ -204,9 +204,13 @@
             },
             responseType: "json"
         }).then(response => {
-            snowRoutes = response.data.features;
-            console.log(`Loaded ${snowRoutes.length} snow routes.`);
-        }).catch(err => console.error("Error loading snow routes: ", err));
+            snowRoutes = response.data.features || [];
+            if (snowRoutes.length === 0) {
+                logMessage("⚠️ No snow routes found. Check layer permissions or data.");
+            } else {
+                logMessage(`✅ Loaded ${snowRoutes.length} snow routes.`);
+            }
+        }).catch(err => console.error("❌ Error loading snow routes: ", err));
     }
 
     function snapToSnowRoute(vehicleCoord) {
@@ -235,23 +239,28 @@
             },
             responseType: "json"
         }).then(response => {
-            const vehicles = response.data.features;
-            if (!vehicles || vehicles.length === 0) {
+            const vehicles = response.data.features || [];
+            if (vehicles.length === 0) {
                 logMessage("⚠️ No vehicles found.");
                 return;
             }
 
             vehicles.forEach(vehicle => {
                 if (!vehicle.geometry || !vehicle.geometry.coordinates) return;
+
                 const coordinates = vehicle.geometry.coordinates;
+                if (isNaN(coordinates[0]) || isNaN(coordinates[1])) {
+                    logMessage("⚠️ Vehicle with invalid coordinates skipped.");
+                    return;
+                }
+
                 const vehicleId = vehicle.properties.vehicle_number;
-                const lastFourDigits = vehicleId.slice(-4);
                 const timestamp = new Date(vehicle.properties.updateUTC).getTime();
 
                 const snappedPoint = snapToSnowRoute(coordinates) || coordinates;
 
                 if (!vehicleModels[vehicleId]) {
-                    let markerElement = createVehicleMarker(lastFourDigits);
+                    let markerElement = createVehicleMarker(vehicleId.slice(-4));
                     markerElement.style.display = 'none';
 
                     vehicleModels[vehicleId] = {
@@ -307,8 +316,12 @@
 
             let startPos = vehicle.positions[0];
             let endPos = vehicle.positions[1];
-            let duration = Math.max(endPos.timestamp - startPos.timestamp, 1000);
+            if (isNaN(startPos.lng) || isNaN(startPos.lat) || isNaN(endPos.lng) || isNaN(endPos.lat)) {
+                logMessage(`⚠️ Skipping vehicle ${vehicleId} due to invalid positions.`);
+                continue;
+            }
 
+            let duration = Math.max(endPos.timestamp - startPos.timestamp, 1000);
             let distance = getDistance(startPos, endPos);
             duration = Math.max(duration, distance * 100);
 
@@ -323,10 +336,14 @@
                 let progress = Math.min(elapsed / duration, 1);
                 let easedProgress = easeInOutCubic(progress);
 
-                vehicle.marker.setLngLat([
-                    startPos.lng + (endPos.lng - startPos.lng) * easedProgress,
-                    startPos.lat + (endPos.lat - startPos.lat) * easedProgress
-                ]);
+                const lng = startPos.lng + (endPos.lng - startPos.lng) * easedProgress;
+                const lat = startPos.lat + (endPos.lat - startPos.lat) * easedProgress;
+
+                if (!isNaN(lng) && !isNaN(lat)) {
+                    vehicle.marker.setLngLat([lng, lat]);
+                } else {
+                    logMessage(`⚠️ Skipping invalid coordinates for vehicle ${vehicleId}`);
+                }
 
                 if (progress < 1) {
                     requestAnimationFrame(step);
