@@ -204,45 +204,54 @@
             },
             responseType: "json"
         }).then(response => {
+            if (!response.data || !response.data.features) {
+                logMessage("❌ No data returned from Snow Routes layer.");
+                return;
+            }
+
             snowRoutes = response.data.features || [];
             if (snowRoutes.length === 0) {
                 logMessage("⚠️ No snow routes found. Check layer permissions or data.");
             } else {
                 logMessage(`✅ Loaded ${snowRoutes.length} snow routes.`);
+                snowRoutes.forEach((route, index) => {
+                    logMessage(`🔹 Route ${index + 1}: ${JSON.stringify(route.geometry)}`);
+                });
             }
         }).catch(err => console.error("❌ Error loading snow routes: ", err));
     }
 
     function snapToSnowRoute(vehicleCoord) {
-    let closestPoint = null;
-    let minDistance = Infinity;
+        let closestPoint = null;
+        let minDistance = Infinity;
 
-    snowRoutes.forEach(route => {
-        // Handles multi-line geometries and single lines
-        const coordsArray = route.geometry.type === 'MultiLineString' ? route.geometry.coordinates : [route.geometry.coordinates];
+        snowRoutes.forEach(route => {
+            if (!route.geometry || !route.geometry.coordinates) return;
 
-        coordsArray.forEach(line => {
-            for (let i = 0; i < line.length; i++) {
-                const coord = line[i];
-                const dist = getDistance(vehicleCoord, coord);
+            const geometryType = route.geometry.type;
+            const coordsArray = geometryType === 'MultiLineString' ? route.geometry.coordinates : [route.geometry.coordinates];
 
-                if (dist < minDistance && dist <= 6.096) { // 20 feet in meters
-                    minDistance = dist;
-                    closestPoint = coord;
+            coordsArray.forEach(line => {
+                for (let i = 0; i < line.length; i++) {
+                    const coord = line[i];
+                    const dist = getDistance(vehicleCoord, coord);
+
+                    if (dist < minDistance && dist <= 6.096) { // 20 feet in meters
+                        minDistance = dist;
+                        closestPoint = coord;
+                    }
                 }
-            }
+            });
         });
-    });
 
-    if (closestPoint) {
-        logMessage(`📍 Snapped vehicle to route within ${minDistance.toFixed(2)} meters.`);
-    } else {
-        logMessage("❌ No snow route within 20 feet to snap to.");
+        if (closestPoint) {
+            logMessage(`📍 Snapped vehicle to route within ${minDistance.toFixed(2)} meters.`);
+        } else {
+            logMessage("❌ No snow route within 20 feet to snap to.");
+        }
+
+        return closestPoint;
     }
-
-    return closestPoint;
-}
-
 
     function loadVehicleData() {
         esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/MPRBvehicleStream/FeatureServer/0/query", {
