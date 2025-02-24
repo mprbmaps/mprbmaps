@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Accurate Animation Timing with `updateUTC`)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Buffered Network-Based Animation)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -51,8 +51,9 @@
         let map, tb;
         let vehicleModels = {};
         let esriRequest;
-        const REFRESH_INTERVAL = 3000; // 3 seconds
-        const POSITION_BUFFER = 30; // Require 30 records per vehicle
+        const REFRESH_INTERVAL = 3000;
+        const POSITION_BUFFER = 30;
+        const BUFFER_THRESHOLD = 5; // Minimum number of buffered points before resuming animation
         let firstVehicleCentered = false;
 
         function logMessage(msg, isError = false) {
@@ -121,9 +122,9 @@
                     query: {
                         where: "1=1",
                         outFields: "objectid,directionDegrees,vehicle_number,speedKmph,longitude,latitude,updateUTC",
-                        orderByFields: "vehicle_number DESC, updateUTC DESC", // Sort by vehicle_number DESC
+                        orderByFields: "vehicle_number DESC, updateUTC DESC",
                         returnGeometry: true,
-                        resultRecordCount: 1000, // Fetch up to 1000 records
+                        resultRecordCount: 1000,
                         f: "geojson"
                     },
                     responseType: "json"
@@ -150,12 +151,11 @@
                                 animating: false
                             };
 
-                            markerElement.style.display = 'none'; // Hide until 30 positions are loaded
+                            markerElement.style.display = 'none';
                         }
 
                         const vehicleData = vehicleModels[vehicleId];
 
-                        // Add new positions if they are newer than the last animated timestamp
                         if (!vehicleData.positions.some(pos => pos.timestamp === updateUTC) && updateUTC > vehicleData.lastAnimatedTimestamp) {
                             vehicleData.positions.push({
                                 lng: vehicle.geometry.coordinates[0],
@@ -163,29 +163,25 @@
                                 timestamp: updateUTC
                             });
 
-                            // Sort positions by timestamp
                             vehicleData.positions.sort((a, b) => a.timestamp - b.timestamp);
 
                             if (vehicleData.positions.length > POSITION_BUFFER) {
-                                vehicleData.positions = vehicleData.positions.slice(-POSITION_BUFFER); // Keep the last 30 positions
+                                vehicleData.positions = vehicleData.positions.slice(-POSITION_BUFFER);
                             }
 
                             logMessage(`🚚 Vehicle ${vehicleId} has ${vehicleData.positions.length} positions.`);
 
-                            if (vehicleData.positions.length >= POSITION_BUFFER) {
+                            if (vehicleData.positions.length >= BUFFER_THRESHOLD && !vehicleData.animating) {
                                 vehicleData.markerElement.style.display = 'block';
+                                getRouteAndAnimate(vehicleData);
+                            }
 
-                                if (!vehicleData.animating) {
-                                    getRouteAndAnimate(vehicleData);
-                                }
-
-                                if (!firstVehicleCentered) {
-                                    map.flyTo({
-                                        center: [vehicle.geometry.coordinates[0], vehicle.geometry.coordinates[1]],
-                                        zoom: 14
-                                    });
-                                    firstVehicleCentered = true;
-                                }
+                            if (!firstVehicleCentered) {
+                                map.flyTo({
+                                    center: [vehicle.geometry.coordinates[0], vehicle.geometry.coordinates[1]],
+                                    zoom: 14
+                                });
+                                firstVehicleCentered = true;
                             }
                         }
                     });
@@ -219,35 +215,67 @@
 
                     const start = vehicle.positions[index];
                     const end = vehicle.positions[index + 1];
-                    const duration = Math.max(end.timestamp - start.timestamp, 500); // Minimum 500ms
 
-                    vehicle.lastAnimatedTimestamp = end.timestamp;
+                    const routeUrl = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.lng},${start.lat};${end.lng},${end.lat}?geometries=geojson&access_token=${mapboxgl.accessToken}`;
 
-                    const startTime = performance.now();
+                    fetch(routeUrl)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (!data.routes || data.routes.length === 0) {
+                                throw new Error("No routes found in API response.");
+                            }
 
-                    function animateStep() {
-                        const elapsed = performance.now() - startTime;
-                        const progress = Math.min(elapsed / duration, 1);
-                        const easedProgress = easeInOutCubic(progress);
+                            const route = data.routes[0].geometry.coordinates;
+                            animateAlongRoute(vehicle, route, start.timestamp, end.timestamp, () => {
+                                vehicle.lastAnimatedTimestamp = end.timestamp;
+                                index++;
 
-                        const lng = start.lng + (end.lng - start.lng) * easedProgress;
-                        const lat = start.lat + (end.lat - start.lat) * easedProgress;
-
-                        vehicle.marker.setLngLat([lng, lat]);
-
-                        if (progress < 1) {
-                            requestAnimationFrame(animateStep);
-                        } else {
-                            index++;
-                            animateNextSegment();
-                        }
-                    }
-
-                    animateStep();
+                                // Pause if buffer drops below threshold
+                                if (vehicle.positions.length - index < BUFFER_THRESHOLD) {
+                                    logMessage(`⏸️ Buffer low for Vehicle ${vehicle.vehicle_number}, pausing animation.`);
+                                    vehicle.animating = false;
+                                } else {
+                                    animateNextSegment();
+                                }
+                            });
+                        })
+                        .catch(error => logMessage("❌ Error fetching route: " + error, true));
                 }
 
                 vehicle.animating = true;
                 animateNextSegment();
+            }
+
+            function animateAlongRoute(vehicle, route, startTimestamp, endTimestamp, callback) {
+                if (!route || route.length < 2) {
+                    logMessage("⚠️ No valid route path for animation.", true);
+                    callback();
+                    return;
+                }
+
+                const duration = Math.max(endTimestamp - startTimestamp, 500);
+                const startTime = performance.now();
+
+                let routeIndex = 0;
+
+                function step() {
+                    const elapsed = performance.now() - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const easedProgress = easeInOutCubic(progress);
+
+                    const currentIndex = Math.floor(easedProgress * (route.length - 1));
+                    const coords = route[currentIndex];
+
+                    vehicle.marker.setLngLat(coords);
+
+                    if (progress < 1) {
+                        requestAnimationFrame(step);
+                    } else {
+                        callback();
+                    }
+                }
+
+                step();
             }
 
             function easeInOutCubic(t) {
