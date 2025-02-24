@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Continuous Network-Based Animation)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Fixed Continuous Animation)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -143,7 +143,7 @@
                             let markerElement = createVehicleMarker(vehicleId.slice(-4));
                             vehicleModels[vehicleId] = {
                                 positions: [],
-                                lastAnimatedIndex: 0,
+                                currentPositionIndex: 0,
                                 markerElement: markerElement,
                                 marker: new mapboxgl.Marker({ element: markerElement })
                                     .setLngLat([vehicle.geometry.coordinates[0], vehicle.geometry.coordinates[1]])
@@ -171,7 +171,7 @@
 
                             logMessage(`🚚 Vehicle ${vehicleId} has ${vehicleData.positions.length} positions.`);
 
-                            if (vehicleData.positions.length === POSITION_BUFFER && !vehicleData.animating) {
+                            if (vehicleData.positions.length >= POSITION_BUFFER && !vehicleData.animating) {
                                 vehicleData.markerElement.style.display = 'block';
                                 animateBetweenPositions(vehicleData);
                             }
@@ -206,13 +206,15 @@
                 if (vehicle.animating) return;
 
                 const positions = vehicle.positions;
+                if (positions.length < 2) return;
 
-                if (positions.length < 6) return;
-
-                const startIndex = vehicle.lastAnimatedIndex;
+                const startIndex = vehicle.currentPositionIndex;
                 const endIndex = startIndex + 1;
 
-                if (endIndex >= positions.length) return; // No more positions to animate
+                if (endIndex >= positions.length) {
+                    vehicle.animating = false;
+                    return; // No more positions to animate
+                }
 
                 const start = positions[startIndex];
                 const end = positions[endIndex];
@@ -224,10 +226,9 @@
                     }
 
                     animateAlongRoute(vehicle, route, start.timestamp, end.timestamp, () => {
-                        vehicle.lastAnimatedIndex = endIndex;
-                        if (vehicle.lastAnimatedIndex < positions.length - 1) {
-                            animateBetweenPositions(vehicle); // Continue animating to the next position
-                        }
+                        vehicle.currentPositionIndex = endIndex;
+                        vehicle.animating = false;
+                        animateBetweenPositions(vehicle); // Continue animating
                     });
                 });
             }
@@ -268,8 +269,6 @@
                 const duration = Math.max(endTimestamp - startTimestamp, 500);
                 const startTime = performance.now();
 
-                let routeIndex = 0;
-
                 function step() {
                     const elapsed = performance.now() - startTime;
                     const progress = Math.min(elapsed / duration, 1);
@@ -287,6 +286,7 @@
                     }
                 }
 
+                vehicle.animating = true;
                 step();
             }
 
