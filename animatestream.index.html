@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Fix for Missing Dots)</title>
+    <title>Mapbox + Threebox 3D Vehicles (30 Records Accumulation Fix)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -52,7 +52,7 @@
         let vehicleModels = {};
         let esriRequest;
         const REFRESH_INTERVAL = 3000; // 3 seconds
-        const POSITION_BUFFER = 30; // Need 30 positions before showing vehicle
+        const POSITION_BUFFER = 30; // Require 30 records per vehicle
         let firstVehicleCentered = false;
 
         function logMessage(msg, isError = false) {
@@ -121,9 +121,9 @@
                     query: {
                         where: "1=1",
                         outFields: "objectid,directionDegrees,vehicle_number,speedKmph,longitude,latitude,updateUTC",
-                        orderByFields: "updateUTC DESC",
+                        orderByFields: "vehicle_number DESC, updateUTC DESC", // Sort by vehicle_number descending
                         returnGeometry: true,
-                        resultRecordCount: 1000, // Increase fetch limit to ensure more positions
+                        resultRecordCount: 1000, // Increase fetch limit
                         f: "geojson"
                     },
                     responseType: "json"
@@ -164,10 +164,10 @@
                             vehicleData.lastUpdateUTC = updateUTC;
 
                             if (vehicleData.positions.length > POSITION_BUFFER) {
-                                vehicleData.positions.shift();
+                                vehicleData.positions.shift(); // Maintain buffer size
                             }
 
-                            logMessage(`🚚 Vehicle ${vehicleId} now has ${vehicleData.positions.length} positions.`);
+                            logMessage(`🚚 Vehicle ${vehicleId} has ${vehicleData.positions.length} positions.`);
 
                             if (vehicleData.positions.length >= POSITION_BUFFER) {
                                 vehicleData.markerElement.style.display = 'block';
