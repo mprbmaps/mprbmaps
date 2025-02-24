@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Smoothed Continuous Animation)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Final Continuous Animation Fix)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -144,6 +144,7 @@
                             vehicleModels[vehicleId] = {
                                 positions: [],
                                 currentPositionIndex: 0,
+                                lastUpdateUTC: 0,
                                 markerElement: markerElement,
                                 marker: new mapboxgl.Marker({ element: markerElement })
                                     .setLngLat([vehicle.geometry.coordinates[0], vehicle.geometry.coordinates[1]])
@@ -156,7 +157,8 @@
 
                         const vehicleData = vehicleModels[vehicleId];
 
-                        if (!vehicleData.positions.some(pos => pos.timestamp === updateUTC)) {
+                        // Only append new positions (no overwrites)
+                        if (updateUTC > vehicleData.lastUpdateUTC) {
                             vehicleData.positions.push({
                                 lng: vehicle.geometry.coordinates[0],
                                 lat: vehicle.geometry.coordinates[1],
@@ -164,6 +166,7 @@
                             });
 
                             vehicleData.positions.sort((a, b) => a.timestamp - b.timestamp);
+                            vehicleData.lastUpdateUTC = updateUTC;
 
                             if (vehicleData.positions.length > POSITION_BUFFER) {
                                 vehicleData.positions = vehicleData.positions.slice(-POSITION_BUFFER);
@@ -171,7 +174,7 @@
 
                             logMessage(`🚚 Vehicle ${vehicleId} has ${vehicleData.positions.length} positions.`);
 
-                            if (vehicleData.positions.length >= POSITION_BUFFER && !vehicleData.animating) {
+                            if (vehicleData.positions.length >= 2 && !vehicleData.animating) {
                                 vehicleData.markerElement.style.display = 'block';
                                 animateBetweenPositions(vehicleData);
                             }
@@ -213,56 +216,21 @@
 
                 if (endIndex >= positions.length) {
                     vehicle.animating = false;
-                    return;
+                    return; // Wait for more data
                 }
 
                 const start = positions[startIndex];
                 const end = positions[endIndex];
 
-                queryStreetsForRoute(start, end).then(route => {
-                    if (!route || route.length < 2) {
-                        logMessage("⚠️ No valid street route found, defaulting to direct path.");
-                        route = [start, end];
-                    }
-
-                    animateAlongRoute(vehicle, route, start.timestamp, end.timestamp, () => {
-                        vehicle.currentPositionIndex = endIndex;
-                        vehicle.animating = false;
-                        animateBetweenPositions(vehicle);
-                    });
-                });
-            }
-
-            function queryStreetsForRoute(start, end) {
-                return new Promise((resolve) => {
-                    esriRequest(STREET_LAYER_URL + "/query", {
-                        query: {
-                            where: "1=1",
-                            geometry: `${start.lng},${start.lat}`,
-                            geometryType: "esriGeometryPoint",
-                            spatialRel: "esriSpatialRelIntersects",
-                            outFields: "*",
-                            returnGeometry: true,
-                            distance: 50,
-                            units: "esriSRUnit_Meter",
-                            f: "json"
-                        },
-                        responseType: "json"
-                    }).then(response => {
-                        const streets = response.data.features;
-                        if (!streets || streets.length === 0) {
-                            resolve(null);
-                            return;
-                        }
-
-                        const closestStreet = streets[0].geometry.paths[0];
-                        resolve(closestStreet);
-                    }).catch(() => resolve(null));
+                animateAlongRoute(vehicle, [start, end], start.timestamp, end.timestamp, () => {
+                    vehicle.currentPositionIndex = endIndex;
+                    vehicle.animating = false;
+                    animateBetweenPositions(vehicle);
                 });
             }
 
             function animateAlongRoute(vehicle, route, startTimestamp, endTimestamp, callback) {
-                const duration = Math.max(endTimestamp - startTimestamp, 500);
+                const duration = Math.max(endTimestamp - startTimestamp, 500); // Ensure minimum duration
                 const startTime = performance.now();
 
                 function step() {
@@ -270,10 +238,10 @@
                     const progress = Math.min(elapsed / duration, 1);
                     const easedProgress = easeInOutCubic(progress);
 
-                    const currentIndex = Math.floor(easedProgress * (route.length - 1));
-                    const coords = route[currentIndex];
+                    const lng = route[0].lng + (route[1].lng - route[0].lng) * easedProgress;
+                    const lat = route[0].lat + (route[1].lat - route[0].lat) * easedProgress;
 
-                    vehicle.marker.setLngLat(coords);
+                    vehicle.marker.setLngLat([lng, lat]);
 
                     if (progress < 1) {
                         requestAnimationFrame(step);
