@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (With Live Updates)</title>
+    <title>Mapbox + Threebox 3D Vehicles (With Street Network Animation)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -162,7 +162,6 @@
 
                         const vehicleData = vehicleModels[vehicleId];
 
-                        // Only add new positions if they are newer
                         if (updateUTC > vehicleData.lastUpdateUTC) {
                             vehicleData.positions.push({
                                 lng: vehicle.geometry.coordinates[0],
@@ -172,7 +171,7 @@
                             vehicleData.lastUpdateUTC = updateUTC;
 
                             if (!vehicleData.animating) {
-                                animateVehicle(vehicleData);
+                                getRouteAndAnimate(vehicleData);
                             }
                         }
                     });
@@ -193,40 +192,62 @@
                 return markerDiv;
             }
 
-            function animateVehicle(vehicle) {
+            function getRouteAndAnimate(vehicle) {
                 if (vehicle.positions.length < 2) return;
 
-                vehicle.animating = true;
+                const start = vehicle.positions[vehicle.positions.length - 2];
+                const end = vehicle.positions[vehicle.positions.length - 1];
 
-                let currentIndex = 0;
+                const routeUrl = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.lng},${start.lat};${end.lng},${end.lat}?geometries=geojson&access_token=${mapboxgl.accessToken}`;
+
+                fetch(routeUrl)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.routes || data.routes.length === 0) {
+                            throw new Error("No routes found in API response.");
+                        }
+
+                        const route = data.routes[0].geometry.coordinates;
+
+                        animateAlongRoute(vehicle, route);
+                    })
+                    .catch(error => logMessage("❌ Error fetching route: " + error, true));
+            }
+
+            function animateAlongRoute(vehicle, route) {
+                if (!route || route.length < 2) {
+                    logMessage("⚠️ No valid route path for animation.", true);
+                    return;
+                }
+
+                vehicle.animating = true;
+                let routeIndex = 0;
 
                 function step() {
-                    if (currentIndex >= vehicle.positions.length - 1) {
+                    if (routeIndex >= route.length - 1) {
                         vehicle.animating = false;
                         return;
                     }
 
-                    let start = vehicle.positions[currentIndex];
-                    let end = vehicle.positions[currentIndex + 1];
-                    let duration = end.timestamp - start.timestamp;
-                    if (duration <= 0) duration = 1000;
-
-                    let startTime = performance.now();
+                    const start = route[routeIndex];
+                    const end = route[routeIndex + 1];
+                    const duration = 1000; // 1 second between each route segment
+                    const startTime = performance.now();
 
                     function animateStep() {
-                        let elapsed = performance.now() - startTime;
-                        let progress = Math.min(elapsed / duration, 1);
-                        let easedProgress = easeInOutCubic(progress);
+                        const elapsed = performance.now() - startTime;
+                        const progress = Math.min(elapsed / duration, 1);
+                        const easedProgress = easeInOutCubic(progress);
 
-                        let lng = start.lng + (end.lng - start.lng) * easedProgress;
-                        let lat = start.lat + (end.lat - start.lat) * easedProgress;
+                        const lng = start[0] + (end[0] - start[0]) * easedProgress;
+                        const lat = start[1] + (end[1] - start[1]) * easedProgress;
 
                         vehicle.marker.setLngLat([lng, lat]);
 
                         if (progress < 1) {
                             requestAnimationFrame(animateStep);
                         } else {
-                            currentIndex++;
+                            routeIndex++;
                             requestAnimationFrame(step);
                         }
                     }
