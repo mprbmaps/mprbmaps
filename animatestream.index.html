@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (20-Position Buffer)</title>
+    <title>Mapbox + Threebox 3D Vehicles (20-Position Buffer & Continuous Updates)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -107,7 +107,7 @@
                     tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
                     logMessage("✅ Threebox initialized");
                     loadVehicleData();
-                    setInterval(loadVehicleData, REFRESH_INTERVAL);
+                    setInterval(loadVehicleData, REFRESH_INTERVAL); // Continuous fetching
                 });
             }
 
@@ -171,7 +171,7 @@
                                 vehicleData.positions = vehicleData.positions.slice(-POSITION_BUFFER);
                             }
 
-                            logMessage(`🚚 Vehicle ${vehicleId} has ${vehicleData.positions.length} positions.`);
+                            logMessage(`🚚 Vehicle ${vehicleId} now has ${vehicleData.positions.length} positions.`);
 
                             if (!vehicleData.animating && vehicleData.positions.length >= 20) {
                                 vehicleData.markerElement.style.display = 'block';
@@ -224,9 +224,12 @@
                     const totalDuration = (end.timestamp - start.timestamp) || 10000; // Use timestamp diff or default
                     animateAlongRoute(vehicle, route, totalDuration, () => {
                         vehicle.animating = false;
-                        // On completion, fetch fresh data for next cycle
+                        logMessage(`✅ Vehicle ${vehicle.markerElement.innerText} completed animation.`);
+                        // Trigger next animation cycle after completion
                         loadVehicleData();
                     });
+                }).catch(error => {
+                    logMessage(`❌ Error during route animation: ${error}`, true);
                 });
             }
 
@@ -254,7 +257,10 @@
 
                         const closestStreet = streets[0].geometry.paths[0];
                         resolve(closestStreet);
-                    }).catch(() => resolve(null));
+                    }).catch(error => {
+                        logMessage(`❌ Street route query failed: ${error}`, true);
+                        resolve(null);
+                    });
                 });
             }
 
