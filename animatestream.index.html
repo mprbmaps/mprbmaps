@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Smoothed Continuous Animation)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Street Network Animation)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -222,31 +222,71 @@
                 const start = positions[startIndex];
                 const end = positions[endIndex];
 
-                const duration = Math.max(end.timestamp - start.timestamp, 1000); // Smooth based on time
+                queryStreetsForRoute(start, end).then(route => {
+                    if (!route || route.length < 2) {
+                        logMessage("⚠️ No valid street route found, defaulting to direct path.");
+                        route = [start, end];
+                    }
 
-                let startTime = performance.now();
-                vehicle.animating = true;
+                    animateAlongRoute(vehicle, route, start.timestamp, end.timestamp, () => {
+                        vehicle.currentPositionIndex = endIndex;
+                        vehicle.animating = false;
+                        animateBetweenPositions(vehicle); // Continue to next
+                    });
+                });
+            }
+
+            function queryStreetsForRoute(start, end) {
+                return new Promise((resolve) => {
+                    esriRequest(STREET_LAYER_URL + "/query", {
+                        query: {
+                            where: "1=1",
+                            geometry: `${start.lng},${start.lat}`,
+                            geometryType: "esriGeometryPoint",
+                            spatialRel: "esriSpatialRelIntersects",
+                            outFields: "*",
+                            returnGeometry: true,
+                            distance: 50,
+                            units: "esriSRUnit_Meter",
+                            f: "json"
+                        },
+                        responseType: "json"
+                    }).then(response => {
+                        const streets = response.data.features;
+                        if (!streets || streets.length === 0) {
+                            resolve(null);
+                            return;
+                        }
+
+                        const closestStreet = streets[0].geometry.paths[0];
+                        resolve(closestStreet);
+                    }).catch(() => resolve(null));
+                });
+            }
+
+            function animateAlongRoute(vehicle, route, startTimestamp, endTimestamp, callback) {
+                const duration = Math.max(endTimestamp - startTimestamp, 1000);
+                const startTime = performance.now();
 
                 function step() {
-                    let elapsed = performance.now() - startTime;
-                    let progress = Math.min(elapsed / duration, 1);
-                    let easedProgress = easeInOutCubic(progress);
+                    const elapsed = performance.now() - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const easedProgress = easeInOutCubic(progress);
 
-                    let lng = start.lng + (end.lng - start.lng) * easedProgress;
-                    let lat = start.lat + (end.lat - start.lat) * easedProgress;
+                    const currentIndex = Math.floor(easedProgress * (route.length - 1));
+                    const coords = route[currentIndex];
 
-                    vehicle.marker.setLngLat([lng, lat]);
+                    vehicle.marker.setLngLat(coords);
 
                     if (progress < 1) {
                         requestAnimationFrame(step);
                     } else {
-                        vehicle.currentPositionIndex = endIndex;
-                        vehicle.animating = false;
-                        animateBetweenPositions(vehicle); // Continue to next
+                        callback();
                     }
                 }
 
-                requestAnimationFrame(step);
+                vehicle.animating = true;
+                step();
             }
 
             function easeInOutCubic(t) {
