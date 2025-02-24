@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (30 Records Accumulation Fix)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Fixed Accumulation for 30 Positions)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -121,9 +121,9 @@
                     query: {
                         where: "1=1",
                         outFields: "objectid,directionDegrees,vehicle_number,speedKmph,longitude,latitude,updateUTC",
-                        orderByFields: "vehicle_number DESC, updateUTC DESC", // Sort by vehicle_number descending
+                        orderByFields: "vehicle_number DESC, updateUTC DESC", // Sort by vehicle_number DESC
                         returnGeometry: true,
-                        resultRecordCount: 1000, // Increase fetch limit
+                        resultRecordCount: 1000, // Fetch up to 1000 records
                         f: "geojson"
                     },
                     responseType: "json"
@@ -155,16 +155,19 @@
 
                         const vehicleData = vehicleModels[vehicleId];
 
-                        if (updateUTC > vehicleData.lastUpdateUTC) {
+                        // Add new positions if they are newer
+                        if (!vehicleData.positions.some(pos => pos.timestamp === updateUTC)) {
                             vehicleData.positions.push({
                                 lng: vehicle.geometry.coordinates[0],
                                 lat: vehicle.geometry.coordinates[1],
                                 timestamp: updateUTC
                             });
-                            vehicleData.lastUpdateUTC = updateUTC;
+
+                            // Sort positions by timestamp
+                            vehicleData.positions.sort((a, b) => a.timestamp - b.timestamp);
 
                             if (vehicleData.positions.length > POSITION_BUFFER) {
-                                vehicleData.positions.shift(); // Maintain buffer size
+                                vehicleData.positions = vehicleData.positions.slice(-POSITION_BUFFER); // Keep the last 30 positions
                             }
 
                             logMessage(`🚚 Vehicle ${vehicleId} has ${vehicleData.positions.length} positions.`);
