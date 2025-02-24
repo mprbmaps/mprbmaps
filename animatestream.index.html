@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Buffered Network-Based Animation)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Last 6 Locations Animation)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -52,8 +52,7 @@
         let vehicleModels = {};
         let esriRequest;
         const REFRESH_INTERVAL = 3000;
-        const POSITION_BUFFER = 30;
-        const BUFFER_THRESHOLD = 5; // Minimum number of buffered points before resuming animation
+        const POSITION_BUFFER = 6;
         let firstVehicleCentered = false;
 
         function logMessage(msg, isError = false) {
@@ -156,7 +155,7 @@
 
                         const vehicleData = vehicleModels[vehicleId];
 
-                        if (!vehicleData.positions.some(pos => pos.timestamp === updateUTC) && updateUTC > vehicleData.lastAnimatedTimestamp) {
+                        if (!vehicleData.positions.some(pos => pos.timestamp === updateUTC)) {
                             vehicleData.positions.push({
                                 lng: vehicle.geometry.coordinates[0],
                                 lat: vehicle.geometry.coordinates[1],
@@ -171,9 +170,9 @@
 
                             logMessage(`🚚 Vehicle ${vehicleId} has ${vehicleData.positions.length} positions.`);
 
-                            if (vehicleData.positions.length >= BUFFER_THRESHOLD && !vehicleData.animating) {
+                            if (vehicleData.positions.length === POSITION_BUFFER && !vehicleData.animating) {
                                 vehicleData.markerElement.style.display = 'block';
-                                getRouteAndAnimate(vehicleData);
+                                animateBetweenPositions(vehicleData);
                             }
 
                             if (!firstVehicleCentered) {
@@ -202,79 +201,36 @@
                 return markerDiv;
             }
 
-            async function getRouteAndAnimate(vehicle) {
-                if (vehicle.positions.length < 2) return;
+            function animateBetweenPositions(vehicle) {
+                const positions = vehicle.positions;
 
-                let index = 0;
+                if (positions.length < 6) return;
 
-                function animateNextSegment() {
-                    if (index >= vehicle.positions.length - 1) {
-                        vehicle.animating = false;
-                        return;
-                    }
+                const start = positions[positions.length - 6]; // 6th most recent
+                const end = positions[positions.length - 5];   // 5th most recent
 
-                    const start = vehicle.positions[index];
-                    const end = vehicle.positions[index + 1];
+                const duration = Math.max(end.timestamp - start.timestamp, 500); // Ensure min duration
 
-                    const routeUrl = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.lng},${start.lat};${end.lng},${end.lat}?geometries=geojson&access_token=${mapboxgl.accessToken}`;
-
-                    fetch(routeUrl)
-                        .then(response => response.json())
-                        .then(data => {
-                            if (!data.routes || data.routes.length === 0) {
-                                throw new Error("No routes found in API response.");
-                            }
-
-                            const route = data.routes[0].geometry.coordinates;
-                            animateAlongRoute(vehicle, route, start.timestamp, end.timestamp, () => {
-                                vehicle.lastAnimatedTimestamp = end.timestamp;
-                                index++;
-
-                                // Pause if buffer drops below threshold
-                                if (vehicle.positions.length - index < BUFFER_THRESHOLD) {
-                                    logMessage(`⏸️ Buffer low for Vehicle ${vehicle.vehicle_number}, pausing animation.`);
-                                    vehicle.animating = false;
-                                } else {
-                                    animateNextSegment();
-                                }
-                            });
-                        })
-                        .catch(error => logMessage("❌ Error fetching route: " + error, true));
-                }
-
-                vehicle.animating = true;
-                animateNextSegment();
-            }
-
-            function animateAlongRoute(vehicle, route, startTimestamp, endTimestamp, callback) {
-                if (!route || route.length < 2) {
-                    logMessage("⚠️ No valid route path for animation.", true);
-                    callback();
-                    return;
-                }
-
-                const duration = Math.max(endTimestamp - startTimestamp, 500);
                 const startTime = performance.now();
-
-                let routeIndex = 0;
 
                 function step() {
                     const elapsed = performance.now() - startTime;
                     const progress = Math.min(elapsed / duration, 1);
                     const easedProgress = easeInOutCubic(progress);
 
-                    const currentIndex = Math.floor(easedProgress * (route.length - 1));
-                    const coords = route[currentIndex];
+                    const lng = start.lng + (end.lng - start.lng) * easedProgress;
+                    const lat = start.lat + (end.lat - start.lat) * easedProgress;
 
-                    vehicle.marker.setLngLat(coords);
+                    vehicle.marker.setLngLat([lng, lat]);
 
                     if (progress < 1) {
                         requestAnimationFrame(step);
                     } else {
-                        callback();
+                        logMessage(`✅ Vehicle ${vehicle.vehicle_number} moved to next position.`);
                     }
                 }
 
+                vehicle.animating = true;
                 step();
             }
 
