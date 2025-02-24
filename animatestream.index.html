@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Street Network Animation)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Enhanced Street-Following Animation)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -273,10 +273,19 @@
                     const progress = Math.min(elapsed / duration, 1);
                     const easedProgress = easeInOutCubic(progress);
 
-                    const currentIndex = Math.floor(easedProgress * (route.length - 1));
-                    const coords = route[currentIndex];
+                    // Interpolate smoothly along the route
+                    const interpolatedIndex = easedProgress * (route.length - 1);
+                    const lowerIndex = Math.floor(interpolatedIndex);
+                    const upperIndex = Math.min(lowerIndex + 1, route.length - 1);
+                    const segmentProgress = interpolatedIndex - lowerIndex;
 
-                    vehicle.marker.setLngLat(coords);
+                    const startCoord = route[lowerIndex];
+                    const endCoord = route[upperIndex];
+
+                    const lng = startCoord[0] + (endCoord[0] - startCoord[0]) * segmentProgress;
+                    const lat = startCoord[1] + (endCoord[1] - startCoord[1]) * segmentProgress;
+
+                    vehicle.marker.setLngLat([lng, lat]);
 
                     if (progress < 1) {
                         requestAnimationFrame(step);
