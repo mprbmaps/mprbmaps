@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Lightweight Network-Based Animation)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Continuous Network-Based Animation)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -143,7 +143,7 @@
                             let markerElement = createVehicleMarker(vehicleId.slice(-4));
                             vehicleModels[vehicleId] = {
                                 positions: [],
-                                lastAnimatedTimestamp: 0,
+                                lastAnimatedIndex: 0,
                                 markerElement: markerElement,
                                 marker: new mapboxgl.Marker({ element: markerElement })
                                     .setLngLat([vehicle.geometry.coordinates[0], vehicle.geometry.coordinates[1]])
@@ -203,12 +203,19 @@
             }
 
             function animateBetweenPositions(vehicle) {
+                if (vehicle.animating) return;
+
                 const positions = vehicle.positions;
 
                 if (positions.length < 6) return;
 
-                const start = positions[positions.length - 6];
-                const end = positions[positions.length - 5];
+                const startIndex = vehicle.lastAnimatedIndex;
+                const endIndex = startIndex + 1;
+
+                if (endIndex >= positions.length) return; // No more positions to animate
+
+                const start = positions[startIndex];
+                const end = positions[endIndex];
 
                 queryStreetsForRoute(start, end).then(route => {
                     if (!route || route.length < 2) {
@@ -216,7 +223,12 @@
                         route = [start, end];
                     }
 
-                    animateAlongRoute(vehicle, route, start.timestamp, end.timestamp);
+                    animateAlongRoute(vehicle, route, start.timestamp, end.timestamp, () => {
+                        vehicle.lastAnimatedIndex = endIndex;
+                        if (vehicle.lastAnimatedIndex < positions.length - 1) {
+                            animateBetweenPositions(vehicle); // Continue animating to the next position
+                        }
+                    });
                 });
             }
 
@@ -230,7 +242,7 @@
                             spatialRel: "esriSpatialRelIntersects",
                             outFields: "*",
                             returnGeometry: true,
-                            distance: 50, // 50-meter search radius
+                            distance: 50,
                             units: "esriSRUnit_Meter",
                             f: "json"
                         },
@@ -252,7 +264,7 @@
                 });
             }
 
-            function animateAlongRoute(vehicle, route, startTimestamp, endTimestamp) {
+            function animateAlongRoute(vehicle, route, startTimestamp, endTimestamp, callback) {
                 const duration = Math.max(endTimestamp - startTimestamp, 500);
                 const startTime = performance.now();
 
@@ -271,7 +283,7 @@
                     if (progress < 1) {
                         requestAnimationFrame(step);
                     } else {
-                        logMessage(`✅ Vehicle animation completed.`);
+                        callback();
                     }
                 }
 
