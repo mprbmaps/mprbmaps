@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (With Street Network Animation)</title>
+    <title>Mapbox + Threebox 3D Vehicles (With Extended Position Buffer)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -51,8 +51,8 @@
         let map, tb;
         let vehicleModels = {};
         let esriRequest;
-        const POINTS_BUFFER = 6;
-        const REFRESH_INTERVAL = 5000; // 5 seconds refresh interval
+        const REFRESH_INTERVAL = 3000; // 3 seconds for smoother updates
+        const POSITION_BUFFER = 30; // Increased to 30 positions
         let firstVehicleCentered = false;
 
         function logMessage(msg, isError = false) {
@@ -149,15 +149,7 @@
                                 animating: false
                             };
 
-                            markerElement.style.display = 'block';
-
-                            if (!firstVehicleCentered) {
-                                map.flyTo({
-                                    center: [vehicle.geometry.coordinates[0], vehicle.geometry.coordinates[1]],
-                                    zoom: 14
-                                });
-                                firstVehicleCentered = true;
-                            }
+                            markerElement.style.display = 'none'; // Hide until 30 positions are loaded
                         }
 
                         const vehicleData = vehicleModels[vehicleId];
@@ -170,8 +162,25 @@
                             });
                             vehicleData.lastUpdateUTC = updateUTC;
 
-                            if (!vehicleData.animating) {
-                                getRouteAndAnimate(vehicleData);
+                            if (vehicleData.positions.length > POSITION_BUFFER) {
+                                vehicleData.positions.shift(); // Keep buffer size in check
+                            }
+
+                            // Show marker only if 30 positions are loaded
+                            if (vehicleData.positions.length >= POSITION_BUFFER) {
+                                vehicleData.markerElement.style.display = 'block';
+
+                                if (!vehicleData.animating) {
+                                    getRouteAndAnimate(vehicleData);
+                                }
+
+                                if (!firstVehicleCentered) {
+                                    map.flyTo({
+                                        center: [vehicle.geometry.coordinates[0], vehicle.geometry.coordinates[1]],
+                                        zoom: 14
+                                    });
+                                    firstVehicleCentered = true;
+                                }
                             }
                         }
                     });
@@ -192,7 +201,7 @@
                 return markerDiv;
             }
 
-            function getRouteAndAnimate(vehicle) {
+            async function getRouteAndAnimate(vehicle) {
                 if (vehicle.positions.length < 2) return;
 
                 const start = vehicle.positions[vehicle.positions.length - 2];
@@ -200,18 +209,19 @@
 
                 const routeUrl = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.lng},${start.lat};${end.lng},${end.lat}?geometries=geojson&access_token=${mapboxgl.accessToken}`;
 
-                fetch(routeUrl)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (!data.routes || data.routes.length === 0) {
-                            throw new Error("No routes found in API response.");
-                        }
+                try {
+                    const response = await fetch(routeUrl);
+                    const data = await response.json();
 
-                        const route = data.routes[0].geometry.coordinates;
+                    if (!data.routes || data.routes.length === 0) {
+                        throw new Error("No routes found in API response.");
+                    }
 
-                        animateAlongRoute(vehicle, route);
-                    })
-                    .catch(error => logMessage("❌ Error fetching route: " + error, true));
+                    const route = data.routes[0].geometry.coordinates;
+                    animateAlongRoute(vehicle, route);
+                } catch (error) {
+                    logMessage("❌ Error fetching route: " + error, true);
+                }
             }
 
             function animateAlongRoute(vehicle, route) {
@@ -231,7 +241,7 @@
 
                     const start = route[routeIndex];
                     const end = route[routeIndex + 1];
-                    const duration = 1000; // 1 second between each route segment
+                    const duration = 500; // Faster transitions between route points
                     const startTime = performance.now();
 
                     function animateStep() {
