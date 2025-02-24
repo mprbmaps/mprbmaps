@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (With Road Snapping)</title>
+    <title>Mapbox + Threebox 3D Vehicles (With Road Snapping & Easing)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -184,6 +184,18 @@
                 });
             }
 
+            function createVehicleMarker(lastFourDigits) {
+                let markerDiv = document.createElement('div');
+                markerDiv.className = 'vehicle-marker';
+
+                let labelDiv = document.createElement('div');
+                labelDiv.className = 'vehicle-label';
+                labelDiv.textContent = lastFourDigits;
+
+                markerDiv.appendChild(labelDiv);
+                return markerDiv;
+            }
+
             function getRouteAndAnimate(vehicleId) {
                 let vehicle = vehicleModels[vehicleId];
                 if (!vehicle || vehicle.positions.length < 2) return;
@@ -199,29 +211,45 @@
                         if (data.routes.length > 0) {
                             let route = data.routes[0].geometry.coordinates;
                             vehicle.routePath = route.map(coord => ({ lng: coord[0], lat: coord[1] }));
-                            animateAlongRoute(vehicle);
+                            animateAlongRoute(vehicle, start.timestamp, end.timestamp);
                         }
                     })
                     .catch(error => logMessage("❌ Error fetching route: " + error, true));
             }
 
-            function animateAlongRoute(vehicle) {
+            function animateAlongRoute(vehicle, startTimeUTC, endTimeUTC) {
                 if (!vehicle.routePath || vehicle.routePath.length < 2) return;
 
+                let totalDuration = endTimeUTC - startTimeUTC;
+                if (totalDuration <= 0) totalDuration = 1000; // Default to 1 second if timestamps are bad
+
+                let startTime = performance.now();
                 let stepIndex = 0;
+
                 function step() {
-                    if (stepIndex >= vehicle.routePath.length - 1) return;
-                    
-                    let start = vehicle.routePath[stepIndex];
-                    let end = vehicle.routePath[stepIndex + 1];
+                    let elapsed = performance.now() - startTime;
+                    let progress = Math.min(elapsed / totalDuration, 1);
+                    let easedProgress = easeInOutCubic(progress);
 
-                    vehicle.marker.setLngLat([start.lng, start.lat]);
+                    // Interpolate along the route
+                    let routeLength = vehicle.routePath.length;
+                    let pointIndex = Math.floor(easedProgress * (routeLength - 1));
+                    let point = vehicle.routePath[pointIndex];
 
-                    stepIndex++;
-                    requestAnimationFrame(step);
+                    vehicle.marker.setLngLat([point.lng, point.lat]);
+
+                    if (progress < 1) {
+                        requestAnimationFrame(step);
+                    } else {
+                        logMessage(`✅ Vehicle animation completed`);
+                    }
                 }
 
                 step();
+            }
+
+            function easeInOutCubic(t) {
+                return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
             }
         });
     }
