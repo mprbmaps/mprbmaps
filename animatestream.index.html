@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (With Road Snapping & Easing)</title>
+    <title>Mapbox + Threebox 3D Vehicles (With Smooth Route Animation)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -224,19 +224,27 @@
                 if (totalDuration <= 0) totalDuration = 1000; // Default to 1 second if timestamps are bad
 
                 let startTime = performance.now();
-                let stepIndex = 0;
+                let routeIndex = 0;
 
                 function step() {
                     let elapsed = performance.now() - startTime;
                     let progress = Math.min(elapsed / totalDuration, 1);
                     let easedProgress = easeInOutCubic(progress);
 
-                    // Interpolate along the route
-                    let routeLength = vehicle.routePath.length;
-                    let pointIndex = Math.floor(easedProgress * (routeLength - 1));
-                    let point = vehicle.routePath[pointIndex];
+                    // Interpolate between route points
+                    while (routeIndex < vehicle.routePath.length - 1 &&
+                        easedProgress > (routeIndex / (vehicle.routePath.length - 1))) {
+                        routeIndex++;
+                    }
 
-                    vehicle.marker.setLngLat([point.lng, point.lat]);
+                    let start = vehicle.routePath[routeIndex - 1];
+                    let end = vehicle.routePath[routeIndex];
+                    let segmentProgress = (easedProgress * (vehicle.routePath.length - 1)) % 1;
+
+                    let interpolatedLng = start.lng + (end.lng - start.lng) * segmentProgress;
+                    let interpolatedLat = start.lat + (end.lat - start.lat) * segmentProgress;
+
+                    vehicle.marker.setLngLat([interpolatedLng, interpolatedLat]);
 
                     if (progress < 1) {
                         requestAnimationFrame(step);
