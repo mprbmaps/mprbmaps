@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Fixed Accumulation for 30 Positions)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Accurate Animation Timing with `updateUTC`)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -142,7 +142,7 @@
                             let markerElement = createVehicleMarker(vehicleId.slice(-4));
                             vehicleModels[vehicleId] = {
                                 positions: [],
-                                lastUpdateUTC: 0,
+                                lastAnimatedTimestamp: 0,
                                 markerElement: markerElement,
                                 marker: new mapboxgl.Marker({ element: markerElement })
                                     .setLngLat([vehicle.geometry.coordinates[0], vehicle.geometry.coordinates[1]])
@@ -155,8 +155,8 @@
 
                         const vehicleData = vehicleModels[vehicleId];
 
-                        // Add new positions if they are newer
-                        if (!vehicleData.positions.some(pos => pos.timestamp === updateUTC)) {
+                        // Add new positions if they are newer than the last animated timestamp
+                        if (!vehicleData.positions.some(pos => pos.timestamp === updateUTC) && updateUTC > vehicleData.lastAnimatedTimestamp) {
                             vehicleData.positions.push({
                                 lng: vehicle.geometry.coordinates[0],
                                 lat: vehicle.geometry.coordinates[1],
@@ -209,44 +209,20 @@
             async function getRouteAndAnimate(vehicle) {
                 if (vehicle.positions.length < 2) return;
 
-                const start = vehicle.positions[vehicle.positions.length - 2];
-                const end = vehicle.positions[vehicle.positions.length - 1];
+                let index = 0;
 
-                const routeUrl = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.lng},${start.lat};${end.lng},${end.lat}?geometries=geojson&access_token=${mapboxgl.accessToken}`;
-
-                try {
-                    const response = await fetch(routeUrl);
-                    const data = await response.json();
-
-                    if (!data.routes || data.routes.length === 0) {
-                        throw new Error("No routes found in API response.");
-                    }
-
-                    const route = data.routes[0].geometry.coordinates;
-                    animateAlongRoute(vehicle, route);
-                } catch (error) {
-                    logMessage("❌ Error fetching route: " + error, true);
-                }
-            }
-
-            function animateAlongRoute(vehicle, route) {
-                if (!route || route.length < 2) {
-                    logMessage("⚠️ No valid route path for animation.", true);
-                    return;
-                }
-
-                vehicle.animating = true;
-                let routeIndex = 0;
-
-                function step() {
-                    if (routeIndex >= route.length - 1) {
+                function animateNextSegment() {
+                    if (index >= vehicle.positions.length - 1) {
                         vehicle.animating = false;
                         return;
                     }
 
-                    const start = route[routeIndex];
-                    const end = route[routeIndex + 1];
-                    const duration = 500;
+                    const start = vehicle.positions[index];
+                    const end = vehicle.positions[index + 1];
+                    const duration = Math.max(end.timestamp - start.timestamp, 500); // Minimum 500ms
+
+                    vehicle.lastAnimatedTimestamp = end.timestamp;
+
                     const startTime = performance.now();
 
                     function animateStep() {
@@ -254,23 +230,24 @@
                         const progress = Math.min(elapsed / duration, 1);
                         const easedProgress = easeInOutCubic(progress);
 
-                        const lng = start[0] + (end[0] - start[0]) * easedProgress;
-                        const lat = start[1] + (end[1] - start[1]) * easedProgress;
+                        const lng = start.lng + (end.lng - start.lng) * easedProgress;
+                        const lat = start.lat + (end.lat - start.lat) * easedProgress;
 
                         vehicle.marker.setLngLat([lng, lat]);
 
                         if (progress < 1) {
                             requestAnimationFrame(animateStep);
                         } else {
-                            routeIndex++;
-                            requestAnimationFrame(step);
+                            index++;
+                            animateNextSegment();
                         }
                     }
 
                     animateStep();
                 }
 
-                step();
+                vehicle.animating = true;
+                animateNextSegment();
             }
 
             function easeInOutCubic(t) {
