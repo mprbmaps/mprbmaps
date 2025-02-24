@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Last 6 Locations Animation)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Lightweight Network-Based Animation)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -54,6 +54,7 @@
         const REFRESH_INTERVAL = 3000;
         const POSITION_BUFFER = 6;
         let firstVehicleCentered = false;
+        const STREET_LAYER_URL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/MPLS_Centerline2/FeatureServer/0";
 
         function logMessage(msg, isError = false) {
             const timestamp = new Date().toISOString();
@@ -206,31 +207,74 @@
 
                 if (positions.length < 6) return;
 
-                const start = positions[positions.length - 6]; // 6th most recent
-                const end = positions[positions.length - 5];   // 5th most recent
+                const start = positions[positions.length - 6];
+                const end = positions[positions.length - 5];
 
-                const duration = Math.max(end.timestamp - start.timestamp, 500); // Ensure min duration
+                queryStreetsForRoute(start, end).then(route => {
+                    if (!route || route.length < 2) {
+                        logMessage("⚠️ No valid street route found, defaulting to direct path.");
+                        route = [start, end];
+                    }
 
+                    animateAlongRoute(vehicle, route, start.timestamp, end.timestamp);
+                });
+            }
+
+            function queryStreetsForRoute(start, end) {
+                return new Promise((resolve, reject) => {
+                    esriRequest(STREET_LAYER_URL + "/query", {
+                        query: {
+                            where: "1=1",
+                            geometry: `${start.lng},${start.lat}`,
+                            geometryType: "esriGeometryPoint",
+                            spatialRel: "esriSpatialRelIntersects",
+                            outFields: "*",
+                            returnGeometry: true,
+                            distance: 50, // 50-meter search radius
+                            units: "esriSRUnit_Meter",
+                            f: "json"
+                        },
+                        responseType: "json"
+                    }).then(response => {
+                        const streets = response.data.features;
+
+                        if (!streets || streets.length === 0) {
+                            resolve(null);
+                            return;
+                        }
+
+                        const closestStreet = streets[0].geometry.paths[0];
+                        resolve(closestStreet);
+                    }).catch(error => {
+                        logMessage("❌ Error querying streets: " + error, true);
+                        resolve(null);
+                    });
+                });
+            }
+
+            function animateAlongRoute(vehicle, route, startTimestamp, endTimestamp) {
+                const duration = Math.max(endTimestamp - startTimestamp, 500);
                 const startTime = performance.now();
+
+                let routeIndex = 0;
 
                 function step() {
                     const elapsed = performance.now() - startTime;
                     const progress = Math.min(elapsed / duration, 1);
                     const easedProgress = easeInOutCubic(progress);
 
-                    const lng = start.lng + (end.lng - start.lng) * easedProgress;
-                    const lat = start.lat + (end.lat - start.lat) * easedProgress;
+                    const currentIndex = Math.floor(easedProgress * (route.length - 1));
+                    const coords = route[currentIndex];
 
-                    vehicle.marker.setLngLat([lng, lat]);
+                    vehicle.marker.setLngLat(coords);
 
                     if (progress < 1) {
                         requestAnimationFrame(step);
                     } else {
-                        logMessage(`✅ Vehicle ${vehicle.vehicle_number} moved to next position.`);
+                        logMessage(`✅ Vehicle animation completed.`);
                     }
                 }
 
-                vehicle.animating = true;
                 step();
             }
 
