@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Fixed Continuous Animation)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Smoothed Continuous Animation)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -213,7 +213,7 @@
 
                 if (endIndex >= positions.length) {
                     vehicle.animating = false;
-                    return; // No more positions to animate
+                    return;
                 }
 
                 const start = positions[startIndex];
@@ -228,13 +228,13 @@
                     animateAlongRoute(vehicle, route, start.timestamp, end.timestamp, () => {
                         vehicle.currentPositionIndex = endIndex;
                         vehicle.animating = false;
-                        animateBetweenPositions(vehicle); // Continue animating
+                        animateBetweenPositions(vehicle);
                     });
                 });
             }
 
             function queryStreetsForRoute(start, end) {
-                return new Promise((resolve, reject) => {
+                return new Promise((resolve) => {
                     esriRequest(STREET_LAYER_URL + "/query", {
                         query: {
                             where: "1=1",
@@ -250,7 +250,6 @@
                         responseType: "json"
                     }).then(response => {
                         const streets = response.data.features;
-
                         if (!streets || streets.length === 0) {
                             resolve(null);
                             return;
@@ -258,10 +257,7 @@
 
                         const closestStreet = streets[0].geometry.paths[0];
                         resolve(closestStreet);
-                    }).catch(error => {
-                        logMessage("❌ Error querying streets: " + error, true);
-                        resolve(null);
-                    });
+                    }).catch(() => resolve(null));
                 });
             }
 
