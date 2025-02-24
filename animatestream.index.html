@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Stable Animation Fix)</title>
+    <title>Mapbox + Threebox 3D Vehicles (20-Position Buffer)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -51,8 +51,8 @@
         let map, tb;
         let vehicleModels = {};
         let esriRequest;
-        const REFRESH_INTERVAL = 3000;
-        const POSITION_BUFFER = 6;
+        const REFRESH_INTERVAL = 120000; // 2 minutes as per ArcGIS Velocity
+        const POSITION_BUFFER = 20;
         let firstVehicleCentered = false;
         const STREET_LAYER_URL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/MPLS_Centerline2/FeatureServer/0";
 
@@ -147,8 +147,7 @@
                                 marker: new mapboxgl.Marker({ element: markerElement })
                                     .setLngLat([vehicle.geometry.coordinates[0], vehicle.geometry.coordinates[1]])
                                     .addTo(map),
-                                animating: false,
-                                queue: [] // ➔ To queue updates during animations
+                                animating: false
                             };
 
                             markerElement.style.display = 'none';
@@ -164,22 +163,19 @@
                                 timestamp: updateUTC
                             });
 
-                            // Sort buffer by timestamp to avoid disorder
+                            // Sort buffer by timestamp
                             vehicleData.positions.sort((a, b) => a.timestamp - b.timestamp);
 
-                            // Keep only last 6 positions
+                            // Keep only last 20 positions
                             if (vehicleData.positions.length > POSITION_BUFFER) {
-                                vehicleData.positions.shift();
+                                vehicleData.positions = vehicleData.positions.slice(-POSITION_BUFFER);
                             }
 
                             logMessage(`🚚 Vehicle ${vehicleId} has ${vehicleData.positions.length} positions.`);
 
-                            if (!vehicleData.animating && vehicleData.positions.length >= 2) {
+                            if (!vehicleData.animating && vehicleData.positions.length >= 20) {
                                 vehicleData.markerElement.style.display = 'block';
-                                animateBetweenPositions(vehicleData);
-                            } else if (vehicleData.animating) {
-                                // Queue new data if animation is ongoing
-                                vehicleData.queue.push(vehicle.geometry.coordinates);
+                                animateFrom20To2(vehicleData);
                             }
 
                             if (!firstVehicleCentered) {
@@ -208,11 +204,16 @@
                 return markerDiv;
             }
 
-            function animateBetweenPositions(vehicle) {
-                if (vehicle.animating || vehicle.positions.length < 2) return;
+            function animateFrom20To2(vehicle) {
+                const positions = vehicle.positions;
 
-                const start = vehicle.positions[0];
-                const end = vehicle.positions[1];
+                if (positions.length < 20) {
+                    logMessage("⚠️ Not enough data points to animate.");
+                    return;
+                }
+
+                const start = positions[0]; // 20th most recent
+                const end = positions[positions.length - 2]; // 2nd most recent
 
                 queryStreetsForRoute(start, end).then(route => {
                     if (!route || route.length < 2) {
@@ -220,24 +221,11 @@
                         route = [start, end];
                     }
 
-                    animateAlongRoute(vehicle, route, start.timestamp, end.timestamp, () => {
-                        // After animation, remove the starting point and move to the next
-                        vehicle.positions.shift();
+                    const totalDuration = (end.timestamp - start.timestamp) || 10000; // Use timestamp diff or default
+                    animateAlongRoute(vehicle, route, totalDuration, () => {
                         vehicle.animating = false;
-
-                        // Process any queued updates after the current animation
-                        if (vehicle.queue.length > 0) {
-                            vehicle.queue.forEach(coord => {
-                                vehicle.positions.push({
-                                    lng: coord[0],
-                                    lat: coord[1],
-                                    timestamp: new Date().getTime() // Use current time for new updates
-                                });
-                            });
-                            vehicle.queue = [];
-                        }
-
-                        animateBetweenPositions(vehicle); // Continue animating
+                        // On completion, fetch fresh data for next cycle
+                        loadVehicleData();
                     });
                 });
             }
@@ -270,8 +258,7 @@
                 });
             }
 
-            function animateAlongRoute(vehicle, route, startTimestamp, endTimestamp, callback) {
-                const duration = Math.max(endTimestamp - startTimestamp, 1000);
+            function animateAlongRoute(vehicle, route, duration, callback) {
                 const startTime = performance.now();
 
                 function step() {
