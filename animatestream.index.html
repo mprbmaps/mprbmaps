@@ -38,43 +38,10 @@
             font-weight: bold;
             font-size: 12px;
         }
-
-        /* Loading Overlay */
-        #loadingOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            font-family: Arial, sans-serif;
-            z-index: 9999;
-        }
-
-        #loadingMessage { font-size: 1.2em; margin-bottom: 10px; }
-        #countdownTimer { font-size: 1.5em; margin-top: 5px; }
-        #timeoutMessage {
-            margin-top: 15px;
-            font-size: 0.9em;
-            color: orange;
-            display: none;
-        }
     </style>
 </head>
 <body>
 <div id="map"></div>
-
-<!-- Loading Overlay -->
-<div id="loadingOverlay">
-    <div id="loadingMessage">Gathering GPS locations...</div>
-    <!-- <div id="countdownTimer">2:00</div> -->
-    <div id="timeoutMessage">⚠️ Time expired. Some vehicles may not appear.</div>
-</div>
 
 <!-- ✅ Main Script -->
 <script>
@@ -84,8 +51,6 @@
         let map, tb;
         let vehicleModels = {};
         let esriRequest;
-        // let countdownInterval;
-        // let timeLeft = 120000; // 2 minutes countdown
         const POINTS_BUFFER = 6;
         let firstVehicleCentered = false;
 
@@ -115,13 +80,11 @@
             IdentityManager.checkSignInStatus(info.portalUrl + "/sharing").then(() => {
                 logMessage("✅ Signed in successfully");
                 initializeMap();
-                // startCountdown();
             }).catch(error => {
                 logMessage("⚠️ Not signed in. Prompting login...");
                 IdentityManager.getCredential(info.portalUrl + "/sharing")
                     .then(() => {
                         initializeMap();
-                        // startCountdown();
                     })
                     .catch(err => logMessage("❌ ESRI Login Failed: " + err, true));
             });
@@ -145,36 +108,6 @@
                 });
             }
 
-            /* Commented out countdown logic
-            function startCountdown() {
-                updateCountdownDisplay();
-
-                countdownInterval = setInterval(() => {
-                    timeLeft -= 1000;
-                    updateCountdownDisplay();
-
-                    if (timeLeft <= 0) {
-                        clearInterval(countdownInterval);
-                        endCountdown();
-                    }
-                }, 1000);
-            }
-
-            function updateCountdownDisplay() {
-                const minutes = Math.floor(timeLeft / 60000);
-                const seconds = Math.floor((timeLeft % 60000) / 1000);
-                document.getElementById('countdownTimer').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-            }
-
-            function endCountdown() {
-                document.getElementById('loadingOverlay').style.display = 'none';
-                if (Object.keys(vehicleModels).length === 0) {
-                    document.getElementById('timeoutMessage').style.display = 'block';
-                    logMessage("⚠️ Countdown finished. Some vehicles may not have appeared.");
-                }
-            }
-            */
-
             function loadVehicleData() {
                 if (!esriRequest) {
                     logMessage("❌ esriRequest is not loaded yet.");
@@ -192,7 +125,7 @@
                     },
                     responseType: "json"
                 }).then(response => {
-                    console.log("🚚 Vehicle Data Response:", response); // ✅ Debug log
+                    console.log("🚚 Vehicle Data Response:", response);
 
                     const vehicles = response.data.features;
                     if (!vehicles || vehicles.length === 0) {
@@ -330,3 +263,4 @@
 </script>
 </body>
 </html>
+
