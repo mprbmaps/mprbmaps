@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (With Extended Position Buffer)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Fix for Missing Dots)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -51,8 +51,8 @@
         let map, tb;
         let vehicleModels = {};
         let esriRequest;
-        const REFRESH_INTERVAL = 3000; // 3 seconds for smoother updates
-        const POSITION_BUFFER = 30; // Increased to 30 positions
+        const REFRESH_INTERVAL = 3000; // 3 seconds
+        const POSITION_BUFFER = 30; // Need 30 positions before showing vehicle
         let firstVehicleCentered = false;
 
         function logMessage(msg, isError = false) {
@@ -106,7 +106,7 @@
                     tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
                     logMessage("✅ Threebox initialized");
                     loadVehicleData();
-                    setInterval(loadVehicleData, REFRESH_INTERVAL); // Continuous data fetching
+                    setInterval(loadVehicleData, REFRESH_INTERVAL);
                 });
             }
 
@@ -123,6 +123,7 @@
                         outFields: "objectid,directionDegrees,vehicle_number,speedKmph,longitude,latitude,updateUTC",
                         orderByFields: "updateUTC DESC",
                         returnGeometry: true,
+                        resultRecordCount: 1000, // Increase fetch limit to ensure more positions
                         f: "geojson"
                     },
                     responseType: "json"
@@ -163,10 +164,11 @@
                             vehicleData.lastUpdateUTC = updateUTC;
 
                             if (vehicleData.positions.length > POSITION_BUFFER) {
-                                vehicleData.positions.shift(); // Keep buffer size in check
+                                vehicleData.positions.shift();
                             }
 
-                            // Show marker only if 30 positions are loaded
+                            logMessage(`🚚 Vehicle ${vehicleId} now has ${vehicleData.positions.length} positions.`);
+
                             if (vehicleData.positions.length >= POSITION_BUFFER) {
                                 vehicleData.markerElement.style.display = 'block';
 
@@ -241,7 +243,7 @@
 
                     const start = route[routeIndex];
                     const end = route[routeIndex + 1];
-                    const duration = 500; // Faster transitions between route points
+                    const duration = 500;
                     const startTime = performance.now();
 
                     function animateStep() {
