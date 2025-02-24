@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (With Animation Fix)</title>
+    <title>Mapbox + Threebox 3D Vehicles (With Road Snapping)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -180,10 +180,11 @@
                 }
 
                 logMessage("🔄 Fetching vehicle data...");
-                esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/PlowsSnappedToNetwork/FeatureServer/0/query", {
+                esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/PlowSnaps4/FeatureServer/0/query", {
                     query: {
                         where: "1=1",
-                        outFields: "objectid,heading,vehicle_number,speedKmph,longitude,latitude,updateUTC",
+                        outFields: "objectid,directionDegrees,vehicle_number,speedKmph,longitude,latitude,updateUTC",
+                        orderByFields: "updateUTC DESC",
                         returnGeometry: true,
                         f: "geojson"
                     },
@@ -198,58 +199,51 @@
                         return;
                     }
 
+                    let vehicleLocations = {};
+
                     vehicles.forEach(vehicle => {
-                        if (!vehicle.geometry || !vehicle.geometry.coordinates) {
-                            console.warn("⚠️ Vehicle missing coordinates:", vehicle);
-                            return;
-                        }
-
-                        const coordinates = vehicle.geometry.coordinates;
                         const vehicleId = vehicle.properties.vehicle_number;
-                        const timestamp = new Date(vehicle.properties.updateUTC).getTime();
+                        if (!vehicleLocations[vehicleId]) {
+                            vehicleLocations[vehicleId] = [];
+                        }
+                        if (vehicleLocations[vehicleId].length < 6) {
+                            vehicleLocations[vehicleId].push({
+                                lng: vehicle.geometry.coordinates[0],
+                                lat: vehicle.geometry.coordinates[1],
+                                timestamp: new Date(vehicle.properties.updateUTC).getTime()
+                            });
+                        }
+                    });
 
+                    for (let vehicleId in vehicleLocations) {
                         if (!vehicleModels[vehicleId]) {
                             let markerElement = createVehicleMarker(vehicleId.slice(-4));
                             markerElement.style.display = 'none';
 
                             vehicleModels[vehicleId] = {
-                                positions: [],
+                                positions: vehicleLocations[vehicleId].reverse(),
                                 markerElement: markerElement,
                                 marker: new mapboxgl.Marker({ element: markerElement })
-                                    .setLngLat(coordinates)
+                                    .setLngLat(vehicleLocations[vehicleId][0])
                                     .addTo(map),
                                 animating: false,
-                                lastUpdateUTC: null,
-                                readyToAnimate: false
+                                readyToAnimate: true
                             };
-                        }
 
-                        if (vehicleModels[vehicleId].lastUpdateUTC !== timestamp) {
-                            vehicleModels[vehicleId].positions.push({
-                                lng: coordinates[0],
-                                lat: coordinates[1],
-                                timestamp: timestamp
-                            });
+                            markerElement.style.display = 'block';
+                            logMessage(`🚀 Vehicle ${vehicleId} is now animating!`);
 
-                            vehicleModels[vehicleId].lastUpdateUTC = timestamp;
-
-                            if (vehicleModels[vehicleId].positions.length >= POINTS_BUFFER && !vehicleModels[vehicleId].readyToAnimate) {
-                                vehicleModels[vehicleId].readyToAnimate = true;
-                                vehicleModels[vehicleId].markerElement.style.display = 'block';
-                                logMessage(`🚀 Vehicle ${vehicleId} is now animating!`);
-
-                                if (!firstVehicleCentered) {
-                                    map.flyTo({
-                                        center: coordinates,
-                                        zoom: 14
-                                    });
-                                    firstVehicleCentered = true;
-                                }
-
-                                animateVehicles(); // ✅ Trigger animation
+                            if (!firstVehicleCentered) {
+                                map.flyTo({
+                                    center: vehicleLocations[vehicleId][0],
+                                    zoom: 14
+                                });
+                                firstVehicleCentered = true;
                             }
+
+                            animateVehicles();
                         }
-                    });
+                    }
                 }).catch(error => {
                     logMessage("❌ Error fetching vehicle data: " + error, true);
                 });
