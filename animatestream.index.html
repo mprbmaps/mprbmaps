@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (With Smooth Route Animation)</title>
+    <title>Mapbox + Threebox 3D Vehicles (With Smooth Route Animation & Error Handling)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -208,17 +208,30 @@
                 fetch(routeUrl)
                     .then(response => response.json())
                     .then(data => {
-                        if (data.routes.length > 0) {
-                            let route = data.routes[0].geometry.coordinates;
-                            vehicle.routePath = route.map(coord => ({ lng: coord[0], lat: coord[1] }));
-                            animateAlongRoute(vehicle, start.timestamp, end.timestamp);
+                        if (!data.routes || data.routes.length === 0) {
+                            throw new Error("No routes found in API response.");
                         }
+
+                        let route = data.routes[0].geometry.coordinates;
+
+                        // Ensure each coordinate is valid
+                        route = route.filter(coord => Array.isArray(coord) && coord.length === 2);
+
+                        if (route.length < 2) {
+                            throw new Error("Invalid route data.");
+                        }
+
+                        vehicle.routePath = route.map(coord => ({ lng: coord[0], lat: coord[1] }));
+                        animateAlongRoute(vehicle, start.timestamp, end.timestamp);
                     })
                     .catch(error => logMessage("❌ Error fetching route: " + error, true));
             }
 
             function animateAlongRoute(vehicle, startTimeUTC, endTimeUTC) {
-                if (!vehicle.routePath || vehicle.routePath.length < 2) return;
+                if (!vehicle.routePath || vehicle.routePath.length < 2) {
+                    logMessage("⚠️ No valid route path for animation.", true);
+                    return;
+                }
 
                 let totalDuration = endTimeUTC - startTimeUTC;
                 if (totalDuration <= 0) totalDuration = 1000; // Default to 1 second if timestamps are bad
@@ -231,14 +244,20 @@
                     let progress = Math.min(elapsed / totalDuration, 1);
                     let easedProgress = easeInOutCubic(progress);
 
-                    // Interpolate between route points
+                    // Interpolate between route points safely
                     while (routeIndex < vehicle.routePath.length - 1 &&
                         easedProgress > (routeIndex / (vehicle.routePath.length - 1))) {
                         routeIndex++;
                     }
 
-                    let start = vehicle.routePath[routeIndex - 1];
-                    let end = vehicle.routePath[routeIndex];
+                    let start = vehicle.routePath[routeIndex - 1] || vehicle.routePath[0];
+                    let end = vehicle.routePath[routeIndex] || vehicle.routePath[vehicle.routePath.length - 1];
+
+                    if (!start || !end) {
+                        logMessage("⚠️ Missing route points during interpolation.", true);
+                        return;
+                    }
+
                     let segmentProgress = (easedProgress * (vehicle.routePath.length - 1)) % 1;
 
                     let interpolatedLng = start.lng + (end.lng - start.lng) * segmentProgress;
