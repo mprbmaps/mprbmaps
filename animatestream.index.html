@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (20-Position Buffer & Continuous Updates)</title>
+    <title>Mapbox + Threebox 3D Vehicles (10-Second Data Refresh)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -51,8 +51,8 @@
         let map, tb;
         let vehicleModels = {};
         let esriRequest;
-        const REFRESH_INTERVAL = 120000; // 2 minutes as per ArcGIS Velocity
-        const POSITION_BUFFER = 10;
+        const REFRESH_INTERVAL = 10000; // 10 seconds
+        const POSITION_BUFFER = 20;
         let firstVehicleCentered = false;
         const STREET_LAYER_URL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/MPLS_Centerline2/FeatureServer/0";
 
@@ -106,8 +106,15 @@
                     logMessage("✅ Map Style Loaded!");
                     tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
                     logMessage("✅ Threebox initialized");
+
+                    // Load data immediately
                     loadVehicleData();
-                    setInterval(loadVehicleData, REFRESH_INTERVAL); // Continuous fetching
+
+                    // Continuous data updates every 10 seconds
+                    setInterval(() => {
+                        logMessage("🔄 Triggering periodic data update...");
+                        loadVehicleData();
+                    }, REFRESH_INTERVAL);
                 });
             }
 
@@ -225,8 +232,6 @@
                     animateAlongRoute(vehicle, route, totalDuration, () => {
                         vehicle.animating = false;
                         logMessage(`✅ Vehicle ${vehicle.markerElement.innerText} completed animation.`);
-                        // Trigger next animation cycle after completion
-                        loadVehicleData();
                     });
                 }).catch(error => {
                     logMessage(`❌ Error during route animation: ${error}`, true);
