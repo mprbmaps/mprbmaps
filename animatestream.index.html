@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Stationary on No Update)</title>
+    <title>Mapbox + Threebox 3D Vehicles (No Repeat Animations)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -164,27 +164,15 @@
                                     .addTo(map),
                                 animating: false,
                                 lastAnimatedTimestamp: null,
-                                lastUpdateTime: null // ✅ Track the last update time
+                                lastUpdateTime: null
                             };
                         }
 
-                        // Update buffer if new data exists
                         const vehicleData = vehicleModels[vehicleId];
                         const latestTimestamp = buffer[buffer.length - 1].timestamp;
 
                         if (vehicleData.lastAnimatedTimestamp !== latestTimestamp) {
                             vehicleData.positions = buffer;
-
-                            // ✅ Log time since last update
-                            const currentTime = new Date().getTime();
-                            if (vehicleData.lastUpdateTime) {
-                                const timeDiff = ((currentTime - vehicleData.lastUpdateTime) / 1000).toFixed(2);
-                                logMessage(`📊 Vehicle ${vehicleId} received new data after ${timeDiff} seconds.`);
-                            } else {
-                                logMessage(`📊 Vehicle ${vehicleId} received its first data point.`);
-                            }
-                            vehicleData.lastUpdateTime = currentTime;
-
                             vehicleData.lastAnimatedTimestamp = latestTimestamp;
 
                             if (buffer.length >= POSITION_BUFFER) {
@@ -196,7 +184,7 @@
                                 logMessage(`⚠️ Vehicle ${vehicleId} has only ${buffer.length} positions.`);
                             }
                         } else {
-                            logMessage(`⏸️ Vehicle ${vehicleId} no new data, vehicle remains stationary.`);
+                            logMessage(`⏸️ Vehicle ${vehicleId} no new data, remains stationary.`);
                         }
                     });
                 }).catch(error => {
@@ -224,8 +212,8 @@
                     return;
                 }
 
-                const tenthPos = positions[0]; // 10th most recent
-                const ninthPos = positions[1]; // 9th most recent
+                const tenthPos = positions[0];
+                const ninthPos = positions[1];
 
                 queryStreetsForRoute(tenthPos, ninthPos).then(route => {
                     if (!route || route.length < 2) {
