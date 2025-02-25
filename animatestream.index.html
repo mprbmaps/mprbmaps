@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (5-Position Buffer)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Route Error Handling)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -51,7 +51,7 @@
         let vehicleModels = {};
         let esriRequest;
         const REFRESH_INTERVAL = 10000; // 10 seconds
-        const POSITION_BUFFER = 5; // Last 5 positions
+        const POSITION_BUFFER = 5;
         const STREET_LAYER_URL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/MPLS_Centerline2/FeatureServer/0";
 
         function logMessage(msg, isError = false) {
@@ -149,7 +149,6 @@
                         if (!lastPos || lastPos.lng !== lng || lastPos.lat !== lat || lastPos.timestamp !== updateUTC) {
                             vehicleGroups[vehicleId].push({ lng, lat, timestamp: updateUTC });
 
-                            // Maintain only the last 5 positions
                             if (vehicleGroups[vehicleId].length > POSITION_BUFFER) {
                                 vehicleGroups[vehicleId].shift();
                             }
@@ -217,7 +216,7 @@
                     queryStreetsForRoute(startPos, endPos).then(route => {
                         if (!route || route.length < 2) {
                             logMessage("⚠️ No valid street route found, defaulting to direct path.");
-                            route = [startPos, endPos];
+                            route = [[startPos.lng, startPos.lat], [endPos.lng, endPos.lat]]; // Direct path as fallback
                         }
 
                         animateAlongRoute(vehicle, route, timeDiff, () => {
@@ -265,6 +264,12 @@
             }
 
             function animateAlongRoute(vehicle, route, duration, callback) {
+                if (!route || route.length < 2) {
+                    logMessage("⚠️ Skipping animation due to invalid route.");
+                    callback();
+                    return;
+                }
+
                 const startTime = performance.now();
 
                 function step() {
@@ -276,6 +281,12 @@
                     const lowerIndex = Math.floor(interpolatedIndex);
                     const upperIndex = Math.min(lowerIndex + 1, route.length - 1);
                     const segmentProgress = interpolatedIndex - lowerIndex;
+
+                    if (!route[lowerIndex] || !route[upperIndex]) {
+                        logMessage("⚠️ Route index out of bounds, skipping animation step.");
+                        callback();
+                        return;
+                    }
 
                     const startCoord = route[lowerIndex];
                     const endCoord = route[upperIndex];
