@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vehicle Animation with Last 6 Locations</title>
+    <title>Vehicle Animation with Mapbox Routing</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -52,6 +52,8 @@
         const SPEED_CAP = 120;
         const MAX_CACHE_SIZE = 500;
         const routeCache = {};
+        const GLOBAL_FRAME_RATE = 1000 / 30; // 30 FPS
+        let globalTime = Date.now(); // Global clock
 
         function logMessage(msg, isError = false) {
             const timestamp = new Date().toISOString();
@@ -98,6 +100,7 @@
                     logMessage("✅ Map Style Loaded!");
                     loadVehicleData();
                     setInterval(loadVehicleData, REFRESH_INTERVAL);
+                    setInterval(globalAnimationFrame, GLOBAL_FRAME_RATE);
                 });
             }
 
@@ -164,34 +167,17 @@
 
                         const vehicleData = vehicleModels[vehicleId];
 
-                        if (!vehicleData.marker) {
-                            vehicleData.marker = new mapboxgl.Marker({ element: vehicleData.markerElement })
-                                .setLngLat([latestVehicles[0].geometry.coordinates[0], latestVehicles[0].geometry.coordinates[1]])
-                                .addTo(map);
-                            logMessage(`✅ Re-adding Vehicle ${vehicleId} — New location received`);
-                        }
+                        vehicleData.positions = latestVehicles.map(v => ({
+                            lng: v.geometry.coordinates[0],
+                            lat: v.geometry.coordinates[1],
+                            timestamp: new Date(v.properties.updateUTC).getTime(),
+                            speedKmph: v.properties.speedKmph || 30
+                        }));
 
-                        if (latestTimestamp !== vehicleData.lastTimestamp) {
-                            vehicleData.lastTimestamp = latestTimestamp;
-
-                            vehicleData.positions = latestVehicles.map(v => ({
-                                lng: v.geometry.coordinates[0],
-                                lat: v.geometry.coordinates[1],
-                                timestamp: new Date(v.properties.updateUTC).getTime(),
-                                speedKmph: v.properties.speedKmph || 30
-                            }));
-
-                            logMessage(`🚗 Vehicle ${vehicleId} | Updated Positions: ${vehicleData.positions.length}`);
-
-                            if (!vehicleData.animating && vehicleData.positions.length >= 2) {
-                                vehicleData.animating = true;
-                                vehicleData.markerElement.style.display = 'block';
-                                animateBetweenPositions(vehicleData);
-                            }
-                        } else {
-                            logMessage(`⏸️ Vehicle ${vehicleId} — No new data, skipping animation`);
-                        }
+                        vehicleData.markerElement.style.display = 'block';
                     });
+
+                    logMessage("✅ Vehicle data loaded and processed");
                 }).catch(error => {
                     logMessage("❌ Error fetching vehicle data: " + error, true);
                 });
@@ -209,47 +195,29 @@
                 return markerDiv;
             }
 
-            function animateBetweenPositions(vehicle) {
+            function globalAnimationFrame() {
+                globalTime += GLOBAL_FRAME_RATE;
+
+                Object.keys(vehicleModels).forEach(vehicleId => {
+                    animateVehicle(vehicleModels[vehicleId], globalTime);
+                });
+            }
+
+            function animateVehicle(vehicle, currentTime) {
                 const positions = vehicle.positions;
 
-                if (positions.length < 2) {
-                    logMessage(`⚠️ Not enough positions to animate for vehicle ${vehicle.vehicle_number}`);
-                    return;
+                if (positions.length < 2) return;
+
+                let nextIndex = vehicle.currentPositionIndex;
+                while (nextIndex < positions.length - 1 &&
+                    currentTime >= positions[nextIndex + 1].timestamp) {
+                    nextIndex++;
                 }
 
-                if (vehicle.currentPositionIndex >= positions.length - 1) {
-                    vehicle.animating = false;
-                    logMessage(`⏸️ Vehicle ${vehicle.vehicle_number} — Animation Complete`);
-                    return;
-                }
+                if (nextIndex >= positions.length - 1) return;
 
-                const start = positions[vehicle.currentPositionIndex];
-                const end = positions[vehicle.currentPositionIndex + 1];
-                const distance = calculateDistance(start, end);
-
-                logMessage(`🚗 Vehicle ${vehicle.vehicle_number} — Starting Animation from (${start.lat}, ${start.lng}) to (${end.lat}, ${end.lng}) with distance ${distance.toFixed(2)} km`);
-
-                if (distance > MAX_DISTANCE_THRESHOLD * 5) {
-                    logMessage(`⚠️ Skipping large jump for vehicle ${vehicle.vehicle_number}: ${distance.toFixed(2)} km`);
-                    vehicle.currentPositionIndex++;
-                    animateBetweenPositions(vehicle);
-                    return;
-                }
-
-                const timeDiff = Math.abs(end.timestamp - start.timestamp) || 5000;
-                let duration = Math.max(timeDiff, MIN_ANIMATION_DURATION);
-
-                const rawSpeed = (distance / (timeDiff / 3600000));
-                vehicle.velocityBuffer.push(rawSpeed);
-                if (vehicle.velocityBuffer.length > VELOCITY_SMOOTHING_WINDOW) {
-                    vehicle.velocityBuffer.shift();
-                }
-
-                const smoothedSpeed = vehicle.velocityBuffer.reduce((a, b) => a + b, 0) / vehicle.velocityBuffer.length;
-                const cappedSpeed = Math.min(smoothedSpeed, SPEED_CAP);
-
-                duration = (distance / cappedSpeed) * 3600000;
-                duration = Math.max(duration, 3000);
+                const start = positions[nextIndex];
+                const end = positions[nextIndex + 1];
 
                 getMapboxRoute(start, end, (route) => {
                     if (!route || route.length === 0) {
@@ -257,15 +225,8 @@
                         route = [start, end];
                     }
 
-                    smoothAnimateRoute(vehicle, route, duration, () => {
-                        vehicle.currentPositionIndex++;
-
-                        if (vehicle.currentPositionIndex < positions.length - 1) {
-                            animateBetweenPositions(vehicle);
-                        } else {
-                            vehicle.animating = false;
-                            logMessage(`✅ Vehicle ${vehicle.vehicle_number} completed route`);
-                        }
+                    smoothAnimateRoute(vehicle, route, end.timestamp - start.timestamp, () => {
+                        vehicle.currentPositionIndex = nextIndex + 1;
                     });
                 });
             }
@@ -274,9 +235,13 @@
                 const routeKey = `${start.lng},${start.lat}-${end.lng},${end.lat}`;
 
                 if (routeCache[routeKey]) {
-                    logMessage(`📡 Using cached route for ${routeKey}`);
                     callback(routeCache[routeKey]);
                     return;
+                }
+
+                if (Object.keys(routeCache).length > MAX_CACHE_SIZE) {
+                    const firstKey = Object.keys(routeCache)[0];
+                    delete routeCache[firstKey];
                 }
 
                 const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.lng},${start.lat};${end.lng},${end.lat}?geometries=geojson&steps=true&access_token=${mapboxgl.accessToken}`;
@@ -290,7 +255,6 @@
                                 lat: coord[1]
                             }));
                             routeCache[routeKey] = route;
-                            logMessage(`✅ Route found for ${routeKey}`);
                             callback(route);
                         } else {
                             logMessage(`❌ No route found for ${routeKey}`, true);
@@ -321,7 +285,6 @@
                     if (t < 1) {
                         requestAnimationFrame(step);
                     } else {
-                        logMessage(`🚗 Vehicle ${vehicle.vehicle_number} — Reached waypoint`);
                         callback();
                     }
                 }
