@@ -243,17 +243,19 @@
     const end = positions[vehicle.currentPositionIndex + 1];
     const distance = calculateDistance(start, end);
 
+    // Skip if the jump is too large (avoids teleporting across the map)
     if (distance > MAX_DISTANCE_THRESHOLD * 5) {
         logMessage(`⚠️ Skipping large jump for vehicle ${vehicle.vehicle_number}: ${distance.toFixed(2)} km`);
         vehicle.currentPositionIndex++;
-        animateBetweenPositions(vehicle);
+        animateBetweenPositions(vehicle);  // Continue animation after skipping
         return;
     }
 
-    const timeDiff = Math.abs(end.timestamp - start.timestamp);
+    // Handle time difference for smoother animations
+    const timeDiff = Math.abs(end.timestamp - start.timestamp) || 5000; // Ensure at least 5s duration
     let duration = Math.max(timeDiff, MIN_ANIMATION_DURATION);
 
-    const rawSpeed = (distance / (timeDiff / 3600000));
+    const rawSpeed = (distance / (timeDiff / 3600000)); // km/h calculation
     vehicle.velocityBuffer.push(rawSpeed);
     if (vehicle.velocityBuffer.length > VELOCITY_SMOOTHING_WINDOW) {
         vehicle.velocityBuffer.shift();
@@ -261,8 +263,10 @@
 
     const smoothedSpeed = vehicle.velocityBuffer.reduce((a, b) => a + b, 0) / vehicle.velocityBuffer.length;
     const cappedSpeed = Math.min(smoothedSpeed, SPEED_CAP);
+    duration = (distance / cappedSpeed) * 3600000; // Adjust duration based on speed
 
-    duration = (distance / cappedSpeed) * 3600000;
+    // Prevent ultra-quick jumps due to identical timestamps
+    duration = Math.max(duration, 3000); // Set a minimum duration of 3s
 
     getMapboxRoute(start, end, (route) => {
         if (!route || route.length === 0) {
@@ -271,108 +275,96 @@
         }
 
         smoothAnimateRoute(vehicle, route, duration, () => {
-            vehicle.currentPositionIndex++;
+            vehicle.currentPositionIndex++; // Move to the next point after completion
 
-            // Only continue if there are more positions to animate
             if (vehicle.currentPositionIndex < positions.length - 1) {
-                animateBetweenPositions(vehicle);
+                animateBetweenPositions(vehicle); // Continue the animation
             } else {
-                vehicle.animating = false; // Stop animation when path is done
+                vehicle.animating = false; // Stop if all points are done
                 logMessage(`✅ Vehicle ${vehicle.vehicle_number} completed route`);
             }
         });
     });
 }
 
+function getMapboxRoute(start, end, callback) {
+    const routeKey = `${start.lng},${start.lat}-${end.lng},${end.lat}`;
 
-            function smoothAnimateRoute(vehicle, route, duration, callback) {
-                let startTime = null;
-                const totalSteps = route.length * 20;
+    // Check if route is cached
+    if (routeCache[routeKey]) {
+        callback(routeCache[routeKey]);
+        return;
+    }
 
-                function step(timestamp) {
-                    if (!startTime) startTime = timestamp;
-                    const elapsed = timestamp - startTime;
-                    const t = Math.min(elapsed / duration, 1);
-                    const easedT = easeInOutCubic(t);
+    // Limit cache size to avoid memory issues
+    if (Object.keys(routeCache).length > MAX_CACHE_SIZE) {
+        const firstKey = Object.keys(routeCache)[0];
+        delete routeCache[firstKey];
+    }
 
-                    const index = Math.floor(easedT * (totalSteps - 1));
-                    const interpolatedPoint = interpolateRoute(route, index / totalSteps);
+    const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.lng},${start.lat};${end.lng},${end.lat}?geometries=geojson&steps=true&access_token=${mapboxgl.accessToken}`;
 
-                    vehicle.marker.setLngLat([interpolatedPoint.lng, interpolatedPoint.lat]);
-
-                    if (t < 1) {
-                        requestAnimationFrame(step);
-                    } else {
-                        callback();
-                    }
-                }
-
-                requestAnimationFrame(step);
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.routes && data.routes.length > 0) {
+                const route = data.routes[0].geometry.coordinates.map(coord => ({
+                    lng: coord[0],
+                    lat: coord[1]
+                }));
+                routeCache[routeKey] = route; // Cache the route
+                callback(route);
+            } else {
+                logMessage(`❌ No route found for ${routeKey}`, true);
+                callback([]);
             }
+        })
+        .catch(error => {
+            logMessage(`❌ Error fetching Mapbox route: ${error}`, true);
+            callback([]);
+        });
+}
 
-            function interpolateRoute(route, t) {
-                const total = route.length - 1;
-                const scaledT = t * total;
-                const idx = Math.floor(scaledT);
-                const frac = scaledT - idx;
+function smoothAnimateRoute(vehicle, route, duration, callback) {
+    let startTime = null;
+    const totalSteps = route.length * 20;
 
-                if (idx >= total) return route[total];
+    function step(timestamp) {
+        if (!startTime) startTime = timestamp;
+        const elapsed = timestamp - startTime;
+        const t = Math.min(elapsed / duration, 1);
+        const easedT = easeInOutCubic(t);
 
-                const p1 = route[idx];
-                const p2 = route[idx + 1];
+        const index = Math.floor(easedT * (totalSteps - 1));
+        const interpolatedPoint = interpolateRoute(route, index / totalSteps);
 
-                return {
-                    lng: p1.lng + (p2.lng - p1.lng) * frac,
-                    lat: p1.lat + (p2.lat - p1.lat) * frac
-                };
-            }
+        vehicle.marker.setLngLat([interpolatedPoint.lng, interpolatedPoint.lat]);
 
-            function getMapboxRoute(start, end, callback) {
-                const routeKey = `${start.lng},${start.lat}-${end.lng},${end.lat}`;
+        if (t < 1) {
+            requestAnimationFrame(step);
+        } else {
+            callback(); // Call the next animation
+        }
+    }
 
-                if (routeCache[routeKey]) {
-                    callback(routeCache[routeKey]);
-                    return;
-                }
+    requestAnimationFrame(step);
+}
 
-                if (Object.keys(routeCache).length > MAX_CACHE_SIZE) {
-                    const firstKey = Object.keys(routeCache)[0];
-                    delete routeCache[firstKey];
-                }
+function easeInOutCubic(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
 
-                const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.lng},${start.lat};${end.lng},${end.lat}?geometries=geojson&steps=true&access_token=${mapboxgl.accessToken}`;
+function calculateDistance(point1, point2) {
+    const R = 6371; // Radius of the Earth in km
+    const dLat = (point2.lat - point1.lat) * Math.PI / 180;
+    const dLon = (point2.lng - point1.lng) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(point1.lat * Math.PI / 180) * Math.cos(point2.lat * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in km
+}
 
-                fetch(url)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.routes && data.routes.length > 0) {
-                            const route = data.routes[0].geometry.coordinates.map(coord => ({
-                                lng: coord[0],
-                                lat: coord[1]
-                            }));
-                            routeCache[routeKey] = route;
-                            callback(route);
-                        } else {
-                            logMessage(`❌ No route found for ${routeKey}`, true);
-                            callback([]);
-                        }
-                    })
-                    .catch(error => {
-                        logMessage(`❌ Error fetching Mapbox route: ${error}`, true);
-                        callback([]);
-                    });
-            }
-
-            function calculateDistance(point1, point2) {
-                const R = 6371;
-                const dLat = (point2.lat - point1.lat) * Math.PI / 180;
-                const dLon = (point2.lng - point1.lng) * Math.PI / 180;
-                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                    Math.cos(point1.lat * Math.PI / 180) * Math.cos(point2.lat * Math.PI / 180) *
-                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                return R * c;
-            }
 
             function easeInOutCubic(t) {
                 return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
