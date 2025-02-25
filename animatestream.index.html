@@ -105,13 +105,11 @@
     logMessage("🔄 Fetching vehicle data...");
     const cacheBuster = new Date().getTime();
 
-    // Get current time minus 1 hour for API filtering
-    const oneHourAgo = new Date(Date.now() - 3600000).toISOString().replace('T', ' ').split('.')[0];
     const fifteenMinutesAgo = Date.now() - (15 * 60 * 1000); // 15 minutes ago in ms
 
     esriRequest(`https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/PlowSnaps4/FeatureServer/0/query?_ts=${cacheBuster}`, {
         query: {
-            where: `updateUTC >= '${oneHourAgo}'`,
+            where: "1=1", // Fetch all data
             outFields: "objectid,directionDegrees,vehicle_number,speedKmph,longitude,latitude,updateUTC",
             orderByFields: "vehicle_number ASC, updateUTC DESC",
             resultRecordCount: 5000,
@@ -125,7 +123,7 @@
         const vehicles = response.data.features;
 
         if (!vehicles || vehicles.length === 0) {
-            logMessage("⚠️ No vehicles found in the last hour.");
+            logMessage("⚠️ No vehicles found.");
             return;
         }
 
@@ -138,7 +136,7 @@
             vehicleGroups[vehicleId].push(vehicle);
         });
 
-        logMessage(`📡 Vehicles Found (Last Hour): ${Object.keys(vehicleGroups).length}`);
+        logMessage(`📡 Vehicles Found: ${Object.keys(vehicleGroups).length}`);
 
         Object.keys(vehicleGroups).forEach(vehicleId => {
             const sortedVehicles = vehicleGroups[vehicleId].sort((a, b) =>
@@ -169,9 +167,8 @@
 
             const vehicleData = vehicleModels[vehicleId];
 
-            // Check for inactivity (15 min threshold)
+            // Apply 15-minute inactivity check client-side
             if (latestTimestamp < fifteenMinutesAgo) {
-                // Remove from map if older than 15 minutes
                 if (vehicleData.marker) {
                     logMessage(`❌ Removing Vehicle ${vehicleId} — Inactive for 15+ mins`);
                     vehicleData.marker.remove();
