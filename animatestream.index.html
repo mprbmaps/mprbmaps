@@ -105,46 +105,43 @@
             }
 
             function loadVehicleData() {
-                logMessage("🔄 Fetching vehicle data...");
-                esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/PlowSnaps4/FeatureServer/0/query", {
-                    query: {
-                        where: "1=1",
-                        outFields: "objectid,directionDegrees,vehicle_number,speedKmph,longitude,latitude,updateUTC",
-                        orderByFields: "vehicle_number DESC, updateUTC DESC",
-                        returnGeometry: true,
-                        resultRecordCount: 1000,
-                        f: "geojson",
-                        _ts: new Date().getTime() // Add timestamp to bypass cache
-                    },
-                    responseType: "json",
-                    cacheBust: true // Force request to bypass browser cache
-                }).then(response => {
-                    const vehicles = response.data.features;
-                    if (!vehicles || vehicles.length === 0) {
-                        logMessage("⚠️ No vehicles found.");
-                        return;
-                    }
+    logMessage("🔄 Fetching vehicle data...");
+    esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/PlowSnaps4/FeatureServer/0/query", {
+        query: {
+            where: "1=1",
+            outFields: "objectid,directionDegrees,vehicle_number,speedKmph,longitude,latitude,updateUTC",
+            orderByFields: "vehicle_number DESC, updateUTC DESC",
+            returnGeometry: true,
+            resultRecordCount: 1000,
+            f: "geojson",
+            _ts: new Date().getTime() // Bypass cache
+        },
+        responseType: "json",
+        cacheBust: true // Ensure no cached responses
+    }).then(response => {
+        console.log("🚀 Full Vehicle Data Response:", response); // Log full response for debugging
 
-                    vehicles.forEach(vehicle => {
-                        const vehicleId = vehicle.properties.vehicle_number;
-                        const updateUTC = new Date(vehicle.properties.updateUTC).getTime();
-                        const speedKmph = vehicle.properties.speedKmph || 30;
+        const vehicles = response.data.features;
 
-                        // Update Frequency Tracking
-                        if (!vehicleUpdateLog[vehicleId]) {
-                            vehicleUpdateLog[vehicleId] = { lastUpdate: updateUTC, updateCount: 1 };
-                        } else if (updateUTC > vehicleUpdateLog[vehicleId].lastUpdate) { // Only process new updates
-                            vehicleUpdateLog[vehicleId].lastUpdate = updateUTC;
-                            vehicleUpdateLog[vehicleId].updateCount += 1;
+        if (!vehicles || vehicles.length === 0) {
+            logMessage("⚠️ No vehicles found.");
+            return;
+        }
 
-                            logMessage(`📡 Vehicle ${vehicleId} new update. Time since last: ${updateUTC - vehicleUpdateLog[vehicleId].lastUpdate} ms. Total: ${vehicleUpdateLog[vehicleId].updateCount}`);
+        vehicles.forEach(vehicle => {
+            const vehicleId = vehicle.properties.vehicle_number;
+            const updateUTC = new Date(vehicle.properties.updateUTC).getTime();
+            const speedKmph = vehicle.properties.speedKmph || 30;
 
-                            // Handle new position
-                            handleVehicleUpdate(vehicle);
-                        }
-                    });
-                }).catch(error => logMessage("❌ Error fetching vehicle data: " + error, true));
-            }
+            logMessage(`📡 Vehicle ${vehicleId} | Time: ${vehicle.properties.updateUTC} | Speed: ${speedKmph}`);
+
+            handleVehicleUpdate(vehicle);
+        });
+    }).catch(error => {
+        logMessage("❌ Error fetching vehicle data: " + error, true);
+    });
+}
+
 
             function handleVehicleUpdate(vehicle) {
                 const vehicleId = vehicle.properties.vehicle_number;
