@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (10th to 9th Animation Only)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Stationary on No Update)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -163,7 +163,8 @@
                                     .setLngLat([buffer[0].lng, buffer[0].lat])
                                     .addTo(map),
                                 animating: false,
-                                lastAnimatedTimestamp: null
+                                lastAnimatedTimestamp: null,
+                                lastUpdateTime: null // ✅ Track the last update time
                             };
                         }
 
@@ -173,6 +174,17 @@
 
                         if (vehicleData.lastAnimatedTimestamp !== latestTimestamp) {
                             vehicleData.positions = buffer;
+
+                            // ✅ Log time since last update
+                            const currentTime = new Date().getTime();
+                            if (vehicleData.lastUpdateTime) {
+                                const timeDiff = ((currentTime - vehicleData.lastUpdateTime) / 1000).toFixed(2);
+                                logMessage(`📊 Vehicle ${vehicleId} received new data after ${timeDiff} seconds.`);
+                            } else {
+                                logMessage(`📊 Vehicle ${vehicleId} received its first data point.`);
+                            }
+                            vehicleData.lastUpdateTime = currentTime;
+
                             vehicleData.lastAnimatedTimestamp = latestTimestamp;
 
                             if (buffer.length >= POSITION_BUFFER) {
@@ -184,7 +196,7 @@
                                 logMessage(`⚠️ Vehicle ${vehicleId} has only ${buffer.length} positions.`);
                             }
                         } else {
-                            logMessage(`⏸️ Vehicle ${vehicleId} no new data, skipping animation.`);
+                            logMessage(`⏸️ Vehicle ${vehicleId} no new data, vehicle remains stationary.`);
                         }
                     });
                 }).catch(error => {
