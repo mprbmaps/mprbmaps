@@ -228,52 +228,62 @@
             }
 
             function animateBetweenPositions(vehicle) {
-                const positions = vehicle.positions;
+    const positions = vehicle.positions;
 
-                if (positions.length < 2) return;
+    if (positions.length < 2) return;
 
-                const start = positions[vehicle.currentPositionIndex];
-                const end = positions[vehicle.currentPositionIndex + 1];
-                const distance = calculateDistance(start, end);
+    // Ensure the current position index is within bounds
+    if (vehicle.currentPositionIndex >= positions.length - 1) {
+        vehicle.animating = false; // Stop animating
+        logMessage(`⏸️ Vehicle ${vehicle.vehicle_number} — Animation Complete`);
+        return;
+    }
 
-                if (distance > MAX_DISTANCE_THRESHOLD * 5) {
-                    logMessage(`⚠️ Skipping large jump for vehicle ${vehicle.vehicle_number}: ${distance.toFixed(2)} km`);
-                    vehicle.currentPositionIndex++;
-                    animateBetweenPositions(vehicle);
-                    return;
-                }
+    const start = positions[vehicle.currentPositionIndex];
+    const end = positions[vehicle.currentPositionIndex + 1];
+    const distance = calculateDistance(start, end);
 
-                const timeDiff = Math.abs(end.timestamp - start.timestamp);
-                let duration = Math.max(timeDiff, MIN_ANIMATION_DURATION);
+    if (distance > MAX_DISTANCE_THRESHOLD * 5) {
+        logMessage(`⚠️ Skipping large jump for vehicle ${vehicle.vehicle_number}: ${distance.toFixed(2)} km`);
+        vehicle.currentPositionIndex++;
+        animateBetweenPositions(vehicle);
+        return;
+    }
 
-                const rawSpeed = (distance / (timeDiff / 3600000));
-                vehicle.velocityBuffer.push(rawSpeed);
-                if (vehicle.velocityBuffer.length > VELOCITY_SMOOTHING_WINDOW) {
-                    vehicle.velocityBuffer.shift();
-                }
+    const timeDiff = Math.abs(end.timestamp - start.timestamp);
+    let duration = Math.max(timeDiff, MIN_ANIMATION_DURATION);
 
-                const smoothedSpeed = vehicle.velocityBuffer.reduce((a, b) => a + b, 0) / vehicle.velocityBuffer.length;
-                const cappedSpeed = Math.min(smoothedSpeed, SPEED_CAP);
+    const rawSpeed = (distance / (timeDiff / 3600000));
+    vehicle.velocityBuffer.push(rawSpeed);
+    if (vehicle.velocityBuffer.length > VELOCITY_SMOOTHING_WINDOW) {
+        vehicle.velocityBuffer.shift();
+    }
 
-                duration = (distance / cappedSpeed) * 3600000;
+    const smoothedSpeed = vehicle.velocityBuffer.reduce((a, b) => a + b, 0) / vehicle.velocityBuffer.length;
+    const cappedSpeed = Math.min(smoothedSpeed, SPEED_CAP);
 
-                getMapboxRoute(start, end, (route) => {
-                    if (!route || route.length === 0) {
-                        logMessage(`⚠️ No route found for vehicle ${vehicle.vehicle_number}. Using straight line.`, true);
-                        route = [start, end];
-                    }
+    duration = (distance / cappedSpeed) * 3600000;
 
-                    smoothAnimateRoute(vehicle, route, duration, () => {
-                        vehicle.currentPositionIndex++;
+    getMapboxRoute(start, end, (route) => {
+        if (!route || route.length === 0) {
+            logMessage(`⚠️ No route found for vehicle ${vehicle.vehicle_number}. Using straight line.`, true);
+            route = [start, end];
+        }
 
-                        if (vehicle.currentPositionIndex < positions.length - 1) {
-                            animateBetweenPositions(vehicle);
-                        } else {
-                            vehicle.animating = false;
-                        }
-                    });
-                });
+        smoothAnimateRoute(vehicle, route, duration, () => {
+            vehicle.currentPositionIndex++;
+
+            // Only continue if there are more positions to animate
+            if (vehicle.currentPositionIndex < positions.length - 1) {
+                animateBetweenPositions(vehicle);
+            } else {
+                vehicle.animating = false; // Stop animation when path is done
+                logMessage(`✅ Vehicle ${vehicle.vehicle_number} completed route`);
             }
+        });
+    });
+}
+
 
             function smoothAnimateRoute(vehicle, route, duration, callback) {
                 let startTime = null;
