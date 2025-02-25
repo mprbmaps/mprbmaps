@@ -105,14 +105,13 @@
     logMessage("🔄 Fetching vehicle data...");
     const cacheBuster = new Date().getTime();
 
-    // Get current time minus 1 hour in UTC
+    // Get current time minus 1 hour
     const oneHourAgo = new Date(Date.now() - 3600000).toISOString().replace('T', ' ').split('.')[0];
+    const fifteenMinutesAgo = Date.now() - (15 * 60 * 1000); // 15 minutes in ms
 
-    logMessage(`🔍 Filtering vehicles updated since: ${oneHourAgo}`);
-
-    esriRequest(`https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/PlowSnapper/FeatureServer/0/query?_ts=${cacheBuster}`, {
+    esriRequest(`https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/PlowSnaps4/FeatureServer/0/query?_ts=${cacheBuster}`, {
         query: {
-            where: `updateUTC >= TIMESTAMP '${oneHourAgo}'`,
+            where: `updateUTC >= '${oneHourAgo}'`,
             outFields: "objectid,directionDegrees,vehicle_number,speedKmph,longitude,latitude,updateUTC",
             orderByFields: "vehicle_number ASC, updateUTC DESC",
             resultRecordCount: 5000,
@@ -147,7 +146,9 @@
             );
 
             const latestVehicles = sortedVehicles.slice(-6); // Keep last 6
+            const latestTimestamp = new Date(latestVehicles[latestVehicles.length - 1].properties.updateUTC).getTime();
 
+            // Check if vehicle already exists
             if (!vehicleModels[vehicleId]) {
                 let markerElement = createVehicleMarker(vehicleId.slice(-4));
                 vehicleModels[vehicleId] = {
@@ -158,34 +159,59 @@
                         .addTo(map),
                     animating: false,
                     currentPositionIndex: 0,
-                    velocityBuffer: []
+                    velocityBuffer: [],
+                    lastTimestamp: 0
                 };
                 markerElement.style.display = 'none';
             }
 
             const vehicleData = vehicleModels[vehicleId];
 
-            // Store only last 6 positions
-            vehicleData.positions = latestVehicles.map(v => ({
-                lng: v.geometry.coordinates[0],
-                lat: v.geometry.coordinates[1],
-                timestamp: new Date(v.properties.updateUTC).getTime(),
-                speedKmph: v.properties.speedKmph || 30
-            }));
+            // Check for inactivity (15 min threshold)
+            if (latestTimestamp < fifteenMinutesAgo) {
+                // Remove from map if older than 15 minutes
+                if (vehicleData.marker) {
+                    logMessage(`❌ Removing Vehicle ${vehicleId} — Inactive for 15+ mins`);
+                    vehicleData.marker.remove();
+                    vehicleData.marker = null; // Clear marker
+                }
+                return; // Skip animation for inactive vehicles
+            }
 
-            logMessage(`🚗 Vehicle ${vehicleId} | Positions: ${vehicleData.positions.length}`);
+            // Re-add vehicle if it was previously removed
+            if (!vehicleData.marker) {
+                vehicleData.marker = new mapboxgl.Marker({ element: vehicleData.markerElement })
+                    .setLngLat([latestVehicles[0].geometry.coordinates[0], latestVehicles[0].geometry.coordinates[1]])
+                    .addTo(map);
+                logMessage(`✅ Re-adding Vehicle ${vehicleId} — New location received`);
+            }
 
-            if (!vehicleData.animating && vehicleData.positions.length >= 2) {
-                vehicleData.animating = true;
-                vehicleData.markerElement.style.display = 'block';
-                animateBetweenPositions(vehicleData);
+            // Update timestamp if new data arrived
+            if (latestTimestamp !== vehicleData.lastTimestamp) {
+                vehicleData.lastTimestamp = latestTimestamp;
+
+                vehicleData.positions = latestVehicles.map(v => ({
+                    lng: v.geometry.coordinates[0],
+                    lat: v.geometry.coordinates[1],
+                    timestamp: new Date(v.properties.updateUTC).getTime(),
+                    speedKmph: v.properties.speedKmph || 30
+                }));
+
+                logMessage(`🚗 Vehicle ${vehicleId} | Updated Positions: ${vehicleData.positions.length}`);
+
+                if (!vehicleData.animating && vehicleData.positions.length >= 2) {
+                    vehicleData.animating = true;
+                    vehicleData.markerElement.style.display = 'block';
+                    animateBetweenPositions(vehicleData);
+                }
+            } else {
+                logMessage(`⏸️ Vehicle ${vehicleId} — No new data, skipping animation`);
             }
         });
     }).catch(error => {
         logMessage("❌ Error fetching vehicle data: " + error, true);
     });
 }
-
             function createVehicleMarker(lastFourDigits) {
                 let markerDiv = document.createElement('div');
                 markerDiv.className = 'vehicle-marker';
