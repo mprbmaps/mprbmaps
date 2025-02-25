@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Street Routing & Smooth Animations)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Distance-Aware Animations)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -228,9 +228,14 @@
                         route = [start, end];
                     }
 
-                    const duration = end.timestamp - start.timestamp || 5000; // Use timestamp diff or default
+                    // Calculate route length
+                    const totalDistance = calculateRouteDistance(route);
+                    const timeDiff = end.timestamp - start.timestamp;
+                    const speed = totalDistance / timeDiff; // meters per millisecond
 
-                    animateAlongRoute(vehicle, route, duration, () => {
+                    logMessage(`🚚 Animating with speed: ${speed.toFixed(4)} m/ms over ${totalDistance.toFixed(2)} meters`);
+
+                    animateAlongRoute(vehicle, route, timeDiff, () => {
                         vehicle.animating = false;
                         logMessage(`✅ Vehicle ${vehicle.markerElement.innerText} completed animation.`);
                     });
@@ -268,6 +273,29 @@
                         resolve(null);
                     });
                 });
+            }
+
+            function calculateRouteDistance(route) {
+                let total = 0;
+                for (let i = 0; i < route.length - 1; i++) {
+                    total += getDistance(route[i], route[i + 1]);
+                }
+                return total;
+            }
+
+            function getDistance(p1, p2) {
+                const R = 6371e3; // Earth radius in meters
+                const φ1 = p1[1] * Math.PI / 180;
+                const φ2 = p2[1] * Math.PI / 180;
+                const Δφ = (p2[1] - p1[1]) * Math.PI / 180;
+                const Δλ = (p2[0] - p1[0]) * Math.PI / 180;
+
+                const a = Math.sin(Δφ / 2) ** 2 +
+                          Math.cos(φ1) * Math.cos(φ2) *
+                          Math.sin(Δλ / 2) ** 2;
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+                return R * c;
             }
 
             function animateAlongRoute(vehicle, route, duration, callback) {
