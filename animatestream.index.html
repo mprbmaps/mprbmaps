@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vehicle Animation with Mapbox Routing</title>
+    <title>Vehicle Animation with Mapbox Routing (Corrected)</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -47,9 +47,6 @@
         let vehicleModels = {};
         const REFRESH_INTERVAL = 10000; // 10 seconds
         const GLOBAL_FRAME_RATE = 1000 / 30; // 30 FPS
-        const MAX_DISTANCE_THRESHOLD = 0.5; // In kilometers
-        const VELOCITY_SMOOTHING_WINDOW = 5;
-        const SPEED_CAP = 120;
         const MAX_CACHE_SIZE = 500;
         const routeCache = {};
         let globalTime = Date.now(); // Global clock
@@ -152,7 +149,8 @@
                                 currentPositionIndex: 0,
                                 route: [],
                                 routeIndex: 0,
-                                velocityBuffer: []
+                                isAnimating: false,
+                                completedRoutes: new Set()
                             };
                             markerElement.style.display = 'none';
                         }
@@ -200,30 +198,68 @@
             }
 
             function animateVehicle(vehicle) {
-                if (vehicle.route.length === 0) return;
+                if (vehicle.isAnimating) return;
 
-                if (vehicle.routeIndex >= vehicle.route.length) return;
+                if (vehicle.routeIndex >= vehicle.route.length) {
+                    vehicle.isAnimating = false;
+                    return;
+                }
 
-                const nextPoint = vehicle.route[vehicle.routeIndex];
-                vehicle.marker.setLngLat([nextPoint.lng, nextPoint.lat]);
-                vehicle.routeIndex++;
+                vehicle.isAnimating = true;
+
+                smoothAnimateRoute(vehicle, vehicle.route, () => {
+                    vehicle.routeIndex++;
+                    vehicle.isAnimating = false;
+                });
             }
 
             function prepareRouteForVehicle(vehicle) {
                 if (vehicle.positions.length < 2) return;
 
-                const start = vehicle.positions[0];
-                const end = vehicle.positions[1];
+                for (let i = 0; i < vehicle.positions.length - 1; i++) {
+                    const start = vehicle.positions[i];
+                    const end = vehicle.positions[i + 1];
+                    const routeKey = `${start.lng},${start.lat}-${end.lng},${end.lat}`;
 
-                getMapboxRoute(start, end, (route) => {
-                    if (!route || route.length === 0) {
-                        logMessage(`⚠️ No route found for vehicle. Using straight line.`);
-                        route = [start, end];
+                    if (!vehicle.completedRoutes.has(routeKey)) {
+                        getMapboxRoute(start, end, (route) => {
+                            if (!route || route.length === 0) {
+                                logMessage(`⚠️ No route found for vehicle. Using straight line.`);
+                                route = [start, end];
+                            }
+
+                            vehicle.route = route;
+                            vehicle.routeIndex = 0;
+                            vehicle.completedRoutes.add(routeKey);
+                        });
+                        break; // Only process one segment at a time
                     }
+                }
+            }
 
-                    vehicle.route = route;
-                    vehicle.routeIndex = 0;
-                });
+            function smoothAnimateRoute(vehicle, route, callback) {
+                let startTime = null;
+                const duration = 3000; // 3 seconds for each segment
+
+                function step(timestamp) {
+                    if (!startTime) startTime = timestamp;
+                    const elapsed = timestamp - startTime;
+                    const t = Math.min(elapsed / duration, 1);
+                    const easedT = easeInOutCubic(t);
+
+                    const index = Math.floor(easedT * (route.length - 1));
+                    const interpolatedPoint = route[index];
+
+                    vehicle.marker.setLngLat([interpolatedPoint.lng, interpolatedPoint.lat]);
+
+                    if (t < 1) {
+                        requestAnimationFrame(step);
+                    } else {
+                        callback();
+                    }
+                }
+
+                requestAnimationFrame(step);
             }
 
             function getMapboxRoute(start, end, callback) {
@@ -272,7 +308,7 @@
                 const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
                 return R * c;
             }
-
+            
             function easeInOutCubic(t) {
                 return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
             }
