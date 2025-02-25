@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Synchronized & Smooth Vehicle Animation</title>
+    <title>Ultra-Smooth Vehicle Animation (Optimized)</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -48,11 +48,8 @@
         const REFRESH_INTERVAL = 10000; // 10 seconds
         const POSITION_BUFFER = 10;
         const routeCache = {};
-
-        let globalStartTime = null;
-        let globalEndTime = null;
-        let globalCurrentTime = null;
-        const ANIMATION_SPEED = 1; // Adjust this for faster/slower global animation
+        const MAX_LAG = 8000; // Increased tolerance for lag before skipping ahead
+        const MAX_CACHE_SIZE = 500; // Limit for cached routes
 
         function logMessage(msg, isError = false) {
             const timestamp = new Date().toISOString();
@@ -121,41 +118,59 @@
                         return;
                     }
 
-                    let allTimestamps = [];
-
                     vehicles.forEach(vehicle => {
                         const vehicleId = vehicle.properties.vehicle_number;
                         const updateUTC = new Date(vehicle.properties.updateUTC).getTime();
-
-                        allTimestamps.push(updateUTC);
+                        const speedKmph = vehicle.properties.speedKmph || 30; // Default to 30 km/h if missing
 
                         if (!vehicleModels[vehicleId]) {
                             let markerElement = createVehicleMarker(vehicleId.slice(-4));
                             vehicleModels[vehicleId] = {
                                 positions: [],
+                                speedKmph: speedKmph,
                                 markerElement: markerElement,
                                 marker: new mapboxgl.Marker({ element: markerElement })
                                     .setLngLat([vehicle.geometry.coordinates[0], vehicle.geometry.coordinates[1]])
-                                    .addTo(map)
+                                    .addTo(map),
+                                animating: false,
+                                currentPositionIndex: 0,
+                                queuedPositions: []
                             };
 
                             markerElement.style.display = 'none';
                         }
 
-                        vehicleModels[vehicleId].positions.push({
-                            lng: vehicle.geometry.coordinates[0],
-                            lat: vehicle.geometry.coordinates[1],
-                            timestamp: updateUTC
-                        });
+                        const vehicleData = vehicleModels[vehicleId];
 
-                        vehicleModels[vehicleId].positions.sort((a, b) => a.timestamp - b.timestamp);
+                        if (!vehicleData.positions.some(pos => pos.timestamp === updateUTC)) {
+                            vehicleData.positions.push({
+                                lng: vehicle.geometry.coordinates[0],
+                                lat: vehicle.geometry.coordinates[1],
+                                timestamp: updateUTC,
+                                speedKmph: speedKmph
+                            });
+
+                            vehicleData.positions.sort((a, b) => a.timestamp - b.timestamp);
+                            if (vehicleData.positions.length > POSITION_BUFFER) {
+                                vehicleData.positions = vehicleData.positions.slice(-POSITION_BUFFER);
+                            }
+
+                            logMessage(`🚚 Vehicle ${vehicleId} now has ${vehicleData.positions.length} positions.`);
+
+                            if (!vehicleData.animating && vehicleData.positions.length >= 2) {
+                                vehicleData.animating = true;
+                                vehicleData.markerElement.style.display = 'block';
+                                animateBetweenPositions(vehicleData);
+                            }
+                        } else {
+                            vehicleData.queuedPositions.push({
+                                lng: vehicle.geometry.coordinates[0],
+                                lat: vehicle.geometry.coordinates[1],
+                                timestamp: updateUTC,
+                                speedKmph: speedKmph
+                            });
+                        }
                     });
-
-                    globalStartTime = Math.min(...allTimestamps);
-                    globalEndTime = Math.max(...allTimestamps);
-                    globalCurrentTime = globalStartTime;
-
-                    startGlobalAnimation();
                 }).catch(error => logMessage("❌ Error fetching vehicle data: " + error, true));
             }
 
@@ -171,58 +186,139 @@
                 return markerDiv;
             }
 
-            function startGlobalAnimation() {
-                function globalStep(timestamp) {
-                    globalCurrentTime += ANIMATION_SPEED * 100; // Adjust time increment for speed
+            function animateBetweenPositions(vehicle) {
+                const positions = vehicle.positions;
 
-                    for (const vehicleId in vehicleModels) {
-                        const vehicle = vehicleModels[vehicleId];
-                        const interpolatedPosition = interpolatePosition(vehicle.positions, globalCurrentTime);
-
-                        if (interpolatedPosition) {
-                            vehicle.marker.setLngLat([interpolatedPosition.lng, interpolatedPosition.lat]);
-                            vehicle.marker.getElement().style.display = 'block';
-                        }
-                    }
-
-                    if (globalCurrentTime <= globalEndTime) {
-                        requestAnimationFrame(globalStep);
-                    }
+                if (positions.length < 2) {
+                    logMessage("⚠️ Not enough data points to animate.");
+                    return;
                 }
 
-                requestAnimationFrame(globalStep);
+                const start = positions[vehicle.currentPositionIndex];
+                const end = positions[vehicle.currentPositionIndex + 1];
+                const distance = calculateDistance(start, end);
+                const speed = start.speedKmph || 30;
+                const duration = (distance / speed) * 3600 * 1000; // Convert km/h to ms
+
+                getMapboxRoute(start, end, (route) => {
+                    if (!route || route.length === 0) {
+                        logMessage("⚠️ No route found between points.", true);
+                        return;
+                    }
+
+                    smoothAnimateRoute(vehicle, route, duration, () => {
+                        vehicle.currentPositionIndex++;
+
+                        if (vehicle.queuedPositions.length > 0) {
+                            vehicle.positions.push(...vehicle.queuedPositions);
+                            vehicle.queuedPositions = [];
+                        }
+
+                        if (vehicle.currentPositionIndex < positions.length - 1) {
+                            animateBetweenPositions(vehicle);
+                        } else {
+                            vehicle.animating = false;
+                        }
+                    });
+                });
             }
 
-            function interpolatePosition(positions, currentTime) {
-                if (positions.length < 2) return null;
+            function smoothAnimateRoute(vehicle, route, duration, callback) {
+                let startTime = null;
+                const totalSteps = route.length * 20; // Increased density for smoother animation
 
-                let prev = null;
-                let next = null;
+                function step(timestamp) {
+                    if (!startTime) startTime = timestamp;
+                    const elapsed = timestamp - startTime;
+                    const t = Math.min(elapsed / duration, 1);
+                    const easedT = easeInOutSine(t);
 
-                for (let i = 0; i < positions.length - 1; i++) {
-                    if (positions[i].timestamp <= currentTime && positions[i + 1].timestamp >= currentTime) {
-                        prev = positions[i];
-                        next = positions[i + 1];
-                        break;
+                    const index = Math.floor(easedT * (totalSteps - 1));
+                    const interpolatedPoint = interpolateRoute(route, index / totalSteps);
+
+                    vehicle.marker.setLngLat([interpolatedPoint.lng, interpolatedPoint.lat]);
+
+                    if (elapsed - duration > MAX_LAG) {
+                        callback();
+                        return;
+                    }
+
+                    if (t < 1) {
+                        requestAnimationFrame(step);
+                    } else {
+                        callback();
                     }
                 }
 
-                if (!prev || !next) return null;
+                requestAnimationFrame(step);
+            }
 
-                const timeDiff = next.timestamp - prev.timestamp;
-                const timeElapsed = currentTime - prev.timestamp;
-                const t = timeDiff === 0 ? 0 : timeElapsed / timeDiff;
+            function interpolateRoute(route, t) {
+                const total = route.length - 1;
+                const scaledT = t * total;
+                const idx = Math.floor(scaledT);
+                const frac = scaledT - idx;
 
-                const easedT = easeInOutQuad(t);
+                if (idx >= total) return route[total];
+
+                const p1 = route[idx];
+                const p2 = route[idx + 1];
 
                 return {
-                    lng: prev.lng + (next.lng - prev.lng) * easedT,
-                    lat: prev.lat + (next.lat - prev.lat) * easedT
+                    lng: p1.lng + (p2.lng - p1.lng) * frac,
+                    lat: p1.lat + (p2.lat - p1.lat) * frac
                 };
             }
 
-            function easeInOutQuad(t) {
-                return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+            function getMapboxRoute(start, end, callback) {
+                const routeKey = `${start.lng},${start.lat}-${end.lng},${end.lat}`;
+
+                if (routeCache[routeKey]) {
+                    callback(routeCache[routeKey]);
+                    return;
+                }
+
+                if (Object.keys(routeCache).length > MAX_CACHE_SIZE) {
+                    const firstKey = Object.keys(routeCache)[0];
+                    delete routeCache[firstKey];
+                }
+
+                const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.lng},${start.lat};${end.lng},${end.lat}?geometries=geojson&steps=true&access_token=${mapboxgl.accessToken}`;
+
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.routes && data.routes.length > 0) {
+                            const route = data.routes[0].geometry.coordinates.map(coord => ({
+                                lng: coord[0],
+                                lat: coord[1]
+                            }));
+                            routeCache[routeKey] = route;
+                            callback(route);
+                        } else {
+                            console.error("No route found.");
+                            callback([]);
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error fetching Mapbox route:", error);
+                        callback([]);
+                    });
+            }
+
+            function calculateDistance(point1, point2) {
+                const R = 6371; // Radius of the Earth in km
+                const dLat = (point2.lat - point1.lat) * Math.PI / 180;
+                const dLon = (point2.lng - point1.lng) * Math.PI / 180;
+                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(point1.lat * Math.PI / 180) * Math.cos(point2.lat * Math.PI / 180) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                return R * c; // Distance in km
+            }
+
+            function easeInOutSine(t) {
+                return -(Math.cos(Math.PI * t) - 1) / 2;
             }
         });
     }
