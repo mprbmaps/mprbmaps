@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Fixed Buffer & Deduplication)</title>
+    <title>Mapbox + Threebox 3D Vehicles (10th to 9th Animation Only)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -134,7 +134,6 @@
                         return;
                     }
 
-                    // Deduplicate vehicles and build fresh buffers
                     const vehicleGroups = {};
                     vehicles.forEach(vehicle => {
                         const vehicleId = vehicle.properties.vehicle_number;
@@ -151,7 +150,6 @@
                         });
                     });
 
-                    // Update vehicles
                     Object.keys(vehicleGroups).forEach(vehicleId => {
                         const sortedPositions = vehicleGroups[vehicleId].sort((a, b) => a.timestamp - b.timestamp);
                         const buffer = sortedPositions.slice(-POSITION_BUFFER); // Keep last 10 positions
@@ -164,20 +162,29 @@
                                 marker: new mapboxgl.Marker({ element: markerElement })
                                     .setLngLat([buffer[0].lng, buffer[0].lat])
                                     .addTo(map),
-                                animating: false
+                                animating: false,
+                                lastAnimatedTimestamp: null
                             };
                         }
 
-                        // Update the position buffer
-                        vehicleModels[vehicleId].positions = buffer;
+                        // Update buffer if new data exists
+                        const vehicleData = vehicleModels[vehicleId];
+                        const latestTimestamp = buffer[buffer.length - 1].timestamp;
 
-                        if (buffer.length >= POSITION_BUFFER) {
-                            vehicleModels[vehicleId].markerElement.style.display = 'block';
-                            logMessage(`🚀 Vehicle ${vehicleId} updated and animating.`);
-                            animateBetweenPositions(vehicleModels[vehicleId]);
+                        if (vehicleData.lastAnimatedTimestamp !== latestTimestamp) {
+                            vehicleData.positions = buffer;
+                            vehicleData.lastAnimatedTimestamp = latestTimestamp;
+
+                            if (buffer.length >= POSITION_BUFFER) {
+                                vehicleData.markerElement.style.display = 'block';
+                                logMessage(`🚀 Vehicle ${vehicleId} animating between 10th and 9th.`);
+                                animateBetween10thAnd9th(vehicleData);
+                            } else {
+                                vehicleData.markerElement.style.display = 'none';
+                                logMessage(`⚠️ Vehicle ${vehicleId} has only ${buffer.length} positions.`);
+                            }
                         } else {
-                            vehicleModels[vehicleId].markerElement.style.display = 'none';
-                            logMessage(`⚠️ Vehicle ${vehicleId} has only ${buffer.length} positions.`);
+                            logMessage(`⏸️ Vehicle ${vehicleId} no new data, skipping animation.`);
                         }
                     });
                 }).catch(error => {
@@ -197,7 +204,7 @@
                 return markerDiv;
             }
 
-            function animateBetweenPositions(vehicle) {
+            function animateBetween10thAnd9th(vehicle) {
                 const positions = vehicle.positions;
 
                 if (positions.length < 10) {
@@ -217,8 +224,7 @@
                     const timeDiff = ninthPos.timestamp - tenthPos.timestamp || 1000;
 
                     animateAlongRoute(vehicle, route, timeDiff, () => {
-                        // After animation, loop back to updated data
-                        loadVehicleData();
+                        logMessage(`✅ Vehicle ${vehicle.markerElement.innerText} completed animation.`);
                     });
                 }).catch(error => {
                     logMessage(`❌ Error during route animation: ${error}`, true);
