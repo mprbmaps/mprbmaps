@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultra-Smooth Vehicle Animation (Jump-Free with Fixes)</title>
+    <title>Vehicle Animation with Last 6 Locations</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -45,16 +45,13 @@
 
         let map, esriRequest;
         let vehicleModels = {};
-        let vehicleUpdateLog = {};
-        const REFRESH_INTERVAL = 10000;
-        const POSITION_BUFFER = 20;
-        const routeCache = {};
-        const MAX_LAG = 8000;
-        const MAX_CACHE_SIZE = 500;
-        const SPEED_CAP = 120;
-        const MAX_DISTANCE_THRESHOLD = 0.5;
-        const MIN_ANIMATION_DURATION = 2000;
+        const REFRESH_INTERVAL = 10000; // 10 seconds
+        const MAX_DISTANCE_THRESHOLD = 0.5; // In kilometers
+        const MIN_ANIMATION_DURATION = 2000; // 2 seconds
         const VELOCITY_SMOOTHING_WINDOW = 5;
+        const SPEED_CAP = 120;
+        const MAX_CACHE_SIZE = 500;
+        const routeCache = {};
 
         function logMessage(msg, isError = false) {
             const timestamp = new Date().toISOString();
@@ -105,115 +102,80 @@
             }
 
             function loadVehicleData() {
-    logMessage("🔄 Fetching vehicle data...");
-    const cacheBuster = new Date().getTime(); // Unique timestamp per request
+                logMessage("🔄 Fetching vehicle data...");
+                const cacheBuster = new Date().getTime();
 
-    esriRequest(`https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/PlowSnaps4/FeatureServer/0/query?_ts=${cacheBuster}`, {
-        query: {
-            where: "1=1",
-            outFields: "objectid,directionDegrees,vehicle_number,speedKmph,longitude,latitude,updateUTC",
-            orderByFields: "vehicle_number ASC, updateUTC DESC",
-            f: "geojson"
-        },
-        responseType: "json",
-        cacheBust: true // Use esriRequest's built-in cache buster
-    }).then(response => {
-        console.log("🚀 Full Vehicle Data Response:", response);
+                esriRequest(`https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/PlowSnaps4/FeatureServer/0/query?_ts=${cacheBuster}`, {
+                    query: {
+                        where: "1=1",
+                        outFields: "objectid,directionDegrees,vehicle_number,speedKmph,longitude,latitude,updateUTC",
+                        orderByFields: "vehicle_number ASC, updateUTC DESC",
+                        resultRecordCount: 1000,
+                        f: "geojson"
+                    },
+                    responseType: "json",
+                    cacheBust: true
+                }).then(response => {
+                    console.log("🚀 Full Vehicle Data Response:", response);
 
-        const vehicles = response.data.features;
+                    const vehicles = response.data.features;
 
-        if (!vehicles || vehicles.length === 0) {
-            logMessage("⚠️ No vehicles found.");
-            return;
-        }
-
-        vehicles.forEach(vehicle => {
-            const vehicleId = vehicle.properties.vehicle_number;
-            const updateUTC = new Date(vehicle.properties.updateUTC).getTime();
-            const speedKmph = vehicle.properties.speedKmph || 30;
-
-            logMessage(`📡 Vehicle ${vehicleId} | Latest Time: ${new Date(updateUTC).toISOString()}`);
-
-            if (!vehicleModels[vehicleId]) {
-                let markerElement = createVehicleMarker(vehicleId.slice(-4));
-                vehicleModels[vehicleId] = {
-                    positions: [],
-                    markerElement: markerElement,
-                    marker: new mapboxgl.Marker({ element: markerElement })
-                        .setLngLat([vehicle.geometry.coordinates[0], vehicle.geometry.coordinates[1]])
-                        .addTo(map),
-                    animating: false,
-                    currentPositionIndex: 0,
-                    velocityBuffer: []
-                };
-                markerElement.style.display = 'none';
-            }
-
-            const vehicleData = vehicleModels[vehicleId];
-            vehicleData.positions = [{
-                lng: vehicle.geometry.coordinates[0],
-                lat: vehicle.geometry.coordinates[1],
-                timestamp: updateUTC,
-                speedKmph: speedKmph
-            }];
-
-            if (!vehicleData.animating && vehicleData.positions.length >= 1) {
-                vehicleData.animating = true;
-                vehicleData.markerElement.style.display = 'block';
-                animateBetweenPositions(vehicleData);
-            }
-        });
-    }).catch(error => {
-        logMessage("❌ Error fetching vehicle data: " + error, true);
-    });
-}
-
-            function handleVehicleUpdate(vehicle) {
-                const vehicleId = vehicle.properties.vehicle_number;
-                const updateUTC = new Date(vehicle.properties.updateUTC).getTime();
-                const speedKmph = vehicle.properties.speedKmph || 30;
-
-                if (!vehicleModels[vehicleId]) {
-                    let markerElement = createVehicleMarker(vehicleId.slice(-4));
-                    vehicleModels[vehicleId] = {
-                        positions: [],
-                        speedKmph: speedKmph,
-                        markerElement: markerElement,
-                        marker: new mapboxgl.Marker({ element: markerElement })
-                            .setLngLat([vehicle.geometry.coordinates[0], vehicle.geometry.coordinates[1]])
-                            .addTo(map),
-                        animating: false,
-                        currentPositionIndex: 0,
-                        queuedPositions: [],
-                        velocityBuffer: []
-                    };
-                    markerElement.style.display = 'none';
-                }
-
-                const vehicleData = vehicleModels[vehicleId];
-                const newPoint = {
-                    lng: vehicle.geometry.coordinates[0],
-                    lat: vehicle.geometry.coordinates[1],
-                    timestamp: updateUTC,
-                    speedKmph: speedKmph
-                };
-
-                // Avoid duplicates
-                if (!vehicleData.positions.some(pos => pos.timestamp === updateUTC)) {
-                    vehicleData.positions.push(newPoint);
-                    vehicleData.positions.sort((a, b) => a.timestamp - b.timestamp);
-
-                    // Maintain buffer size
-                    if (vehicleData.positions.length > POSITION_BUFFER) {
-                        vehicleData.positions = vehicleData.positions.slice(-POSITION_BUFFER);
+                    if (!vehicles || vehicles.length === 0) {
+                        logMessage("⚠️ No vehicles found.");
+                        return;
                     }
 
-                    if (!vehicleData.animating && vehicleData.positions.length >= 2) {
-                        vehicleData.animating = true;
-                        vehicleData.markerElement.style.display = 'block';
-                        animateBetweenPositions(vehicleData);
-                    }
-                }
+                    const vehicleGroups = {};
+                    vehicles.forEach(vehicle => {
+                        const vehicleId = vehicle.properties.vehicle_number;
+                        if (!vehicleGroups[vehicleId]) {
+                            vehicleGroups[vehicleId] = [];
+                        }
+                        vehicleGroups[vehicleId].push(vehicle);
+                    });
+
+                    Object.keys(vehicleGroups).forEach(vehicleId => {
+                        const sortedVehicles = vehicleGroups[vehicleId].sort((a, b) =>
+                            new Date(a.properties.updateUTC) - new Date(b.properties.updateUTC)
+                        );
+
+                        const latestVehicles = sortedVehicles.slice(-6);
+
+                        if (!vehicleModels[vehicleId]) {
+                            let markerElement = createVehicleMarker(vehicleId.slice(-4));
+                            vehicleModels[vehicleId] = {
+                                positions: [],
+                                markerElement: markerElement,
+                                marker: new mapboxgl.Marker({ element: markerElement })
+                                    .setLngLat([latestVehicles[0].geometry.coordinates[0], latestVehicles[0].geometry.coordinates[1]])
+                                    .addTo(map),
+                                animating: false,
+                                currentPositionIndex: 0,
+                                velocityBuffer: []
+                            };
+                            markerElement.style.display = 'none';
+                        }
+
+                        const vehicleData = vehicleModels[vehicleId];
+
+                        vehicleData.positions = latestVehicles.map(v => ({
+                            lng: v.geometry.coordinates[0],
+                            lat: v.geometry.coordinates[1],
+                            timestamp: new Date(v.properties.updateUTC).getTime(),
+                            speedKmph: v.properties.speedKmph || 30
+                        }));
+
+                        logMessage(`📡 Vehicle ${vehicleId} | Stored ${vehicleData.positions.length} positions`);
+
+                        if (!vehicleData.animating && vehicleData.positions.length >= 2) {
+                            vehicleData.animating = true;
+                            vehicleData.markerElement.style.display = 'block';
+                            animateBetweenPositions(vehicleData);
+                        }
+                    });
+                }).catch(error => {
+                    logMessage("❌ Error fetching vehicle data: " + error, true);
+                });
             }
 
             function createVehicleMarker(lastFourDigits) {
