@@ -46,13 +46,12 @@
         let map, esriRequest;
         let vehicleModels = {};
         const REFRESH_INTERVAL = 10000; // 10 seconds
+        const GLOBAL_FRAME_RATE = 1000 / 30; // 30 FPS
         const MAX_DISTANCE_THRESHOLD = 0.5; // In kilometers
-        const MIN_ANIMATION_DURATION = 2000; // 2 seconds
         const VELOCITY_SMOOTHING_WINDOW = 5;
         const SPEED_CAP = 120;
         const MAX_CACHE_SIZE = 500;
         const routeCache = {};
-        const GLOBAL_FRAME_RATE = 1000 / 30; // 30 FPS
         let globalTime = Date.now(); // Global clock
 
         function logMessage(msg, isError = false) {
@@ -100,7 +99,7 @@
                     logMessage("✅ Map Style Loaded!");
                     loadVehicleData();
                     setInterval(loadVehicleData, REFRESH_INTERVAL);
-                    setInterval(globalAnimationFrame, GLOBAL_FRAME_RATE);
+                    requestAnimationFrame(globalAnimationFrame);
                 });
             }
 
@@ -119,8 +118,6 @@
                     responseType: "json",
                     cacheBust: true
                 }).then(response => {
-                    console.log("🚀 Full Vehicle Data Response:", response);
-
                     const vehicles = response.data.features;
 
                     if (!vehicles || vehicles.length === 0) {
@@ -137,17 +134,12 @@
                         vehicleGroups[vehicleId].push(vehicle);
                     });
 
-                    logMessage(`📡 Vehicles Found: ${Object.keys(vehicleGroups).length}`);
-
                     Object.keys(vehicleGroups).forEach(vehicleId => {
                         const sortedVehicles = vehicleGroups[vehicleId].sort((a, b) =>
                             new Date(a.properties.updateUTC) - new Date(b.properties.updateUTC)
                         );
 
                         const latestVehicles = sortedVehicles.slice(-6);
-                        const latestTimestamp = new Date(latestVehicles[latestVehicles.length - 1].properties.updateUTC).getTime();
-
-                        logMessage(`🕒 Vehicle ${vehicleId} Last Update: ${new Date(latestTimestamp).toISOString()}`);
 
                         if (!vehicleModels[vehicleId]) {
                             let markerElement = createVehicleMarker(vehicleId.slice(-4));
@@ -157,10 +149,10 @@
                                 marker: new mapboxgl.Marker({ element: markerElement })
                                     .setLngLat([latestVehicles[0].geometry.coordinates[0], latestVehicles[0].geometry.coordinates[1]])
                                     .addTo(map),
-                                animating: false,
                                 currentPositionIndex: 0,
-                                velocityBuffer: [],
-                                lastTimestamp: 0
+                                route: [],
+                                routeIndex: 0,
+                                velocityBuffer: []
                             };
                             markerElement.style.display = 'none';
                         }
@@ -175,6 +167,8 @@
                         }));
 
                         vehicleData.markerElement.style.display = 'block';
+
+                        prepareRouteForVehicle(vehicleData);
                     });
 
                     logMessage("✅ Vehicle data loaded and processed");
@@ -199,35 +193,36 @@
                 globalTime += GLOBAL_FRAME_RATE;
 
                 Object.keys(vehicleModels).forEach(vehicleId => {
-                    animateVehicle(vehicleModels[vehicleId], globalTime);
+                    animateVehicle(vehicleModels[vehicleId]);
                 });
+
+                requestAnimationFrame(globalAnimationFrame);
             }
 
-            function animateVehicle(vehicle, currentTime) {
-                const positions = vehicle.positions;
+            function animateVehicle(vehicle) {
+                if (vehicle.route.length === 0) return;
 
-                if (positions.length < 2) return;
+                if (vehicle.routeIndex >= vehicle.route.length) return;
 
-                let nextIndex = vehicle.currentPositionIndex;
-                while (nextIndex < positions.length - 1 &&
-                    currentTime >= positions[nextIndex + 1].timestamp) {
-                    nextIndex++;
-                }
+                const nextPoint = vehicle.route[vehicle.routeIndex];
+                vehicle.marker.setLngLat([nextPoint.lng, nextPoint.lat]);
+                vehicle.routeIndex++;
+            }
 
-                if (nextIndex >= positions.length - 1) return;
+            function prepareRouteForVehicle(vehicle) {
+                if (vehicle.positions.length < 2) return;
 
-                const start = positions[nextIndex];
-                const end = positions[nextIndex + 1];
+                const start = vehicle.positions[0];
+                const end = vehicle.positions[1];
 
                 getMapboxRoute(start, end, (route) => {
                     if (!route || route.length === 0) {
-                        logMessage(`⚠️ No route found for vehicle ${vehicle.vehicle_number}. Using straight line.`, true);
+                        logMessage(`⚠️ No route found for vehicle. Using straight line.`);
                         route = [start, end];
                     }
 
-                    smoothAnimateRoute(vehicle, route, end.timestamp - start.timestamp, () => {
-                        vehicle.currentPositionIndex = nextIndex + 1;
-                    });
+                    vehicle.route = route;
+                    vehicle.routeIndex = 0;
                 });
             }
 
@@ -265,48 +260,6 @@
                         logMessage(`❌ Error fetching Mapbox route: ${error}`, true);
                         callback([]);
                     });
-            }
-
-            function smoothAnimateRoute(vehicle, route, duration, callback) {
-                let startTime = null;
-                const totalSteps = route.length * 20;
-
-                function step(timestamp) {
-                    if (!startTime) startTime = timestamp;
-                    const elapsed = timestamp - startTime;
-                    const t = Math.min(elapsed / duration, 1);
-                    const easedT = easeInOutCubic(t);
-
-                    const index = Math.floor(easedT * (totalSteps - 1));
-                    const interpolatedPoint = interpolateRoute(route, index / totalSteps);
-
-                    vehicle.marker.setLngLat([interpolatedPoint.lng, interpolatedPoint.lat]);
-
-                    if (t < 1) {
-                        requestAnimationFrame(step);
-                    } else {
-                        callback();
-                    }
-                }
-
-                requestAnimationFrame(step);
-            }
-
-            function interpolateRoute(route, t) {
-                const total = route.length - 1;
-                const scaledT = t * total;
-                const idx = Math.floor(scaledT);
-                const frac = scaledT - idx;
-
-                if (idx >= total) return route[total];
-
-                const p1 = route[idx];
-                const p2 = route[idx + 1];
-
-                return {
-                    lng: p1.lng + (p2.lng - p1.lng) * frac,
-                    lat: p1.lat + (p2.lat - p1.lat) * frac
-                };
             }
 
             function calculateDistance(point1, point2) {
