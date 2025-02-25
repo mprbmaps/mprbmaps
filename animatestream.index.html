@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (10-Position Buffer)</title>
+    <title>Mapbox + Threebox 3D Vehicles (10th to 9th Position Animation)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -52,9 +52,7 @@
         let esriRequest;
         const REFRESH_INTERVAL = 10000; // 10 seconds
         const POSITION_BUFFER = 10;
-        const UPDATE_THRESHOLD = 30000; // 30 seconds
         const STREET_LAYER_URL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/MPLS_Centerline2/FeatureServer/0";
-        let firstVehicleCentered = false;
 
         function logMessage(msg, isError = false) {
             const timestamp = new Date().toISOString();
@@ -136,7 +134,6 @@
                         return;
                     }
 
-                    // Group positions by vehicle number
                     const vehicleGroups = {};
                     vehicles.forEach(vehicle => {
                         const vehicleId = vehicle.properties.vehicle_number;
@@ -153,7 +150,6 @@
                         });
                     });
 
-                    // Process each vehicle
                     Object.keys(vehicleGroups).forEach(vehicleId => {
                         const sortedPositions = vehicleGroups[vehicleId].sort((a, b) => a.timestamp - b.timestamp);
                         const buffer = sortedPositions.slice(-POSITION_BUFFER); // Keep last 10 positions
@@ -164,17 +160,14 @@
                             positions: buffer,
                             markerElement: markerElement,
                             marker: new mapboxgl.Marker({ element: markerElement })
-                                .setLngLat([buffer[0].lng, buffer[0].lat]) // Start at first position
+                                .setLngLat([buffer[0].lng, buffer[0].lat])
                                 .addTo(map),
-                            animating: false,
-                            currentPositionIndex: 0,
-                            lastUpdateUTC: buffer[buffer.length - 1].timestamp
+                            animating: false
                         };
 
-                        // Only show marker and animate if 10 positions exist
                         if (buffer.length >= POSITION_BUFFER) {
                             markerElement.style.display = 'block'; // Show marker
-                            logMessage(`🚀 Vehicle ${vehicleId} starts animating on load with ${buffer.length} positions.`);
+                            logMessage(`🚀 Vehicle ${vehicleId} starts animating.`);
                             animateBetweenPositions(vehicleModels[vehicleId]);
                         } else {
                             markerElement.style.display = 'none'; // Hide if less than 10 positions
@@ -201,38 +194,25 @@
             function animateBetweenPositions(vehicle) {
                 const positions = vehicle.positions;
 
-                if (positions.length < 2) {
-                    logMessage("⚠️ Not enough data points to animate.");
+                if (positions.length < 10) {
+                    logMessage("⚠️ Not enough data points to animate between 10th and 9th.");
                     return;
                 }
 
-                const startIdx = vehicle.currentPositionIndex;
-                const endIdx = startIdx + 1;
+                const tenthPos = positions[0]; // 10th most recent
+                const ninthPos = positions[1]; // 9th most recent
 
-                if (endIdx >= positions.length) {
-                    vehicle.animating = false;
-                    return;
-                }
-
-                const start = positions[startIdx];
-                const end = positions[endIdx];
-
-                queryStreetsForRoute(start, end).then(route => {
+                queryStreetsForRoute(tenthPos, ninthPos).then(route => {
                     if (!route || route.length < 2) {
                         logMessage("⚠️ No valid street route found, defaulting to direct path.");
-                        route = [start, end];
+                        route = [tenthPos, ninthPos];
                     }
 
-                    const timeDiff = end.timestamp - start.timestamp || 1000;
+                    const timeDiff = ninthPos.timestamp - tenthPos.timestamp || 1000;
 
                     animateAlongRoute(vehicle, route, timeDiff, () => {
-                        vehicle.currentPositionIndex += 1;
-
-                        if (vehicle.currentPositionIndex < positions.length - 1) {
-                            animateBetweenPositions(vehicle);
-                        } else {
-                            vehicle.animating = false;
-                        }
+                        // After animation, refresh buffer and re-animate between new 10th and 9th
+                        loadVehicleData();
                     });
                 }).catch(error => {
                     logMessage(`❌ Error during route animation: ${error}`, true);
