@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Network Distance-Based Animation)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Continuous Buffer Animation)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -51,8 +51,8 @@
         let vehicleModels = {};
         let esriRequest;
         const REFRESH_INTERVAL = 10000; // 10 seconds
-        const POSITION_BUFFER = 5;
-        const STREET_LAYER_URL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/MPLS_Centerline2/FeatureServer/0";
+        const POSITION_BUFFER = 10;
+        let firstVehicleCentered = false;
 
         function logMessage(msg, isError = false) {
             const timestamp = new Date().toISOString();
@@ -134,31 +134,9 @@
                         return;
                     }
 
-                    const vehicleGroups = {};
                     vehicles.forEach(vehicle => {
                         const vehicleId = vehicle.properties.vehicle_number;
                         const updateUTC = new Date(vehicle.properties.updateUTC).getTime();
-                        const lng = vehicle.geometry.coordinates[0];
-                        const lat = vehicle.geometry.coordinates[1];
-
-                        if (!vehicleGroups[vehicleId]) {
-                            vehicleGroups[vehicleId] = [];
-                        }
-
-                        const lastPos = vehicleGroups[vehicleId][vehicleGroups[vehicleId].length - 1];
-                        if (!lastPos || lastPos.lng !== lng || lastPos.lat !== lat || lastPos.timestamp !== updateUTC) {
-                            vehicleGroups[vehicleId].push({ lng, lat, timestamp: updateUTC });
-
-                            if (vehicleGroups[vehicleId].length > POSITION_BUFFER) {
-                                vehicleGroups[vehicleId].shift();
-                            }
-                        } else {
-                            logMessage(`⏸️ Vehicle ${vehicleId} no movement detected, skipping.`);
-                        }
-                    });
-
-                    Object.keys(vehicleGroups).forEach(vehicleId => {
-                        const positions = vehicleGroups[vehicleId];
 
                         if (!vehicleModels[vehicleId]) {
                             let markerElement = createVehicleMarker(vehicleId.slice(-4));
@@ -166,19 +144,36 @@
                                 positions: [],
                                 markerElement: markerElement,
                                 marker: new mapboxgl.Marker({ element: markerElement })
-                                    .setLngLat([positions[0].lng, positions[0].lat])
+                                    .setLngLat([vehicle.geometry.coordinates[0], vehicle.geometry.coordinates[1]])
                                     .addTo(map),
                                 animating: false,
                                 currentPositionIndex: 0
                             };
+
+                            markerElement.style.display = 'none';
                         }
 
                         const vehicleData = vehicleModels[vehicleId];
-                        vehicleData.positions = positions;
 
-                        if (positions.length === POSITION_BUFFER && !vehicleData.animating) {
-                            logMessage(`🚀 Vehicle ${vehicleId} starting animation.`);
-                            animateThroughPositions(vehicleData);
+                        if (!vehicleData.positions.some(pos => pos.timestamp === updateUTC)) {
+                            vehicleData.positions.push({
+                                lng: vehicle.geometry.coordinates[0],
+                                lat: vehicle.geometry.coordinates[1],
+                                timestamp: updateUTC
+                            });
+
+                            vehicleData.positions.sort((a, b) => a.timestamp - b.timestamp);
+
+                            if (vehicleData.positions.length > POSITION_BUFFER) {
+                                vehicleData.positions = vehicleData.positions.slice(-POSITION_BUFFER);
+                            }
+
+                            logMessage(`🚚 Vehicle ${vehicleId} now has ${vehicleData.positions.length} positions.`);
+
+                            if (!vehicleData.animating && vehicleData.positions.length >= 2) {
+                                vehicleData.markerElement.style.display = 'block';
+                                animateBetweenPositions(vehicleData);
+                            }
                         }
                     });
                 }).catch(error => {
@@ -198,82 +193,33 @@
                 return markerDiv;
             }
 
-            function animateThroughPositions(vehicle) {
+            function animateBetweenPositions(vehicle) {
                 const positions = vehicle.positions;
-                let index = 0;
 
-                function animateNext() {
-                    if (index >= positions.length - 1) {
-                        logMessage(`✅ Vehicle ${vehicle.markerElement.innerText} completed path.`);
-                        vehicle.animating = false;
-                        return;
-                    }
-
-                    const startPos = positions[index];
-                    const endPos = positions[index + 1];
-                    const timeDiff = endPos.timestamp - startPos.timestamp || 1000;
-
-                    queryStreetsForRoute(startPos, endPos).then(route => {
-                        if (!route || route.length < 2) {
-                            logMessage("⚠️ No valid street route found, defaulting to direct path.");
-                            route = [[startPos.lng, startPos.lat], [endPos.lng, endPos.lat]]; // Direct path as fallback
-                        }
-
-                        const distance = calculateRouteDistance(route); // Calculate total distance
-                        const speed = distance / (timeDiff / 1000); // Speed in meters per second
-                        logMessage(`🚗 Vehicle ${vehicle.markerElement.innerText} will move ${distance.toFixed(2)} meters at ${speed.toFixed(2)} m/s.`);
-
-                        animateAlongRoute(vehicle, route, timeDiff, () => {
-                            index++;
-                            animateNext();
-                        });
-                    }).catch(error => {
-                        logMessage(`❌ Error during route animation: ${error}`, true);
-                    });
+                if (positions.length < 2) {
+                    logMessage("⚠️ Not enough data points to animate.");
+                    return;
                 }
 
-                vehicle.animating = true;
-                animateNext();
-            }
+                const startIdx = vehicle.currentPositionIndex;
+                const endIdx = Math.min(startIdx + 1, positions.length - 1);
 
-            function queryStreetsForRoute(start, end) {
-                return new Promise((resolve) => {
-                    esriRequest(STREET_LAYER_URL + "/query", {
-                        query: {
-                            where: "1=1",
-                            geometry: `${start.lng},${start.lat}`,
-                            geometryType: "esriGeometryPoint",
-                            spatialRel: "esriSpatialRelIntersects",
-                            outFields: "*",
-                            returnGeometry: true,
-                            distance: 50,
-                            units: "esriSRUnit_Meter",
-                            f: "json"
-                        },
-                        responseType: "json"
-                    }).then(response => {
-                        const streets = response.data.features;
-                        if (!streets || streets.length === 0) {
-                            resolve(null);
-                            return;
-                        }
+                const start = positions[startIdx];
+                const end = positions[endIdx];
+                const timeDiff = Math.max(end.timestamp - start.timestamp, 1000);
 
-                        const closestStreet = streets[0].geometry.paths[0];
-                        resolve(closestStreet);
-                    }).catch(error => {
-                        logMessage(`❌ Street route query failed: ${error}`, true);
-                        resolve(null);
-                    });
+                animateAlongRoute(vehicle, [start, end], timeDiff, () => {
+                    vehicle.currentPositionIndex = endIdx;
+
+                    if (vehicle.currentPositionIndex < positions.length - 1) {
+                        animateBetweenPositions(vehicle);
+                    } else {
+                        vehicle.animating = false;
+                    }
                 });
             }
 
             function animateAlongRoute(vehicle, route, duration, callback) {
-                if (!route || route.length < 2) {
-                    logMessage("⚠️ Skipping animation due to invalid route.");
-                    callback();
-                    return;
-                }
-
                 const startTime = performance.now();
 
                 function step() {
@@ -281,22 +227,8 @@
                     const progress = Math.min(elapsed / duration, 1);
                     const easedProgress = easeInOutCubic(progress);
 
-                    const interpolatedIndex = easedProgress * (route.length - 1);
-                    const lowerIndex = Math.floor(interpolatedIndex);
-                    const upperIndex = Math.min(lowerIndex + 1, route.length - 1);
-                    const segmentProgress = interpolatedIndex - lowerIndex;
-
-                    if (!route[lowerIndex] || !route[upperIndex]) {
-                        logMessage("⚠️ Route index out of bounds, skipping animation step.");
-                        callback();
-                        return;
-                    }
-
-                    const startCoord = route[lowerIndex];
-                    const endCoord = route[upperIndex];
-
-                    const lng = startCoord[0] + (endCoord[0] - startCoord[0]) * segmentProgress;
-                    const lat = startCoord[1] + (endCoord[1] - startCoord[1]) * segmentProgress;
+                    const lng = route[0].lng + (route[1].lng - route[0].lng) * easedProgress;
+                    const lat = route[0].lat + (route[1].lat - route[0].lat) * easedProgress;
 
                     vehicle.marker.setLngLat([lng, lat]);
 
@@ -309,29 +241,6 @@
 
                 vehicle.animating = true;
                 step();
-            }
-
-            function calculateRouteDistance(route) {
-                let totalDistance = 0;
-                for (let i = 0; i < route.length - 1; i++) {
-                    totalDistance += getDistance(route[i], route[i + 1]);
-                }
-                return totalDistance;
-            }
-
-            function getDistance(coord1, coord2) {
-                const R = 6371e3; // Earth radius in meters
-                const φ1 = coord1[1] * Math.PI / 180;
-                const φ2 = coord2[1] * Math.PI / 180;
-                const Δφ = (coord2[1] - coord1[1]) * Math.PI / 180;
-                const Δλ = (coord2[0] - coord1[0]) * Math.PI / 180;
-
-                const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-                          Math.cos(φ1) * Math.cos(φ2) *
-                          Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-                return R * c;
             }
 
             function easeInOutCubic(t) {
