@@ -102,115 +102,110 @@
             }
 
             function loadVehicleData() {
-    logMessage("🔄 Fetching vehicle data...");
-    const cacheBuster = new Date().getTime();
+                logMessage("🔄 Fetching vehicle data...");
+                const cacheBuster = new Date().getTime();
+                const fifteenMinutesAgo = Date.now() - (15 * 60 * 1000); // 15 minutes ago in ms
 
-    const fifteenMinutesAgo = Date.now() - (15 * 60 * 1000); // 15 minutes ago in ms
+                esriRequest(`https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/PlowSnaps4/FeatureServer/0/query?_ts=${cacheBuster}`, {
+                    query: {
+                        where: "1=1", // Fetch all data
+                        outFields: "objectid,directionDegrees,vehicle_number,speedKmph,longitude,latitude,updateUTC",
+                        orderByFields: "vehicle_number ASC, updateUTC DESC",
+                        resultRecordCount: 5000,
+                        f: "geojson"
+                    },
+                    responseType: "json",
+                    cacheBust: true
+                }).then(response => {
+                    console.log("🚀 Full Vehicle Data Response:", response);
 
-    esriRequest(`https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/PlowSnaps4/FeatureServer/0/query?_ts=${cacheBuster}`, {
-        query: {
-            where: "1=1", // Fetch all data
-            outFields: "objectid,directionDegrees,vehicle_number,speedKmph,longitude,latitude,updateUTC",
-            orderByFields: "vehicle_number ASC, updateUTC DESC",
-            resultRecordCount: 5000,
-            f: "geojson"
-        },
-        responseType: "json",
-        cacheBust: true
-    }).then(response => {
-        console.log("🚀 Full Vehicle Data Response:", response);
+                    const vehicles = response.data.features;
 
-        const vehicles = response.data.features;
+                    if (!vehicles || vehicles.length === 0) {
+                        logMessage("⚠️ No vehicles found.");
+                        return;
+                    }
 
-        if (!vehicles || vehicles.length === 0) {
-            logMessage("⚠️ No vehicles found.");
-            return;
-        }
+                    const vehicleGroups = {};
+                    vehicles.forEach(vehicle => {
+                        const vehicleId = vehicle.properties.vehicle_number;
+                        if (!vehicleGroups[vehicleId]) {
+                            vehicleGroups[vehicleId] = [];
+                        }
+                        vehicleGroups[vehicleId].push(vehicle);
+                    });
 
-        const vehicleGroups = {};
-        vehicles.forEach(vehicle => {
-            const vehicleId = vehicle.properties.vehicle_number;
-            if (!vehicleGroups[vehicleId]) {
-                vehicleGroups[vehicleId] = [];
+                    logMessage(`📡 Vehicles Found: ${Object.keys(vehicleGroups).length}`);
+
+                    Object.keys(vehicleGroups).forEach(vehicleId => {
+                        const sortedVehicles = vehicleGroups[vehicleId].sort((a, b) =>
+                            a.properties.updateUTC - b.properties.updateUTC
+                        );
+
+                        const latestVehicles = sortedVehicles.slice(-6); // Keep last 6
+                        const latestTimestamp = latestVehicles[latestVehicles.length - 1].properties.updateUTC;
+
+                        logMessage(`🕒 Vehicle ${vehicleId} Last Update: ${new Date(latestTimestamp).toISOString()}`);
+
+                        if (!vehicleModels[vehicleId]) {
+                            let markerElement = createVehicleMarker(vehicleId.slice(-4));
+                            vehicleModels[vehicleId] = {
+                                positions: [],
+                                markerElement: markerElement,
+                                marker: new mapboxgl.Marker({ element: markerElement })
+                                    .setLngLat([latestVehicles[0].geometry.coordinates[0], latestVehicles[0].geometry.coordinates[1]])
+                                    .addTo(map),
+                                animating: false,
+                                currentPositionIndex: 0,
+                                velocityBuffer: [],
+                                lastTimestamp: 0
+                            };
+                            markerElement.style.display = 'none';
+                        }
+
+                        const vehicleData = vehicleModels[vehicleId];
+
+                        if (latestTimestamp < fifteenMinutesAgo) {
+                            if (vehicleData.marker) {
+                                logMessage(`❌ Removing Vehicle ${vehicleId} — Inactive for 15+ mins`);
+                                vehicleData.marker.remove();
+                                vehicleData.marker = null;
+                            }
+                            return;
+                        }
+
+                        if (!vehicleData.marker) {
+                            vehicleData.marker = new mapboxgl.Marker({ element: vehicleData.markerElement })
+                                .setLngLat([latestVehicles[0].geometry.coordinates[0], latestVehicles[0].geometry.coordinates[1]])
+                                .addTo(map);
+                            logMessage(`✅ Re-adding Vehicle ${vehicleId} — New location received`);
+                        }
+
+                        if (latestTimestamp !== vehicleData.lastTimestamp) {
+                            vehicleData.lastTimestamp = latestTimestamp;
+
+                            vehicleData.positions = latestVehicles.map(v => ({
+                                lng: v.geometry.coordinates[0],
+                                lat: v.geometry.coordinates[1],
+                                timestamp: v.properties.updateUTC, // Direct timestamp usage
+                                speedKmph: v.properties.speedKmph || 30
+                            }));
+
+                            logMessage(`🚗 Vehicle ${vehicleId} | Updated Positions: ${vehicleData.positions.length}`);
+
+                            if (!vehicleData.animating && vehicleData.positions.length >= 2) {
+                                vehicleData.animating = true;
+                                vehicleData.markerElement.style.display = 'block';
+                                animateBetweenPositions(vehicleData);
+                            }
+                        } else {
+                            logMessage(`⏸️ Vehicle ${vehicleId} — No new data, skipping animation`);
+                        }
+                    });
+                }).catch(error => {
+                    logMessage("❌ Error fetching vehicle data: " + error, true);
+                });
             }
-            vehicleGroups[vehicleId].push(vehicle);
-        });
-
-        logMessage(`📡 Vehicles Found: ${Object.keys(vehicleGroups).length}`);
-
-        Object.keys(vehicleGroups).forEach(vehicleId => {
-            const sortedVehicles = vehicleGroups[vehicleId].sort((a, b) =>
-                new Date(a.properties.updateUTC) - new Date(b.properties.updateUTC)
-            );
-
-            const latestVehicles = sortedVehicles.slice(-6); // Keep last 6
-            const latestTimestamp = new Date(latestVehicles[latestVehicles.length - 1].properties.updateUTC).getTime();
-
-            logMessage(`🕒 Vehicle ${vehicleId} Last Update: ${new Date(latestTimestamp).toISOString()}`);
-
-            // Check if vehicle already exists
-            if (!vehicleModels[vehicleId]) {
-                let markerElement = createVehicleMarker(vehicleId.slice(-4));
-                vehicleModels[vehicleId] = {
-                    positions: [],
-                    markerElement: markerElement,
-                    marker: new mapboxgl.Marker({ element: markerElement })
-                        .setLngLat([latestVehicles[0].geometry.coordinates[0], latestVehicles[0].geometry.coordinates[1]])
-                        .addTo(map),
-                    animating: false,
-                    currentPositionIndex: 0,
-                    velocityBuffer: [],
-                    lastTimestamp: 0
-                };
-                markerElement.style.display = 'none';
-            }
-
-            const vehicleData = vehicleModels[vehicleId];
-
-            // Apply 15-minute inactivity check client-side
-            if (latestTimestamp < fifteenMinutesAgo) {
-                if (vehicleData.marker) {
-                    logMessage(`❌ Removing Vehicle ${vehicleId} — Inactive for 15+ mins`);
-                    vehicleData.marker.remove();
-                    vehicleData.marker = null; // Clear marker
-                }
-                return; // Skip animation for inactive vehicles
-            }
-
-            // Re-add vehicle if it was previously removed
-            if (!vehicleData.marker) {
-                vehicleData.marker = new mapboxgl.Marker({ element: vehicleData.markerElement })
-                    .setLngLat([latestVehicles[0].geometry.coordinates[0], latestVehicles[0].geometry.coordinates[1]])
-                    .addTo(map);
-                logMessage(`✅ Re-adding Vehicle ${vehicleId} — New location received`);
-            }
-
-            // Update timestamp if new data arrived
-            if (latestTimestamp !== vehicleData.lastTimestamp) {
-                vehicleData.lastTimestamp = latestTimestamp;
-
-                vehicleData.positions = latestVehicles.map(v => ({
-                    lng: v.geometry.coordinates[0],
-                    lat: v.geometry.coordinates[1],
-                    timestamp: new Date(v.properties.updateUTC).getTime(),
-                    speedKmph: v.properties.speedKmph || 30
-                }));
-
-                logMessage(`🚗 Vehicle ${vehicleId} | Updated Positions: ${vehicleData.positions.length}`);
-
-                if (!vehicleData.animating && vehicleData.positions.length >= 2) {
-                    vehicleData.animating = true;
-                    vehicleData.markerElement.style.display = 'block';
-                    animateBetweenPositions(vehicleData);
-                }
-            } else {
-                logMessage(`⏸️ Vehicle ${vehicleId} — No new data, skipping animation`);
-            }
-        });
-    }).catch(error => {
-        logMessage("❌ Error fetching vehicle data: " + error, true);
-    });
-}
 
             function createVehicleMarker(lastFourDigits) {
                 let markerDiv = document.createElement('div');
@@ -254,21 +249,14 @@
 
                 duration = (distance / cappedSpeed) * 3600000;
 
-                getMapboxRoute(start, end, (route) => {
-                    if (!route || route.length === 0) {
-                        logMessage(`⚠️ No route found for vehicle ${vehicle.vehicle_number}. Using straight line.`, true);
-                        route = [start, end];
+                smoothAnimateRoute(vehicle, [start, end], duration, () => {
+                    vehicle.currentPositionIndex++;
+
+                    if (vehicle.currentPositionIndex < positions.length - 1) {
+                        animateBetweenPositions(vehicle);
+                    } else {
+                        vehicle.animating = false;
                     }
-
-                    smoothAnimateRoute(vehicle, route, duration, () => {
-                        vehicle.currentPositionIndex++;
-
-                        if (vehicle.currentPositionIndex < positions.length - 1) {
-                            animateBetweenPositions(vehicle);
-                        } else {
-                            vehicle.animating = false;
-                        }
-                    });
                 });
             }
 
@@ -295,23 +283,6 @@
                 }
 
                 requestAnimationFrame(step);
-            }
-
-            function interpolateRoute(route, t) {
-                const total = route.length - 1;
-                const scaledT = t * total;
-                const idx = Math.floor(scaledT);
-                const frac = scaledT - idx;
-
-                if (idx >= total) return route[total];
-
-                const p1 = route[idx];
-                const p2 = route[idx + 1];
-
-                return {
-                    lng: p1.lng + (p2.lng - p1.lng) * frac,
-                    lat: p1.lat + (p2.lat - p1.lat) * frac
-                };
             }
 
             function getMapboxRoute(start, end, callback) {
@@ -348,6 +319,23 @@
                         logMessage(`❌ Error fetching Mapbox route: ${error}`, true);
                         callback([]);
                     });
+            }
+            
+            function interpolateRoute(route, t) {
+                const total = route.length - 1;
+                const scaledT = t * total;
+                const idx = Math.floor(scaledT);
+                const frac = scaledT - idx;
+
+                if (idx >= total) return route[total];
+
+                const p1 = route[idx];
+                const p2 = route[idx + 1];
+
+                return {
+                    lng: p1.lng + (p2.lng - p1.lng) * frac,
+                    lat: p1.lat + (p2.lat - p1.lat) * frac
+                };
             }
 
             function calculateDistance(point1, point2) {
