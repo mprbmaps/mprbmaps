@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smoother Real-Time Vehicle Animation</title>
+    <title>Ultra-Smooth Vehicle Animation</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -48,7 +48,7 @@
         const REFRESH_INTERVAL = 10000; // 10 seconds
         const POSITION_BUFFER = 10;
         const routeCache = {};
-        const MAX_LAG = 5000; // Max allowable lag in ms before skipping ahead
+        const MAX_LAG = 5000; // Maximum lag before skipping ahead
 
         function logMessage(msg, isError = false) {
             const timestamp = new Date().toISOString();
@@ -159,7 +159,6 @@
                                 animateBetweenPositions(vehicleData);
                             }
                         } else {
-                            // Queue new data during ongoing animations
                             vehicleData.queuedPositions.push({
                                 lng: vehicle.geometry.coordinates[0],
                                 lat: vehicle.geometry.coordinates[1],
@@ -203,7 +202,6 @@
                     smoothAnimateRoute(vehicle, route, timeDiff, () => {
                         vehicle.currentPositionIndex++;
 
-                        // Apply queued positions if they exist
                         if (vehicle.queuedPositions.length > 0) {
                             vehicle.positions.push(...vehicle.queuedPositions);
                             vehicle.queuedPositions = [];
@@ -220,20 +218,19 @@
 
             function smoothAnimateRoute(vehicle, route, duration, callback) {
                 let startTime = null;
-                const totalSteps = route.length * 10; // Densify
+                const totalSteps = route.length * 15; // Increase density
 
                 function step(timestamp) {
                     if (!startTime) startTime = timestamp;
                     const elapsed = timestamp - startTime;
                     const t = Math.min(elapsed / duration, 1);
-                    const easedT = easeInOutCubic(t);
+                    const easedT = easeInOutSine(t);
 
                     const index = Math.floor(easedT * (totalSteps - 1));
                     const interpolatedPoint = interpolateRoute(route, index / totalSteps);
 
                     vehicle.marker.setLngLat([interpolatedPoint.lng, interpolatedPoint.lat]);
 
-                    // Skip ahead if lag is too large
                     if (elapsed - duration > MAX_LAG) {
                         callback();
                         return;
@@ -297,8 +294,8 @@
                     });
             }
 
-            function easeInOutCubic(t) {
-                return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            function easeInOutSine(t) {
+                return -(Math.cos(Math.PI * t) - 1) / 2;
             }
         });
     }
