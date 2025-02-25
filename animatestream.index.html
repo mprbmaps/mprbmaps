@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vehicle Animation with Mapbox Routing (Corrected)</title>
+    <title>Vehicle Animation with Distance Control</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -48,6 +48,7 @@
         const REFRESH_INTERVAL = 10000; // 10 seconds
         const GLOBAL_FRAME_RATE = 1000 / 30; // 30 FPS
         const MAX_CACHE_SIZE = 500;
+        const MAX_DISTANCE_THRESHOLD = 1.0; // 1 km max for a single jump
         const routeCache = {};
         let globalTime = Date.now(); // Global clock
 
@@ -219,27 +220,33 @@
                 for (let i = 0; i < vehicle.positions.length - 1; i++) {
                     const start = vehicle.positions[i];
                     const end = vehicle.positions[i + 1];
-                    const routeKey = `${start.lng},${start.lat}-${end.lng},${end.lat}`;
+                    const distance = calculateDistance(start, end);
 
-                    if (!vehicle.completedRoutes.has(routeKey)) {
-                        getMapboxRoute(start, end, (route) => {
-                            if (!route || route.length === 0) {
-                                logMessage(`⚠️ No route found for vehicle. Using straight line.`);
-                                route = [start, end];
-                            }
-
-                            vehicle.route = route;
-                            vehicle.routeIndex = 0;
-                            vehicle.completedRoutes.add(routeKey);
-                        });
-                        break; // Only process one segment at a time
+                    if (distance > MAX_DISTANCE_THRESHOLD) {
+                        logMessage(`⚠️ Skipping large jump for vehicle (${distance.toFixed(2)} km)`);
+                        continue;
                     }
+
+                    getMapboxRoute(start, end, (route) => {
+                        if (!route || route.length === 0) {
+                            logMessage(`⚠️ No route found. Using straight line.`);
+                            route = [start, end];
+                        }
+
+                        vehicle.route = route;
+                        vehicle.routeIndex = 0;
+                    });
                 }
             }
 
             function smoothAnimateRoute(vehicle, route, callback) {
                 let startTime = null;
-                const duration = 3000; // 3 seconds for each segment
+                const totalDistance = route.reduce((acc, curr, idx, arr) => {
+                    if (idx === 0) return acc;
+                    return acc + calculateDistance(arr[idx - 1], curr);
+                }, 0);
+
+                const duration = totalDistance * 2000; // Duration proportional to distance
 
                 function step(timestamp) {
                     if (!startTime) startTime = timestamp;
@@ -260,6 +267,17 @@
                 }
 
                 requestAnimationFrame(step);
+            }
+
+            function calculateDistance(point1, point2) {
+                const R = 6371; // Earth's radius in km
+                const dLat = (point2.lat - point1.lat) * Math.PI / 180;
+                const dLon = (point2.lng - point1.lng) * Math.PI / 180;
+                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(point1.lat * Math.PI / 180) * Math.cos(point2.lat * Math.PI / 180) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                return R * c;
             }
 
             function getMapboxRoute(start, end, callback) {
@@ -298,17 +316,6 @@
                     });
             }
 
-            function calculateDistance(point1, point2) {
-                const R = 6371;
-                const dLat = (point2.lat - point1.lat) * Math.PI / 180;
-                const dLon = (point2.lng - point1.lng) * Math.PI / 180;
-                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                    Math.cos(point1.lat * Math.PI / 180) * Math.cos(point2.lat * Math.PI / 180) *
-                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                return R * c;
-            }
-            
             function easeInOutCubic(t) {
                 return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
             }
