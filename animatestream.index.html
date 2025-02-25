@@ -114,12 +114,12 @@
             returnGeometry: true,
             resultRecordCount: 1000,
             f: "geojson",
-            _ts: new Date().getTime() // Force cache bust
+            _ts: new Date().getTime() // Bypass cache
         },
         responseType: "json",
-        cacheBust: true // Ensure no cached responses
+        cacheBust: true
     }).then(response => {
-        console.log("🚀 Full Vehicle Data Response:", response); // Debug response
+        console.log("🚀 Full Vehicle Data Response:", response); // Debugging full data response
 
         const vehicles = response.data.features;
 
@@ -128,65 +128,65 @@
             return;
         }
 
+        // Group vehicles by vehicle_number and keep only the latest 6 locations
+        const vehicleGroups = {};
         vehicles.forEach(vehicle => {
             const vehicleId = vehicle.properties.vehicle_number;
-            const updateUTC = new Date(vehicle.properties.updateUTC).getTime();
-            const speedKmph = vehicle.properties.speedKmph || 30;
+            if (!vehicleGroups[vehicleId]) {
+                vehicleGroups[vehicleId] = [];
+            }
+            vehicleGroups[vehicleId].push(vehicle);
+        });
 
-            // Debugging: log each vehicle update
-            logMessage(`📡 Vehicle ${vehicleId} | Time: ${vehicle.properties.updateUTC} | Speed: ${speedKmph}`);
+        // Process each vehicle
+        Object.keys(vehicleGroups).forEach(vehicleId => {
+            const sortedVehicles = vehicleGroups[vehicleId].sort((a, b) =>
+                new Date(b.properties.updateUTC) - new Date(a.properties.updateUTC)
+            );
 
-            // Ensure the vehicle is added or updated
+            // Keep only the latest 6 locations
+            const latestVehicles = sortedVehicles.slice(0, 6);
+
+            latestVehicles.reverse(); // So the oldest is first for smooth animation
+
             if (!vehicleModels[vehicleId]) {
                 let markerElement = createVehicleMarker(vehicleId.slice(-4));
                 vehicleModels[vehicleId] = {
                     positions: [],
-                    speedKmph: speedKmph,
                     markerElement: markerElement,
                     marker: new mapboxgl.Marker({ element: markerElement })
-                        .setLngLat([vehicle.geometry.coordinates[0], vehicle.geometry.coordinates[1]])
+                        .setLngLat([latestVehicles[0].geometry.coordinates[0], latestVehicles[0].geometry.coordinates[1]])
                         .addTo(map),
                     animating: false,
                     currentPositionIndex: 0,
-                    queuedPositions: [],
                     velocityBuffer: []
                 };
                 markerElement.style.display = 'none';
             }
 
             const vehicleData = vehicleModels[vehicleId];
-            const newPoint = {
-                lng: vehicle.geometry.coordinates[0],
-                lat: vehicle.geometry.coordinates[1],
-                timestamp: updateUTC,
-                speedKmph: speedKmph
-            };
 
-            // Only add if the update is new
-            if (!vehicleData.positions.some(pos => pos.timestamp === updateUTC)) {
-                vehicleData.positions.push(newPoint);
-                vehicleData.positions.sort((a, b) => a.timestamp - b.timestamp);
+            // Clear old positions and add the latest 6
+            vehicleData.positions = latestVehicles.map(v => ({
+                lng: v.geometry.coordinates[0],
+                lat: v.geometry.coordinates[1],
+                timestamp: new Date(v.properties.updateUTC).getTime(),
+                speedKmph: v.properties.speedKmph || 30
+            }));
 
-                if (vehicleData.positions.length > POSITION_BUFFER) {
-                    vehicleData.positions = vehicleData.positions.slice(-POSITION_BUFFER);
-                }
+            logMessage(`📡 Vehicle ${vehicleId} latest positions loaded.`);
 
-                // If not currently animating, start animation
-                if (!vehicleData.animating && vehicleData.positions.length >= 2) {
-                    vehicleData.animating = true;
-                    vehicleData.markerElement.style.display = 'block';
-                    animateBetweenPositions(vehicleData);
-                }
-            } else {
-                logMessage(`⚠️ Vehicle ${vehicleId} has no new data.`, true);
+            // Start animation if not already running
+            if (!vehicleData.animating && vehicleData.positions.length >= 2) {
+                vehicleData.animating = true;
+                vehicleData.markerElement.style.display = 'block';
+                animateBetweenPositions(vehicleData);
             }
         });
     }).catch(error => {
         logMessage("❌ Error fetching vehicle data: " + error, true);
     });
 }
-
-
 
             function handleVehicleUpdate(vehicle) {
                 const vehicleId = vehicle.properties.vehicle_number;
