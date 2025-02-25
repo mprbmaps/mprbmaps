@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultra-Smooth Vehicle Animation (Dynamic Smoothing)</title>
+    <title>Ultra-Smooth Vehicle Animation (Advanced Smoothing)</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -46,10 +46,13 @@
         let map, esriRequest;
         let vehicleModels = {};
         const REFRESH_INTERVAL = 10000; // 10 seconds
-        const POSITION_BUFFER = 10;
+        const POSITION_BUFFER = 20;
         const routeCache = {};
         const MAX_LAG = 8000; // Lag threshold
         const MAX_CACHE_SIZE = 500; // Limit for cached routes
+        const SPEED_CAP = 120; // Max vehicle speed in km/h for animation
+
+        let globalClock = 0;
 
         function logMessage(msg, isError = false) {
             const timestamp = new Date().toISOString();
@@ -96,7 +99,16 @@
                     logMessage("✅ Map Style Loaded!");
                     loadVehicleData();
                     setInterval(loadVehicleData, REFRESH_INTERVAL);
+                    startGlobalClock();
                 });
+            }
+
+            function startGlobalClock() {
+                function tick() {
+                    globalClock += 100; // Increment global clock
+                    requestAnimationFrame(tick);
+                }
+                requestAnimationFrame(tick);
             }
 
             function loadVehicleData() {
@@ -121,7 +133,7 @@
                     vehicles.forEach(vehicle => {
                         const vehicleId = vehicle.properties.vehicle_number;
                         const updateUTC = new Date(vehicle.properties.updateUTC).getTime();
-                        const speedKmph = vehicle.properties.speedKmph || 30; // Default to 30 km/h if missing
+                        const speedKmph = vehicle.properties.speedKmph || 30;
 
                         if (!vehicleModels[vehicleId]) {
                             let markerElement = createVehicleMarker(vehicleId.slice(-4));
@@ -134,7 +146,8 @@
                                     .addTo(map),
                                 animating: false,
                                 currentPositionIndex: 0,
-                                queuedPositions: []
+                                queuedPositions: [],
+                                historyBuffer: []
                             };
 
                             markerElement.style.display = 'none';
@@ -154,8 +167,6 @@
                             if (vehicleData.positions.length > POSITION_BUFFER) {
                                 vehicleData.positions = vehicleData.positions.slice(-POSITION_BUFFER);
                             }
-
-                            logMessage(`🚚 Vehicle ${vehicleId} now has ${vehicleData.positions.length} positions.`);
 
                             if (!vehicleData.animating && vehicleData.positions.length >= 2) {
                                 vehicleData.animating = true;
@@ -189,42 +200,21 @@
             function animateBetweenPositions(vehicle) {
                 const positions = vehicle.positions;
 
-                if (positions.length < 2) {
-                    logMessage("⚠️ Not enough data points to animate.");
-                    return;
-                }
+                if (positions.length < 2) return;
 
                 const start = positions[vehicle.currentPositionIndex];
                 const end = positions[vehicle.currentPositionIndex + 1];
 
-                // ✅ Calculate distance (km)
-                const distance = calculateDistance(start, end); 
+                const distance = calculateDistance(start, end);
+                const timeDiff = Math.abs(end.timestamp - start.timestamp);
+                const speed = Math.min(distance / (timeDiff / 3600000), SPEED_CAP);
 
-                // ✅ Dynamic Threshold Based on Speed
-                const dynamicThreshold = (start.speedKmph || 30) / 10; // Example: 30km/h -> 3m tolerance
-
-                // ✅ Ignore Minor Movements
-                if (distance < dynamicThreshold / 1000) {
-                    vehicle.currentPositionIndex++;
-                    animateBetweenPositions(vehicle);
-                    return;
-                }
-
-                // ✅ Calculate time difference from updateUTC
-                const timeDiff = Math.abs(end.timestamp - start.timestamp); 
-
-                // ✅ Duration reflects both distance and time
                 const duration = timeDiff > 0 ? timeDiff : 1000;
 
                 getMapboxRoute(start, end, (route) => {
-                    if (!route || route.length === 0) {
-                        logMessage("⚠️ No route found between points.", true);
-                        return;
-                    }
+                    if (!route || route.length === 0) return;
 
-                    // ✅ Densify Route if Distance is Large
-                    const densifiedRoute = densifyRoute(route, 0.01); // 10m segments
-
+                    const densifiedRoute = densifyRoute(route, 0.01);
                     smoothAnimateRoute(vehicle, densifiedRoute, duration, () => {
                         vehicle.currentPositionIndex++;
 
@@ -256,11 +246,8 @@
                     const interpolatedPoint = interpolateRoute(route, index / totalSteps);
 
                     vehicle.marker.setLngLat([interpolatedPoint.lng, interpolatedPoint.lat]);
-
-                    if (elapsed - duration > MAX_LAG) {
-                        callback();
-                        return;
-                    }
+                    vehicle.historyBuffer.push(interpolatedPoint);
+                    if (vehicle.historyBuffer.length > 5) vehicle.historyBuffer.shift();
 
                     if (t < 1) {
                         requestAnimationFrame(step);
@@ -344,7 +331,7 @@
             }
 
             function calculateDistance(point1, point2) {
-                const R = 6371; // Radius of Earth in km
+                const R = 6371;
                 const dLat = (point2.lat - point1.lat) * Math.PI / 180;
                 const dLon = (point2.lng - point1.lng) * Math.PI / 180;
                 const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
