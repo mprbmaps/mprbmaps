@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (10th to 9th Position Animation)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Fixed Buffer & Deduplication)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -134,6 +134,7 @@
                         return;
                     }
 
+                    // Deduplicate vehicles and build fresh buffers
                     const vehicleGroups = {};
                     vehicles.forEach(vehicle => {
                         const vehicleId = vehicle.properties.vehicle_number;
@@ -150,28 +151,33 @@
                         });
                     });
 
+                    // Update vehicles
                     Object.keys(vehicleGroups).forEach(vehicleId => {
                         const sortedPositions = vehicleGroups[vehicleId].sort((a, b) => a.timestamp - b.timestamp);
                         const buffer = sortedPositions.slice(-POSITION_BUFFER); // Keep last 10 positions
 
-                        let markerElement = createVehicleMarker(vehicleId.slice(-4));
+                        if (!vehicleModels[vehicleId]) {
+                            let markerElement = createVehicleMarker(vehicleId.slice(-4));
+                            vehicleModels[vehicleId] = {
+                                positions: [],
+                                markerElement: markerElement,
+                                marker: new mapboxgl.Marker({ element: markerElement })
+                                    .setLngLat([buffer[0].lng, buffer[0].lat])
+                                    .addTo(map),
+                                animating: false
+                            };
+                        }
 
-                        vehicleModels[vehicleId] = {
-                            positions: buffer,
-                            markerElement: markerElement,
-                            marker: new mapboxgl.Marker({ element: markerElement })
-                                .setLngLat([buffer[0].lng, buffer[0].lat])
-                                .addTo(map),
-                            animating: false
-                        };
+                        // Update the position buffer
+                        vehicleModels[vehicleId].positions = buffer;
 
                         if (buffer.length >= POSITION_BUFFER) {
-                            markerElement.style.display = 'block'; // Show marker
-                            logMessage(`🚀 Vehicle ${vehicleId} starts animating.`);
+                            vehicleModels[vehicleId].markerElement.style.display = 'block';
+                            logMessage(`🚀 Vehicle ${vehicleId} updated and animating.`);
                             animateBetweenPositions(vehicleModels[vehicleId]);
                         } else {
-                            markerElement.style.display = 'none'; // Hide if less than 10 positions
-                            logMessage(`⚠️ Vehicle ${vehicleId} has only ${buffer.length} positions. Waiting for more.`);
+                            vehicleModels[vehicleId].markerElement.style.display = 'none';
+                            logMessage(`⚠️ Vehicle ${vehicleId} has only ${buffer.length} positions.`);
                         }
                     });
                 }).catch(error => {
@@ -211,7 +217,7 @@
                     const timeDiff = ninthPos.timestamp - tenthPos.timestamp || 1000;
 
                     animateAlongRoute(vehicle, route, timeDiff, () => {
-                        // After animation, refresh buffer and re-animate between new 10th and 9th
+                        // After animation, loop back to updated data
                         loadVehicleData();
                     });
                 }).catch(error => {
