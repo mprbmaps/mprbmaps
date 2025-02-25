@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultra-Smooth Vehicle Animation (Optimized)</title>
+    <title>Ultra-Smooth Vehicle Animation (Distance & Time Based)</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -48,7 +48,7 @@
         const REFRESH_INTERVAL = 10000; // 10 seconds
         const POSITION_BUFFER = 10;
         const routeCache = {};
-        const MAX_LAG = 8000; // Increased tolerance for lag before skipping ahead
+        const MAX_LAG = 8000; // Lag threshold
         const MAX_CACHE_SIZE = 500; // Limit for cached routes
 
         function logMessage(msg, isError = false) {
@@ -121,13 +121,11 @@
                     vehicles.forEach(vehicle => {
                         const vehicleId = vehicle.properties.vehicle_number;
                         const updateUTC = new Date(vehicle.properties.updateUTC).getTime();
-                        const speedKmph = vehicle.properties.speedKmph || 30; // Default to 30 km/h if missing
 
                         if (!vehicleModels[vehicleId]) {
                             let markerElement = createVehicleMarker(vehicleId.slice(-4));
                             vehicleModels[vehicleId] = {
                                 positions: [],
-                                speedKmph: speedKmph,
                                 markerElement: markerElement,
                                 marker: new mapboxgl.Marker({ element: markerElement })
                                     .setLngLat([vehicle.geometry.coordinates[0], vehicle.geometry.coordinates[1]])
@@ -146,8 +144,7 @@
                             vehicleData.positions.push({
                                 lng: vehicle.geometry.coordinates[0],
                                 lat: vehicle.geometry.coordinates[1],
-                                timestamp: updateUTC,
-                                speedKmph: speedKmph
+                                timestamp: updateUTC
                             });
 
                             vehicleData.positions.sort((a, b) => a.timestamp - b.timestamp);
@@ -166,8 +163,7 @@
                             vehicleData.queuedPositions.push({
                                 lng: vehicle.geometry.coordinates[0],
                                 lat: vehicle.geometry.coordinates[1],
-                                timestamp: updateUTC,
-                                speedKmph: speedKmph
+                                timestamp: updateUTC
                             });
                         }
                     });
@@ -196,9 +192,15 @@
 
                 const start = positions[vehicle.currentPositionIndex];
                 const end = positions[vehicle.currentPositionIndex + 1];
-                const distance = calculateDistance(start, end);
-                const speed = start.speedKmph || 30;
-                const duration = (distance / speed) * 3600 * 1000; // Convert km/h to ms
+
+                // ✅ Calculate distance (km) using Haversine formula
+                const distance = calculateDistance(start, end); 
+
+                // ✅ Calculate time difference from updateUTC
+                const timeDiff = Math.abs(end.timestamp - start.timestamp); 
+
+                // ✅ Duration reflects both distance and time
+                const duration = timeDiff > 0 ? timeDiff : 1000; // Fallback to 1 sec if same timestamp
 
                 getMapboxRoute(start, end, (route) => {
                     if (!route || route.length === 0) {
