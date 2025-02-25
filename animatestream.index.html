@@ -105,9 +105,9 @@
     logMessage("🔄 Fetching vehicle data...");
     const cacheBuster = new Date().getTime();
 
-    // Get current time minus 1 hour
+    // Get current time minus 1 hour for API filtering
     const oneHourAgo = new Date(Date.now() - 3600000).toISOString().replace('T', ' ').split('.')[0];
-    const fifteenMinutesAgo = Date.now() - (15 * 60 * 1000); // 15 minutes in ms
+    const fifteenMinutesAgo = Date.now() - (15 * 60 * 1000); // 15 minutes ago in ms
 
     esriRequest(`https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/PlowSnaps4/FeatureServer/0/query?_ts=${cacheBuster}`, {
         query: {
@@ -147,6 +147,8 @@
 
             const latestVehicles = sortedVehicles.slice(-6); // Keep last 6
             const latestTimestamp = new Date(latestVehicles[latestVehicles.length - 1].properties.updateUTC).getTime();
+
+            logMessage(`🕒 Vehicle ${vehicleId} Last Update: ${new Date(latestTimestamp).toISOString()}`);
 
             // Check if vehicle already exists
             if (!vehicleModels[vehicleId]) {
@@ -212,6 +214,7 @@
         logMessage("❌ Error fetching vehicle data: " + error, true);
     });
 }
+
             function createVehicleMarker(lastFourDigits) {
                 let markerDiv = document.createElement('div');
                 markerDiv.className = 'vehicle-marker';
