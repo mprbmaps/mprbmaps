@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultra-Smooth Vehicle Animation (Distance & Time Based)</title>
+    <title>Ultra-Smooth Vehicle Animation (Jump-Free)</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -50,6 +50,7 @@
         const routeCache = {};
         const MAX_LAG = 8000; // Lag threshold
         const MAX_CACHE_SIZE = 500; // Limit for cached routes
+        const MIN_DISTANCE_THRESHOLD = 0.005; // 5 meters
 
         function logMessage(msg, isError = false) {
             const timestamp = new Date().toISOString();
@@ -196,6 +197,13 @@
                 // ✅ Calculate distance (km) using Haversine formula
                 const distance = calculateDistance(start, end); 
 
+                // ✅ Filter out tiny jumps
+                if (distance < MIN_DISTANCE_THRESHOLD) {
+                    vehicle.currentPositionIndex++;
+                    animateBetweenPositions(vehicle);
+                    return;
+                }
+
                 // ✅ Calculate time difference from updateUTC
                 const timeDiff = Math.abs(end.timestamp - start.timestamp); 
 
@@ -233,7 +241,7 @@
                     if (!startTime) startTime = timestamp;
                     const elapsed = timestamp - startTime;
                     const t = Math.min(elapsed / duration, 1);
-                    const easedT = easeInOutSine(t);
+                    const easedT = easeInOutCubic(t);
 
                     const index = Math.floor(easedT * (totalSteps - 1));
                     const interpolatedPoint = interpolateRoute(route, index / totalSteps);
@@ -319,8 +327,8 @@
                 return R * c; // Distance in km
             }
 
-            function easeInOutSine(t) {
-                return -(Math.cos(Math.PI * t) - 1) / 2;
+            function easeInOutCubic(t) {
+                return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
             }
         });
     }
