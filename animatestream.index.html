@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultra-Smooth Vehicle Animation (Advanced Smoothing)</title>
+    <title>Ultra-Smooth Vehicle Animation (Update Logging)</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -45,14 +45,13 @@
 
         let map, esriRequest;
         let vehicleModels = {};
+        let vehicleUpdateLog = {}; // Stores vehicle update frequency data
         const REFRESH_INTERVAL = 10000; // 10 seconds
         const POSITION_BUFFER = 20;
         const routeCache = {};
         const MAX_LAG = 8000; // Lag threshold
         const MAX_CACHE_SIZE = 500; // Limit for cached routes
         const SPEED_CAP = 120; // Max vehicle speed in km/h for animation
-
-        let globalClock = 0;
 
         function logMessage(msg, isError = false) {
             const timestamp = new Date().toISOString();
@@ -99,16 +98,7 @@
                     logMessage("✅ Map Style Loaded!");
                     loadVehicleData();
                     setInterval(loadVehicleData, REFRESH_INTERVAL);
-                    startGlobalClock();
                 });
-            }
-
-            function startGlobalClock() {
-                function tick() {
-                    globalClock += 100; // Increment global clock
-                    requestAnimationFrame(tick);
-                }
-                requestAnimationFrame(tick);
             }
 
             function loadVehicleData() {
@@ -135,6 +125,17 @@
                         const updateUTC = new Date(vehicle.properties.updateUTC).getTime();
                         const speedKmph = vehicle.properties.speedKmph || 30;
 
+                        // Track Update Frequency
+                        if (!vehicleUpdateLog[vehicleId]) {
+                            vehicleUpdateLog[vehicleId] = { lastUpdate: updateUTC, updateCount: 1 };
+                        } else {
+                            let timeSinceLastUpdate = updateUTC - vehicleUpdateLog[vehicleId].lastUpdate;
+                            vehicleUpdateLog[vehicleId].lastUpdate = updateUTC;
+                            vehicleUpdateLog[vehicleId].updateCount += 1;
+
+                            logMessage(`📡 Vehicle ${vehicleId} update received. Time since last update: ${timeSinceLastUpdate} ms. Total updates: ${vehicleUpdateLog[vehicleId].updateCount}`);
+                        }
+
                         if (!vehicleModels[vehicleId]) {
                             let markerElement = createVehicleMarker(vehicleId.slice(-4));
                             vehicleModels[vehicleId] = {
@@ -146,8 +147,7 @@
                                     .addTo(map),
                                 animating: false,
                                 currentPositionIndex: 0,
-                                queuedPositions: [],
-                                historyBuffer: []
+                                queuedPositions: []
                             };
 
                             markerElement.style.display = 'none';
@@ -173,13 +173,6 @@
                                 vehicleData.markerElement.style.display = 'block';
                                 animateBetweenPositions(vehicleData);
                             }
-                        } else {
-                            vehicleData.queuedPositions.push({
-                                lng: vehicle.geometry.coordinates[0],
-                                lat: vehicle.geometry.coordinates[1],
-                                timestamp: updateUTC,
-                                speedKmph: speedKmph
-                            });
                         }
                     });
                 }).catch(error => logMessage("❌ Error fetching vehicle data: " + error, true));
@@ -218,11 +211,6 @@
                     smoothAnimateRoute(vehicle, densifiedRoute, duration, () => {
                         vehicle.currentPositionIndex++;
 
-                        if (vehicle.queuedPositions.length > 0) {
-                            vehicle.positions.push(...vehicle.queuedPositions);
-                            vehicle.queuedPositions = [];
-                        }
-
                         if (vehicle.currentPositionIndex < positions.length - 1) {
                             animateBetweenPositions(vehicle);
                         } else {
@@ -246,8 +234,6 @@
                     const interpolatedPoint = interpolateRoute(route, index / totalSteps);
 
                     vehicle.marker.setLngLat([interpolatedPoint.lng, interpolatedPoint.lat]);
-                    vehicle.historyBuffer.push(interpolatedPoint);
-                    if (vehicle.historyBuffer.length > 5) vehicle.historyBuffer.shift();
 
                     if (t < 1) {
                         requestAnimationFrame(step);
@@ -331,14 +317,14 @@
             }
 
             function calculateDistance(point1, point2) {
-                const R = 6371;
+                const R = 6371; // Radius of the Earth in km
                 const dLat = (point2.lat - point1.lat) * Math.PI / 180;
                 const dLon = (point2.lng - point1.lng) * Math.PI / 180;
                 const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
                     Math.cos(point1.lat * Math.PI / 180) * Math.cos(point2.lat * Math.PI / 180) *
                     Math.sin(dLon / 2) * Math.sin(dLon / 2);
                 const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                return R * c;
+                return R * c; // Distance in km
             }
 
             function easeInOutCubic(t) {
