@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (No Repeat Animations)</title>
+    <title>Mapbox + Threebox 3D Vehicles (No Jump Back)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -164,7 +164,7 @@
                                     .addTo(map),
                                 animating: false,
                                 lastAnimatedTimestamp: null,
-                                lastUpdateTime: null
+                                currentBufferIndex: 0
                             };
                         }
 
@@ -178,7 +178,7 @@
                             if (buffer.length >= POSITION_BUFFER) {
                                 vehicleData.markerElement.style.display = 'block';
                                 logMessage(`🚀 Vehicle ${vehicleId} animating between 10th and 9th.`);
-                                animateBetween10thAnd9th(vehicleData);
+                                animateBetweenPositions(vehicleData);
                             } else {
                                 vehicleData.markerElement.style.display = 'none';
                                 logMessage(`⚠️ Vehicle ${vehicleId} has only ${buffer.length} positions.`);
@@ -204,27 +204,40 @@
                 return markerDiv;
             }
 
-            function animateBetween10thAnd9th(vehicle) {
+            function animateBetweenPositions(vehicle) {
                 const positions = vehicle.positions;
 
                 if (positions.length < 10) {
-                    logMessage("⚠️ Not enough data points to animate between 10th and 9th.");
+                    logMessage("⚠️ Not enough data points to animate.");
                     return;
                 }
 
-                const tenthPos = positions[0];
-                const ninthPos = positions[1];
+                // Always animate between 10th and 9th
+                const startIndex = 0;
+                const endIndex = 1;
 
-                queryStreetsForRoute(tenthPos, ninthPos).then(route => {
+                const startPos = positions[startIndex];
+                const endPos = positions[endIndex];
+
+                queryStreetsForRoute(startPos, endPos).then(route => {
                     if (!route || route.length < 2) {
                         logMessage("⚠️ No valid street route found, defaulting to direct path.");
-                        route = [tenthPos, ninthPos];
+                        route = [startPos, endPos];
                     }
 
-                    const timeDiff = ninthPos.timestamp - tenthPos.timestamp || 1000;
+                    const timeDiff = endPos.timestamp - startPos.timestamp || 1000;
 
                     animateAlongRoute(vehicle, route, timeDiff, () => {
                         logMessage(`✅ Vehicle ${vehicle.markerElement.innerText} completed animation.`);
+                        // After completion, shift the buffer forward
+                        vehicle.positions.shift();
+
+                        // Only continue if there's still enough positions
+                        if (vehicle.positions.length >= 2) {
+                            animateBetweenPositions(vehicle);
+                        } else {
+                            logMessage(`⏸️ Vehicle ${vehicle.markerElement.innerText} waiting for new data.`);
+                        }
                     });
                 }).catch(error => {
                     logMessage(`❌ Error during route animation: ${error}`, true);
