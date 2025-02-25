@@ -105,15 +105,14 @@
     logMessage("🔄 Fetching vehicle data...");
     const cacheBuster = new Date().getTime();
 
-    // Get current time minus 1 hour
-    const oneHourAgo = new Date(Date.now() - 3600000);
+    // Get current time minus 1 hour in UTC
+    const oneHourAgo = new Date(Date.now() - 3600000).toISOString().replace('T', ' ').split('.')[0];
 
-    // Format to 'YYYY-MM-DD HH:MM:SS'
-    const formattedTime = oneHourAgo.toISOString().replace('T', ' ').split('.')[0];
+    logMessage(`🔍 Filtering vehicles updated since: ${oneHourAgo}`);
 
     esriRequest(`https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/PlowSnaps4/FeatureServer/0/query?_ts=${cacheBuster}`, {
         query: {
-            where: `updateUTC >= TIMESTAMP '${formattedTime}'`,
+            where: `updateUTC >= TIMESTAMP '${oneHourAgo}'`,
             outFields: "objectid,directionDegrees,vehicle_number,speedKmph,longitude,latitude,updateUTC",
             orderByFields: "vehicle_number ASC, updateUTC DESC",
             resultRecordCount: 5000,
