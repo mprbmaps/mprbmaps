@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="width=device-width, initial-scale=1.0">
     <title>Mapbox + Threebox 3D Vehicles (Mapbox Routing + ArcGIS Auth)</title>
 
     <!-- ✅ Mapbox GL JS -->
@@ -55,6 +55,8 @@
         let vehicleModels = {};
         const REFRESH_INTERVAL = 10000; // 10 seconds
         const POSITION_BUFFER = 10;
+        let refreshPending = false;
+        const routeCache = {};
 
         function logMessage(msg, isError = false) {
             const timestamp = new Date().toISOString();
@@ -112,6 +114,11 @@
             }
 
             function loadVehicleData() {
+                if (Object.values(vehicleModels).some(v => v.animating)) {
+                    refreshPending = true;
+                    return;
+                }
+
                 logMessage("🔄 Fetching vehicle data...");
                 esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/PlowSnaps4/FeatureServer/0/query", {
                     query: {
@@ -159,7 +166,6 @@
                             });
 
                             vehicleData.positions.sort((a, b) => a.timestamp - b.timestamp);
-
                             if (vehicleData.positions.length > POSITION_BUFFER) {
                                 vehicleData.positions = vehicleData.positions.slice(-POSITION_BUFFER);
                             }
@@ -167,11 +173,17 @@
                             logMessage(`🚚 Vehicle ${vehicleId} now has ${vehicleData.positions.length} positions.`);
 
                             if (!vehicleData.animating && vehicleData.positions.length >= 2) {
+                                vehicleData.animating = true;
                                 vehicleData.markerElement.style.display = 'block';
                                 animateBetweenPositions(vehicleData);
                             }
                         }
                     });
+
+                    if (refreshPending) {
+                        refreshPending = false;
+                        loadVehicleData();
+                    }
                 }).catch(error => logMessage("❌ Error fetching vehicle data: " + error, true));
             }
 
@@ -195,57 +207,59 @@
                     return;
                 }
 
-                const startIdx = vehicle.currentPositionIndex;
-                const endIdx = Math.min(startIdx + 1, positions.length - 1);
+                if (vehicle.currentPositionIndex >= positions.length - 1) {
+                    vehicle.currentPositionIndex = 0; // Reset index after finishing all points
+                }
 
-                const start = positions[startIdx];
-                const end = positions[endIdx];
+                const start = positions[vehicle.currentPositionIndex];
+                const end = positions[vehicle.currentPositionIndex + 1];
                 const timeDiff = Math.max(end.timestamp - start.timestamp, 1000);
 
                 animateVehicleWithMapbox(vehicle, start, end, timeDiff, () => {
-                    vehicle.currentPositionIndex = endIdx;
-
-                    if (vehicle.currentPositionIndex < positions.length - 1) {
-                        animateBetweenPositions(vehicle);
-                    } else {
-                        vehicle.animating = false;
-                    }
+                    vehicle.currentPositionIndex++;
+                    animateBetweenPositions(vehicle);
                 });
             }
 
             function animateVehicleWithMapbox(vehicle, start, end, duration, callback) {
-    getMapboxRoute(start, end, (route) => {
-        if (!route || route.length === 0) {
-            logMessage("⚠️ No route found between points.", true);
-            callback();
-            return;
-        }
+                getMapboxRoute(start, end, (route) => {
+                    if (!route || route.length === 0) {
+                        logMessage("⚠️ No route found between points.", true);
+                        callback();
+                        return;
+                    }
 
-        let startTime = null;
-        const totalSteps = route.length;
+                    let startTime = null;
+                    const totalSteps = route.length;
 
-        function step(timestamp) {
-            if (!startTime) startTime = timestamp;
-            const elapsed = timestamp - startTime;
-            const t = Math.min(elapsed / duration, 1); // Normalized time
-            const easedT = easeInOutCubic(t);
+                    function step(timestamp) {
+                        if (!startTime) startTime = timestamp;
+                        const elapsed = timestamp - startTime;
+                        const t = Math.min(elapsed / duration, 1); // Normalized time
+                        const easedT = easeInOutCubic(t);
 
-            const index = Math.floor(easedT * (totalSteps - 1));
-            vehicle.marker.setLngLat([route[index].lng, route[index].lat]);
+                        const index = Math.floor(easedT * (totalSteps - 1));
+                        vehicle.marker.setLngLat([route[index].lng, route[index].lat]);
 
-            if (t < 1) {
-                requestAnimationFrame(step);
-            } else {
-                callback();
+                        if (t < 1) {
+                            requestAnimationFrame(step);
+                        } else {
+                            callback();
+                        }
+                    }
+
+                    requestAnimationFrame(step);
+                });
             }
-        }
-
-        requestAnimationFrame(step);
-    });
-}
-
 
             function getMapboxRoute(start, end, callback) {
+                const routeKey = `${start.lng},${start.lat}-${end.lng},${end.lat}`;
+
+                if (routeCache[routeKey]) {
+                    callback(routeCache[routeKey]);
+                    return;
+                }
+
                 const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.lng},${start.lat};${end.lng},${end.lat}?geometries=geojson&access_token=${mapboxgl.accessToken}`;
 
                 fetch(url)
@@ -256,6 +270,7 @@
                                 lng: coord[0],
                                 lat: coord[1]
                             }));
+                            routeCache[routeKey] = route; // Cache the route
                             callback(route);
                         } else {
                             console.error("No route found.");
@@ -271,7 +286,6 @@
             function easeInOutCubic(t) {
                 return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
             }
-
         });
     }
 </script>
