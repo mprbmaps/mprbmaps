@@ -249,14 +249,21 @@
 
                 duration = (distance / cappedSpeed) * 3600000;
 
-                smoothAnimateRoute(vehicle, [start, end], duration, () => {
-                    vehicle.currentPositionIndex++;
-
-                    if (vehicle.currentPositionIndex < positions.length - 1) {
-                        animateBetweenPositions(vehicle);
-                    } else {
-                        vehicle.animating = false;
+                getMapboxRoute(start, end, (route) => {
+                    if (!route || route.length === 0) {
+                        logMessage(`❌ No route found for ${vehicle.vehicle_number}. Using straight line.`, true);
+                        route = [start, end];
                     }
+
+                    smoothAnimateRoute(vehicle, route, duration, () => {
+                        vehicle.currentPositionIndex++;
+
+                        if (vehicle.currentPositionIndex < positions.length - 1) {
+                            animateBetweenPositions(vehicle);
+                        } else {
+                            vehicle.animating = false;
+                        }
+                    });
                 });
             }
 
@@ -283,6 +290,23 @@
                 }
 
                 requestAnimationFrame(step);
+            }
+
+            function interpolateRoute(route, t) {
+                const total = route.length - 1;
+                const scaledT = t * total;
+                const idx = Math.floor(scaledT);
+                const frac = scaledT - idx;
+
+                if (idx >= total) return route[total];
+
+                const p1 = route[idx];
+                const p2 = route[idx + 1];
+
+                return {
+                    lng: p1.lng + (p2.lng - p1.lng) * frac,
+                    lat: p1.lat + (p2.lat - p1.lat) * frac
+                };
             }
 
             function getMapboxRoute(start, end, callback) {
@@ -319,23 +343,6 @@
                         logMessage(`❌ Error fetching Mapbox route: ${error}`, true);
                         callback([]);
                     });
-            }
-            
-            function interpolateRoute(route, t) {
-                const total = route.length - 1;
-                const scaledT = t * total;
-                const idx = Math.floor(scaledT);
-                const frac = scaledT - idx;
-
-                if (idx >= total) return route[total];
-
-                const p1 = route[idx];
-                const p2 = route[idx + 1];
-
-                return {
-                    lng: p1.lng + (p2.lng - p1.lng) * frac,
-                    lat: p1.lat + (p2.lat - p1.lat) * frac
-                };
             }
 
             function calculateDistance(point1, point2) {
