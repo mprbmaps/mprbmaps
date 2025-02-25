@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Continuous Buffer Animation)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Street Network Animation)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -52,7 +52,6 @@
         let esriRequest;
         const REFRESH_INTERVAL = 10000; // 10 seconds
         const POSITION_BUFFER = 10;
-        let firstVehicleCentered = false;
 
         function logMessage(msg, isError = false) {
             const timestamp = new Date().toISOString();
@@ -117,7 +116,7 @@
                 }
 
                 logMessage("🔄 Fetching vehicle data...");
-                esriRequest("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/PlowSnapper/FeatureServer/0/query", {
+                esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/PlowSnaps4/FeatureServer/0/query", {
                     query: {
                         where: "1=1",
                         outFields: "objectid,directionDegrees,vehicle_number,speedKmph,longitude,latitude,updateUTC",
@@ -208,14 +207,44 @@
                 const end = positions[endIdx];
                 const timeDiff = Math.max(end.timestamp - start.timestamp, 1000);
 
-                animateAlongRoute(vehicle, [start, end], timeDiff, () => {
-                    vehicle.currentPositionIndex = endIdx;
+                generateRoute(start, end).then(route => {
+                    animateAlongRoute(vehicle, route, timeDiff, () => {
+                        vehicle.currentPositionIndex = endIdx;
 
-                    if (vehicle.currentPositionIndex < positions.length - 1) {
-                        animateBetweenPositions(vehicle);
-                    } else {
-                        vehicle.animating = false;
+                        if (vehicle.currentPositionIndex < positions.length - 1) {
+                            animateBetweenPositions(vehicle);
+                        } else {
+                            vehicle.animating = false;
+                        }
+                    });
+                }).catch(error => logMessage("❌ Error generating route: " + error, true));
+            }
+
+            function generateRoute(start, end) {
+                return esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/MPLS_Centerline2/FeatureServer/0/query", {
+                    query: {
+                        where: "1=1",
+                        geometry: JSON.stringify({
+                            type: "polyline",
+                            paths: [[start.lng, start.lat], [end.lng, end.lat]],
+                            spatialReference: { wkid: 4326 }
+                        }),
+                        geometryType: "esriGeometryPolyline",
+                        spatialRel: "esriSpatialRelIntersects",
+                        outFields: "*",
+                        returnGeometry: true,
+                        f: "json"
+                    },
+                    responseType: "json"
+                }).then(response => {
+                    if (response.data.features.length === 0) {
+                        throw new Error("No route found.");
                     }
+
+                    return response.data.features[0].geometry.paths[0].map(coords => ({
+                        lng: coords[0],
+                        lat: coords[1]
+                    }));
                 });
             }
 
@@ -227,10 +256,10 @@
                     const progress = Math.min(elapsed / duration, 1);
                     const easedProgress = easeInOutCubic(progress);
 
-                    const lng = route[0].lng + (route[1].lng - route[0].lng) * easedProgress;
-                    const lat = route[0].lat + (route[1].lat - route[0].lat) * easedProgress;
+                    const idx = Math.floor(easedProgress * (route.length - 1));
+                    const point = route[idx];
 
-                    vehicle.marker.setLngLat([lng, lat]);
+                    vehicle.marker.setLngLat([point.lng, point.lat]);
 
                     if (progress < 1) {
                         requestAnimationFrame(step);
