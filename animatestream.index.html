@@ -106,25 +106,19 @@
 
             function loadVehicleData() {
     logMessage("🔄 Fetching vehicle data...");
-    esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/PlowSnaps4/FeatureServer/0/query", {
+    const cacheBuster = new Date().getTime(); // Unique timestamp per request
+
+    esriRequest(`https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/PlowSnaps4/FeatureServer/0/query?_ts=${cacheBuster}`, {
         query: {
             where: "1=1",
             outFields: "objectid,directionDegrees,vehicle_number,speedKmph,longitude,latitude,updateUTC",
             orderByFields: "vehicle_number ASC, updateUTC DESC",
-            groupByFieldsForStatistics: "vehicle_number", // Group by vehicle_number
-            outStatistics: JSON.stringify([{
-                statisticType: "max",
-                onStatisticField: "updateUTC",
-                outStatisticFieldName: "latestUpdateUTC"
-            }]),
-            returnGeometry: true,
-            f: "geojson",
-            _ts: new Date().getTime() // Bypass cache
+            f: "geojson"
         },
         responseType: "json",
-        cacheBust: true
+        cacheBust: true // Use esriRequest's built-in cache buster
     }).then(response => {
-        console.log("🚀 Full Vehicle Data Response:", response); // Debugging full data response
+        console.log("🚀 Full Vehicle Data Response:", response);
 
         const vehicles = response.data.features;
 
@@ -133,10 +127,9 @@
             return;
         }
 
-        // Process Each Vehicle with the Most Recent updateUTC
         vehicles.forEach(vehicle => {
             const vehicleId = vehicle.properties.vehicle_number;
-            const updateUTC = new Date(vehicle.properties.latestUpdateUTC || vehicle.properties.updateUTC).getTime();
+            const updateUTC = new Date(vehicle.properties.updateUTC).getTime();
             const speedKmph = vehicle.properties.speedKmph || 30;
 
             logMessage(`📡 Vehicle ${vehicleId} | Latest Time: ${new Date(updateUTC).toISOString()}`);
@@ -157,8 +150,6 @@
             }
 
             const vehicleData = vehicleModels[vehicleId];
-
-            // Replace old positions with the latest data
             vehicleData.positions = [{
                 lng: vehicle.geometry.coordinates[0],
                 lat: vehicle.geometry.coordinates[1],
@@ -176,6 +167,7 @@
         logMessage("❌ Error fetching vehicle data: " + error, true);
     });
 }
+
             function handleVehicleUpdate(vehicle) {
                 const vehicleId = vehicle.properties.vehicle_number;
                 const updateUTC = new Date(vehicle.properties.updateUTC).getTime();
