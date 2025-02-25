@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (10-Second Data Refresh)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Timestamp-Synced Animation)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -52,7 +52,7 @@
         let vehicleModels = {};
         let esriRequest;
         const REFRESH_INTERVAL = 10000; // 10 seconds
-        const POSITION_BUFFER = 20;
+        const POSITION_BUFFER = 10;
         let firstVehicleCentered = false;
         const STREET_LAYER_URL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/MPLS_Centerline2/FeatureServer/0";
 
@@ -154,7 +154,8 @@
                                 marker: new mapboxgl.Marker({ element: markerElement })
                                     .setLngLat([vehicle.geometry.coordinates[0], vehicle.geometry.coordinates[1]])
                                     .addTo(map),
-                                animating: false
+                                animating: false,
+                                lastUpdateUTC: 0
                             };
 
                             markerElement.style.display = 'none';
@@ -173,16 +174,16 @@
                             // Sort buffer by timestamp
                             vehicleData.positions.sort((a, b) => a.timestamp - b.timestamp);
 
-                            // Keep only last 20 positions
+                            // Keep only last 10 positions
                             if (vehicleData.positions.length > POSITION_BUFFER) {
                                 vehicleData.positions = vehicleData.positions.slice(-POSITION_BUFFER);
                             }
 
                             logMessage(`🚚 Vehicle ${vehicleId} now has ${vehicleData.positions.length} positions.`);
 
-                            if (!vehicleData.animating && vehicleData.positions.length >= 20) {
+                            if (!vehicleData.animating && vehicleData.positions.length >= 2) {
                                 vehicleData.markerElement.style.display = 'block';
-                                animateFrom20To2(vehicleData);
+                                animateBetweenPositions(vehicleData);
                             }
 
                             if (!firstVehicleCentered) {
@@ -211,61 +212,22 @@
                 return markerDiv;
             }
 
-            function animateFrom20To2(vehicle) {
+            function animateBetweenPositions(vehicle) {
                 const positions = vehicle.positions;
 
-                if (positions.length < 20) {
+                if (positions.length < 2) {
                     logMessage("⚠️ Not enough data points to animate.");
                     return;
                 }
 
-                const start = positions[0]; // 20th most recent
-                const end = positions[positions.length - 2]; // 2nd most recent
+                const start = positions[0]; // Oldest (10th most recent)
+                const end = positions[positions.length - 1]; // Most recent
 
-                queryStreetsForRoute(start, end).then(route => {
-                    if (!route || route.length < 2) {
-                        logMessage("⚠️ No valid street route found, defaulting to direct path.");
-                        route = [start, end];
-                    }
+                const duration = end.timestamp - start.timestamp || 5000; // Use timestamp diff or default
 
-                    const totalDuration = (end.timestamp - start.timestamp) || 10000; // Use timestamp diff or default
-                    animateAlongRoute(vehicle, route, totalDuration, () => {
-                        vehicle.animating = false;
-                        logMessage(`✅ Vehicle ${vehicle.markerElement.innerText} completed animation.`);
-                    });
-                }).catch(error => {
-                    logMessage(`❌ Error during route animation: ${error}`, true);
-                });
-            }
-
-            function queryStreetsForRoute(start, end) {
-                return new Promise((resolve) => {
-                    esriRequest(STREET_LAYER_URL + "/query", {
-                        query: {
-                            where: "1=1",
-                            geometry: `${start.lng},${start.lat}`,
-                            geometryType: "esriGeometryPoint",
-                            spatialRel: "esriSpatialRelIntersects",
-                            outFields: "*",
-                            returnGeometry: true,
-                            distance: 50,
-                            units: "esriSRUnit_Meter",
-                            f: "json"
-                        },
-                        responseType: "json"
-                    }).then(response => {
-                        const streets = response.data.features;
-                        if (!streets || streets.length === 0) {
-                            resolve(null);
-                            return;
-                        }
-
-                        const closestStreet = streets[0].geometry.paths[0];
-                        resolve(closestStreet);
-                    }).catch(error => {
-                        logMessage(`❌ Street route query failed: ${error}`, true);
-                        resolve(null);
-                    });
+                animateAlongRoute(vehicle, [start, end], duration, () => {
+                    vehicle.animating = false;
+                    logMessage(`✅ Vehicle ${vehicle.markerElement.innerText} completed animation.`);
                 });
             }
 
@@ -277,16 +239,8 @@
                     const progress = Math.min(elapsed / duration, 1);
                     const easedProgress = easeInOutCubic(progress);
 
-                    const interpolatedIndex = easedProgress * (route.length - 1);
-                    const lowerIndex = Math.floor(interpolatedIndex);
-                    const upperIndex = Math.min(lowerIndex + 1, route.length - 1);
-                    const segmentProgress = interpolatedIndex - lowerIndex;
-
-                    const startCoord = route[lowerIndex];
-                    const endCoord = route[upperIndex];
-
-                    const lng = startCoord[0] + (endCoord[0] - startCoord[0]) * segmentProgress;
-                    const lat = startCoord[1] + (endCoord[1] - startCoord[1]) * segmentProgress;
+                    const lng = route[0].lng + (route[1].lng - route[0].lng) * easedProgress;
+                    const lat = route[0].lat + (route[1].lat - route[0].lat) * easedProgress;
 
                     vehicle.marker.setLngLat([lng, lat]);
 
