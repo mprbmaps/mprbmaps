@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Street Network Routing)</title>
+    <title>Mapbox + Threebox 3D Vehicles (10-Position Buffer)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -136,49 +136,49 @@
                         return;
                     }
 
+                    // Group positions by vehicle number
+                    const vehicleGroups = {};
                     vehicles.forEach(vehicle => {
                         const vehicleId = vehicle.properties.vehicle_number;
                         const updateUTC = new Date(vehicle.properties.updateUTC).getTime();
 
-                        if (!vehicleModels[vehicleId]) {
-                            let markerElement = createVehicleMarker(vehicleId.slice(-4));
-                            vehicleModels[vehicleId] = {
-                                positions: [],
-                                markerElement: markerElement,
-                                marker: new mapboxgl.Marker({ element: markerElement })
-                                    .setLngLat([vehicle.geometry.coordinates[0], vehicle.geometry.coordinates[1]])
-                                    .addTo(map),
-                                animating: false,
-                                currentPositionIndex: 0,
-                                lastUpdateUTC: 0
-                            };
-
-                            markerElement.style.display = 'none';
+                        if (!vehicleGroups[vehicleId]) {
+                            vehicleGroups[vehicleId] = [];
                         }
 
-                        const vehicleData = vehicleModels[vehicleId];
+                        vehicleGroups[vehicleId].push({
+                            lng: vehicle.geometry.coordinates[0],
+                            lat: vehicle.geometry.coordinates[1],
+                            timestamp: updateUTC
+                        });
+                    });
 
-                        if (updateUTC - vehicleData.lastUpdateUTC >= UPDATE_THRESHOLD) {
-                            vehicleData.positions.push({
-                                lng: vehicle.geometry.coordinates[0],
-                                lat: vehicle.geometry.coordinates[1],
-                                timestamp: updateUTC
-                            });
+                    // Process each vehicle
+                    Object.keys(vehicleGroups).forEach(vehicleId => {
+                        const sortedPositions = vehicleGroups[vehicleId].sort((a, b) => a.timestamp - b.timestamp);
+                        const buffer = sortedPositions.slice(-POSITION_BUFFER); // Keep last 10 positions
 
-                            vehicleData.lastUpdateUTC = updateUTC;
+                        let markerElement = createVehicleMarker(vehicleId.slice(-4));
 
-                            vehicleData.positions.sort((a, b) => a.timestamp - b.timestamp);
+                        vehicleModels[vehicleId] = {
+                            positions: buffer,
+                            markerElement: markerElement,
+                            marker: new mapboxgl.Marker({ element: markerElement })
+                                .setLngLat([buffer[0].lng, buffer[0].lat]) // Start at first position
+                                .addTo(map),
+                            animating: false,
+                            currentPositionIndex: 0,
+                            lastUpdateUTC: buffer[buffer.length - 1].timestamp
+                        };
 
-                            if (vehicleData.positions.length > POSITION_BUFFER) {
-                                vehicleData.positions = vehicleData.positions.slice(-POSITION_BUFFER);
-                            }
-
-                            logMessage(`🚚 Vehicle ${vehicleId} updated. Positions: ${vehicleData.positions.length}`);
-
-                            if (!vehicleData.animating && vehicleData.positions.length >= 2) {
-                                vehicleData.markerElement.style.display = 'block';
-                                animateBetweenPositions(vehicleData);
-                            }
+                        // Only show marker and animate if 10 positions exist
+                        if (buffer.length >= POSITION_BUFFER) {
+                            markerElement.style.display = 'block'; // Show marker
+                            logMessage(`🚀 Vehicle ${vehicleId} starts animating on load with ${buffer.length} positions.`);
+                            animateBetweenPositions(vehicleModels[vehicleId]);
+                        } else {
+                            markerElement.style.display = 'none'; // Hide if less than 10 positions
+                            logMessage(`⚠️ Vehicle ${vehicleId} has only ${buffer.length} positions. Waiting for more.`);
                         }
                     });
                 }).catch(error => {
