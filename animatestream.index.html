@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Vehicle Animation with Threebox</title>
+    <title>3D Vehicle Animation with Routing</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -34,6 +34,8 @@
         const POSITION_BUFFER = 20;
         const MAX_DISTANCE_THRESHOLD = 0.5;
         const MIN_ANIMATION_DURATION = 2000;
+        const routeCache = {};
+        const MAX_CACHE_SIZE = 500;
 
         require([
             "esri/request",
@@ -161,37 +163,39 @@
                     return;
                 }
 
-                const timeDiff = Math.abs(end.timestamp - start.timestamp);
-                const duration = Math.max(timeDiff, MIN_ANIMATION_DURATION);
+                getMapboxRoute(start, end, (route) => {
+                    if (!route || route.length === 0) return;
 
-                const startLngLat = [start.lng, start.lat];
-                const endLngLat = [end.lng, end.lat];
-
-                animateModel(vehicle.model, startLngLat, endLngLat, duration, () => {
-                    vehicle.currentPositionIndex++;
-                    if (vehicle.currentPositionIndex < vehicle.positions.length - 1) {
-                        animateVehicle(vehicle);
-                    } else {
-                        vehicle.animating = false;
-                    }
+                    smoothAnimateRoute(vehicle, route, MIN_ANIMATION_DURATION, () => {
+                        vehicle.currentPositionIndex++;
+                        if (vehicle.currentPositionIndex < vehicle.positions.length - 1) {
+                            animateVehicle(vehicle);
+                        } else {
+                            vehicle.animating = false;
+                        }
+                    });
                 });
             }
 
-            function animateModel(model, start, end, duration, callback) {
-                const startTime = performance.now();
+            function smoothAnimateRoute(vehicle, route, duration, callback) {
+                let startTime = null;
+                const totalSteps = route.length * 20;
 
                 function step(timestamp) {
+                    if (!startTime) startTime = timestamp;
                     const elapsed = timestamp - startTime;
                     const t = Math.min(elapsed / duration, 1);
 
-                    const lng = start[0] + (end[0] - start[0]) * t;
-                    const lat = start[1] + (end[1] - start[1]) * t;
+                    const index = Math.floor(t * (route.length - 1));
+                    const point = route[index];
 
-                    model.setCoords([lng, lat]);
+                    vehicle.model.setCoords([point.lng, point.lat]);
 
-                    // Calculate heading for rotation
-                    const heading = Math.atan2(end[0] - start[0], end[1] - start[1]);
-                    model.setRotation({ x: 90, y: 0, z: -heading });
+                    if (index + 1 < route.length) {
+                        const nextPoint = route[index + 1];
+                        const heading = Math.atan2(nextPoint.lng - point.lng, nextPoint.lat - point.lat);
+                        vehicle.model.setRotation({ x: 90, y: 0, z: -heading });
+                    }
 
                     if (t < 1) {
                         requestAnimationFrame(step);
@@ -201,6 +205,42 @@
                 }
 
                 requestAnimationFrame(step);
+            }
+
+            function getMapboxRoute(start, end, callback) {
+                const routeKey = `${start.lng},${start.lat}-${end.lng},${end.lat}`;
+
+                if (routeCache[routeKey]) {
+                    callback(routeCache[routeKey]);
+                    return;
+                }
+
+                if (Object.keys(routeCache).length > MAX_CACHE_SIZE) {
+                    const firstKey = Object.keys(routeCache)[0];
+                    delete routeCache[firstKey];
+                }
+
+                const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.lng},${start.lat};${end.lng},${end.lat}?geometries=geojson&steps=true&access_token=${mapboxgl.accessToken}`;
+
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.routes && data.routes.length > 0) {
+                            const route = data.routes[0].geometry.coordinates.map(coord => ({
+                                lng: coord[0],
+                                lat: coord[1]
+                            }));
+                            routeCache[routeKey] = route;
+                            callback(route);
+                        } else {
+                            console.error("No route found.");
+                            callback([]);
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error fetching Mapbox route:", error);
+                        callback([]);
+                    });
             }
 
             function calculateDistance(point1, point2) {
