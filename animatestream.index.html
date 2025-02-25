@@ -20,9 +20,6 @@
     <script src="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.min.js"></script>
     <link href="https://cdn.jsdelivr.net/gh/jscastro76/threebox@v.2.2.2/dist/threebox.css" rel="stylesheet">
 
-    <!-- ✅ Turf.js for Distance Calculations -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
-
     <style>
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
@@ -203,14 +200,7 @@
 
                 const start = positions[startIdx];
                 const end = positions[endIdx];
-                const timeDiff = Math.max(Math.min(end.timestamp - start.timestamp, 5000), 1000); // Normalize time diff
-
-                if (!isValidMovement(start, end)) {
-                    logMessage("⚠️ Ignored unrealistic jump.", true);
-                    vehicle.currentPositionIndex = endIdx;
-                    animateBetweenPositions(vehicle);
-                    return;
-                }
+                const timeDiff = Math.max(end.timestamp - start.timestamp, 1000);
 
                 animateVehicleWithMapbox(vehicle, start, end, timeDiff, () => {
                     vehicle.currentPositionIndex = endIdx;
@@ -226,8 +216,9 @@
             function animateVehicleWithMapbox(vehicle, start, end, duration, callback) {
                 getMapboxRoute(start, end, (route) => {
                     if (!route || route.length === 0) {
-                        logMessage("⚠️ No route found. Using straight line.");
-                        route = [start, end];
+                        logMessage("⚠️ No route found between points.", true);
+                        callback();
+                        return;
                     }
 
                     let index = 0;
@@ -261,23 +252,14 @@
                             }));
                             callback(route);
                         } else {
-                            logMessage("⚠️ No valid route found.", true);
+                            console.error("No route found.");
                             callback([]);
                         }
                     })
                     .catch(error => {
-                        logMessage("❌ Error fetching Mapbox route: " + error, true);
+                        console.error("Error fetching Mapbox route:", error);
                         callback([]);
                     });
-            }
-
-            function isValidMovement(start, end) {
-                const distance = turf.distance(
-                    [start.lng, start.lat],
-                    [end.lng, end.lat],
-                    { units: 'kilometers' }
-                );
-                return distance < 5; // Example threshold (5 km)
             }
 
             function easeInOutCubic(t) {
