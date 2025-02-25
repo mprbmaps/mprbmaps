@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vehicle Animation with Last 6 Locations</title>
+    <title>Vehicle Animation with Persistent Buffer</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -51,6 +51,7 @@
         const VELOCITY_SMOOTHING_WINDOW = 5;
         const SPEED_CAP = 120;
         const MAX_CACHE_SIZE = 500;
+        const BUFFER_SIZE = 6; // Maintain a 6-location buffer
         const routeCache = {};
 
         function logMessage(msg, isError = false) {
@@ -116,8 +117,6 @@
                     responseType: "json",
                     cacheBust: true
                 }).then(response => {
-                    console.log("🚀 Full Vehicle Data Response:", response);
-
                     const vehicles = response.data.features;
 
                     if (!vehicles || vehicles.length === 0) {
@@ -141,10 +140,8 @@
                             new Date(a.properties.updateUTC) - new Date(b.properties.updateUTC)
                         );
 
-                        const latestVehicles = sortedVehicles.slice(-6); // Keep last 6
+                        const latestVehicles = sortedVehicles.slice(-BUFFER_SIZE); // Keep last 6
                         const latestTimestamp = new Date(latestVehicles[latestVehicles.length - 1].properties.updateUTC).getTime();
-
-                        logMessage(`🕒 Vehicle ${vehicleId} Last Update: ${new Date(latestTimestamp).toISOString()}`);
 
                         if (!vehicleModels[vehicleId]) {
                             let markerElement = createVehicleMarker(vehicleId.slice(-4));
@@ -156,7 +153,6 @@
                                     .addTo(map),
                                 animating: false,
                                 currentPositionIndex: 0,
-                                velocityBuffer: [],
                                 lastTimestamp: 0
                             };
                             markerElement.style.display = 'none';
@@ -164,32 +160,18 @@
 
                         const vehicleData = vehicleModels[vehicleId];
 
-                        if (!vehicleData.marker) {
-                            vehicleData.marker = new mapboxgl.Marker({ element: vehicleData.markerElement })
-                                .setLngLat([latestVehicles[0].geometry.coordinates[0], latestVehicles[0].geometry.coordinates[1]])
-                                .addTo(map);
-                            logMessage(`✅ Re-adding Vehicle ${vehicleId} — New location received`);
-                        }
+                        // Maintain existing buffer and add new points at the end
+                        vehicleData.positions = [...vehicleData.positions, ...latestVehicles.map(v => ({
+                            lng: v.geometry.coordinates[0],
+                            lat: v.geometry.coordinates[1],
+                            timestamp: new Date(v.properties.updateUTC).getTime(),
+                            speedKmph: v.properties.speedKmph || 30
+                        }))].slice(-BUFFER_SIZE);
 
-                        if (latestTimestamp !== vehicleData.lastTimestamp) {
-                            vehicleData.lastTimestamp = latestTimestamp;
-
-                            vehicleData.positions = latestVehicles.map(v => ({
-                                lng: v.geometry.coordinates[0],
-                                lat: v.geometry.coordinates[1],
-                                timestamp: new Date(v.properties.updateUTC).getTime(),
-                                speedKmph: v.properties.speedKmph || 30
-                            }));
-
-                            logMessage(`🚗 Vehicle ${vehicleId} | Updated Positions: ${vehicleData.positions.length}`);
-
-                            if (!vehicleData.animating && vehicleData.positions.length >= 2) {
-                                vehicleData.animating = true;
-                                vehicleData.markerElement.style.display = 'block';
-                                animateBetweenPositions(vehicleData);
-                            }
-                        } else {
-                            logMessage(`⏸️ Vehicle ${vehicleId} — No new data, skipping animation`);
+                        if (!vehicleData.animating && vehicleData.positions.length >= 2) {
+                            vehicleData.animating = true;
+                            vehicleData.markerElement.style.display = 'block';
+                            animateBetweenPositions(vehicleData);
                         }
                     });
                 }).catch(error => {
@@ -215,28 +197,17 @@
                 if (positions.length < 2) return;
 
                 if (vehicle.currentPositionIndex >= positions.length - 1) {
-                    vehicle.animating = false;
-                    logMessage(`⏸️ Vehicle ${vehicle.vehicle_number} — Animation Complete`);
-                    return;
+                    vehicle.currentPositionIndex = 0; // Restart within the buffer
                 }
 
                 const start = positions[vehicle.currentPositionIndex];
                 const end = positions[vehicle.currentPositionIndex + 1];
                 const distance = calculateDistance(start, end);
 
-                if (distance > MAX_DISTANCE_THRESHOLD * 5) {
-                    logMessage(`⚠️ Skipping large jump for vehicle ${vehicle.vehicle_number}: ${distance.toFixed(2)} km`);
-                    vehicle.currentPositionIndex++;
-                    animateBetweenPositions(vehicle);
-                    return;
-                }
-
-                const timeDiff = Math.abs(end.timestamp - start.timestamp);
-                let duration = Math.max(timeDiff, MIN_ANIMATION_DURATION);
+                const duration = Math.max((distance / (start.speedKmph || 30)) * 3600000, MIN_ANIMATION_DURATION);
 
                 getMapboxRoute(start, end, (route) => {
                     if (!route || route.length === 0) {
-                        logMessage(`⚠️ No route found for vehicle ${vehicle.vehicle_number}. Using straight line.`, true);
                         route = [start, end];
                     }
 
@@ -247,7 +218,6 @@
                             animateBetweenPositions(vehicle);
                         } else {
                             vehicle.animating = false;
-                            logMessage(`✅ Vehicle ${vehicle.vehicle_number} completed route`);
                         }
                     });
                 });
@@ -321,7 +291,6 @@
                             routeCache[routeKey] = route;
                             callback(route);
                         } else {
-                            logMessage(`❌ No route found for ${routeKey}`, true);
                             callback([]);
                         }
                     })
