@@ -214,30 +214,36 @@
             }
 
             function animateVehicleWithMapbox(vehicle, start, end, duration, callback) {
-                getMapboxRoute(start, end, (route) => {
-                    if (!route || route.length === 0) {
-                        logMessage("⚠️ No route found between points.", true);
-                        callback();
-                        return;
-                    }
+    getMapboxRoute(start, end, (route) => {
+        if (!route || route.length === 0) {
+            logMessage("⚠️ No route found between points.", true);
+            callback();
+            return;
+        }
 
-                    let index = 0;
-                    const totalSteps = route.length;
-                    const interval = duration / totalSteps;
+        let startTime = null;
+        const totalSteps = route.length;
 
-                    function step() {
-                        if (index < totalSteps) {
-                            vehicle.marker.setLngLat([route[index].lng, route[index].lat]);
-                            index++;
-                            setTimeout(step, interval);
-                        } else {
-                            callback();
-                        }
-                    }
+        function step(timestamp) {
+            if (!startTime) startTime = timestamp;
+            const elapsed = timestamp - startTime;
+            const t = Math.min(elapsed / duration, 1); // Normalized time
+            const easedT = easeInOutCubic(t);
 
-                    step();
-                });
+            const index = Math.floor(easedT * (totalSteps - 1));
+            vehicle.marker.setLngLat([route[index].lng, route[index].lat]);
+
+            if (t < 1) {
+                requestAnimationFrame(step);
+            } else {
+                callback();
             }
+        }
+
+        requestAnimationFrame(step);
+    });
+}
+
 
             function getMapboxRoute(start, end, callback) {
                 const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.lng},${start.lat};${end.lng},${end.lat}?geometries=geojson&access_token=${mapboxgl.accessToken}`;
