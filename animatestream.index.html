@@ -72,7 +72,11 @@
 
                 map.on("style.load", function () {
                     console.log("✅ Map Style Loaded!");
+
+                    // ✅ Initialize Threebox after the style is fully loaded
                     tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
+
+                    // Load vehicle data after Threebox initialization
                     loadVehicleData();
                     setInterval(loadVehicleData, REFRESH_INTERVAL);
                 });
@@ -91,7 +95,10 @@
                     responseType: "json"
                 }).then(response => {
                     const vehicles = response.data.features;
-                    if (!vehicles || vehicles.length === 0) return;
+                    if (!vehicles || vehicles.length === 0) {
+                        console.warn("⚠️ No vehicles found.");
+                        return;
+                    }
 
                     vehicles.forEach(vehicle => {
                         const vehicleId = vehicle.properties.vehicle_number;
@@ -111,11 +118,16 @@
             function loadTruckModel(vehicleId, coordinates, callback) {
                 tb.loadObj({
                     type: 'gltf',
-                    obj: './truck.gltf', // ✅ Corrected file extension
+                    obj: './truck.gltf', // ✅ Corrected path for GLTF
                     scale: 5,
                     rotation: { x: 90, y: 0, z: 0 },
                     anchor: 'center'
                 }, function (model) {
+                    if (!model) {
+                        console.error(`❌ Could not load model for Vehicle ${vehicleId}`);
+                        return;
+                    }
+
                     model.setCoords([coordinates[0], coordinates[1]]);
                     tb.add(model);
 
@@ -163,7 +175,10 @@
                 }
 
                 getMapboxRoute(start, end, (route) => {
-                    if (!route || route.length === 0) return;
+                    if (!route || route.length === 0) {
+                        console.warn("⚠️ No route found for animation.");
+                        return;
+                    }
 
                     smoothAnimateRoute(vehicle, route, MIN_ANIMATION_DURATION, () => {
                         vehicle.currentPositionIndex++;
