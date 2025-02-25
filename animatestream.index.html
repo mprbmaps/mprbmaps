@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Route Error Handling)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Network Distance-Based Animation)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -219,6 +219,10 @@
                             route = [[startPos.lng, startPos.lat], [endPos.lng, endPos.lat]]; // Direct path as fallback
                         }
 
+                        const distance = calculateRouteDistance(route); // Calculate total distance
+                        const speed = distance / (timeDiff / 1000); // Speed in meters per second
+                        logMessage(`🚗 Vehicle ${vehicle.markerElement.innerText} will move ${distance.toFixed(2)} meters at ${speed.toFixed(2)} m/s.`);
+
                         animateAlongRoute(vehicle, route, timeDiff, () => {
                             index++;
                             animateNext();
@@ -305,6 +309,29 @@
 
                 vehicle.animating = true;
                 step();
+            }
+
+            function calculateRouteDistance(route) {
+                let totalDistance = 0;
+                for (let i = 0; i < route.length - 1; i++) {
+                    totalDistance += getDistance(route[i], route[i + 1]);
+                }
+                return totalDistance;
+            }
+
+            function getDistance(coord1, coord2) {
+                const R = 6371e3; // Earth radius in meters
+                const φ1 = coord1[1] * Math.PI / 180;
+                const φ2 = coord2[1] * Math.PI / 180;
+                const Δφ = (coord2[1] - coord1[1]) * Math.PI / 180;
+                const Δλ = (coord2[0] - coord1[0]) * Math.PI / 180;
+
+                const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                          Math.cos(φ1) * Math.cos(φ2) *
+                          Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+                return R * c;
             }
 
             function easeInOutCubic(t) {
