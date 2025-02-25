@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Mapbox Routing Integration)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Mapbox Routing + ArcGIS Auth)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -51,7 +51,7 @@
     window.onload = function () {
         mapboxgl.accessToken = 'pk.eyJ1IjoibW5tYXBwZXIiLCJhIjoiY2xyejk5NjRjMWwzYTJpbzU3aGhsa2tsNSJ9.xx2G54WK6pVlfAeS45gOpA';
 
-        let map, tb;
+        let map, tb, esriRequest;
         let vehicleModels = {};
         const REFRESH_INTERVAL = 10000; // 10 seconds
         const POSITION_BUFFER = 10;
@@ -65,35 +65,66 @@
             }
         }
 
-        function initializeMap() {
-            map = new mapboxgl.Map({
-                container: 'map',
-                style: 'mapbox://styles/mapbox/outdoors-v12',
-                center: [-93.2650, 44.9778],
-                zoom: 11,
-                pitch: 60,
-                bearing: 0,
-                antialias: true
+        require([
+            "esri/request",
+            "esri/identity/OAuthInfo",
+            "esri/identity/IdentityManager"
+        ], function (_esriRequest, OAuthInfo, IdentityManager) {
+            esriRequest = _esriRequest;
+
+            const info = new OAuthInfo({
+                appId: "ti3fi1FqvHE2Hhyw", // 🔑 Replace with your ArcGIS App ID
+                popup: true
             });
 
-            map.on("style.load", function () {
-                logMessage("✅ Map Style Loaded!");
-                tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
-                logMessage("✅ Threebox initialized");
+            IdentityManager.registerOAuthInfos([info]);
 
-                loadVehicleData();
-                setInterval(loadVehicleData, REFRESH_INTERVAL);
-            });
-        }
+            IdentityManager.checkSignInStatus(info.portalUrl + "/sharing")
+                .then(() => {
+                    logMessage("✅ ArcGIS signed in");
+                    initializeMap();
+                })
+                .catch(() => {
+                    IdentityManager.getCredential(info.portalUrl + "/sharing")
+                        .then(() => initializeMap())
+                        .catch(err => logMessage("❌ ArcGIS Login Failed: " + err, true));
+                });
 
-        initializeMap();
+            function initializeMap() {
+                map = new mapboxgl.Map({
+                    container: 'map',
+                    style: 'mapbox://styles/mapbox/outdoors-v12',
+                    center: [-93.2650, 44.9778],
+                    zoom: 11,
+                    pitch: 60,
+                    bearing: 0,
+                    antialias: true
+                });
 
-        function loadVehicleData() {
-            logMessage("🔄 Fetching vehicle data...");
-            fetch("https://us-iot.arcgis.com/usadvanced00/mu31z9haakdc3w69/maps/arcgis/rest/services/PlowSnapper/FeatureServer/0/query?where=1%3D1&outFields=objectid,directionDegrees,vehicle_number,speedKmph,longitude,latitude,updateUTC&orderByFields=vehicle_number%20DESC,%20updateUTC%20DESC&returnGeometry=true&resultRecordCount=1000&f=geojson")
-                .then(response => response.json())
-                .then(data => {
-                    const vehicles = data.features;
+                map.on("style.load", function () {
+                    logMessage("✅ Map Style Loaded!");
+                    tb = new Threebox(map, map.getCanvas().getContext("webgl"), { defaultLights: true });
+                    logMessage("✅ Threebox initialized");
+
+                    loadVehicleData();
+                    setInterval(loadVehicleData, REFRESH_INTERVAL);
+                });
+            }
+
+            function loadVehicleData() {
+                logMessage("🔄 Fetching vehicle data...");
+                esriRequest("https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/PlowSnaps4/FeatureServer/0/query", {
+                    query: {
+                        where: "1=1",
+                        outFields: "objectid,directionDegrees,vehicle_number,speedKmph,longitude,latitude,updateUTC",
+                        orderByFields: "vehicle_number DESC, updateUTC DESC",
+                        returnGeometry: true,
+                        resultRecordCount: 1000,
+                        f: "geojson"
+                    },
+                    responseType: "json"
+                }).then(response => {
+                    const vehicles = response.data.features;
                     if (!vehicles || vehicles.length === 0) {
                         logMessage("⚠️ No vehicles found.");
                         return;
@@ -141,101 +172,101 @@
                             }
                         }
                     });
-                })
-                .catch(error => logMessage("❌ Error fetching vehicle data: " + error, true));
-        }
-
-        function createVehicleMarker(lastFourDigits) {
-            let markerDiv = document.createElement('div');
-            markerDiv.className = 'vehicle-marker';
-
-            let labelDiv = document.createElement('div');
-            labelDiv.className = 'vehicle-label';
-            labelDiv.textContent = lastFourDigits;
-
-            markerDiv.appendChild(labelDiv);
-            return markerDiv;
-        }
-
-        function animateBetweenPositions(vehicle) {
-            const positions = vehicle.positions;
-
-            if (positions.length < 2) {
-                logMessage("⚠️ Not enough data points to animate.");
-                return;
+                }).catch(error => logMessage("❌ Error fetching vehicle data: " + error, true));
             }
 
-            const startIdx = vehicle.currentPositionIndex;
-            const endIdx = Math.min(startIdx + 1, positions.length - 1);
+            function createVehicleMarker(lastFourDigits) {
+                let markerDiv = document.createElement('div');
+                markerDiv.className = 'vehicle-marker';
 
-            const start = positions[startIdx];
-            const end = positions[endIdx];
-            const timeDiff = Math.max(end.timestamp - start.timestamp, 1000);
+                let labelDiv = document.createElement('div');
+                labelDiv.className = 'vehicle-label';
+                labelDiv.textContent = lastFourDigits;
 
-            animateVehicleWithMapbox(vehicle, start, end, timeDiff, () => {
-                vehicle.currentPositionIndex = endIdx;
+                markerDiv.appendChild(labelDiv);
+                return markerDiv;
+            }
 
-                if (vehicle.currentPositionIndex < positions.length - 1) {
-                    animateBetweenPositions(vehicle);
-                } else {
-                    vehicle.animating = false;
-                }
-            });
-        }
+            function animateBetweenPositions(vehicle) {
+                const positions = vehicle.positions;
 
-        function animateVehicleWithMapbox(vehicle, start, end, duration, callback) {
-            getMapboxRoute(start, end, (route) => {
-                if (!route || route.length === 0) {
-                    logMessage("⚠️ No route found between points.", true);
-                    callback();
+                if (positions.length < 2) {
+                    logMessage("⚠️ Not enough data points to animate.");
                     return;
                 }
 
-                let index = 0;
-                const totalSteps = route.length;
-                const interval = duration / totalSteps;
+                const startIdx = vehicle.currentPositionIndex;
+                const endIdx = Math.min(startIdx + 1, positions.length - 1);
 
-                function step() {
-                    if (index < totalSteps) {
-                        vehicle.marker.setLngLat([route[index].lng, route[index].lat]);
-                        index++;
-                        setTimeout(step, interval);
+                const start = positions[startIdx];
+                const end = positions[endIdx];
+                const timeDiff = Math.max(end.timestamp - start.timestamp, 1000);
+
+                animateVehicleWithMapbox(vehicle, start, end, timeDiff, () => {
+                    vehicle.currentPositionIndex = endIdx;
+
+                    if (vehicle.currentPositionIndex < positions.length - 1) {
+                        animateBetweenPositions(vehicle);
                     } else {
-                        callback();
+                        vehicle.animating = false;
                     }
-                }
-
-                step();
-            });
-        }
-
-        function getMapboxRoute(start, end, callback) {
-            const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.lng},${start.lat};${end.lng},${end.lat}?geometries=geojson&access_token=${mapboxgl.accessToken}`;
-
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.routes && data.routes.length > 0) {
-                        const route = data.routes[0].geometry.coordinates.map(coord => ({
-                            lng: coord[0],
-                            lat: coord[1]
-                        }));
-                        callback(route);
-                    } else {
-                        console.error("No route found.");
-                        callback([]);
-                    }
-                })
-                .catch(error => {
-                    console.error("Error fetching Mapbox route:", error);
-                    callback([]);
                 });
-        }
+            }
 
-        function easeInOutCubic(t) {
-            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-        }
+            function animateVehicleWithMapbox(vehicle, start, end, duration, callback) {
+                getMapboxRoute(start, end, (route) => {
+                    if (!route || route.length === 0) {
+                        logMessage("⚠️ No route found between points.", true);
+                        callback();
+                        return;
+                    }
 
+                    let index = 0;
+                    const totalSteps = route.length;
+                    const interval = duration / totalSteps;
+
+                    function step() {
+                        if (index < totalSteps) {
+                            vehicle.marker.setLngLat([route[index].lng, route[index].lat]);
+                            index++;
+                            setTimeout(step, interval);
+                        } else {
+                            callback();
+                        }
+                    }
+
+                    step();
+                });
+            }
+
+            function getMapboxRoute(start, end, callback) {
+                const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.lng},${start.lat};${end.lng},${end.lat}?geometries=geojson&access_token=${mapboxgl.accessToken}`;
+
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.routes && data.routes.length > 0) {
+                            const route = data.routes[0].geometry.coordinates.map(coord => ({
+                                lng: coord[0],
+                                lat: coord[1]
+                            }));
+                            callback(route);
+                        } else {
+                            console.error("No route found.");
+                            callback([]);
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error fetching Mapbox route:", error);
+                        callback([]);
+                    });
+            }
+
+            function easeInOutCubic(t) {
+                return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            }
+
+        });
     }
 </script>
 </body>
