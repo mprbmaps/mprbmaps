@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (Timestamp-Synced Animation)</title>
+    <title>Mapbox + Threebox 3D Vehicles (Street Routing & Smooth Animations)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -154,8 +154,7 @@
                                 marker: new mapboxgl.Marker({ element: markerElement })
                                     .setLngLat([vehicle.geometry.coordinates[0], vehicle.geometry.coordinates[1]])
                                     .addTo(map),
-                                animating: false,
-                                lastUpdateUTC: 0
+                                animating: false
                             };
 
                             markerElement.style.display = 'none';
@@ -223,11 +222,51 @@
                 const start = positions[0]; // Oldest (10th most recent)
                 const end = positions[positions.length - 1]; // Most recent
 
-                const duration = end.timestamp - start.timestamp || 5000; // Use timestamp diff or default
+                queryStreetsForRoute(start, end).then(route => {
+                    if (!route || route.length < 2) {
+                        logMessage("⚠️ No valid street route found, defaulting to direct path.");
+                        route = [start, end];
+                    }
 
-                animateAlongRoute(vehicle, [start, end], duration, () => {
-                    vehicle.animating = false;
-                    logMessage(`✅ Vehicle ${vehicle.markerElement.innerText} completed animation.`);
+                    const duration = end.timestamp - start.timestamp || 5000; // Use timestamp diff or default
+
+                    animateAlongRoute(vehicle, route, duration, () => {
+                        vehicle.animating = false;
+                        logMessage(`✅ Vehicle ${vehicle.markerElement.innerText} completed animation.`);
+                    });
+                }).catch(error => {
+                    logMessage(`❌ Error during route animation: ${error}`, true);
+                });
+            }
+
+            function queryStreetsForRoute(start, end) {
+                return new Promise((resolve) => {
+                    esriRequest(STREET_LAYER_URL + "/query", {
+                        query: {
+                            where: "1=1",
+                            geometry: `${start.lng},${start.lat}`,
+                            geometryType: "esriGeometryPoint",
+                            spatialRel: "esriSpatialRelIntersects",
+                            outFields: "*",
+                            returnGeometry: true,
+                            distance: 50,
+                            units: "esriSRUnit_Meter",
+                            f: "json"
+                        },
+                        responseType: "json"
+                    }).then(response => {
+                        const streets = response.data.features;
+                        if (!streets || streets.length === 0) {
+                            resolve(null);
+                            return;
+                        }
+
+                        const closestStreet = streets[0].geometry.paths[0];
+                        resolve(closestStreet);
+                    }).catch(error => {
+                        logMessage(`❌ Street route query failed: ${error}`, true);
+                        resolve(null);
+                    });
                 });
             }
 
@@ -239,8 +278,16 @@
                     const progress = Math.min(elapsed / duration, 1);
                     const easedProgress = easeInOutCubic(progress);
 
-                    const lng = route[0].lng + (route[1].lng - route[0].lng) * easedProgress;
-                    const lat = route[0].lat + (route[1].lat - route[0].lat) * easedProgress;
+                    const interpolatedIndex = easedProgress * (route.length - 1);
+                    const lowerIndex = Math.floor(interpolatedIndex);
+                    const upperIndex = Math.min(lowerIndex + 1, route.length - 1);
+                    const segmentProgress = interpolatedIndex - lowerIndex;
+
+                    const startCoord = route[lowerIndex];
+                    const endCoord = route[upperIndex];
+
+                    const lng = startCoord[0] + (endCoord[0] - startCoord[0]) * segmentProgress;
+                    const lat = startCoord[1] + (endCoord[1] - startCoord[1]) * segmentProgress;
 
                     vehicle.marker.setLngLat([lng, lat]);
 
