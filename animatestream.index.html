@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapbox + Threebox 3D Vehicles (No Jump Back)</title>
+    <title>Mapbox + Threebox 3D Vehicles (5-Position Buffer)</title>
 
     <!-- ✅ Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -51,7 +51,7 @@
         let vehicleModels = {};
         let esriRequest;
         const REFRESH_INTERVAL = 10000; // 10 seconds
-        const POSITION_BUFFER = 10;
+        const POSITION_BUFFER = 5; // Last 5 positions
         const STREET_LAYER_URL = "https://services6.arcgis.com/MU31z9HAakdc3W69/arcgis/rest/services/MPLS_Centerline2/FeatureServer/0";
 
         function logMessage(msg, isError = false) {
@@ -138,21 +138,28 @@
                     vehicles.forEach(vehicle => {
                         const vehicleId = vehicle.properties.vehicle_number;
                         const updateUTC = new Date(vehicle.properties.updateUTC).getTime();
+                        const lng = vehicle.geometry.coordinates[0];
+                        const lat = vehicle.geometry.coordinates[1];
 
                         if (!vehicleGroups[vehicleId]) {
                             vehicleGroups[vehicleId] = [];
                         }
 
-                        vehicleGroups[vehicleId].push({
-                            lng: vehicle.geometry.coordinates[0],
-                            lat: vehicle.geometry.coordinates[1],
-                            timestamp: updateUTC
-                        });
+                        const lastPos = vehicleGroups[vehicleId][vehicleGroups[vehicleId].length - 1];
+                        if (!lastPos || lastPos.lng !== lng || lastPos.lat !== lat || lastPos.timestamp !== updateUTC) {
+                            vehicleGroups[vehicleId].push({ lng, lat, timestamp: updateUTC });
+
+                            // Maintain only the last 5 positions
+                            if (vehicleGroups[vehicleId].length > POSITION_BUFFER) {
+                                vehicleGroups[vehicleId].shift();
+                            }
+                        } else {
+                            logMessage(`⏸️ Vehicle ${vehicleId} no movement detected, skipping.`);
+                        }
                     });
 
                     Object.keys(vehicleGroups).forEach(vehicleId => {
-                        const sortedPositions = vehicleGroups[vehicleId].sort((a, b) => a.timestamp - b.timestamp);
-                        const buffer = sortedPositions.slice(-POSITION_BUFFER); // Keep last 10 positions
+                        const positions = vehicleGroups[vehicleId];
 
                         if (!vehicleModels[vehicleId]) {
                             let markerElement = createVehicleMarker(vehicleId.slice(-4));
@@ -160,31 +167,19 @@
                                 positions: [],
                                 markerElement: markerElement,
                                 marker: new mapboxgl.Marker({ element: markerElement })
-                                    .setLngLat([buffer[0].lng, buffer[0].lat])
+                                    .setLngLat([positions[0].lng, positions[0].lat])
                                     .addTo(map),
                                 animating: false,
-                                lastAnimatedTimestamp: null,
-                                currentBufferIndex: 0
+                                currentPositionIndex: 0
                             };
                         }
 
                         const vehicleData = vehicleModels[vehicleId];
-                        const latestTimestamp = buffer[buffer.length - 1].timestamp;
+                        vehicleData.positions = positions;
 
-                        if (vehicleData.lastAnimatedTimestamp !== latestTimestamp) {
-                            vehicleData.positions = buffer;
-                            vehicleData.lastAnimatedTimestamp = latestTimestamp;
-
-                            if (buffer.length >= POSITION_BUFFER) {
-                                vehicleData.markerElement.style.display = 'block';
-                                logMessage(`🚀 Vehicle ${vehicleId} animating between 10th and 9th.`);
-                                animateBetweenPositions(vehicleData);
-                            } else {
-                                vehicleData.markerElement.style.display = 'none';
-                                logMessage(`⚠️ Vehicle ${vehicleId} has only ${buffer.length} positions.`);
-                            }
-                        } else {
-                            logMessage(`⏸️ Vehicle ${vehicleId} no new data, remains stationary.`);
+                        if (positions.length === POSITION_BUFFER && !vehicleData.animating) {
+                            logMessage(`🚀 Vehicle ${vehicleId} starting animation.`);
+                            animateThroughPositions(vehicleData);
                         }
                     });
                 }).catch(error => {
@@ -204,44 +199,38 @@
                 return markerDiv;
             }
 
-            function animateBetweenPositions(vehicle) {
+            function animateThroughPositions(vehicle) {
                 const positions = vehicle.positions;
+                let index = 0;
 
-                if (positions.length < 10) {
-                    logMessage("⚠️ Not enough data points to animate.");
-                    return;
-                }
-
-                // Always animate between 10th and 9th
-                const startIndex = 0;
-                const endIndex = 1;
-
-                const startPos = positions[startIndex];
-                const endPos = positions[endIndex];
-
-                queryStreetsForRoute(startPos, endPos).then(route => {
-                    if (!route || route.length < 2) {
-                        logMessage("⚠️ No valid street route found, defaulting to direct path.");
-                        route = [startPos, endPos];
+                function animateNext() {
+                    if (index >= positions.length - 1) {
+                        logMessage(`✅ Vehicle ${vehicle.markerElement.innerText} completed path.`);
+                        vehicle.animating = false;
+                        return;
                     }
 
+                    const startPos = positions[index];
+                    const endPos = positions[index + 1];
                     const timeDiff = endPos.timestamp - startPos.timestamp || 1000;
 
-                    animateAlongRoute(vehicle, route, timeDiff, () => {
-                        logMessage(`✅ Vehicle ${vehicle.markerElement.innerText} completed animation.`);
-                        // After completion, shift the buffer forward
-                        vehicle.positions.shift();
-
-                        // Only continue if there's still enough positions
-                        if (vehicle.positions.length >= 2) {
-                            animateBetweenPositions(vehicle);
-                        } else {
-                            logMessage(`⏸️ Vehicle ${vehicle.markerElement.innerText} waiting for new data.`);
+                    queryStreetsForRoute(startPos, endPos).then(route => {
+                        if (!route || route.length < 2) {
+                            logMessage("⚠️ No valid street route found, defaulting to direct path.");
+                            route = [startPos, endPos];
                         }
+
+                        animateAlongRoute(vehicle, route, timeDiff, () => {
+                            index++;
+                            animateNext();
+                        });
+                    }).catch(error => {
+                        logMessage(`❌ Error during route animation: ${error}`, true);
                     });
-                }).catch(error => {
-                    logMessage(`❌ Error during route animation: ${error}`, true);
-                });
+                }
+
+                vehicle.animating = true;
+                animateNext();
             }
 
             function queryStreetsForRoute(start, end) {
