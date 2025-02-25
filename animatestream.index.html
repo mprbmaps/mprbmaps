@@ -114,12 +114,12 @@
             returnGeometry: true,
             resultRecordCount: 1000,
             f: "geojson",
-            _ts: new Date().getTime() // Bypass cache
+            _ts: new Date().getTime() // Force cache bust
         },
         responseType: "json",
         cacheBust: true // Ensure no cached responses
     }).then(response => {
-        console.log("🚀 Full Vehicle Data Response:", response); // Log full response for debugging
+        console.log("🚀 Full Vehicle Data Response:", response); // Debug response
 
         const vehicles = response.data.features;
 
@@ -133,14 +133,59 @@
             const updateUTC = new Date(vehicle.properties.updateUTC).getTime();
             const speedKmph = vehicle.properties.speedKmph || 30;
 
+            // Debugging: log each vehicle update
             logMessage(`📡 Vehicle ${vehicleId} | Time: ${vehicle.properties.updateUTC} | Speed: ${speedKmph}`);
 
-            handleVehicleUpdate(vehicle);
+            // Ensure the vehicle is added or updated
+            if (!vehicleModels[vehicleId]) {
+                let markerElement = createVehicleMarker(vehicleId.slice(-4));
+                vehicleModels[vehicleId] = {
+                    positions: [],
+                    speedKmph: speedKmph,
+                    markerElement: markerElement,
+                    marker: new mapboxgl.Marker({ element: markerElement })
+                        .setLngLat([vehicle.geometry.coordinates[0], vehicle.geometry.coordinates[1]])
+                        .addTo(map),
+                    animating: false,
+                    currentPositionIndex: 0,
+                    queuedPositions: [],
+                    velocityBuffer: []
+                };
+                markerElement.style.display = 'none';
+            }
+
+            const vehicleData = vehicleModels[vehicleId];
+            const newPoint = {
+                lng: vehicle.geometry.coordinates[0],
+                lat: vehicle.geometry.coordinates[1],
+                timestamp: updateUTC,
+                speedKmph: speedKmph
+            };
+
+            // Only add if the update is new
+            if (!vehicleData.positions.some(pos => pos.timestamp === updateUTC)) {
+                vehicleData.positions.push(newPoint);
+                vehicleData.positions.sort((a, b) => a.timestamp - b.timestamp);
+
+                if (vehicleData.positions.length > POSITION_BUFFER) {
+                    vehicleData.positions = vehicleData.positions.slice(-POSITION_BUFFER);
+                }
+
+                // If not currently animating, start animation
+                if (!vehicleData.animating && vehicleData.positions.length >= 2) {
+                    vehicleData.animating = true;
+                    vehicleData.markerElement.style.display = 'block';
+                    animateBetweenPositions(vehicleData);
+                }
+            } else {
+                logMessage(`⚠️ Vehicle ${vehicleId} has no new data.`, true);
+            }
         });
     }).catch(error => {
         logMessage("❌ Error fetching vehicle data: " + error, true);
     });
 }
+
 
 
             function handleVehicleUpdate(vehicle) {
