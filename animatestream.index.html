@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultra-Smooth Vehicle Animation (Update Logging)</title>
+    <title>Ultra-Smooth Vehicle Animation (Jump-Free)</title>
 
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css" rel="stylesheet">
@@ -45,13 +45,16 @@
 
         let map, esriRequest;
         let vehicleModels = {};
-        let vehicleUpdateLog = {}; // Stores vehicle update frequency data
+        let vehicleUpdateLog = {}; // Tracks update frequency
         const REFRESH_INTERVAL = 10000; // 10 seconds
         const POSITION_BUFFER = 20;
         const routeCache = {};
-        const MAX_LAG = 8000; // Lag threshold
-        const MAX_CACHE_SIZE = 500; // Limit for cached routes
-        const SPEED_CAP = 120; // Max vehicle speed in km/h for animation
+        const MAX_LAG = 8000;
+        const MAX_CACHE_SIZE = 500;
+        const SPEED_CAP = 120; // Max speed (km/h)
+        const MAX_DISTANCE_THRESHOLD = 0.5; // Max distance between points (in km)
+        const MIN_ANIMATION_DURATION = 2000; // Minimum duration for animations (in ms)
+        const VELOCITY_SMOOTHING_WINDOW = 5; // Moving average window size
 
         function logMessage(msg, isError = false) {
             const timestamp = new Date().toISOString();
@@ -147,7 +150,8 @@
                                     .addTo(map),
                                 animating: false,
                                 currentPositionIndex: 0,
-                                queuedPositions: []
+                                queuedPositions: [],
+                                velocityBuffer: []
                             };
 
                             markerElement.style.display = 'none';
@@ -199,16 +203,35 @@
                 const end = positions[vehicle.currentPositionIndex + 1];
 
                 const distance = calculateDistance(start, end);
-                const timeDiff = Math.abs(end.timestamp - start.timestamp);
-                const speed = Math.min(distance / (timeDiff / 3600000), SPEED_CAP);
 
-                const duration = timeDiff > 0 ? timeDiff : 1000;
+                // Skip if distance is too large
+                if (distance > MAX_DISTANCE_THRESHOLD) {
+                    logMessage(`⚠️ Skipping large jump for vehicle ${vehicle.vehicle_number}: ${distance.toFixed(2)} km`);
+                    vehicle.currentPositionIndex++;
+                    animateBetweenPositions(vehicle);
+                    return;
+                }
+
+                const timeDiff = Math.abs(end.timestamp - start.timestamp);
+                let duration = Math.max(timeDiff, MIN_ANIMATION_DURATION);
+
+                // Calculate speed and apply velocity smoothing
+                const rawSpeed = (distance / (timeDiff / 3600000));
+                vehicle.velocityBuffer.push(rawSpeed);
+                if (vehicle.velocityBuffer.length > VELOCITY_SMOOTHING_WINDOW) {
+                    vehicle.velocityBuffer.shift();
+                }
+
+                const smoothedSpeed = vehicle.velocityBuffer.reduce((a, b) => a + b, 0) / vehicle.velocityBuffer.length;
+                const cappedSpeed = Math.min(smoothedSpeed, SPEED_CAP);
+
+                // Adjust duration based on smoothed speed
+                duration = (distance / cappedSpeed) * 3600000;
 
                 getMapboxRoute(start, end, (route) => {
                     if (!route || route.length === 0) return;
 
-                    const densifiedRoute = densifyRoute(route, 0.01);
-                    smoothAnimateRoute(vehicle, densifiedRoute, duration, () => {
+                    smoothAnimateRoute(vehicle, route, duration, () => {
                         vehicle.currentPositionIndex++;
 
                         if (vehicle.currentPositionIndex < positions.length - 1) {
@@ -243,24 +266,6 @@
                 }
 
                 requestAnimationFrame(step);
-            }
-
-            function densifyRoute(route, interval) {
-                const densified = [];
-                for (let i = 0; i < route.length - 1; i++) {
-                    const p1 = route[i];
-                    const p2 = route[i + 1];
-                    const distance = calculateDistance(p1, p2);
-
-                    const steps = Math.ceil(distance / interval);
-                    for (let j = 0; j <= steps; j++) {
-                        densified.push({
-                            lng: p1.lng + (p2.lng - p1.lng) * (j / steps),
-                            lat: p1.lat + (p2.lat - p1.lat) * (j / steps)
-                        });
-                    }
-                }
-                return densified;
             }
 
             function interpolateRoute(route, t) {
@@ -317,14 +322,14 @@
             }
 
             function calculateDistance(point1, point2) {
-                const R = 6371; // Radius of the Earth in km
+                const R = 6371;
                 const dLat = (point2.lat - point1.lat) * Math.PI / 180;
                 const dLon = (point2.lng - point1.lng) * Math.PI / 180;
                 const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
                     Math.cos(point1.lat * Math.PI / 180) * Math.cos(point2.lat * Math.PI / 180) *
                     Math.sin(dLon / 2) * Math.sin(dLon / 2);
                 const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                return R * c; // Distance in km
+                return R * c;
             }
 
             function easeInOutCubic(t) {
